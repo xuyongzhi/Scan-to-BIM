@@ -1,4 +1,6 @@
 # model settings
+# modified: num_classes num_points transform_method
+# pedding: num_outs assigner img_norm_cfg
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 model = dict(
@@ -20,13 +22,13 @@ model = dict(
         num_outs=5,
         norm_cfg=norm_cfg),
     bbox_head=dict(
-        type='RepPointsHead',
-        num_classes=81,
+        type='StrPointsHead',
+        num_classes=2,
         in_channels=256,
         feat_channels=256,
         point_feat_channels=256,
         stacked_convs=3,
-        num_points=2,
+        num_points=9,
         gradient_mul=0.1,
         point_strides=[8, 16, 32, 64, 128],
         point_base_scale=4,
@@ -39,7 +41,7 @@ model = dict(
             loss_weight=1.0),
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
-        transform_method='moment'))
+        transform_method='corner'))
 # training and testing settings
 train_cfg = dict(
     init=dict(
@@ -64,8 +66,8 @@ test_cfg = dict(
     nms=dict(type='nms', iou_thr=0.5),
     max_per_img=100)
 # dataset settings
-dataset_type = 'CocoDataset'
-data_root = 'data/coco/'
+dataset_type = 'BeikeDataset'
+data_root = 'data/beike100/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
@@ -98,18 +100,18 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_train2017.json',
-        img_prefix=data_root + 'train2017/',
+        ann_file=data_root + 'json/',
+        img_prefix=data_root + 'seperate_room_data/train',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_val2017.json',
-        img_prefix=data_root + 'val2017/',
+        ann_file=data_root + 'json/',
+        img_prefix=data_root + 'seperate_room_data/val',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_val2017.json',
-        img_prefix=data_root + 'val2017/',
+        ann_file=data_root + 'json/',
+        img_prefix=data_root + 'seperate_room_data/test',
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
