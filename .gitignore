@@ -118,3 +118,6 @@ work_dirs/
 
 # Pytorch
 *.pth
+
+# vim
+*.swp
