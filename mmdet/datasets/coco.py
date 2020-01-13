@@ -36,6 +36,7 @@ class CocoDataset(CustomDataset):
             info = self.coco.loadImgs([i])[0]
             info['filename'] = info['file_name']
             img_infos.append(info)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return img_infos
 
     def get_ann_info(self, idx):

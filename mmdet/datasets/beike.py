@@ -1,5 +1,5 @@
 import numpy as np
-from pycocotools.coco import COCO
+from beike_data_utils import BEIKE
 
 from .custom import CustomDataset
 from .registry import DATASETS
@@ -10,31 +10,27 @@ class BeikeDataset(CustomDataset):
 
     CLASSES = ( 'wall', 'window', 'door' )
 
-    def load_annotations(self, ann_file):
-        self.coco = COCO(ann_file)
-        self.cat_ids = self.coco.getCatIds()
+    def load_annotations(self, ann_folder):
+        self.beike = BEIKE(ann_folder)
+        self.cat_ids = self.beike.getCatIds()
         self.cat2label = {
             cat_id: i + 1
             for i, cat_id in enumerate(self.cat_ids)
         }
-        self.img_ids = self.coco.getImgIds()
-        img_infos = []
-        for i in self.img_ids:
-            info = self.coco.loadImgs([i])[0]
-            info['filename'] = info['file_name']
-            img_infos.append(info)
+        self.img_ids = self.beike.getImgIds()
+        img_infos = self.beike.img_infos
         return img_infos
 
     def get_ann_info(self, idx):
         img_id = self.img_infos[idx]['id']
-        ann_ids = self.coco.getAnnIds(imgIds=[img_id])
-        ann_info = self.coco.loadAnns(ann_ids)
+        ann_ids = self.beike.getAnnIds(imgIds=[img_id])
+        ann_info = self.beike.loadAnns(ann_ids)
         return self._parse_ann_info(self.img_infos[idx], ann_info)
 
     def _filter_imgs(self, min_size=32):
         """Filter images too small or without ground truths."""
         valid_inds = []
-        ids_with_ann = set(_['image_id'] for _ in self.coco.anns.values())
+        ids_with_ann = set(_['image_id'] for _ in self.beike.anns.values())
         for i, img_info in enumerate(self.img_infos):
             if self.filter_empty_gt and self.img_ids[i] not in ids_with_ann:
                 continue

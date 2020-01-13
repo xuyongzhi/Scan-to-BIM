@@ -64,6 +64,7 @@ class CustomDataset(Dataset):
                                               self.proposal_file)
         # load annotations (and proposals)
         self.img_infos = self.load_annotations(self.ann_file)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         if self.proposal_file is not None:
             self.proposals = self.load_proposals(self.proposal_file)
         else:
@@ -141,7 +142,10 @@ class CustomDataset(Dataset):
         if self.proposals is not None:
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)
-        return self.pipeline(results)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        results = self.pipeline(results)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        return results
 
     def prepare_test_img(self, idx):
         img_info = self.img_infos[idx]

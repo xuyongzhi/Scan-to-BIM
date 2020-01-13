@@ -9,6 +9,8 @@ import random
 import json
 import math
 import copy
+from collections import defaultdict
+import time
 
 DATA_PATH = '/home/z/Research/mmdetection/data/beike100'
 ANNO_PATH = os.path.join(DATA_PATH, 'json')
@@ -21,15 +23,95 @@ IMAGE_SIZE = 256
 ANNOT_OFFSET = 37500
 ANNOT_SCALE = 1000
 
-def load_annot_scene(scene):
+
+class BEIKE:
+    _category_ids_map = {'wall':0, 'door':1, 'window':2, 'other':3}
+    def __init__(self, anno_folder):
+        self.anno_folder = anno_folder
+        json_files = os.listdir(anno_folder)
+        assert len(json_files) > 0
+
+        img_infos = []
+        for filename in json_files:
+          info = {'filename': filename}
+          info.update(self.load_anno_1scene(filename))
+          img_infos.append(info)
+
+        self.img_infos = img_infos
+        self.img_num = len(img_infos)
+
+    def getCatIds(self):
+      return BEIKE._category_ids_map.values()
+
+    def getImgIds(self):
+      return list(range(self.img_num))
+
+    def load_anno_1scene(self, filename):
+      file_path = os.path.join(self.anno_folder, filename)
+      with open(file_path, 'r') as f:
+        metadata = json.load(f)
+        data = copy.deepcopy(metadata)
+        points = data['points']
+        lines = data['lines']
+        line_items = data['lineItems']
+
+        anno = defaultdict(list)
+
+        point_dict = {}
+
+        for point in points:
+          xy = np.array([point['x'], point['y']]).reshape(1,2)
+          anno['corners'].append( xy )
+          anno['corner_ids'].append( point['id'] )
+          anno['corner_lines'].append( point['lines'] )
+          anno['corner_cat_ids'].append( BEIKE._category_ids_map['wall'] )
+          anno['corner_locked'].append( point['locked'] )
+          point_dict[point['id']] = xy
+          pass
+
+        for line in lines:
+          point_id_1, point_id_2 = line['points']
+          xy1 = point_dict[point_id_1]
+          xy2 = point_dict[point_id_2]
+          line_xys = np.array([xy1, xy2]).reshape(1,2,2)
+          anno['lines'].append( line_xys )
+          anno['line_ids'].append( line['id']  )
+          anno['line_ponit_ids'].append( line['points'] )
+          anno['line_cat_ids'].append( BEIKE._category_ids_map['wall'] )
+          for ele in ['curve', 'align', 'type', 'edgeComputed', 'thicknessComputed']:
+            if ele in line:
+              anno['line_'+ele].append( line[ele] )
+          pass
+
+        #for ele in ['corners', 'lines', 'corner_ids', 'corner_cat_ids', 'corner_locked', '']:
+        for ele in anno:
+          if len(anno[ele])>0 and (not isinstance(anno[ele][0], str)):
+            if isinstance(anno[ele][0], int):
+              anno[ele] = np.array(anno[ele])
+            else:
+              anno[ele] = np.concatenate(anno[ele], 0)
+
+      #for ele in ['line_thicknessComputed', 'line_thicknessComputed']:
+      #  print( ele, anno[ele] )
+      return anno
+
+def load_annot_all_scenes(anno_folder):
+  room_json_files = os.listdir(anno_folder)
+  room_json_files = [os.path.join(anno_folder, r) for r in room_json_files]
+  annos = []
+  for room in room_json_files:
+    anno = load_annot_1scene(room)
+    annos.append(anno)
+  return annos
+
+def load_annot_1scene(scene_anno_file):
   '''
   ['points', 'lines', 'lineItems', 'areas']
   '''
-  scene_anno_file = os.path.join(ANNO_PATH, f'{scene}.json')
+  #scene_anno_file = os.path.join(ANNO_PATH, f'{scene}.json')
   with open(scene_anno_file, 'r') as f:
     metadata = json.load(f)
-  load_annot(metadata)
-  pass
+  return load_annot(metadata)
 
 
 def load_annot(annot):
@@ -62,8 +144,8 @@ def load_annot(annot):
 
     wall_lines = np.concatenate(wall_lines, 0)
 
-    all_corners   = {'wall': wall_points, 'door': [], 'window': [] }
-    all_lines = {'wall': wall_lines,  'door': [], 'window': [] }
+    all_corners   = {'wall': wall_points, 'door': [], 'window': [], 'other': []}
+    all_lines = {'wall': wall_lines,  'door': [], 'window': [], 'other': []}
 
     # other classes: doors, windows
     for line_item in line_items:
@@ -82,24 +164,45 @@ def load_annot(annot):
     all_lines_pt = {}
     all_corners_pt = {}
     for obj in all_lines:
-      if obj != 'wall':
-        all_lines[obj] = np.concatenate(all_lines[obj], 0)
-        all_corners[obj] = all_lines[obj].reshape(-1,2)
-      #print(f'{obj} corners: {all_corners[obj].shape}')
-      #print(f'{obj} lines: {all_lines[obj].shape}')
+      if obj != 'wall' and len(all_lines[obj]):
+          all_lines[obj] = np.concatenate(all_lines[obj], 0)
+          all_corners[obj] = all_lines[obj].reshape(-1,2)
+          #print(f'{obj} corners: {all_corners[obj].shape}')
+          #print(f'{obj} lines: {all_lines[obj].shape}')
 
-      all_lines_pt[obj]   = np.floor((all_lines[obj]   - min_corner_wall) / size * IMAGE_SIZE).astype(np.uint16)
-      all_corners_pt[obj] = np.floor((all_corners[obj] - min_corner_wall) / size * IMAGE_SIZE).astype(np.uint16)
+          all_lines_pt[obj]   = np.floor((all_lines[obj]   - min_corner_wall) / size * IMAGE_SIZE).astype(np.uint16)
+          all_corners_pt[obj] = np.floor((all_corners[obj] - min_corner_wall) / size * IMAGE_SIZE).astype(np.uint16)
 
-    draw_anno_dict(all_corners_pt, all_lines_pt)
-    pass
+    #draw_anno_dict(all_corners_pt, all_lines_pt)
+    annotation_by_classes = {'all_corners': all_corners, 'all_lines': all_lines, 'all_corners_pt': all_corners_pt, 'all_lines_pt': all_lines_pt}
+    anno = merge_anno_classes(annotation_by_classes)
+    return anno
 
+def merge_anno_classes(annotation_by_classes):
+    corners = []
+    anno_with_category_ids = {}
+    for data_type in ['all_corners', 'all_lines', 'all_corners_pt', 'all_lines_pt']:
+      gts = []
+      category_ids = []
+      for obj in annotation_by_classes[data_type]:
+        if len(annotation_by_classes[data_type][obj])==0:
+          continue
+        gts.append( annotation_by_classes[data_type][obj] )
+        label = np.ones([len(gts[-1])]) * BEIKE._category_ids_map[obj]
+        category_ids.append(label)
+      gts = np.concatenate(gts, 0)
+      category_ids = np.concatenate(category_ids, 0)
+
+      anno_with_category_ids[data_type] = {'gts': gts, 'category_ids':category_ids}
+    return anno_with_category_ids
 
 def draw_anno_dict(all_corners_pt, all_lines_pt):
-    colors_corner = {'wall': (0,0,255), 'door': (0,255,0), 'window': (255,0,0)}
-    colors_line   = {'wall': (255,0,0), 'door': (0,255,255), 'window': (0,255,255)}
+    colors_corner = {'wall': (0,0,255), 'door': (0,255,0), 'window': (255,0,0), 'other':(255,255,255)}
+    colors_line   = {'wall': (255,0,0), 'door': (0,255,255), 'window': (0,255,255), 'other':(100,100,0)}
     img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
     for obj in all_corners_pt:
+      #if obj != 'other':
+      #  continue
       corners = all_corners_pt[obj]
       for i in range(corners.shape[0]):
         cv2.circle(img, (corners[i][0], corners[i][1]), 2, colors_corner[obj], -1)
@@ -149,7 +252,7 @@ def visualize_annot(annot):
         end_pt = (point_dict[point_id_2]['img_x'], point_dict[point_id_2]['img_y'])
         cv2.line(img, start_pt, end_pt, (255, 0, 0))
 
-    # draw all line with labels, such as doors, windows
+    # draw all line with category, such as doors, windows
     for line_item in line_items:
         start_pt = (line_item['startPointAt']['x'], line_item['startPointAt']['y'])
         end_pt = (line_item['endPointAt']['x'], line_item['endPointAt']['y'])
