@@ -17,6 +17,7 @@ DATA_PATH = '/home/z/Research/mmdetection/data/beike100'
 ANNO_PATH = os.path.join(DATA_PATH, 'json')
 
 IMAGE_SIZE = 256
+LOAD_CLASSES = ['wall']
 
 DEBUG = True
 
@@ -71,38 +72,41 @@ class BEIKE:
         anno = defaultdict(list)
         anno['filename'] = filename
 
-        point_dict = {}
+        if 'wall' in LOAD_CLASSES:
+          point_dict = {}
 
-        for point in points:
-          xy = np.array([point['x'], point['y']]).reshape(1,2)
-          anno['corners'].append( xy )
-          #anno['corner_ids'].append( point['id'] )
-          #anno['corner_lines'].append( point['lines'] )
-          anno['corner_cat_ids'].append( BEIKE._category_ids_map['wall'] )
-          #anno['corner_locked'].append( point['locked'] )
-          point_dict[point['id']] = xy
-          pass
+          for point in points:
+            xy = np.array([point['x'], point['y']]).reshape(1,2)
+            anno['corners'].append( xy )
+            #anno['corner_ids'].append( point['id'] )
+            #anno['corner_lines'].append( point['lines'] )
+            anno['corner_cat_ids'].append( BEIKE._category_ids_map['wall'] )
+            #anno['corner_locked'].append( point['locked'] )
+            point_dict[point['id']] = xy
+            pass
 
-        for line in lines:
-          point_id_1, point_id_2 = line['points']
-          xy1 = point_dict[point_id_1]
-          xy2 = point_dict[point_id_2]
-          line_xys = np.array([xy1, xy2]).reshape(1,2,2)
-          anno['lines'].append( line_xys )
-          #anno['line_ids'].append( line['id']  )
-          #anno['line_ponit_ids'].append( line['points'] )
-          anno['line_cat_ids'].append( BEIKE._category_ids_map['wall'] )
-          #for ele in ['curve', 'align', 'type', 'edgeComputed', 'thicknessComputed']:
-          #  if ele in line:
-          #    anno['line_'+ele].append( line[ele] )
-          #  else:
-          #    rasie NotImplemented
-          pass
+          for line in lines:
+            point_id_1, point_id_2 = line['points']
+            xy1 = point_dict[point_id_1]
+            xy2 = point_dict[point_id_2]
+            line_xys = np.array([xy1, xy2]).reshape(1,2,2)
+            anno['lines'].append( line_xys )
+            #anno['line_ids'].append( line['id']  )
+            #anno['line_ponit_ids'].append( line['points'] )
+            anno['line_cat_ids'].append( BEIKE._category_ids_map['wall'] )
+            #for ele in ['curve', 'align', 'type', 'edgeComputed', 'thicknessComputed']:
+            #  if ele in line:
+            #    anno['line_'+ele].append( line[ele] )
+            #  else:
+            #    rasie NotImplemented
+            pass
 
         for line_item in line_items:
+          cat = line_item['is']
+          if cat not in LOAD_CLASSES:
+            continue
           start_pt = np.array([line_item['startPointAt']['x'], line_item['startPointAt']['y']]).reshape(1,2)
           end_pt = np.array([line_item['endPointAt']['x'], line_item['endPointAt']['y']]).reshape(1,2)
-          cat = line_item['is']
           cat_id = BEIKE._category_ids_map[cat]
           line_xy = np.concatenate([start_pt, end_pt], 0).reshape(1,2,2)
 
