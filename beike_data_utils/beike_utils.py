@@ -23,6 +23,7 @@ DEBUG = True
 class BEIKE:
     _category_ids_map = {'wall':0, 'door':1, 'window':2, 'other':3}
     _catid_2_cat = {0:'wall', 1:'door', 2:'window', 3:'other'}
+
     def __init__(self, anno_folder):
         self.anno_folder = anno_folder
         #self.seperate_room_data_path = anno_folder.replace('json', 'seperate_room_data/test')
@@ -145,10 +146,13 @@ class BEIKE:
 
     @staticmethod
     def line_to_bbox(lines):
+      '''
+      [bbox_left, bbox_up, bbox_right, bbox_bottom]
+      '''
       n = lines.shape[0]
       bboxes = np.empty([n,4], dtype=lines.dtype)
-      bboxes[:,0:2] = lines.min(axis=1)
-      bboxes[:,2:4] = lines.max(axis=1)
+      bboxes[:,[0,3]] = lines.min(axis=1)
+      bboxes[:,[2,1]] = lines.max(axis=1)
       # aug thickness for 2 pixels
       mask = (bboxes[:,2:4] - bboxes[:,0:2]) < 2
       bboxes[:,0:2] -= mask
@@ -156,9 +160,25 @@ class BEIKE:
 
       bboxes = np.clip(bboxes, a_min=0, a_max=IMAGE_SIZE-1)
 
-      #img = np.zeros([256,256,3])
-      #mmcv.imshow_bboxes(img, bboxes)
+      img = np.zeros([256,256,3])
+      mmcv.imshow_bboxes(img, bboxes)
       return bboxes
+
+    @staticmethod
+    def meter_2_pixel(corners, lines, floor=False):
+      '''
+      corners: [n,2]
+      liens: [m,2,2]
+      '''
+      min_xy = corners.min(axis=0)
+      max_xy = corners.max(axis=0)
+      size_xy = (max_xy - min_xy) * 1.2
+      corners_pt = ((corners - min_xy) * IMAGE_SIZE / size_xy).astype(np.float32)
+      lines_pt = ((lines - min_xy) * IMAGE_SIZE / size_xy).astype(np.float32)
+      if floor:
+        corners_pt = np.floor(corners_pt).astype(np.uint32)
+        lines_pt = np.floor(lines_pt).astype(np.uint32)
+      return corners_pt, lines_pt
 
     def load_data(self, idx, data_prefix):
       scene_name = self.img_infos[idx]['filename']
@@ -176,6 +196,7 @@ class BEIKE:
         self.draw_anno_1scene(idx)
       return img
 
+
     def draw_anno_1scene(self, idx=None, scene_name=None):
       if idx is None:
         for i,img_info in enumerate(self.img_infos):
@@ -186,22 +207,6 @@ class BEIKE:
       anno = self.img_infos[idx]
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       BEIKE.draw_anno(anno)
-
-    @staticmethod
-    def meter_2_pixel(corners, lines, floor=False):
-      '''
-      corners: [n,2]
-      liens: [m,2,2]
-      '''
-      min_xy = corners.min(axis=0)
-      max_xy = corners.max(axis=0)
-      size_xy = (max_xy - min_xy) * 1.2
-      corners_pt = ((corners - min_xy) * IMAGE_SIZE / size_xy).astype(np.float32)
-      lines_pt = ((lines - min_xy) * IMAGE_SIZE / size_xy).astype(np.float32)
-      if floor:
-        corners_pt = np.floor(corners_pt).astype(np.uint32)
-        lines_pt = np.floor(lines_pt).astype(np.uint32)
-      return corners_pt, lines_pt
 
     @ staticmethod
     def draw_anno(anno):
