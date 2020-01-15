@@ -41,13 +41,23 @@ class BEIKE:
           img_infos.append(img_info)
 
         self.img_infos = img_infos
-        self.img_num = len(img_infos)
 
+    def __len__(self):
+      return len(self.img_infos)
+    def rm_anno_withno_data(self, img_prefix):
+      valid_inds = []
+      valid_files = os.listdir(img_prefix)
+      for i, img_info in enumerate(self.img_infos):
+        filename = img_info['filename']
+        if img_info['filename'] in valid_files:
+          valid_inds.append(i)
+      valid_img_infos = [self.img_infos[i] for i in valid_inds]
+      self.img_infos = valid_img_infos
     def getCatIds(self):
       return BEIKE._category_ids_map.values()
 
     def getImgIds(self):
-      return list(range(self.img_num))
+      return list(range(len(self)))
 
     def load_anno_1scene(self, filename):
       file_path = os.path.join(self.anno_folder, filename)

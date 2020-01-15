@@ -92,7 +92,7 @@ test_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(1333, 800),
+        img_scale=(512,512),
         flip=False,
         transforms=[
             dict(type='Resize', keep_ratio=True),
@@ -141,7 +141,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 120
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
