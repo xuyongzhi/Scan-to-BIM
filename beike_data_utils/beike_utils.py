@@ -37,9 +37,12 @@ class BEIKE:
         assert len(json_files) > 0
 
         img_infos = []
-        for filename in json_files:
-          img_info = {'filename': filename.split('.')[0]+'.npy'}
-          img_info['ann'] = self.load_anno_1scene(filename)
+        for jfn in json_files:
+          anno_raw = self.load_anno_1scene(jfn)
+          anno_img = BEIKE.raw_anno_to_img(anno_raw)
+          filename = jfn.split('.')[0]+'.npy'
+          img_info = {'filename': filename,
+                      'ann': anno_img}
           img_infos.append(img_info)
 
         self.img_infos = img_infos
@@ -62,6 +65,7 @@ class BEIKE:
         line_items = data['lineItems']
 
         anno = defaultdict(list)
+        anno['filename'] = filename
 
         point_dict = {}
 
@@ -130,10 +134,21 @@ class BEIKE:
             else:
               anno[ele] = np.concatenate(anno[ele], 0)
 
+      anno['corners'] = anno['corners'].astype(np.float32)
+      anno['lines'] = anno['lines'].astype(np.float32)
       #BEIKE.draw_anno(anno)
-      anno['corners_pt'], anno['lines_pt'] = BEIKE.meter_2_pixel(anno['corners'], anno['lines'])
-      anno['bboxes'] = BEIKE.line_to_bbox(anno['lines_pt'])
       return anno
+
+    @staticmethod
+    def raw_anno_to_img(anno_raw):
+      anno_img = {}
+      corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'])
+      anno_img['bboxes'] = BEIKE.line_to_bbox(lines_pt)
+      anno_img['labels'] = anno_raw['line_cat_ids']
+      anno_img['bboxes_ignore'] = np.empty([0,4], dtype=np.float32)
+      anno_img['mask'] = []
+      anno_img['seg_map'] = None
+      return anno_img
 
     @staticmethod
     def line_to_bbox(lines):
@@ -181,10 +196,11 @@ class BEIKE:
             break
         assert idx is not None, f'canot fine scene name == {scene_name}'
       anno = self.img_infos[idx]
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       BEIKE.draw_anno(anno)
 
     @staticmethod
-    def meter_2_pixel(corners, lines):
+    def meter_2_pixel(corners, lines, floor=False):
       '''
       corners: [n,2]
       liens: [m,2,2]
@@ -192,8 +208,11 @@ class BEIKE:
       min_xy = corners.min(axis=0)
       max_xy = corners.max(axis=0)
       size_xy = (max_xy - min_xy) * 1.2
-      corners_pt = np.floor((corners - min_xy) * IMAGE_SIZE / size_xy).astype(np.uint16)
-      lines_pt = np.floor((lines - min_xy) * IMAGE_SIZE / size_xy).astype(np.uint16)
+      corners_pt = ((corners - min_xy) * IMAGE_SIZE / size_xy).astype(np.float32)
+      lines_pt = ((lines - min_xy) * IMAGE_SIZE / size_xy).astype(np.float32)
+      if floor:
+        corners_pt = np.floor(corners_pt).astype(np.uint32)
+        lines_pt = np.floor(lines_pt).astype(np.uint32)
       return corners_pt, lines_pt
 
     @ staticmethod
@@ -209,7 +228,7 @@ class BEIKE:
       line_cat_ids = anno['line_cat_ids']
       #print(f'line_cat_ids: {line_cat_ids}')
 
-      corners, lines = BEIKE.meter_2_pixel(corners, lines)
+      corners, lines = BEIKE.meter_2_pixel(corners, lines, floor=True)
 
       img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
       for i in range(corners.shape[0]):
@@ -228,7 +247,7 @@ class BEIKE:
 
 
 
-def load_annot_all_scenes(anno_folder):
+def U_load_annot_all_scenes(anno_folder):
   room_json_files = os.listdir(anno_folder)
   room_json_files = [os.path.join(anno_folder, r) for r in room_json_files]
   annos = []
@@ -237,7 +256,7 @@ def load_annot_all_scenes(anno_folder):
     annos.append(anno)
   return annos
 
-def load_annot_1scene(scene_anno_file):
+def U_load_annot_1scene(scene_anno_file):
   '''
   ['points', 'lines', 'lineItems', 'areas']
   '''
@@ -247,7 +266,7 @@ def load_annot_1scene(scene_anno_file):
   return load_annot(metadata)
 
 
-def load_annot(annot):
+def U_load_annot(annot):
     show = True
     data = copy.deepcopy(annot)
     points = data['points']
@@ -311,7 +330,7 @@ def load_annot(annot):
     anno = merge_anno_classes(annotation_by_classes)
     return anno
 
-def merge_anno_classes(annotation_by_classes):
+def U_merge_anno_classes(annotation_by_classes):
     corners = []
     anno_with_category_ids = {}
     for data_type in ['all_corners', 'all_lines', 'all_corners_pt', 'all_lines_pt']:

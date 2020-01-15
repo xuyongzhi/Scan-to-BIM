@@ -142,6 +142,7 @@ class LoadProposals(object):
         return self.__class__.__name__ + '(num_max_proposals={})'.format(
             self.num_max_proposals)
 
+
 @PIPELINES.register_module
 class LoadImageFromNpyFile(object):
 
