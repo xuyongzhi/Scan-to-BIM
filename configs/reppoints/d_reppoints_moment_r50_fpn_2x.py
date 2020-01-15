@@ -9,7 +9,7 @@ model = dict(
         depth=50,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
-        frozen_stages=1,
+        frozen_stages=-1,
         style='pytorch'),
     neck=dict(
         type='FPN',
@@ -95,11 +95,11 @@ test_pipeline = [
 ]
 data = dict(
     imgs_per_gpu=2,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_val2017.json',
-        img_prefix=data_root + 'val2017/',
+        ann_file=data_root + 'annotations/instances_train2017.json',
+        img_prefix=data_root + 'train2017/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -120,22 +120,22 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[8, 11])
+    step=[16, 22])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/reppoints_moment_r50_fpn_1x'
-load_from = None
+work_dir = './work_dirs/reppoints_moment_r50_fpn_2x'
+load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

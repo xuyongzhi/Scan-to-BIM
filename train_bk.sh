@@ -1,3 +1,6 @@
-#ipython tools/train.py -- configs/reppoints/d_reppoints_moment_r50_fpn_1x.py
+export CUDA_VISIBLE_DEVICES=1
+CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 
-ipython tools/train.py -- configs/strpoints/strpoints_r50_fpn_1x.py
+
+ipython tools/train.py -- ${CONFIG} 
+#./tools/dist_train.sh ${CONFIG} 2

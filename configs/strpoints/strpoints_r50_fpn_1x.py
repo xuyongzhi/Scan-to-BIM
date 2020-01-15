@@ -71,7 +71,7 @@ test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
     score_thr=0.05,
-    nms=dict(type='nms', iou_thr=0.5),
+    nms=dict(type='nms', iou_thr=0.1),
     max_per_img=100)
 # dataset settings
 dataset_type = 'BeikeDataset'
@@ -89,7 +89,7 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
 test_pipeline = [
-    dict(type='LoadImageFromFile'),
+    dict(type='LoadImageFromNpyFile'),
     dict(
         type='MultiScaleFlipAug',
         img_scale=(512,512),
@@ -109,7 +109,7 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'seperate_room_data/train',
+        img_prefix=data_root + 'seperate_room_data/train_2',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -119,7 +119,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'seperate_room_data/test',
+        img_prefix=data_root + 'seperate_room_data/train_2',
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
@@ -128,24 +128,24 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=500,
+    warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[8, 11])
-checkpoint_config = dict(interval=1)
+    step=[150, 180])
+checkpoint_config = dict(interval=10)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 120
+total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
-load_from = None
+load_from = './checkpoints/strpoints_moment_r50_fpn_1x.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]
