@@ -19,16 +19,25 @@ class BeikeDataset(CustomDataset):
         }
         self.img_ids = self.beike.getImgIds()
         img_infos = self.beike.img_infos
+        self.img_num = self.beike.img_num
         return img_infos
 
-    def get_ann_info(self, idx):
-        img_id = self.img_infos[idx]['id']
-        ann_ids = self.beike.getAnnIds(imgIds=[img_id])
-        ann_info = self.beike.loadAnns(ann_ids)
-        return self._parse_ann_info(self.img_infos[idx], ann_info)
+    def _get_ann_info(self, idx):
+        ann = {
+          'lines': self.img_infos[idx]['lines'],
+          'line_labels': self.img_infos[idx]['line_cat_ids'], }
+
+        img_info = self.img_infos[idx]
+        sn = img_info['filename']
+        line_labels = img_info['line_cat_ids']
+        #print(f'scene name: {sn}')
+        #print(f'line_labels: {line_labels}')
+        return ann
 
     def _filter_imgs(self, min_size=32):
         """Filter images too small or without ground truths."""
+        valid_inds = list(range(self.beike.img_num))
+        return valid_inds
         valid_inds = []
         ids_with_ann = set(_['image_id'] for _ in self.beike.anns.values())
         for i, img_info in enumerate(self.img_infos):
@@ -37,6 +46,9 @@ class BeikeDataset(CustomDataset):
             if min(img_info['width'], img_info['height']) >= min_size:
                 valid_inds.append(i)
         return valid_inds
+
+    def _set_group_flag(self):
+      self.flag = np.zeros(self.img_num, dtype=np.uint8)
 
     def _parse_ann_info(self, img_info, ann_info):
         """Parse bbox and mask annotation.
@@ -91,3 +103,25 @@ class BeikeDataset(CustomDataset):
             seg_map=seg_map)
 
         return ann
+
+    def UN_prepare_train_img(self, idx):
+        img_info = self.img_infos[idx]
+        ann_info = img_info['ann']
+        del img_info['ann']
+        img = self.beike.load_data(idx, self.img_prefix)
+        results =   {'img_prefix': self.img_prefix,
+                    'seg_prefix': self.seg_prefix,
+                    'proposal_file': self.proposal_file,
+                     'bbox_fields': [],
+                    'mask_fields': [],
+                     'seg_fields': [],
+
+                    'img_meta': self.img_infos, 'img':img, 'gt_bboxes': img_info['lines'],
+                    'gt_labels':img_info['line_cat_ids'], 'corners':img_info['corners'],
+                    'corner_labels': img_info['corner_cat_ids'] }
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        results = self.pipeline(results)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        return results
+
+

@@ -141,3 +141,30 @@ class LoadProposals(object):
     def __repr__(self):
         return self.__class__.__name__ + '(num_max_proposals={})'.format(
             self.num_max_proposals)
+
+@PIPELINES.register_module
+class LoadImageFromNpyFile(object):
+
+    def __init__(self, to_float32=False):
+        self.to_float32 = to_float32
+
+    def __call__(self, results):
+        if results['img_prefix'] is not None:
+            filename = osp.join(results['img_prefix'],
+                                results['img_info']['filename'])
+        else:
+            filename = results['img_info']['filename']
+        data = np.load(filename, allow_pickle=True).tolist()
+        img = data['topview_image']
+        if self.to_float32:
+            img = img.astype(np.float32)
+        results['filename'] = filename
+        results['img'] = img
+        results['img_shape'] = img.shape
+        results['ori_shape'] = img.shape
+        return results
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(to_float32={})'.format(
+            self.to_float32)
+
