@@ -1,6 +1,14 @@
 # model settings
-# modified: num_classes num_points transform_method
-# pedding: num_outs assigner img_norm_cfg
+''' modified
+  num_classes
+  num_points
+'''
+''' # pedding
+  num_outs
+  assigner
+  img_norm_cfg
+  transform_method
+'''
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 model = dict(
@@ -41,7 +49,7 @@ model = dict(
             loss_weight=1.0),
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
-        transform_method='corner'))
+        transform_method='moment'))
 # training and testing settings
 train_cfg = dict(
     init=dict(

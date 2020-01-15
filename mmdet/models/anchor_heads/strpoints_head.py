@@ -208,6 +208,7 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height
             ],
                              dim=1)
+            pass
         else:
             raise NotImplementedError
         return bbox

@@ -147,21 +147,25 @@ class BEIKE:
     @staticmethod
     def line_to_bbox(lines):
       '''
-      [bbox_left, bbox_up, bbox_right, bbox_bottom]
+      lings: [[x0,y0], [x1,y1]]
+      x: width
+      y: height
+      original point (x=0,y=0) is left-top
+      bbox format: [bbox_left, bbox_up, bbox_right, bbox_bottom]
       '''
       n = lines.shape[0]
       bboxes = np.empty([n,4], dtype=lines.dtype)
-      bboxes[:,[0,3]] = lines.min(axis=1)
-      bboxes[:,[2,1]] = lines.max(axis=1)
+      bboxes[:,[0,1]] = lines.min(axis=1)
+      bboxes[:,[2,3]] = lines.max(axis=1)
       # aug thickness for 2 pixels
       mask = (bboxes[:,2:4] - bboxes[:,0:2]) < 2
-      bboxes[:,0:2] -= mask
-      bboxes[:,2:4] += mask
+      bboxes[:,[0,1]] -= mask
+      bboxes[:,[2,3]] += mask
 
       bboxes = np.clip(bboxes, a_min=0, a_max=IMAGE_SIZE-1)
 
-      img = np.zeros([256,256,3])
-      mmcv.imshow_bboxes(img, bboxes)
+      #img = np.zeros([256,256,3])
+      #mmcv.imshow_bboxes(img, bboxes)
       return bboxes
 
     @staticmethod
