@@ -142,6 +142,9 @@ class CustomDataset(Dataset):
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)
         results = self.pipeline(results)
+
+        show_results(results)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return results
 
     def prepare_test_img(self, idx):
@@ -151,3 +154,13 @@ class CustomDataset(Dataset):
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)
         return self.pipeline(results)
+
+def show_results(results):
+  img = results['img'].data.cpu().numpy()
+  img = np.moveaxis(img, 0, -1)
+  gt_bboxes = results['gt_bboxes'].data.cpu().numpy()
+  gt_labels = results['gt_labels'].data.cpu().numpy()
+  mmcv.imshow(img)
+  mmcv.imshow_bboxes(img, gt_bboxes)
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
