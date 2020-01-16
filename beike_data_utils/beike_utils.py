@@ -18,16 +18,18 @@ IMAGE_SIZE = 256
 LOAD_CLASSES = ['wall']
 
 DEBUG = True
+BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
 
 class BEIKE:
     _category_ids_map = {'wall':0, 'door':1, 'window':2, 'other':3}
     _catid_2_cat = {0:'wall', 1:'door', 2:'window', 3:'other'}
 
-    def __init__(self, anno_folder):
+    def __init__(self, anno_folder='data/beike100/json/'):
+        assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
         self.seperate_room_path = anno_folder.replace('json', 'seperate_room_data/test')
         #self.seperate_room_data_path = anno_folder.replace('json', 'seperate_room_data/test')
-        base_path = os.path.dirname(anno_folder)
+        base_path = os.path.dirname( os.path.dirname(anno_folder) )
         scopes_file = os.path.join(base_path, 'scopes.json')
         with open(scopes_file, 'r') as f:
           self.scopes = json.load(f)
@@ -37,6 +39,10 @@ class BEIKE:
 
         img_infos = []
         for jfn in json_files:
+          scene_name = jfn.split('.')[0]
+          if scene_name in BAD_SCENES:
+            continue
+
           anno_raw = self.load_anno_1scene(jfn)
           scope = np.array(self.scopes[anno_raw['filename'].split('.')[0]] )
           anno_raw['scope'] = scope
@@ -44,14 +50,18 @@ class BEIKE:
           filename = jfn.split('.')[0]+'.npy'
           img_info = {'filename': filename,
                       'ann': anno_img}
-          #BEIKE.show_img_ann(img_info, self.seperate_room_path)
+          if DEBUG and False:
+            BEIKE.show_img_ann(img_info, self.seperate_room_path)
           img_infos.append(img_info)
 
         self.img_infos = img_infos
+        n = len(self.img_infos)
+        print(f'\nload {n} scenes\n')
 
     @staticmethod
     def show_img_ann(img_info, seperate_room_path):
       filename = img_info['filename']
+      print(f'{filename}')
       file_path = os.path.join(seperate_room_path, filename)
       data = np.load(file_path, allow_pickle=True).tolist()
       img = data['topview_image']
@@ -63,15 +73,6 @@ class BEIKE:
     def __len__(self):
       return len(self.img_infos)
 
-    def rm_anno_withno_data(self, img_prefix):
-      valid_inds = []
-      valid_files = os.listdir(img_prefix)
-      for i, img_info in enumerate(self.img_infos):
-        filename = img_info['filename']
-        if img_info['filename'] in valid_files:
-          valid_inds.append(i)
-      valid_img_infos = [self.img_infos[i] for i in valid_inds]
-      self.img_infos = valid_img_infos
     def getCatIds(self):
       return BEIKE._category_ids_map.values()
 
@@ -117,6 +118,8 @@ class BEIKE:
             #    anno['line_'+ele].append( line[ele] )
             #  else:
             #    rasie NotImplemented
+            if filename == '7w6zvVsOBAQK4h4Bne7caQ.json':
+              pass
             pass
 
         for line_item in line_items:
@@ -257,7 +260,13 @@ class BEIKE:
       #cv2.imwrite(f'./img_{scene_name}.png', img)
       return img
 
-    def draw_1scene(self, scene_name):
+    def draw_1scene_img(self, scene_name):
+      anno = self.load_anno_1scene(scene_name+'.json')
+      img = self.load_data(scene_name)
+      anno['scope'] = np.array(self.scopes[scene_name])
+      BEIKE.draw_anno(anno, img)
+
+    def draw_1scene_pcl(self, scene_name):
       anno = self.load_anno_1scene(scene_name+'.json')
       img = self.load_data(scene_name)
       anno['scope'] = np.array(self.scopes[scene_name])
@@ -324,12 +333,12 @@ if __name__ == '__main__':
   #get_scene_scopes(DATA_PATH)
 
 
-  scene = '7w6zvVsOBAQK4h4Bne7caQ'
-  scene = 'IDZkUGse-74FIy2OqM2u_Y'
-  #scene = 'B9Abt6B78a0j2eRcygHjqC'
+  scene = '7w6zvVsOBAQK4h4Bne7caQ'  # 10
+  #scene = 'IDZkUGse-74FIy2OqM2u_Y' # 20
+  #scene = 'B9Abt6B78a0j2eRcygHjqC' # 15
 
   beike = BEIKE(ANNO_PATH)
-  beike.draw_1scene(scene_name = scene)
+  beike.draw_1scene_img(scene_name = scene)
 
   pass
 

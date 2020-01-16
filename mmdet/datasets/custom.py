@@ -1,5 +1,5 @@
 import os.path as osp
-
+import os
 import mmcv
 import numpy as np
 from torch.utils.data import Dataset
@@ -64,6 +64,7 @@ class CustomDataset(Dataset):
                                               self.proposal_file)
         # load annotations (and proposals)
         self.img_infos = self.load_annotations(self.ann_file)
+        self.rm_anno_withno_data()
         if self.proposal_file is not None:
             self.proposals = self.load_proposals(self.proposal_file)
         else:
@@ -99,6 +100,19 @@ class CustomDataset(Dataset):
         results['bbox_fields'] = []
         results['mask_fields'] = []
         results['seg_fields'] = []
+
+    def rm_anno_withno_data(self):
+      n0 = len(self.img_infos)
+      valid_inds = []
+      valid_files = os.listdir(self.img_prefix)
+      for i, img_info in enumerate(self.img_infos):
+        filename = img_info['filename']
+        if img_info['filename'] in valid_files:
+          valid_inds.append(i)
+      valid_img_infos = [self.img_infos[i] for i in valid_inds]
+      self.img_infos = valid_img_infos
+      n = len(self.img_infos)
+      print(f'\n{n} valid scenes with annotation in total {n0}\n')
 
     def _filter_imgs(self, min_size=32):
         """Filter images too small."""
@@ -143,8 +157,7 @@ class CustomDataset(Dataset):
         self.pre_pipeline(results)
         results = self.pipeline(results)
 
-        show_results(results)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        #show_results(results)
         return results
 
     def prepare_test_img(self, idx):

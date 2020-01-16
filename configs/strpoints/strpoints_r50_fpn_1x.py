@@ -71,7 +71,7 @@ test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
     score_thr=0.05,
-    nms=dict(type='nms', iou_thr=0.1),
+    nms=dict(type='nms', iou_thr=0.01),
     max_per_img=100)
 # dataset settings
 dataset_type = 'BeikeDataset'
@@ -130,8 +130,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[150, 180])
-checkpoint_config = dict(interval=10)
+    step=[250, 280])
+checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -141,7 +141,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 200
+total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'

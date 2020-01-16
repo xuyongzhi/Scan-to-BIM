@@ -19,7 +19,6 @@ class BeikeDataset(CustomDataset):
             for i, cat_id in enumerate(self.cat_ids)
         }
         self.img_ids = self.beike.getImgIds()
-        self.beike.rm_anno_withno_data(self.img_prefix)
         img_infos = self.beike.img_infos
         return img_infos
 

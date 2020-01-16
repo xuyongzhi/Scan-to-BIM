@@ -98,8 +98,8 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_train2017.json',
-        img_prefix=data_root + 'train2017/',
+        ann_file=data_root + 'annotations/instances_val2017.json',
+        img_prefix=data_root + 'val_2imgs/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -109,7 +109,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val2017.json',
-        img_prefix=data_root + 'val2017/',
+        img_prefix=data_root + 'val_2imgs/',
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
@@ -135,7 +135,8 @@ total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/reppoints_moment_r50_fpn_2x'
-load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
+load_from = './work_dirs/reppoints_moment_r50_fpn_2x/best.pth'
+#load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

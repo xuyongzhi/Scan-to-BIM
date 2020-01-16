@@ -53,6 +53,7 @@ class CocoDataset(CustomDataset):
                 continue
             if min(img_info['width'], img_info['height']) >= min_size:
                 valid_inds.append(i)
+
         return valid_inds
 
     def _parse_ann_info(self, img_info, ann_info):
