@@ -290,9 +290,15 @@ def process_annot(dir_path, out_path):
     invalid_ids = []
     for i,line in enumerate(new_lines):
       points = line['points']
-      if points[0] != points[1]:
+      tmp  = point_dict[points[0]]
+      p0xy = np.array([tmp['x'], tmp['y']])
+      tmp  = point_dict[points[1]]
+      p1xy = np.array([tmp['x'], tmp['y']])
+      lineleng = np.linalg.norm(p0xy - p1xy)
+      if points[0] != points[1] and lineleng > 0.1:
         valid_ids.append(i)
       else:
+        print(f'lineleng: {lineleng}')
         invalid_ids.append(i)
     new_lines = [new_lines[i] for i in valid_ids]
     if len(invalid_ids):
