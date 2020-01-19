@@ -18,6 +18,7 @@ class SamplingResult(object):
             self.pos_gt_labels = assign_result.labels[pos_inds]
         else:
             self.pos_gt_labels = None
+        pass
 
     @property
     def bboxes(self):

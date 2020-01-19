@@ -5,6 +5,8 @@ from .. import builder
 from ..registry import DETECTORS
 from .base import BaseDetector
 
+from mmdet import debug_tools
+
 
 @DETECTORS.register_module
 class SingleStageDetector(BaseDetector):
@@ -69,6 +71,10 @@ class SingleStageDetector(BaseDetector):
         loss_inputs = outs + (gt_bboxes, gt_labels, img_metas, self.train_cfg)
         losses = self.bbox_head.loss(
             *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
+
+        #debug_tools.show_shapes(img, 'single_stage forward_train - img')
+        #debug_tools.show_shapes(x, 'single_stage forward_train - features')
+        #debug_tools.show_shapes(outs, 'single_stage forward_train head - outs')
         return losses
 
     def simple_test(self, img, img_meta, rescale=False):
@@ -80,6 +86,10 @@ class SingleStageDetector(BaseDetector):
             bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
             for det_bboxes, det_labels in bbox_list
         ]
+
+        #debug_tools.show_shapes(img, 'single_stage simple_test img')
+        #debug_tools.show_shapes(x, 'single_stage simple_test x')
+        #debug_tools.show_shapes(outs, 'single_stage simple_test outs')
         return bbox_results[0]
 
     def aug_test(self, imgs, img_metas, rescale=False):

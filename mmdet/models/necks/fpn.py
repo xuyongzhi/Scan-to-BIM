@@ -7,6 +7,8 @@ from ..registry import NECKS
 from ..utils import ConvModule
 
 
+from mmdet import debug_tools
+
 @NECKS.register_module
 class FPN(nn.Module):
 
@@ -138,4 +140,7 @@ class FPN(nn.Module):
                         outs.append(self.fpn_convs[i](F.relu(outs[-1])))
                     else:
                         outs.append(self.fpn_convs[i](outs[-1]))
+
+        #debug_tools.show_shapes(inputs, 'fpn inputs')
+        #debug_tools.show_shapes(outs, 'fpn outs')
         return tuple(outs)

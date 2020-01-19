@@ -12,6 +12,8 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob
 
+from mmdet import debug_tools
+
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -286,6 +288,11 @@ class StrPointsHead(nn.Module):
                 pts_out_refine, bbox_out_init.detach())
         else:
             pts_out_refine = pts_out_refine + pts_out_init.detach()
+
+        #debug_tools.show_shapes(x, 'StrPointsHead input')
+        #debug_tools.show_shapes(cls_out, 'StrPointsHead cls_out')
+        #debug_tools.show_shapes(pts_out_init, 'StrPointsHead pts_out_refine')
+        #debug_tools.show_shapes(pts_out_refine, 'StrPointsHead pts_out_init')
         return cls_out, pts_out_init, pts_out_refine
 
     def forward(self, feats):
@@ -415,6 +422,8 @@ class StrPointsHead(nn.Module):
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
+        #debug_tools.show_shapes(cls_scores, 'StrPointsHead cls_scores')
+
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == len(self.point_generators)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
@@ -538,6 +547,7 @@ class StrPointsHead(nn.Module):
                                                mlvl_points, img_shape,
                                                scale_factor, cfg, rescale, nms)
             result_list.append(proposals)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return result_list
 
     def get_bboxes_single(self,

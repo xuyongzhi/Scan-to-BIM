@@ -1,9 +1,12 @@
 import torch
 
 from ..geometry import bbox_overlaps
+from ..straight_line_distance_torch import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
+from mmdet import debug_tools
+DEBUG = False
 
 class MaxIoUAssigner(BaseAssigner):
     """Assign a corresponding gt bbox or background to each bbox.
@@ -40,7 +43,8 @@ class MaxIoUAssigner(BaseAssigner):
                  gt_max_assign_all=True,
                  ignore_iof_thr=-1,
                  ignore_wrt_candidates=True,
-                 gpu_assign_thr=-1):
+                 gpu_assign_thr=-1,
+                 line_object=False):
         self.pos_iou_thr = pos_iou_thr
         self.neg_iou_thr = neg_iou_thr
         self.min_pos_iou = min_pos_iou
@@ -48,6 +52,7 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_iof_thr = ignore_iof_thr
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
+        self.line_object = line_object
 
     def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
         """Assign gt to bboxes.
@@ -96,16 +101,20 @@ class MaxIoUAssigner(BaseAssigner):
                 gt_labels = gt_labels.cpu()
 
         bboxes = bboxes[:, :4]
-        overlaps = bbox_overlaps(gt_bboxes, bboxes)
+        if self.line_object:
+          overlaps_fun = bbox_overlaps
+        else:
+          overlaps_fun = line_overlaps
+        overlaps = overlaps_fun(gt_bboxes, bboxes)
 
         if (self.ignore_iof_thr > 0) and (gt_bboxes_ignore is not None) and (
                 gt_bboxes_ignore.numel() > 0):
             if self.ignore_wrt_candidates:
-                ignore_overlaps = bbox_overlaps(
+                ignore_overlaps = overlaps_fun(
                     bboxes, gt_bboxes_ignore, mode='iof')
                 ignore_max_overlaps, _ = ignore_overlaps.max(dim=1)
             else:
-                ignore_overlaps = bbox_overlaps(
+                ignore_overlaps = overlaps_fun(
                     gt_bboxes_ignore, bboxes, mode='iof')
                 ignore_max_overlaps, _ = ignore_overlaps.max(dim=0)
             overlaps[:, ignore_max_overlaps > self.ignore_iof_thr] = -1
@@ -191,5 +200,9 @@ class MaxIoUAssigner(BaseAssigner):
         else:
             assigned_labels = None
 
-        return AssignResult(
+        assign_res = AssignResult(
             num_gts, assigned_gt_inds, max_overlaps, labels=assigned_labels)
+
+        if DEBUG:
+          print(f'gt_max_overlaps: {gt_max_overlaps}')
+        return assign_res

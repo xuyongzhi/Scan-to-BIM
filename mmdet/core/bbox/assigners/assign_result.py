@@ -43,6 +43,21 @@ class AssignResult(object):
         self.gt_inds = gt_inds
         self.max_overlaps = max_overlaps
         self.labels = labels
+        self.pos_dist = None
+
+        # for debug:
+        if self.gt_inds is not None:
+            self.pos_inds = torch.nonzero(self.gt_inds > 0).squeeze()
+            self.neg_inds = torch.nonzero(self.gt_inds == 0).squeeze()
+            self.ign_inds = torch.nonzero(self.gt_inds < 0).squeeze()
+            self.num_pos_inds = self.pos_inds.numel()
+            self.num_neg_inds = self.pos_inds.numel()
+            self.num_ign_inds = self.pos_inds.numel()
+
+            self.lost_gt = self.num_pos_inds < self.num_gts
+            if self.lost_gt:
+              print('gt num = {}, pos inds num = {}, lost gt!'\
+              .format(self.num_gts, self.num_pos_inds) )
 
     def add_gt_(self, gt_labels):
         self_inds = torch.arange(
@@ -68,8 +83,8 @@ class AssignResult(object):
         if self.gt_inds is None:
             parts.append('gt_inds={!r}'.format(self.gt_inds))
         else:
-            parts.append('gt_inds.shape={!r}'.format(
-                tuple(self.gt_inds.shape)))
+            parts.append('gt_inds.shape={!r}, pos_inds.shape={!r}'.format(
+                self.gt_inds.shape, self.pos_inds.shape))
         if self.max_overlaps is None:
             parts.append('max_overlaps={!r}'.format(self.max_overlaps))
         else:
@@ -79,6 +94,9 @@ class AssignResult(object):
             parts.append('labels={!r}'.format(self.labels))
         else:
             parts.append('labels.shape={!r}'.format(tuple(self.labels.shape)))
+        if self.pos_dist is not  None:
+            parts.append('\npos_dist summary = {} '.format(
+              self.summary_pos_dist))
         return ', '.join(parts)
 
     def __repr__(self):
@@ -90,3 +108,8 @@ class AssignResult(object):
         classname = self.__class__.__name__
         nice = self.__nice__()
         return '<{}({})>'.format(classname, nice)
+
+    # for debug:
+    def dg_add_pos_dist(self, pos_dist):
+      self.pos_dist = pos_dist
+      self.summary_pos_dist = torch.stack([pos_dist.min(), pos_dist.mean(), pos_dist.std()])

@@ -13,21 +13,21 @@ norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 model = dict(
     type='StrPointsDetector',
-    pretrained='torchvision://resnet50',
+    pretrained=None,
     backbone=dict(
         type='ResNet',
         depth=50,
         num_stages=4,
-        out_indices=(0, 1, 2, 3),
-        frozen_stages=1,
+        out_indices=( 0, 1, 2),
+        frozen_stages=-1,
         style='pytorch'),
     neck=dict(
         type='FPN',
-        in_channels=[256, 512, 1024, 2048],
+        in_channels=[ 256, 512, 1024],
         out_channels=256,
-        start_level=1,
+        start_level=0,
         add_extra_convs=True,
-        num_outs=5,
+        num_outs=4,
         norm_cfg=norm_cfg),
     bbox_head=dict(
         type='StrPointsHead',
@@ -38,8 +38,8 @@ model = dict(
         stacked_convs=3,
         num_points=9,
         gradient_mul=0.1,
-        point_strides=[8, 16, 32, 64, 128],
-        point_base_scale=4,
+        point_strides=[4, 8, 16, 32],
+        point_base_scale=2,
         norm_cfg=norm_cfg,
         loss_cls=dict(
             type='FocalLoss',
@@ -53,7 +53,7 @@ model = dict(
 # training and testing settings
 train_cfg = dict(
     init=dict(
-        assigner=dict(type='PointAssigner', scale=4, pos_num=1),
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, line_object=True),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -63,7 +63,8 @@ train_cfg = dict(
             pos_iou_thr=0.5,
             neg_iou_thr=0.4,
             min_pos_iou=0,
-            ignore_iof_thr=-1),
+            ignore_iof_thr=-1,
+            line_object=True),
         allowed_border=-1,
         pos_weight=-1,
         debug=False))
@@ -75,7 +76,7 @@ test_cfg = dict(
     max_per_img=100)
 # dataset settings
 dataset_type = 'BeikeDataset'
-data_root = 'data/beike100/'
+data_root = 'data/beike/processed/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
@@ -144,8 +145,8 @@ log_config = dict(
 total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
-load_from =  './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
+work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_small'
+load_from = None # './work_dirs/strpoints_moment_r50_fpn_1x_small/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

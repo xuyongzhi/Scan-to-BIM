@@ -3,6 +3,9 @@ import torch
 from ..bbox import PseudoSampler, assign_and_sample, build_assigner
 from ..utils import multi_apply
 
+from mmdet import debug_tools
+DEBUG = False
+
 
 def point_target(proposals_list,
                  valid_flag_list,
@@ -29,6 +32,9 @@ def point_target(proposals_list,
     num_imgs = len(img_metas)
     assert len(proposals_list) == len(valid_flag_list) == num_imgs
 
+    if DEBUG:
+      debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], 'point_target A')
+
     # points number of multi levels
     num_level_proposals = [points.size(0) for points in proposals_list[0]]
 
@@ -43,6 +49,10 @@ def point_target(proposals_list,
         gt_bboxes_ignore_list = [None for _ in range(num_imgs)]
     if gt_labels_list is None:
         gt_labels_list = [None for _ in range(num_imgs)]
+
+    if DEBUG:
+      debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], 'point_target B')
+
     (all_labels, all_label_weights, all_bbox_gt, all_proposals,
      all_proposal_weights, pos_inds_list, neg_inds_list) = multi_apply(
          point_target_single,

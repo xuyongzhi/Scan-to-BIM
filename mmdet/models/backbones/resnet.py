@@ -9,6 +9,8 @@ from mmdet.ops import ContextBlock, DeformConv, ModulatedDeformConv
 from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 
+from mmdet import debug_tools
+
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -519,6 +521,7 @@ class ResNet(nn.Module):
             raise TypeError('pretrained must be a str or None')
 
     def forward(self, x):
+        #debug_tools.show_shapes(x, 'img')
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.relu(x)
@@ -529,6 +532,8 @@ class ResNet(nn.Module):
             x = res_layer(x)
             if i in self.out_indices:
                 outs.append(x)
+
+        #debug_tools.show_shapes(outs, 'backbone outs')
         return tuple(outs)
 
     def train(self, mode=True):

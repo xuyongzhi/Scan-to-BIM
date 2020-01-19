@@ -13,6 +13,8 @@ from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob
 
 
+from mmdet import debug_tools
+
 @HEADS.register_module
 class RepPointsHead(nn.Module):
     """RepPoint head.
@@ -403,6 +405,11 @@ class RepPointsHead(nn.Module):
             bbox_gt_refine / normalize_term,
             bbox_weights_refine,
             avg_factor=num_total_samples_refine)
+
+
+        #debug_tools.show_shapes(cls_score, 'RepPointsHead loss_single - cls_score')
+        #debug_tools.show_shapes(pts_pred_init, 'RepPointsHead loss_single - pts_pred_init')
+        #debug_tools.show_shapes(pts_pred_refine, 'RepPointsHead loss_single - pts_pred_refine')
         return loss_cls, loss_pts_init, loss_pts_refine
 
     def loss(self,
@@ -414,6 +421,10 @@ class RepPointsHead(nn.Module):
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
+        #debug_tools.show_multi_ls_shapes([cls_scores, pts_preds_init, pts_preds_refine, gt_bboxes, gt_labels],
+        #                    ['cls_scores', 'pts_preds_init', 'pts_preds_refine', 'gt_bboxes', 'gt_labels'], 'RepPointsHead loss' )
+
+
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == len(self.point_generators)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1

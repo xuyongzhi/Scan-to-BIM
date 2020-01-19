@@ -21,8 +21,8 @@ DEBUG = True
 BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
 
 class BEIKE:
-    _category_ids_map = {'wall':0, 'door':1, 'window':2, 'other':3}
-    _catid_2_cat = {0:'wall', 1:'door', 2:'window', 3:'other'}
+    _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
+    _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
     def __init__(self, anno_folder='data/beike100/json/'):
         assert  anno_folder[-5:] == 'json/'
@@ -30,9 +30,9 @@ class BEIKE:
         self.seperate_room_path = anno_folder.replace('json', 'seperate_room_data/test')
         #self.seperate_room_data_path = anno_folder.replace('json', 'seperate_room_data/test')
         base_path = os.path.dirname( os.path.dirname(anno_folder) )
-        scopes_file = os.path.join(base_path, 'scopes.json')
-        with open(scopes_file, 'r') as f:
-          self.scopes = json.load(f)
+        pcl_scopes_file = os.path.join(base_path, 'pcl_scopes.json')
+        with open(pcl_scopes_file, 'r') as f:
+          self.pcl_scopes = json.load(f)
 
         json_files = os.listdir(anno_folder)
         assert len(json_files) > 0
@@ -44,12 +44,13 @@ class BEIKE:
             continue
 
           anno_raw = self.load_anno_1scene(jfn)
-          scope = np.array(self.scopes[anno_raw['filename'].split('.')[0]] )
-          anno_raw['scope'] = scope
+          pcl_scope = np.array(self.pcl_scopes[anno_raw['filename'].split('.')[0]] )
+          anno_raw['pcl_scope'] = pcl_scope
           anno_img = BEIKE.raw_anno_to_img(anno_raw)
           filename = jfn.split('.')[0]+'.npy'
           img_info = {'filename': filename,
-                      'ann': anno_img}
+                      'ann': anno_img,
+                      'ann_raw': anno_raw}
           if DEBUG and False:
             BEIKE.show_img_ann(img_info, self.seperate_room_path)
           img_infos.append(img_info)
@@ -57,6 +58,14 @@ class BEIKE:
         self.img_infos = img_infos
         n = len(self.img_infos)
         print(f'\nload {n} scenes\n')
+        #self.show_summary()
+        pass
+
+    def show_summary(self):
+      for img_info in self.img_infos:
+        anno_raw = img_info['ann_raw']
+        line_length_min_mean_max = anno_raw['line_length_min_mean_max']
+        print(f'line_length_min_mean_max: {line_length_min_mean_max}')
 
     @staticmethod
     def show_img_ann(img_info, seperate_room_path):
@@ -165,13 +174,16 @@ class BEIKE:
 
       anno['corners'] = anno['corners'].astype(np.float32)
       anno['lines'] = anno['lines'].astype(np.float32)
+
+      lines_leng = np.linalg.norm(anno['lines'][:,0] - anno['lines'][:,1], axis=-1)
+      anno['line_length_min_mean_max'] = [lines_leng.min(), lines_leng.mean(), lines_leng.max()]
       #BEIKE.draw_anno(anno)
       return anno
 
     @staticmethod
     def raw_anno_to_img(anno_raw):
       anno_img = {}
-      corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], scope=anno_raw['scope'], scene=anno_raw['filename'])
+      corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       anno_img['bboxes'] = BEIKE.line_to_bbox(lines_pt)
       anno_img['labels'] = anno_raw['line_cat_ids']
       anno_img['bboxes_ignore'] = np.empty([0,4], dtype=np.float32)
@@ -193,9 +205,9 @@ class BEIKE:
       bboxes[:,[0,1]] = lines.min(axis=1)
       bboxes[:,[2,3]] = lines.max(axis=1)
       # aug thickness for 2 pixels
-      mask = (bboxes[:,2:4] - bboxes[:,0:2]) < 2
-      bboxes[:,[0,1]] -= mask
-      bboxes[:,[2,3]] += mask
+      #mask = (bboxes[:,2:4] - bboxes[:,0:2]) < 2
+      #bboxes[:,[0,1]] -= mask
+      #bboxes[:,[2,3]] += mask
 
       bboxes = np.clip(bboxes, a_min=0, a_max=IMAGE_SIZE-1)
 
@@ -204,17 +216,17 @@ class BEIKE:
       return bboxes
 
     @staticmethod
-    def meter_2_pixel(corners, lines, scope=None, floor=False, scene=None):
+    def meter_2_pixel(corners, lines, pcl_scope=None, floor=False, scene=None):
       '''
       corners: [n,2]
       liens: [m,2,2]
       '''
-      if scope is None:
+      if pcl_scope is None:
         min_xy = corners.min(axis=0)
         max_xy = corners.max(axis=0)
       else:
-        min_xy = scope[0,0:2]
-        max_xy = scope[1,0:2]
+        min_xy = pcl_scope[0,0:2]
+        max_xy = pcl_scope[1,0:2]
 
       max_range = (max_xy - min_xy).max()
       padding = max_range * 0.05
@@ -263,14 +275,32 @@ class BEIKE:
     def draw_1scene_img(self, scene_name):
       anno = self.load_anno_1scene(scene_name+'.json')
       img = self.load_data(scene_name)
-      anno['scope'] = np.array(self.scopes[scene_name])
+      anno['pcl_scope'] = np.array(self.pcl_scopes[scene_name])
+      BEIKE.add_anno_summary(anno)
       BEIKE.draw_anno(anno, img)
 
     def draw_1scene_pcl(self, scene_name):
       anno = self.load_anno_1scene(scene_name+'.json')
       img = self.load_data(scene_name)
-      anno['scope'] = np.array(self.scopes[scene_name])
+      anno['pcl_scope'] = np.array(self.pcl_scopes[scene_name])
       BEIKE.draw_anno(anno, img)
+
+    @ staticmethod
+    def add_anno_summary(anno):
+      corners =  anno['corners']
+      corner_cat_ids = anno['corner_cat_ids']
+      lines =  anno['lines']
+      line_cat_ids = anno['line_cat_ids']
+      line_lengths = np.linalg.norm(lines[:,0] - lines[:,1], axis=1)
+      min_leng = line_lengths.min()
+      max_leng = line_lengths.max()
+      n = lines.shape[0]
+      print(f'{n} lines\nline_lengths: {line_lengths}, \nmin_leng: {min_leng}, max_leng: {max_leng}')
+
+      ids = np.where( line_lengths == line_lengths.min() )[0]
+      print(f'line with min length:\n {lines[ids]}')
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
     @ staticmethod
     def draw_anno(anno, img=None):
@@ -285,7 +315,7 @@ class BEIKE:
       line_cat_ids = anno['line_cat_ids']
       #print(f'line_cat_ids: {line_cat_ids}')
 
-      corners, lines = BEIKE.meter_2_pixel(corners, lines, scope=anno['scope'], floor=True)
+      corners, lines = BEIKE.meter_2_pixel(corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
 
       if img is None:
         img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
@@ -301,13 +331,14 @@ class BEIKE:
           cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
                     (255, 255, 255), 1)
       cv2.imwrite(f'./anno_{scene_name}.png', img)
+      mmcv.imshow(img)
       pass
 
 
-def get_scene_scopes(data_path):
+def get_scene_pcl_scopes(data_path):
   ply_path = os.path.join(data_path, 'ply')
   pcl_files = os.listdir(ply_path)
-  scopes = {}
+  pcl_scopes = {}
   for pclf in pcl_files:
     pcl_file = os.path.join(ply_path, pclf)
     scene_name = pclf.split('.')[0]
@@ -317,28 +348,28 @@ def get_scene_scopes(data_path):
     xyz_min = points_data[:,0:3].min(0, keepdims=True)
     xyz_max = points_data[:,0:3].max(0, keepdims=True)
     xyz_min_max = np.concatenate([xyz_min, xyz_max], 0)
-    scopes[scene_name] = xyz_min_max.tolist()
+    pcl_scopes[scene_name] = xyz_min_max.tolist()
     print(f'{scene_name}: \n{xyz_min_max}\n')
 
-  scopes_file = os.path.join(data_path, 'scopes.json')
-  with open(scopes_file, 'w') as f:
-    json.dump(scopes, f)
-  print(f'save {scopes_file}')
+  pcl_scopes_file = os.path.join(data_path, 'pcl_scopes.json')
+  with open(pcl_scopes_file, 'w') as f:
+    json.dump(pcl_scopes, f)
+  print(f'save {pcl_scopes_file}')
 # ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
-  DATA_PATH = '/home/z/Research/mmdetection/data/beike100'
-  ANNO_PATH = os.path.join(DATA_PATH, 'json')
+  DATA_PATH = '/home/z/Research/mmdetection/data/beike/processed'
+  ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
-  #get_scene_scopes(DATA_PATH)
+  #get_scene_pcl_scopes(DATA_PATH)
 
-
-  scene = '7w6zvVsOBAQK4h4Bne7caQ'  # 10
+  scene = ['3Q92imFGVI1hZ5b0sDFFC3', '3sr-fOoghhC9kiOaGrvr7f']
+  #scene = '7w6zvVsOBAQK4h4Bne7caQ'  # 10
   #scene = 'IDZkUGse-74FIy2OqM2u_Y' # 20
   #scene = 'B9Abt6B78a0j2eRcygHjqC' # 15
 
   beike = BEIKE(ANNO_PATH)
-  beike.draw_1scene_img(scene_name = scene)
+  beike.draw_1scene_img(scene_name = scene[0])
 
   pass
 

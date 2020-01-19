@@ -135,8 +135,7 @@ total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/reppoints_moment_r50_fpn_2x'
-load_from = './work_dirs/reppoints_moment_r50_fpn_2x/best.pth'
-#load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
+load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

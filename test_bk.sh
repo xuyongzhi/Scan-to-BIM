@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=1
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
-CHECKPOINT=checkpoints/strpoints_moment_r50_fpn_1x.pth
+CHECKPOINT=work_dirs/strpoints_moment_r50_fpn_1x/best.pth
 
 
 ipython tools/test.py --  $CONFIG  $CHECKPOINT --show
