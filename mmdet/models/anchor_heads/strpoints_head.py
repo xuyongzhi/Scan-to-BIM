@@ -547,7 +547,6 @@ class StrPointsHead(nn.Module):
                                                mlvl_points, img_shape,
                                                scale_factor, cfg, rescale, nms)
             result_list.append(proposals)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return result_list
 
     def get_bboxes_single(self,

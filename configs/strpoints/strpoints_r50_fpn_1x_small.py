@@ -78,7 +78,7 @@ test_cfg = dict(
 dataset_type = 'BeikeDataset'
 data_root = 'data/beike/processed/'
 img_norm_cfg = dict(
-    mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
+    mean=[4.36646942 4.36646942 4.36646942], std=[21.05761365 21.05761365 21.05761365] , to_rgb=True)
 train_pipeline = [
     dict(type='LoadImageFromNpyFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -146,7 +146,8 @@ total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_small'
-load_from = None # './work_dirs/strpoints_moment_r50_fpn_1x_small/best.pth'
+#load_from = None
+load_from ='./checkpoints/strpoints_moment_r50_fpn_1x_small.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

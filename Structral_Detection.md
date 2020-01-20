@@ -9,6 +9,7 @@
 - num_points
 - point_strides
 - point_base_scale
+- image mean is too small    
 
 # PointAssigner
 ```

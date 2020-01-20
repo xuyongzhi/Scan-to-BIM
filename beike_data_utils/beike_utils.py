@@ -19,6 +19,7 @@ LOAD_CLASSES = ['wall']
 
 DEBUG = True
 BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
+WRITE_ANNO_IMG = 1
 
 class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
@@ -27,6 +28,10 @@ class BEIKE:
     def __init__(self, anno_folder='data/beike100/json/'):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
+        if WRITE_ANNO_IMG:
+          self.anno_img_folder = self.anno_folder.replace('json', 'json_imgs')
+          if not os.path.exists(self.anno_img_folder):
+            os.makedirs(self.anno_img_folder)
         self.seperate_room_path = anno_folder.replace('json', 'seperate_room_data/test')
         #self.seperate_room_data_path = anno_folder.replace('json', 'seperate_room_data/test')
         base_path = os.path.dirname( os.path.dirname(anno_folder) )
@@ -40,9 +45,6 @@ class BEIKE:
         img_infos = []
         for jfn in json_files:
           scene_name = jfn.split('.')[0]
-          if scene_name in BAD_SCENES:
-            continue
-
           anno_raw = self.load_anno_1scene(jfn)
           pcl_scope = np.array(self.pcl_scopes[anno_raw['filename'].split('.')[0]] )
           anno_raw['pcl_scope'] = pcl_scope
@@ -51,33 +53,45 @@ class BEIKE:
           img_info = {'filename': filename,
                       'ann': anno_img,
                       'ann_raw': anno_raw}
-          if DEBUG and False:
-            BEIKE.show_img_ann(img_info, self.seperate_room_path)
           img_infos.append(img_info)
 
         self.img_infos = img_infos
-        n = len(self.img_infos)
-        print(f'\nload {n} scenes\n')
-        #self.show_summary()
+
+        n0 = len(self.img_infos)
+        if WRITE_ANNO_IMG:
+          for i in range(n0):
+            self.draw_anno(i, with_img=True)
+
+        self.rm_bad_scenes()
         pass
 
-    def show_summary(self):
-      for img_info in self.img_infos:
-        anno_raw = img_info['ann_raw']
-        line_length_min_mean_max = anno_raw['line_length_min_mean_max']
-        print(f'line_length_min_mean_max: {line_length_min_mean_max}')
+    def rm_bad_scenes(self):
+      valid_ids = []
+      n0 = len(self.img_infos)
+      for i in range(n0):
+        sn = self.img_infos[i]['filename'].split('.')[0]
+        if sn not in BAD_SCENES:
+          valid_ids.append(i)
+      self.img_infos = [self.img_infos[i] for i in valid_ids]
+      n1 = len(self.img_infos)
+      print(f'\nload {n0} scenes with {n1} valid\n')
 
-    @staticmethod
-    def show_img_ann(img_info, seperate_room_path):
-      filename = img_info['filename']
-      print(f'{filename}')
-      file_path = os.path.join(seperate_room_path, filename)
-      data = np.load(file_path, allow_pickle=True).tolist()
-      img = data['topview_image']
-      #mmcv.imshow(img)
-      bboxes = img_info['ann']['bboxes']
-      mmcv.imshow_bboxes(img, bboxes)
-      pass
+    def show_summary(self, idx):
+      img_info = self.img_infos[idx]
+      anno = img_info['ann_raw']
+
+      anno = self.img_infos[idx]['ann_raw']
+      scene_name = anno['filename']
+      corners =  anno['corners']
+      corner_cat_ids = anno['corner_cat_ids']
+      lines =  anno['lines']
+      line_cat_ids = anno['line_cat_ids']
+      print(f'\n{scene_name}')
+      print(f'corner num = {corners.shape[0]}')
+      print(f'line num = {lines.shape[0]}')
+
+      line_length_min_mean_max = anno['line_length_min_mean_max']
+      print(f'line_length_min_mean_max: {line_length_min_mean_max}')
 
     def __len__(self):
       return len(self.img_infos)
@@ -177,7 +191,6 @@ class BEIKE:
 
       lines_leng = np.linalg.norm(anno['lines'][:,0] - anno['lines'][:,1], axis=-1)
       anno['line_length_min_mean_max'] = [lines_leng.min(), lines_leng.mean(), lines_leng.max()]
-      #BEIKE.draw_anno(anno)
       return anno
 
     @staticmethod
@@ -272,19 +285,6 @@ class BEIKE:
       #cv2.imwrite(f'./img_{scene_name}.png', img)
       return img
 
-    def draw_1scene_img(self, scene_name):
-      anno = self.load_anno_1scene(scene_name+'.json')
-      img = self.load_data(scene_name)
-      anno['pcl_scope'] = np.array(self.pcl_scopes[scene_name])
-      BEIKE.add_anno_summary(anno)
-      BEIKE.draw_anno(anno, img)
-
-    def draw_1scene_pcl(self, scene_name):
-      anno = self.load_anno_1scene(scene_name+'.json')
-      img = self.load_data(scene_name)
-      anno['pcl_scope'] = np.array(self.pcl_scopes[scene_name])
-      BEIKE.draw_anno(anno, img)
-
     @ staticmethod
     def add_anno_summary(anno):
       corners =  anno['corners']
@@ -302,8 +302,18 @@ class BEIKE:
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-    @ staticmethod
-    def draw_anno(anno, img=None):
+    def draw_anno(self, idx, with_img=True):
+      self.show_summary(idx)
+      anno = self.img_infos[idx]['ann_raw']
+      if not with_img:
+        img = None
+      else:
+        scene_name = anno['filename'].split('.')[0]
+        img = self.load_data(scene_name)
+
+        mask = img[:,:,1] == 0
+        img[:,:,1] = mask * 70
+
       print('draw_anno in beike_data_utils/beike_utils.py')
       colors_corner = {'wall': (0,0,255), 'door': (0,255,0), 'window': (255,0,0), 'other':(255,255,255)}
       colors_line   = {'wall': (255,0,0), 'door': (0,255,255), 'window': (0,255,255), 'other':(100,100,0)}
@@ -330,12 +340,57 @@ class BEIKE:
         if obj != 'wall':
           cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
                     (255, 255, 255), 1)
-      cv2.imwrite(f'./anno_{scene_name}.png', img)
+
+      if WRITE_ANNO_IMG:
+        anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
+        cv2.imwrite(anno_img_file, img)
+        print(anno_img_file)
+      #mmcv.imshow(img)
+      return img
+
+
+    def show_scene_anno(self, scene_name, with_img=True):
+      idx = None
+      for i in range(len(self)):
+        sn = self.img_infos[i]['filename'].split('.')[0]
+        if sn == scene_name:
+          idx = i
+          break
+      img = self.draw_anno(idx, with_img)
       mmcv.imshow(img)
+
+def gen_images_from_npy(data_path):
+  npy_path = os.path.join(data_path, 'seperate_room_data/test')
+  den_image_path = os.path.join(data_path, 'images_density')
+  norm_image_path = os.path.join(data_path, 'images_norm')
+
+  if not os.path.exists(den_image_path):
+    os.makedirs(den_image_path)
+  if not os.path.exists(norm_image_path):
+    os.makedirs(norm_image_path)
+
+  file_names = os.listdir(npy_path)
+  files = [os.path.join(npy_path, f) for f in file_names]
+  den_images = [os.path.join(den_image_path, f.replace('.npy', '.png')) for f in file_names]
+  norm_images = [os.path.join(norm_image_path, f.replace('.npy', '.png')) for f in file_names]
+  for i,fn in enumerate(files):
+      data = np.load(fn, allow_pickle=True).tolist()
+      img = data['topview_image']
+      #lines = data['line_coords']
+      #room_map = data['room_map']
+      #bg_idx = data['bg_idx']
+      normal_image = data['topview_mean_normal']
+      cv2.imwrite(den_images[i], img)
+      cv2.imwrite(norm_images[i], normal_image*255)
+      print(den_images[i])
       pass
 
+  pass
 
 def get_scene_pcl_scopes(data_path):
+  pcl_scopes_file = os.path.join(data_path, 'pcl_scopes.json')
+  if os.path.exists(pcl_scopes_file):
+    return
   ply_path = os.path.join(data_path, 'ply')
   pcl_files = os.listdir(ply_path)
   pcl_scopes = {}
@@ -351,25 +406,58 @@ def get_scene_pcl_scopes(data_path):
     pcl_scopes[scene_name] = xyz_min_max.tolist()
     print(f'{scene_name}: \n{xyz_min_max}\n')
 
-  pcl_scopes_file = os.path.join(data_path, 'pcl_scopes.json')
   with open(pcl_scopes_file, 'w') as f:
     json.dump(pcl_scopes, f)
   print(f'save {pcl_scopes_file}')
+
+def cal_images_mean_std(data_path):
+  '''
+  density mean: [4.36646942 4.36646942 4.36646942]
+  density std : [21.05761365 21.05761365 21.05761365]
+  norm mean: [7.26308136 7.19851608 9.41624451]
+  norm std : [31.69875936 31.16535819 30.24502675]
+  '''
+  den_image_path = os.path.join(data_path, 'images_density')
+  norm_image_path = os.path.join(data_path, 'images_norm')
+  den_images = os.listdir(den_image_path)
+  norm_images = os.listdir(norm_image_path)
+
+  dimgs = []
+  for fn in den_images:
+    fn = os.path.join(den_image_path, fn)
+    dimgs.append( np.expand_dims(cv2.imread(fn),0) )
+  dimgs = np.concatenate(dimgs, 0)
+
+  nimgs = []
+  for fn in norm_images:
+    fn = os.path.join(norm_image_path, fn)
+    nimgs.append( np.expand_dims(cv2.imread(fn),0) )
+  nimgs = np.concatenate(nimgs, 0)
+
+  d_mean = dimgs.reshape(-1,3).mean(axis=0)
+  d_std = dimgs.reshape(-1,3).std(axis=0)
+  n_mean = nimgs.reshape(-1,3).mean(axis=0)
+  n_std = nimgs.reshape(-1,3).std(axis=0)
+  print(f'density mean: {d_mean}')
+  print(f'density std : {d_std}')
+  print(f'norm mean: {n_mean}')
+  print(f'norm std : {n_std}')
+  pass
+
+
 # ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
-  DATA_PATH = '/home/z/Research/mmdetection/data/beike/processed'
+  DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
+  #gen_images_from_npy(DATA_PATH)
+  cal_images_mean_std(DATA_PATH)
   #get_scene_pcl_scopes(DATA_PATH)
 
   scene = ['3Q92imFGVI1hZ5b0sDFFC3', '3sr-fOoghhC9kiOaGrvr7f']
-  #scene = '7w6zvVsOBAQK4h4Bne7caQ'  # 10
-  #scene = 'IDZkUGse-74FIy2OqM2u_Y' # 20
-  #scene = 'B9Abt6B78a0j2eRcygHjqC' # 15
 
-  beike = BEIKE(ANNO_PATH)
-  beike.draw_1scene_img(scene_name = scene[0])
-
+  #beike = BEIKE(ANNO_PATH)
+  #beike.show_scene_anno('JW2-KX2A-3FQkoQkR7kpC7', False)
   pass
 
