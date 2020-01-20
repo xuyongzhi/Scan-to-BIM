@@ -144,8 +144,7 @@ class LoadProposals(object):
 
 
 @PIPELINES.register_module
-class LoadImageFromNpyFile(object):
-
+class Load2ImagesFromFile(object):
     def __init__(self, to_float32=False):
         self.to_float32 = to_float32
 
@@ -155,8 +154,11 @@ class LoadImageFromNpyFile(object):
                                 results['img_info']['filename'])
         else:
             filename = results['img_info']['filename']
-        data = np.load(filename, allow_pickle=True).tolist()
-        img = data['topview_image']
+        d_img = mmcv.imread(filename)
+        filename_n = filename.replace('density', 'norm')
+        n_img = mmcv.imread(filename_n)
+        img = np.concatenate([d_img, n_img], -1)
+
         if self.to_float32:
             img = img.astype(np.float32)
         results['filename'] = filename
@@ -168,4 +170,5 @@ class LoadImageFromNpyFile(object):
     def __repr__(self):
         return self.__class__.__name__ + '(to_float32={})'.format(
             self.to_float32)
+
 

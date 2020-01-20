@@ -12,14 +12,15 @@ import copy
 from collections import defaultdict
 import time
 import mmcv
+import glob
 
 
-IMAGE_SIZE = 256
+IMAGE_SIZE = 512
 LOAD_CLASSES = ['wall']
 
 DEBUG = True
 BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
-WRITE_ANNO_IMG = 1
+WRITE_ANNO_IMG = 0
 
 class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
@@ -49,7 +50,7 @@ class BEIKE:
           pcl_scope = np.array(self.pcl_scopes[anno_raw['filename'].split('.')[0]] )
           anno_raw['pcl_scope'] = pcl_scope
           anno_img = BEIKE.raw_anno_to_img(anno_raw)
-          filename = jfn.split('.')[0]+'.npy'
+          filename = jfn.split('.')[0]+'.density.png'
           img_info = {'filename': filename,
                       'ann': anno_img,
                       'ann_raw': anno_raw}
@@ -361,8 +362,8 @@ class BEIKE:
 
 def gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')
-  den_image_path = os.path.join(data_path, 'images_density')
-  norm_image_path = os.path.join(data_path, 'images_norm')
+  den_image_path = os.path.join(data_path, 'images/test')
+  norm_image_path = den_image_path
 
   if not os.path.exists(den_image_path):
     os.makedirs(den_image_path)
@@ -371,8 +372,8 @@ def gen_images_from_npy(data_path):
 
   file_names = os.listdir(npy_path)
   files = [os.path.join(npy_path, f) for f in file_names]
-  den_images = [os.path.join(den_image_path, f.replace('.npy', '.png')) for f in file_names]
-  norm_images = [os.path.join(norm_image_path, f.replace('.npy', '.png')) for f in file_names]
+  den_images = [os.path.join(den_image_path, f.replace('.npy', '.density.png')) for f in file_names]
+  norm_images = [os.path.join(norm_image_path, f.replace('.npy', '.norm.png')) for f in file_names]
   for i,fn in enumerate(files):
       data = np.load(fn, allow_pickle=True).tolist()
       img = data['topview_image']
@@ -412,39 +413,42 @@ def get_scene_pcl_scopes(data_path):
 
 def cal_images_mean_std(data_path):
   '''
-  density mean: [4.36646942 4.36646942 4.36646942]
-  density std : [21.05761365 21.05761365 21.05761365]
-  norm mean: [7.26308136 7.19851608 9.41624451]
-  norm std : [31.69875936 31.16535819 30.24502675]
+  mean: [ 2.91710224  2.91710224  2.91710224  5.71324154  5.66696014 11.13778194]
+  std: [16.58656351 16.58656351 16.58656351 27.51977998 27.0712237  34.75132369]
   '''
-  den_image_path = os.path.join(data_path, 'images_density')
-  norm_image_path = os.path.join(data_path, 'images_norm')
-  den_images = os.listdir(den_image_path)
-  norm_images = os.listdir(norm_image_path)
+  den_image_path = os.path.join(data_path, 'images/test')
+  den_images = glob.glob(os.path.join(den_image_path, '*.density.png') )
+  norm_images = [f.replace('.density', '.norm') for f in den_images]
 
-  dimgs = []
+  imgs = []
   for fn in den_images:
-    fn = os.path.join(den_image_path, fn)
-    dimgs.append( np.expand_dims(cv2.imread(fn),0) )
-  dimgs = np.concatenate(dimgs, 0)
+    dfn = os.path.join(den_image_path, fn)
+    nfn = dfn.replace('.density', '.norm')
+    dimg = cv2.imread(dfn)
+    nimg = cv2.imread(nfn)
+    img = np.concatenate([dimg, nimg], -1)
+    imgs.append( np.expand_dims( img, 0) )
+  imgs = np.concatenate(imgs, 0)
+  imgs = imgs.reshape(-1,6)
 
-  nimgs = []
-  for fn in norm_images:
-    fn = os.path.join(norm_image_path, fn)
-    nimgs.append( np.expand_dims(cv2.imread(fn),0) )
-  nimgs = np.concatenate(nimgs, 0)
 
-  d_mean = dimgs.reshape(-1,3).mean(axis=0)
-  d_std = dimgs.reshape(-1,3).std(axis=0)
-  n_mean = nimgs.reshape(-1,3).mean(axis=0)
-  n_std = nimgs.reshape(-1,3).std(axis=0)
-  print(f'density mean: {d_mean}')
-  print(f'density std : {d_std}')
-  print(f'norm mean: {n_mean}')
-  print(f'norm std : {n_std}')
+  mean = imgs.mean(axis=0)
+  std = imgs.std(axis=0)
+  print(f'mean: {mean}')
+  print(f'std : {std}')
   pass
 
 
+def draw_img_lines(img, lines):
+      img = img.copy()
+      for i in range(lines.shape[0]):
+        s, e = lines[i]
+        cv2.line(img, (s[0], s[1]), (e[0], e[1]), (255,0,0), 6)
+        #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+        #            (255, 255, 255), 1)
+      mmcv.imshow(img)
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 # ------------------------------------------------------------------------------
 
 if __name__ == '__main__':

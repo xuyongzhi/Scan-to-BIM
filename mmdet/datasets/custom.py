@@ -157,7 +157,7 @@ class CustomDataset(Dataset):
         self.pre_pipeline(results)
         results = self.pipeline(results)
 
-        #show_results(results)
+        show_results(results)
         return results
 
     def prepare_test_img(self, idx):
@@ -169,11 +169,21 @@ class CustomDataset(Dataset):
         return self.pipeline(results)
 
 def show_results(results):
+  print(results['img_meta'].data['filename'])
   img = results['img'].data.cpu().numpy()
   img = np.moveaxis(img, 0, -1)
   gt_bboxes = results['gt_bboxes'].data.cpu().numpy()
   gt_labels = results['gt_labels'].data.cpu().numpy()
-  mmcv.imshow(img)
-  mmcv.imshow_bboxes(img, gt_bboxes)
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  #mmcv.imshow(img[:,:,:3])
+  #mmcv.imshow(img[:,:,3:])
+  #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
+  draw_img_lines(img[:,:,:3], gt_bboxes.reshape(-1,2,2))
   pass
+
+def draw_img_lines(img, lines):
+  import cv2
+  img = img.copy()
+  for i in range(lines.shape[0]):
+    s, e = lines[i]
+    cv2.line(img, (s[0], s[1]), (e[0], e[1]), (0,255,0), 2)
+  mmcv.imshow(img)

@@ -17,6 +17,7 @@ model = dict(
     backbone=dict(
         type='ResNet',
         depth=50,
+        in_channels=6,
         num_stages=4,
         out_indices=( 0, 1, 2),
         frozen_stages=-1,
@@ -76,11 +77,12 @@ test_cfg = dict(
     max_per_img=100)
 # dataset settings
 dataset_type = 'BeikeDataset'
-data_root = 'data/beike/processed/'
+data_root = 'data/beike/processed_512/'
 img_norm_cfg = dict(
-    mean=[4.36646942 4.36646942 4.36646942], std=[21.05761365 21.05761365 21.05761365] , to_rgb=True)
+    mean=[ 2.91710224,  2.91710224,  2.91710224,  5.71324154,  5.66696014, 11.13778194],
+  std=[16.58656351, 16.58656351, 16.58656351, 27.51977998, 27.0712237,  34.75132369], to_rgb=False)
 train_pipeline = [
-    dict(type='LoadImageFromNpyFile'),
+    dict(type='Load2ImagesFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(512,512), keep_ratio=True),
     dict(type='RandomFlip', flip_ratio=0.5),
@@ -110,17 +112,17 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'seperate_room_data/train_2',
+        img_prefix=data_root + 'images/test',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'seperate_room_data/val',
+        img_prefix=data_root + 'images/test',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'seperate_room_data/train_2',
+        img_prefix=data_root + 'images/test',
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
@@ -146,8 +148,8 @@ total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_small'
-#load_from = None
-load_from ='./checkpoints/strpoints_moment_r50_fpn_1x_small.pth'
+load_from = None
+#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x_small.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]
