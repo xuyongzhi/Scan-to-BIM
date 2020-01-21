@@ -12,6 +12,18 @@
 - image mean is too small    
 
 
+# Line object
+- box size for point distance normalization
+```
+(1) core/bbox/assigners/point_assigner.py
+From: gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).clamp(min=1e-6)
+To:   gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1).clamp(min=1e-6)
+
+(2) core/bbox/assigners/max_iou_assigner.py
+From : bbox_overlaps
+To   : line_overlaps in straight_line_distance_torch.py
+```
+
 # Order of 2 points in a line
 - the one with smaller x^2+y^2 is the first one
 ```

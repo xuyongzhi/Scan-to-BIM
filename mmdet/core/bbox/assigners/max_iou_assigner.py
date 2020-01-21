@@ -1,7 +1,7 @@
 import torch
 
 from ..geometry import bbox_overlaps
-from ..straight_line_distance_torch import line_overlaps
+from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
@@ -101,7 +101,7 @@ class MaxIoUAssigner(BaseAssigner):
                 gt_labels = gt_labels.cpu()
 
         bboxes = bboxes[:, :4]
-        if self.line_object:
+        if not self.line_object:
           overlaps_fun = bbox_overlaps
         else:
           overlaps_fun = line_overlaps

@@ -35,7 +35,7 @@ def angle_with_x(vec0, scope_id=0, debug=0):
   return angle_from_vec0_to_vec1(vec_x, vec0, scope_id, debug)
 
 
-def angle_from_vec0_to_vec1(vec0, vec1, scope_id=0, debug=0):
+def angle_from_vec0_to_vec1(vec0, vec1, scope_id, debug=0):
   '''
     vec0: [n,2/3]
     vec1: [n,2/3]
@@ -47,7 +47,7 @@ def angle_from_vec0_to_vec1(vec0, vec1, scope_id=0, debug=0):
    clock wise is positive
    angle: [n]
   '''
-  assert vec0.dim() == vec1.dim() == 2
+  assert vec0.dim() == 2 and  vec1.dim() == 2
   assert (vec0.shape[0] == vec1.shape[0]) or vec0.shape[0]==1 or vec1.shape[0]==1
   assert vec0.shape[1] == vec1.shape[1] # 2 or 3
 
