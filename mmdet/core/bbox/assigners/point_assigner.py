@@ -74,13 +74,16 @@ class PointAssigner(BaseAssigner):
 
         # assign gt box
         gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
-        gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).clamp(min=1e-6)
-        scale = self.scale
         if not self.line_object:
-          gt_bboxes_lvl = ((torch.log2(gt_bboxes_wh[:, 0] / scale) +
-                            torch.log2(gt_bboxes_wh[:, 1] / scale)) / 2).int()
+          gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).clamp(min=1e-6)
         else:
-          gt_bboxes_lvl = (torch.log2(gt_bboxes_wh.max(dim=1)[0] / scale)).int()
+          gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
+                                                              .clamp(min=1e-6)
+          gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
+          assert gt_bboxes_wh.min() > 1
+        scale = self.scale
+        gt_bboxes_lvl = ((torch.log2(gt_bboxes_wh[:, 0] / scale) +
+                          torch.log2(gt_bboxes_wh[:, 1] / scale)) / 2).int()
         gt_bboxes_lvl = torch.clamp(gt_bboxes_lvl, min=lvl_min, max=lvl_max)
 
         # stores the assigned gt index of each point
@@ -102,14 +105,12 @@ class PointAssigner(BaseAssigner):
             gt_wh = gt_bboxes_wh[[idx], :]
             # compute the distance between gt center and
             #   all points in this level
-            if not self.line_object:
-              points_gt_dist = ((lvl_points - gt_point) / gt_wh).norm(dim=1)
-            else:
-              points_gt_dist = (lvl_points - gt_point).norm(dim=1) / gt_wh.norm(dim=1)
+            points_gt_dist = ((lvl_points - gt_point) / gt_wh).norm(dim=1)
             # find the nearest k points to gt center in this level
             min_dist, min_dist_index = torch.topk(
                 points_gt_dist, self.pos_num, largest=False)
 
+            #print(f'min_dist: {min_dist}')
             if CHECK:
               if min_dist.max() > 1:
                 print(f'min_dist is too large: {min_dist}')

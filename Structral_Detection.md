@@ -11,6 +11,15 @@
 - point_base_scale
 - image mean is too small    
 
+
+# Order of 2 points in a line
+- the one with smaller x^2+y^2 is the first one
+```
+1) beike_data_utils/beike_utils.py : sort_2points_in_line
+2) datasets/pipelines/transforms.py/RandomLineFlip
+```
+- 
+
 # PointAssigner
 ```
 core/bbox/assigners/point_assigner.py
@@ -26,3 +35,13 @@ core/bbox/assigners/point_assigner.py
 ```
 core/bbox/samplers/pseudo_sampler.py    
 ```
+...
+
+# Data Augmentation
+- RandomLineFlip
+```
+datasets/pipelines/transforms.py/RandomLineFlip
+```
+flip line instead of box, sort the 2 points of line after fliping
+
+

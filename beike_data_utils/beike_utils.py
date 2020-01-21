@@ -198,22 +198,28 @@ class BEIKE:
     def raw_anno_to_img(anno_raw):
       anno_img = {}
       corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
-      anno_img['bboxes'] = BEIKE.line_to_bbox(lines_pt)
+      lines_pt_ordered = sort_2points_in_line(lines_pt.reshape(-1,4))
+      anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
       anno_img['bboxes_ignore'] = np.empty([0,4], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
+      assert anno_img['bboxes'].max() < IMAGE_SIZE
+      assert anno_img['bboxes'].min() >= 0
       return anno_img
 
     @staticmethod
-    def line_to_bbox(lines):
+    def unused_line_to_bbox(lines):
       '''
-      lings: [[x0,y0], [x1,y1]]
+      input: lings: [n,2,2] [[x0,y0], [x1,y1]]
+      output: bboxes: [n,4]
+
       x: width
       y: height
       original point (x=0,y=0) is left-top
       bbox format: [bbox_left, bbox_up, bbox_right, bbox_bottom]
       '''
+
       n = lines.shape[0]
       bboxes = np.empty([n,4], dtype=lines.dtype)
       bboxes[:,[0,1]] = lines.min(axis=1)
@@ -303,9 +309,10 @@ class BEIKE:
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-    def draw_anno(self, idx, with_img=True):
+    def draw_anno(self, idx,  with_img=True):
       self.show_summary(idx)
       anno = self.img_infos[idx]['ann_raw']
+      anno_org = self.img_infos[idx]['ann']
       if not with_img:
         img = None
       else:
@@ -359,6 +366,27 @@ class BEIKE:
           break
       img = self.draw_anno(idx, with_img)
       mmcv.imshow(img)
+
+
+def sort_2points_in_line(bboxes):
+      '''
+      bboxes: [n,4]
+      return : [n,4]
+
+      make the point with smaller x^2+y^2 the first
+      '''
+      assert bboxes.ndim == 2
+      assert bboxes.shape[1] == 4
+      bboxes = bboxes.copy().reshape(-1,2,2)
+      # the point with smaller x^2 + y^2 is the first one
+      flag = np.linalg.norm(bboxes, axis=-1)
+      swap = (flag[:,1] - flag[:,0]) < 0
+      n = bboxes.shape[0]
+      for i in range(n):
+        if swap[i]:
+          bboxes[i] = bboxes[i,[1,0],:]
+      bboxes = bboxes.reshape(-1,4)
+      return bboxes
 
 def gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')

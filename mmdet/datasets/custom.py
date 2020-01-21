@@ -169,7 +169,7 @@ class CustomDataset(Dataset):
         return self.pipeline(results)
 
 def show_results(results):
-  print(results['img_meta'].data['filename'])
+  print('\ncustom, after data augmentation',results['img_meta'].data['filename'])
   img = results['img'].data.cpu().numpy()
   img = np.moveaxis(img, 0, -1)
   gt_bboxes = results['gt_bboxes'].data.cpu().numpy()

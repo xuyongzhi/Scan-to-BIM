@@ -165,6 +165,8 @@ class Load2ImagesFromFile(object):
         results['img'] = img
         results['img_shape'] = img.shape
         results['ori_shape'] = img.shape
+
+        #show_results(results)
         return results
 
     def __repr__(self):
@@ -172,3 +174,23 @@ class Load2ImagesFromFile(object):
             self.to_float32)
 
 
+
+def show_results(results):
+  print('\nLoad2ImagesFromFile, before data augmentation', results['img_info']['filename'])
+  img = results['img'][:,:,0:3]
+  ann = results['ann_info']
+  gt_bboxes = ann['bboxes']
+  gt_labels = ann['labels']
+  #mmcv.imshow(img[:,:,:3])
+  #mmcv.imshow(img[:,:,3:])
+  #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
+  draw_img_lines(img, gt_bboxes.reshape(-1,2,2))
+  pass
+
+def draw_img_lines(img, lines):
+  import cv2
+  img = img.copy()
+  for i in range(lines.shape[0]):
+    s, e = lines[i]
+    cv2.line(img, (s[0], s[1]), (e[0], e[1]), (0,255,0), 2)
+  mmcv.imshow(img)

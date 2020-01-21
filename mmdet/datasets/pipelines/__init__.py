@@ -7,7 +7,7 @@ from .loading import (LoadAnnotations, LoadImageFromFile, LoadProposals,
 from .test_aug import MultiScaleFlipAug
 from .transforms import (Albu, Expand, MinIoURandomCrop, Normalize, Pad,
                          PhotoMetricDistortion, RandomCrop, RandomFlip, Resize,
-                         SegRescale)
+                         SegRescale, RandomLineFlip)
 
 __all__ = [
     'Compose', 'to_tensor', 'ToTensor', 'ImageToTensor', 'ToDataContainer',
@@ -15,5 +15,6 @@ __all__ = [
     'Load2ImagesFromFile',
     'LoadProposals', 'MultiScaleFlipAug', 'Resize', 'RandomFlip', 'Pad',
     'RandomCrop', 'Normalize', 'SegRescale', 'MinIoURandomCrop', 'Expand',
-    'PhotoMetricDistortion', 'Albu', 'InstaBoost'
+    'PhotoMetricDistortion', 'Albu', 'InstaBoost',
+    'RandomLineFlip'
 ]

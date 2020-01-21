@@ -9,7 +9,7 @@ from numpy import random
 
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..registry import PIPELINES
-
+from beike_data_utils.beike_utils import sort_2points_in_line
 
 @PIPELINES.register_module
 class Resize(object):
@@ -232,6 +232,81 @@ class RandomFlip(object):
             # flip bboxes
             for key in results.get('bbox_fields', []):
                 results[key] = self.bbox_flip(results[key],
+                                              results['img_shape'],
+                                              results['flip_direction'])
+            # flip masks
+            for key in results.get('mask_fields', []):
+                results[key] = [
+                    mmcv.imflip(mask, direction=results['flip_direction'])
+                    for mask in results[key]
+                ]
+
+            # flip segs
+            for key in results.get('seg_fields', []):
+                results[key] = mmcv.imflip(
+                    results[key], direction=results['flip_direction'])
+        return results
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(flip_ratio={})'.format(
+            self.flip_ratio)
+
+
+@PIPELINES.register_module
+class RandomLineFlip(object):
+    """Flip the image & bbox & mask.
+
+    If the input dict contains the key "flip", then the flag will be used,
+    otherwise it will be randomly decided by a ratio specified in the init
+    method.
+
+    Args:
+        flip_ratio (float, optional): The flipping probability.
+    """
+
+    def __init__(self, flip_ratio=None, direction='horizontal'):
+        self.flip_ratio = flip_ratio
+        self.direction = direction
+        if flip_ratio is not None:
+            assert flip_ratio >= 0 and flip_ratio <= 1
+        assert direction in ['horizontal', 'vertical']
+
+    def line_flip(self, bboxes, img_shape, direction):
+        """Flip bboxes horizontally.
+
+        Args:
+            bboxes(ndarray): shape (..., 4*k)
+            img_shape(tuple): (height, width)
+        """
+        assert bboxes.shape[-1] % 4 == 0
+        flipped = bboxes.copy()
+        if direction == 'horizontal':
+            w = img_shape[1]
+            flipped[..., 0::4] = w - bboxes[..., 0::4] - 1
+            flipped[..., 2::4] = w - bboxes[..., 2::4] - 1
+        elif direction == 'vertical':
+            h = img_shape[0]
+            flipped[..., 1::4] = h - bboxes[..., 1::4] - 1
+            flipped[..., 3::4] = h - bboxes[..., 3::4] - 1
+        else:
+            raise ValueError(
+                'Invalid flipping direction "{}"'.format(direction))
+        flipped = sort_2points_in_line(flipped)
+        return flipped
+
+    def __call__(self, results):
+        if 'flip' not in results:
+            flip = True if np.random.rand() < self.flip_ratio else False
+            results['flip'] = flip
+        if 'flip_direction' not in results:
+            results['flip_direction'] = self.direction
+        if results['flip']:
+            # flip image
+            results['img'] = mmcv.imflip(
+                results['img'], direction=results['flip_direction'])
+            # flip bboxes
+            for key in results.get('bbox_fields', []):
+                results[key] = self.line_flip(results[key],
                                               results['img_shape'],
                                               results['flip_direction'])
             # flip masks
