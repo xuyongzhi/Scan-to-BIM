@@ -461,7 +461,8 @@ def cal_images_mean_std(data_path):
 
 
   mean = imgs.mean(axis=0)
-  std = imgs.std(axis=0)
+  tmp = imgs - mean
+  std = tmp.std(axis=0)
   print(f'mean: {mean}')
   print(f'std : {std}')
   pass

@@ -210,6 +210,26 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height
             ],
                              dim=1)
+        elif self.transform_method == 'center_size_istopleft':
+            pts_y = pts_y[:, :2, ...]
+            pts_x = pts_x[:, :2, ...]
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+            pts_y_min = pts_y.min(dim=1, keepdim=True)[0]
+            pts_y_max = pts_y.max(dim=1, keepdim=True)[0]
+            pts_x_min = pts_x.min(dim=1, keepdim=True)[0]
+            pts_x_max = pts_x.max(dim=1, keepdim=True)[0]
+
+            half_width = pts_x_max - pts_x_min
+            half_height = pts_y_max - pts_y_min
+
+            is_top_left = (pts_y[:,0:1,...] < pts_y_mean) *  \
+                          (pts_x[:,0:1,...] < pts_x_mean)
+            is_top_left = is_top_left.type(pts_y.dtype)
+
+            bbox = torch.cat([ pts_x_mean, pts_y_mean, half_width, half_height,\
+                              is_top_left ],
+                             dim=1)
             pass
         else:
             raise NotImplementedError

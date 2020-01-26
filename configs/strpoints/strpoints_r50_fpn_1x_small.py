@@ -50,7 +50,7 @@ model = dict(
             loss_weight=1.0),
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
-        transform_method='center_size'))
+        transform_method='center_size_istopleft'))
 # training and testing settings
 train_cfg = dict(
     init=dict(
