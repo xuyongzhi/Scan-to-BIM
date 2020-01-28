@@ -50,7 +50,9 @@ model = dict(
             loss_weight=1.0),
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
-        transform_method='center_size_istopleft'))
+        transform_method='moment_scope_istopleft'))
+        #transform_method='minmax'))
+        #transform_method='center_size_istopleft'))
 # training and testing settings
 train_cfg = dict(
     init=dict(
@@ -65,7 +67,7 @@ train_cfg = dict(
             neg_iou_thr=0.4,
             min_pos_iou=0,
             ignore_iof_thr=-1,
-            line_object=True),
+            overlap_fun='aug_iou'),
         allowed_border=-1,
         pos_weight=-1,
         debug=False))
@@ -92,7 +94,7 @@ train_pipeline = [
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
 test_pipeline = [
-    dict(type='LoadImageFromNpyFile'),
+    dict(type='Load2ImagesFromFile'),
     dict(
         type='MultiScaleFlipAug',
         img_scale=(512,512),
@@ -112,17 +114,17 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/test_2',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/test_2',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/test_2',
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
@@ -133,7 +135,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[250, 280])
+    step=[250, 350])
 checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
@@ -147,9 +149,10 @@ log_config = dict(
 total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_small'
+work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x_small.pth'
+load_from='./work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

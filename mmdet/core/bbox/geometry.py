@@ -86,3 +86,17 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
             ious = overlap / (area1[:, None])
 
     return ious
+
+def auged_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
+  bboxes1_a = aug_bboxes(bboxes1)
+  bboxes2_a = aug_bboxes(bboxes2)
+  return bbox_overlaps(bboxes1_a, bboxes2_a, mode, is_aligned)
+
+def aug_bboxes(bboxes0, thres_size=5):
+  assert bboxes0.shape[1] == 4
+  bboxes1 = bboxes0.clone()
+  box_size = bboxes1[:,[2,3]] - bboxes1[:,[0,1]]
+  aug = (thres_size - box_size).clamp(min=0) * 0.5
+  bboxes1[:,:2] = (bboxes1[:, :2] - aug)
+  bboxes1[:,2:] = (bboxes1[:, 2:] + aug)
+  return bboxes1

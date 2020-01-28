@@ -9,7 +9,8 @@ from .registry import DATASETS
 @DATASETS.register_module
 class BeikeDataset(CustomDataset):
 
-    CLASSES = ( 'wall', 'window', 'door' )
+    #CLASSES = ( 'wall', 'window', 'door' )
+    CLASSES = ( 'wall', )
 
     def load_annotations(self, ann_folder):
         self.beike = BEIKE(ann_folder)

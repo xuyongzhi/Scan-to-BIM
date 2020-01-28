@@ -163,7 +163,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
         for img, img_meta in zip(imgs, img_metas):
             h, w, _ = img_meta['img_shape']
-            img_show = img[:h, :w, :]
+            img_show = img[:h, :w, :3]
 
             bboxes = np.vstack(bbox_result)
             # draw segmentation masks
@@ -181,9 +181,15 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 for i, bbox in enumerate(bbox_result)
             ]
             labels = np.concatenate(labels)
+
+            img_show = np.clip(img_show+1, a_min=None, a_max=255)
+            class_names = tuple([c[0] for c in class_names])
+
             mmcv.imshow_det_bboxes(
                 img_show,
                 bboxes,
                 labels,
                 class_names=class_names,
-                score_thr=score_thr)
+                score_thr=score_thr,
+                bbox_color='green',
+                thickness=1)

@@ -16,6 +16,7 @@ import glob
 
 
 IMAGE_SIZE = 512
+#LOAD_CLASSES = ['wall', 'window', 'door']
 LOAD_CLASSES = ['wall']
 
 DEBUG = True
@@ -30,7 +31,7 @@ class BEIKE:
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
         if WRITE_ANNO_IMG:
-          self.anno_img_folder = self.anno_folder.replace('json', 'json_imgs')
+          self.anno_img_folder = self.anno_folder.replace('json', 'anno_imgs')
           if not os.path.exists(self.anno_img_folder):
             os.makedirs(self.anno_img_folder)
         self.seperate_room_path = anno_folder.replace('json', 'seperate_room_data/test')
@@ -61,7 +62,7 @@ class BEIKE:
         n0 = len(self.img_infos)
         if WRITE_ANNO_IMG:
           for i in range(n0):
-            self.draw_anno(i, with_img=True)
+            self.draw_anno(i, with_img=1)
 
         self.rm_bad_scenes()
         pass
@@ -198,7 +199,7 @@ class BEIKE:
     def raw_anno_to_img(anno_raw):
       anno_img = {}
       corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
-      lines_pt_ordered = sort_2points_in_line(lines_pt.reshape(-1,4))
+      lines_pt_ordered = sort_2points_per_box(lines_pt)
       anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
       anno_img['bboxes_ignore'] = np.empty([0,4], dtype=np.float32)
@@ -320,7 +321,8 @@ class BEIKE:
         img = self.load_data(scene_name)
 
         mask = img[:,:,1] == 0
-        img[:,:,1] = mask * 70
+        img[:,:,1] = mask * 30
+        img[:,:,0] = mask * 30
 
       print('draw_anno in beike_data_utils/beike_utils.py')
       colors_corner = {'wall': (0,0,255), 'door': (0,255,0), 'window': (255,0,0), 'other':(255,255,255)}
@@ -351,9 +353,9 @@ class BEIKE:
 
       if WRITE_ANNO_IMG:
         anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
-        cv2.imwrite(anno_img_file, img)
+        #cv2.imwrite(anno_img_file, img)
         print(anno_img_file)
-      #mmcv.imshow(img)
+      mmcv.imshow(img)
       return img
 
 
@@ -368,24 +370,40 @@ class BEIKE:
       mmcv.imshow(img)
 
 
-def sort_2points_in_line(bboxes):
+def sort_2points_per_box(bboxes):
       '''
-      bboxes: [n,4]
+      bboxes: [n,4] or [n,2,2]
       return : [n,4]
 
       make the point with smaller x^2+y^2 the first
+
+      Used in mmdet/datasets/pipelines/transforms.py /RandomLineFlip/line_flip
       '''
-      assert bboxes.ndim == 2
-      assert bboxes.shape[1] == 4
-      bboxes = bboxes.copy().reshape(-1,2,2)
-      # the point with smaller x^2 + y^2 is the first one
-      flag = np.linalg.norm(bboxes, axis=-1)
-      swap = (flag[:,1] - flag[:,0]) < 0
-      n = bboxes.shape[0]
-      for i in range(n):
-        if swap[i]:
-          bboxes[i] = bboxes[i,[1,0],:]
-      bboxes = bboxes.reshape(-1,4)
+      method = 'topleft'
+      #method = 'close_to_zero'
+
+      if bboxes.ndim == 2:
+        assert bboxes.shape[1] == 4
+        bboxes = bboxes.copy().reshape(-1,2,2)
+      else:
+        assert bboxes.ndim == 3
+        assert bboxes.shape[1] == 2
+        assert bboxes.shape[2] == 2
+
+      if method == 'close_to_zero':
+          # the point with smaller x^2 + y^2 is the first one
+          flag = np.linalg.norm(bboxes, axis=-1)
+          swap = (flag[:,1] - flag[:,0]) < 0
+          n = bboxes.shape[0]
+          for i in range(n):
+            if swap[i]:
+              bboxes[i] = bboxes[i,[1,0],:]
+          bboxes = bboxes.reshape(-1,4)
+
+      elif method == 'topleft':
+          xy_min = bboxes.min(axis=1)
+          xy_max = bboxes.max(axis=1)
+          bboxes = np.concatenate([xy_min, xy_max], axis=1)
       return bboxes
 
 def gen_images_from_npy(data_path):
@@ -485,12 +503,12 @@ if __name__ == '__main__':
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
   #gen_images_from_npy(DATA_PATH)
-  cal_images_mean_std(DATA_PATH)
+  #cal_images_mean_std(DATA_PATH)
   #get_scene_pcl_scopes(DATA_PATH)
 
   scene = ['3Q92imFGVI1hZ5b0sDFFC3', '3sr-fOoghhC9kiOaGrvr7f']
 
-  #beike = BEIKE(ANNO_PATH)
+  beike = BEIKE(ANNO_PATH)
   #beike.show_scene_anno('JW2-KX2A-3FQkoQkR7kpC7', False)
   pass
 

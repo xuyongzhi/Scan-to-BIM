@@ -83,7 +83,8 @@ class StrPointsHead(nn.Module):
         self.use_grid_points = use_grid_points
         self.center_init = center_init
         self.transform_method = transform_method
-        if self.transform_method == 'moment':
+        if self.transform_method == 'moment' or \
+                self.transform_method == 'moment_scope_istopleft':
             self.moment_transfer = nn.Parameter(
                 data=torch.zeros(2), requires_grad=True)
             self.moment_mul = moment_mul
@@ -210,6 +211,23 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height
             ],
                              dim=1)
+        elif self.transform_method == 'moment_scope_istopleft':
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+            pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
+            pts_x_std = torch.std(pts_x - pts_x_mean, dim=1, keepdim=True)
+            moment_transfer = (self.moment_transfer * self.moment_mul) + (
+                self.moment_transfer.detach() * (1 - self.moment_mul))
+            moment_width_transfer = moment_transfer[0]
+            moment_height_transfer = moment_transfer[1]
+            half_width = pts_x_std * torch.exp(moment_width_transfer)
+            half_height = pts_y_std * torch.exp(moment_height_transfer)
+            bbox = torch.cat([
+                pts_x_mean - half_width, pts_y_mean - half_height,
+                pts_x_mean + half_width, pts_y_mean + half_height
+            ],
+                             dim=1)
+            pass
         elif self.transform_method == 'center_size_istopleft':
             pts_y = pts_y[:, :2, ...]
             pts_x = pts_x[:, :2, ...]
@@ -488,11 +506,22 @@ class StrPointsHead(nn.Module):
             for i_lvl in range(len(pts_preds_refine)):
                 bbox_preds_init = self.points2bbox(
                     pts_preds_init[i_lvl].detach())
-                bbox_shift = bbox_preds_init * self.point_strides[i_lvl]
-                bbox_center = torch.cat(
-                    [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
-                bbox.append(bbox_center +
-                            bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4))
+                if self.transform_method == 'center_size_istopleft':
+                  bbox_preds_init_img = bbox_preds_init[i_img].permute(1, 2, 0).\
+                                                            reshape(-1, 5)
+                  istopleft = bbox_preds_init_img[:,4:5]
+                  bbox_cen_size = bbox_preds_init_img[:,:4] * \
+                                    self.point_strides[i_lvl]
+                  bbox_center = center[i_lvl][:, :2]
+                  bbox_cen_size[:,:2] = bbox_cen_size[:,:2] + bbox_center
+                  bbox.append(torch.cat([bbox_cen_size, istopleft], dim=1))
+                else:
+                  bbox_shift = bbox_preds_init * self.point_strides[i_lvl]
+                  bbox_center = torch.cat(
+                      [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
+                  bbox.append(bbox_center +
+                              bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4))
+                pass
             bbox_list.append(bbox)
         cls_reg_targets_refine = point_target(
             bbox_list,

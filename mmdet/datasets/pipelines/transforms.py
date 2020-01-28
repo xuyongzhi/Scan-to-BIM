@@ -9,7 +9,7 @@ from numpy import random
 
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..registry import PIPELINES
-from beike_data_utils.beike_utils import sort_2points_in_line
+from beike_data_utils.beike_utils import sort_2points_per_box
 
 @PIPELINES.register_module
 class Resize(object):
@@ -291,7 +291,7 @@ class RandomLineFlip(object):
         else:
             raise ValueError(
                 'Invalid flipping direction "{}"'.format(direction))
-        flipped = sort_2points_in_line(flipped)
+        flipped = sort_2points_per_box(flipped)
         return flipped
 
     def __call__(self, results):

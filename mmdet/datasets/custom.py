@@ -176,7 +176,7 @@ def show_results(results):
   gt_labels = results['gt_labels'].data.cpu().numpy()
   #mmcv.imshow(img[:,:,:3])
   #mmcv.imshow(img[:,:,3:])
-  #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
+  mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
   draw_img_lines(img[:,:,:3], gt_bboxes.reshape(-1,2,2))
   pass
 

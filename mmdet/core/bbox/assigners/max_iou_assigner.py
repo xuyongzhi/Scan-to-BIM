@@ -1,6 +1,6 @@
 import torch
 
-from ..geometry import bbox_overlaps
+from ..geometry import bbox_overlaps, auged_bbox_overlaps
 from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
@@ -44,7 +44,7 @@ class MaxIoUAssigner(BaseAssigner):
                  ignore_iof_thr=-1,
                  ignore_wrt_candidates=True,
                  gpu_assign_thr=-1,
-                 line_object=False):
+                 overlap_fun='iou'):
         self.pos_iou_thr = pos_iou_thr
         self.neg_iou_thr = neg_iou_thr
         self.min_pos_iou = min_pos_iou
@@ -52,7 +52,7 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_iof_thr = ignore_iof_thr
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
-        self.line_object = line_object
+        self.overlap_fun = overlap_fun
 
     def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
         """Assign gt to bboxes.
@@ -100,11 +100,17 @@ class MaxIoUAssigner(BaseAssigner):
             if gt_labels is not None:
                 gt_labels = gt_labels.cpu()
 
-        bboxes = bboxes[:, :4]
-        if not self.line_object:
+        #bboxes = bboxes[:, :4]
+        assert bboxes.shape[1] == 4
+        if self.overlap_fun == 'iou':
           overlaps_fun = bbox_overlaps
-        else:
+        elif self.overlap_fun == 'line':
           overlaps_fun = line_overlaps
+        elif self.overlap_fun == 'aug_iou':
+          overlaps_fun = auged_bbox_overlaps
+        else:
+          raise NotImplemented
+
         overlaps = overlaps_fun(gt_bboxes, bboxes)
 
         if (self.ignore_iof_thr > 0) and (gt_bboxes_ignore is not None) and (
