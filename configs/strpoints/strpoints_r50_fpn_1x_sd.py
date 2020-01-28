@@ -109,22 +109,22 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    imgs_per_gpu=6,
+    imgs_per_gpu=2,
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/test_2',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/test_2',
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/test_2',
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
@@ -133,10 +133,10 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=20,
+    warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[20, 30])
-checkpoint_config = dict(interval=2)
+    step=[250, 350])
+checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -146,10 +146,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 40
+total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
+work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_sd'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x_small.pth'
 #load_from='./work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
