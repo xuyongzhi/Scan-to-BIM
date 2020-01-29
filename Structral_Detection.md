@@ -32,9 +32,19 @@ To   : line_overlaps in straight_line_distance_torch.py
 ```
 - 
 
+# point_target
+```
+A function in core/anchor/point_target.py
+```
+- Compute corresponding GT box and classification targets for proposals. 
+- Call PointAssiger to generate targets from gt_bboxes
+- Call PseudoSampler to sample the targets
+
 # PointAssigner
 ```
 core/bbox/assigners/point_assigner.py
+
+Save the results in AssignResult
 ```
 - scale=4
 - pos_num=1
@@ -42,6 +52,13 @@ core/bbox/assigners/point_assigner.py
 - gt_bboxes_lvl = (torch.log2(gt_bboxes_wh.max(dim=1)[0] / scale)).int()    
 - points_gt_dist = (lvl_points - gt_point).norm(dim=1) / gt_wh.norm(dim=1)  
 - No ignored points: each gt box is assigned with one pos point, all others are negative
+
+# AssignResult
+```
+core/bbox/assigners/assign_result.py
+```
+- called in point_assigner
+- called in max_iou_assigner
 
 #  PseudoSampler
 ```

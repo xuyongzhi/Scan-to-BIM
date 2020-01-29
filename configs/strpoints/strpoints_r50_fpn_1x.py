@@ -151,7 +151,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
 load_from = None
-load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
+#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
 resume_from = None
 auto_resume = True

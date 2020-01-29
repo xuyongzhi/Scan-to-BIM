@@ -149,7 +149,7 @@ class PointAssigner(BaseAssigner):
             assigned_labels = None
 
         assign_res = AssignResult(
-            num_gts, assigned_gt_inds, None, labels=assigned_labels)
+            num_gts, assigned_gt_inds, None, labels=assigned_labels, env='PointAssigner')
 
         if DEBUG:
           assign_res.dg_add_pos_dist(pos_dist)

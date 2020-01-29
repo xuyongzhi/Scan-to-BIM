@@ -38,7 +38,7 @@ class AssignResult(object):
                       labels.shape=(7,))>
     """
 
-    def __init__(self, num_gts, gt_inds, max_overlaps, labels=None):
+    def __init__(self, num_gts, gt_inds, max_overlaps, labels=None, env=''):
         self.num_gts = num_gts
         self.gt_inds = gt_inds
         self.max_overlaps = max_overlaps
@@ -56,8 +56,10 @@ class AssignResult(object):
 
             self.lost_gt = self.num_pos_inds < self.num_gts
             if self.lost_gt:
-              print('gt num = {}, pos inds num = {}, lost gt!'\
+              print('gt num = {}, pos inds num = {}, lost gt!' +\
+                    '\n\t core/bbox/assigners/assign_result.py\n\t ' + env\
               .format(self.num_gts, self.num_pos_inds) )
+              pass
 
     def add_gt_(self, gt_labels):
         self_inds = torch.arange(

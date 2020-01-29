@@ -258,10 +258,13 @@ class BEIKE:
       lines_pt = ((lines - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
 
       if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
-            print(scene)
-            print(corners_pt.min())
-            print(corners_pt.max())
-            pass
+            scene_name = scene.split('.')[0]
+            if scene_name not in BAD_SCENES:
+              print(scene)
+              print(corners_pt.min())
+              print(corners_pt.max())
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
       corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
       lines_pt = np.clip(lines_pt, a_min=0, a_max=IMAGE_SIZE-1)
       if floor:
@@ -484,7 +487,6 @@ def cal_images_mean_std(data_path):
   print(f'mean: {mean}')
   print(f'std : {std}')
   pass
-
 
 def draw_img_lines(img, lines):
       img = img.copy()

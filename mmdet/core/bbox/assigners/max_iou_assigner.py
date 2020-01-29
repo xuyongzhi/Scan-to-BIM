@@ -6,7 +6,7 @@ from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
 from mmdet import debug_tools
-DEBUG = False
+DEBUG = 1
 
 class MaxIoUAssigner(BaseAssigner):
     """Assign a corresponding gt bbox or background to each bbox.
@@ -131,6 +131,10 @@ class MaxIoUAssigner(BaseAssigner):
             assign_result.max_overlaps = assign_result.max_overlaps.to(device)
             if assign_result.labels is not None:
                 assign_result.labels = assign_result.labels.to(device)
+
+        if DEBUG:
+          show_assign_res(bboxes, gt_bboxes, assign_result.pos_inds)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return assign_result
 
     def assign_wrt_overlaps(self, overlaps, gt_labels=None):
@@ -207,8 +211,24 @@ class MaxIoUAssigner(BaseAssigner):
             assigned_labels = None
 
         assign_res = AssignResult(
-            num_gts, assigned_gt_inds, max_overlaps, labels=assigned_labels)
+            num_gts, assigned_gt_inds, max_overlaps, labels=assigned_labels,
+        env='MaxIoUAssigner')
 
         if DEBUG:
           print(f'gt_max_overlaps: {gt_max_overlaps}')
         return assign_res
+
+def show_assign_res(bboxes, gt_bboxes, pos_inds):
+  import mmcv, numpy as np
+
+  img = np.zeros([512,512,3], dtype=np.uint8)
+  gt_bboxes_ = gt_bboxes.cpu().data.numpy()
+  bboxes_ = bboxes.cpu().data.numpy()
+  pos_bboxes_ = bboxes_[pos_inds.cpu().data.numpy()]
+
+  mmcv.imshow_bboxes(img, [gt_bboxes_, pos_bboxes_], ['red', 'green'])
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
+
+
+
