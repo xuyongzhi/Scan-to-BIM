@@ -4,7 +4,7 @@ from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
 
-DEBUG = 0
+DEBUG = 1
 CHECK = True
 
 class PointAssigner(BaseAssigner):
@@ -144,7 +144,7 @@ class PointAssigner(BaseAssigner):
 
             if DEBUG:
               pos_dist = assigned_gt_dist[pos_inds]
-              print(f'pos_dist: {pos_dist}')
+            #  print(f'pos_dist: {pos_dist}')
         else:
             assigned_labels = None
 
@@ -153,6 +153,6 @@ class PointAssigner(BaseAssigner):
 
         if DEBUG:
           assign_res.dg_add_pos_dist(pos_dist)
-          print(assign_res,'\n')
+          print('\tPointAssigner\t' + str(assign_res))
 
         return assign_res

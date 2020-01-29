@@ -12,6 +12,9 @@
 - image mean is too small    
 
 
+# Debug
+- PointAssigner
+- MaxIouAssigner
 # Line object
 - box size for point distance normalization
 ```
@@ -40,7 +43,7 @@ A function in core/anchor/point_target.py
 - Call PointAssiger to generate targets from gt_bboxes
 - Call PseudoSampler to sample the targets
 
-# PointAssigner
+# PointAssigner (Initial Stage)
 ```
 core/bbox/assigners/point_assigner.py
 
@@ -53,12 +56,45 @@ Save the results in AssignResult
 - points_gt_dist = (lvl_points - gt_point).norm(dim=1) / gt_wh.norm(dim=1)  
 - No ignored points: each gt box is assigned with one pos point, all others are negative
 
+# MaxIoUAssigner (Second Stage)
+```
+core/bbox/assigners/max_iou_assigner.py
+```
+- pos_iou_thr=0.5  
+- neg_iou_thr=0.4  
+- min_pos_iou=0   
+- ignore_iof_thr=-1  
+- overlap_fun='aug_iou_dis'  
+ 
+### Overlap fuction
+- IoU, IoF, Aug_IoU, AugIoU_Dis
+```
+core/bbox/geometry.py
+```
+- line_overlaps
+```
+ore/bbox/straight_line_distance.py
+```
+
+
 # AssignResult
 ```
 core/bbox/assigners/assign_result.py
 ```
+record results of point/box assigner
 - called in point_assigner
 - called in max_iou_assigner
+   
+
+## Two cases that losts gt
+* Initial stage
+```
+core/bbox/assigners\point_assigner.py
+```
+* Refinement stage
+```
+core/bbox/assigners/max_iou_assigner.p
+```
 
 #  PseudoSampler
 ```

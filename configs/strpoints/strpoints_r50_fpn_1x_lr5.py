@@ -127,7 +127,7 @@ data = dict(
         img_prefix=data_root + 'images/test',
         pipeline=test_pipeline))
 # optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.05, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
@@ -149,7 +149,7 @@ log_config = dict(
 total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
+work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_lr5'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'

@@ -92,7 +92,7 @@ def auged_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
   bboxes2_a = aug_bboxes(bboxes2)
   return bbox_overlaps(bboxes1_a, bboxes2_a, mode, is_aligned)
 
-def aug_bboxes(bboxes0, size_rate_thres=0.3):
+def aug_bboxes(bboxes0, size_rate_thres=0.25):
   assert bboxes0.shape[1] == 4
   bboxes1 = bboxes0.clone()
   box_size = bboxes1[:,[2,3]] - bboxes1[:,[0,1]]
@@ -101,3 +101,43 @@ def aug_bboxes(bboxes0, size_rate_thres=0.3):
   bboxes1[:,:2] = (bboxes1[:, :2] - aug)
   bboxes1[:,2:] = (bboxes1[:, 2:] + aug)
   return bboxes1
+
+def relative_dis(bboxes1, bboxes2, mode='gt_size_as_ref'):
+  '''
+  bboxes1 is gt
+  '''
+  n1 = bboxes1.shape[0]
+  n2 = bboxes2.shape[0]
+  centroids1 = (bboxes1[:,:2] + bboxes1[:,2:]) / 2
+  centroids2 = (bboxes2[:,:2] + bboxes2[:,2:]) / 2
+  abs_diss = centroids1.unsqueeze(dim=1) - centroids2.unsqueeze(dim=0)
+  abs_diss = abs_diss.norm(dim=-1)
+
+  sizes1 = (bboxes1[:,2:] - bboxes1[:,:2]).norm(dim=-1)
+  if mode == 'gt_size_as_ref':
+    ref_sizes = sizes1.unsqueeze(dim=1).repeat(1, n2) / 2
+  elif mode == 'fix_size_as_ref':
+    ref_sizes = sizes1.mean()
+  elif mode == 'ave_size_as_ref':
+    sizes2 = (bboxes2[:,2:] - bboxes2[:,:2]).norm(dim=-1)
+    ave_sizes = (sizes1.unsqueeze(dim=1) + sizes2.unsqueeze(dim=0))/2
+    ref_sizes = ave_sizes
+  else:
+    raise NotImplemented
+
+  rel_diss = 1 - abs_diss / ref_sizes
+  rel_diss = rel_diss.clamp(min=0)
+  rel_diss = rel_diss ** 2
+  return rel_diss
+
+def auged_iou_dis_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
+  #import time
+  #t0 = time.time()
+  iou_w = 0.6
+  aug_ious = auged_bbox_overlaps(bboxes1, bboxes2, mode, is_aligned)
+  #t1 = time.time()
+  rel_diss = relative_dis(bboxes1, bboxes2)
+  #t2 = time.time()
+  ious = aug_ious * iou_w + rel_diss * (1-iou_w)
+  #print('t1:{}\nt2:{}'.format((t1-t0)*1000, (t2-t1)*1000))
+  return ious

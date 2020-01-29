@@ -1,10 +1,10 @@
 import torch
 
-from ..geometry import bbox_overlaps, auged_bbox_overlaps
+from ..geometry import bbox_overlaps, auged_bbox_overlaps, auged_iou_dis_bbox_overlaps
 from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
-
+import cv2
 from mmdet import debug_tools
 DEBUG = 1
 
@@ -108,6 +108,8 @@ class MaxIoUAssigner(BaseAssigner):
           overlaps_fun = line_overlaps
         elif self.overlap_fun == 'aug_iou':
           overlaps_fun = auged_bbox_overlaps
+        elif self.overlap_fun == 'aug_iou_dis':
+          overlaps_fun = auged_iou_dis_bbox_overlaps
         else:
           raise NotImplemented
 
@@ -133,8 +135,8 @@ class MaxIoUAssigner(BaseAssigner):
                 assign_result.labels = assign_result.labels.to(device)
 
         if DEBUG:
-          show_assign_res(bboxes, gt_bboxes, assign_result.pos_inds)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          print('\tmax_iou_assigner\t' + str(assign_result))
+          #show_assign_res(bboxes, gt_bboxes, assign_result)
         return assign_result
 
     def assign_wrt_overlaps(self, overlaps, gt_labels=None):
@@ -214,20 +216,50 @@ class MaxIoUAssigner(BaseAssigner):
             num_gts, assigned_gt_inds, max_overlaps, labels=assigned_labels,
         env='MaxIoUAssigner')
 
-        if DEBUG:
-          print(f'gt_max_overlaps: {gt_max_overlaps}')
         return assign_res
 
-def show_assign_res(bboxes, gt_bboxes, pos_inds):
+def fix_bboxes_size(bboxes, size=2):
+  centroids = (bboxes[:,:2] + bboxes[:,2:]) / 2
+  bboxes_ = torch.cat( [centroids - size/2, centroids + size/2], 1 )
+  return bboxes_
+
+def show_assign_res(bboxes, gt_bboxes, assign_res):
   import mmcv, numpy as np
+
+  #bboxes = fix_bboxes_size(bboxes)
+
+  gt_inds_valid = assign_res.gt_inds_valid.cpu().data.numpy()
+  pos_inds = assign_res.pos_inds.cpu().data.numpy()
+  max_overlaps = assign_res.max_overlaps.cpu().data.numpy()[pos_inds]
+
+  gt_num = gt_bboxes.shape[0]
+  gt_inds_invalid = [i for i in range(gt_num) if i not in gt_inds_valid]
 
   img = np.zeros([512,512,3], dtype=np.uint8)
   gt_bboxes_ = gt_bboxes.cpu().data.numpy()
   bboxes_ = bboxes.cpu().data.numpy()
-  pos_bboxes_ = bboxes_[pos_inds.cpu().data.numpy()]
+  pos_bboxes_ = bboxes_[pos_inds]
 
-  mmcv.imshow_bboxes(img, [gt_bboxes_, pos_bboxes_], ['red', 'green'])
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  #mmcv.imshow_bboxes(img, [ bboxes_, gt_bboxes_], ['green', 'red'])
+  #mmcv.imshow_bboxes(img, [gt_bboxes_, pos_bboxes_], ['red', 'green'])
+  #mmcv.imshow_bboxes(img, [gt_bboxes_, gt_bboxes_[gt_inds_invalid]], ['red', 'green'])
+
+  for i in range(gt_num):
+    mask = gt_inds_valid == i
+    ni = mask.sum()
+    print(f'\npos bboxes num: {ni}')
+    if ni == 0:
+      continue
+    overlaps_i = max_overlaps[mask]
+    mol = overlaps_i.mean()
+    ol_str = ','.join([f'{o:.2}' for o in overlaps_i])
+    print(f'overlaps: mean={mol:.2} : {ol_str}')
+
+    pos_ids_i = pos_inds[mask]
+    mmcv.imshow_bboxes(img, [gt_bboxes_, gt_bboxes_[i:i+1], bboxes_[pos_ids_i]], ['red', 'green', 'yellow'])
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+    pass
   pass
 
 

@@ -48,18 +48,18 @@ class AssignResult(object):
         # for debug:
         if self.gt_inds is not None:
             self.pos_inds = torch.nonzero(self.gt_inds > 0).squeeze()
+            self.gt_inds_valid = self.gt_inds[self.pos_inds] - 1
             self.neg_inds = torch.nonzero(self.gt_inds == 0).squeeze()
-            self.ign_inds = torch.nonzero(self.gt_inds < 0).squeeze()
+            #self.ign_inds = torch.nonzero(self.gt_inds < 0).squeeze()
             self.num_pos_inds = self.pos_inds.numel()
-            self.num_neg_inds = self.pos_inds.numel()
-            self.num_ign_inds = self.pos_inds.numel()
+            #self.num_neg_inds = self.neg_inds.numel()
+            #self.num_ign_inds = self.ign_inds.numel()
 
             self.lost_gt = self.num_pos_inds < self.num_gts
             if self.lost_gt:
-              print('gt num = {}, pos inds num = {}, lost gt!' +\
-                    '\n\t core/bbox/assigners/assign_result.py\n\t ' + env\
-              .format(self.num_gts, self.num_pos_inds) )
-              pass
+              print('gt num = {}, pos inds num = {}, lost gt!'\
+                .format(self.num_gts, self.num_pos_inds) )
+              print('\tcore/bbox/assigners/assign_result.py\n\t{}'.format(env))
 
     def add_gt_(self, gt_labels):
         self_inds = torch.arange(
@@ -83,22 +83,23 @@ class AssignResult(object):
         parts = []
         parts.append('num_gts={!r}'.format(self.num_gts))
         if self.gt_inds is None:
-            parts.append('gt_inds={!r}'.format(self.gt_inds))
+            pass
         else:
-            parts.append('gt_inds.shape={!r}, pos_inds.shape={!r}'.format(
-                self.gt_inds.shape, self.pos_inds.shape))
+            parts.append('pos num={!r}'.format(
+                self.pos_inds.shape[0]))
         if self.max_overlaps is None:
-            parts.append('max_overlaps={!r}'.format(self.max_overlaps))
+            pass
         else:
-            parts.append('max_overlaps.shape={!r}'.format(
-                tuple(self.max_overlaps.shape)))
+            mean_max_ol = self.max_overlaps[self.pos_inds].mean().\
+                            cpu().data.numpy()
+            parts.append('mean max_overlap={:.3}'.format(\
+                mean_max_ol))
         if self.labels is None:
             parts.append('labels={!r}'.format(self.labels))
         else:
             parts.append('labels.shape={!r}'.format(tuple(self.labels.shape)))
         if self.pos_dist is not  None:
-            parts.append('\npos_dist summary = {} '.format(
-              self.summary_pos_dist))
+            parts.append('pos_dist min_mean_max = {} '.format(self.pos_dist_str))
         return ', '.join(parts)
 
     def __repr__(self):
@@ -115,3 +116,4 @@ class AssignResult(object):
     def dg_add_pos_dist(self, pos_dist):
       self.pos_dist = pos_dist
       self.summary_pos_dist = torch.stack([pos_dist.min(), pos_dist.mean(), pos_dist.std()])
+      self.pos_dist_str = ','.join([f'{d:.2}' for d in self.summary_pos_dist.cpu().data.numpy()])
