@@ -135,8 +135,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[20, 30])
-checkpoint_config = dict(interval=2)
+    step=[50, 80])
+checkpoint_config = dict(interval=5)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -146,13 +146,13 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 40
+total_epochs = 100
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
 load_from = None
-#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x_small.pth'
-load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
+load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
+#load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]
