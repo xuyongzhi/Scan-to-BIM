@@ -14,6 +14,8 @@ from ..utils import ConvModule, bias_init_with_prob
 
 from mmdet import debug_tools
 
+DEBUG = True
+DEBUG_output_points = DEBUG and False
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -576,6 +578,11 @@ class StrPointsHead(nn.Module):
             for pts_pred_refine in pts_preds_refine
         ]
         num_levels = len(cls_scores)
+
+        if DEBUG_output_points:
+          for i in range(num_levels):
+            bbox_preds_refine[i] = torch.cat([bbox_preds_refine[i], pts_preds_refine[i]], dim=1)
+
         mlvl_points = [
             self.point_generators[i].grid_points(cls_scores[i].size()[-2:],
                                                  self.point_strides[i])
@@ -619,7 +626,8 @@ class StrPointsHead(nn.Module):
                 scores = cls_score.sigmoid()
             else:
                 scores = cls_score.softmax(-1)
-            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
+            cn = bbox_pred.shape[0]
+            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, cn)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0 and scores.shape[0] > nms_pre:
                 if self.use_sigmoid_cls:
@@ -630,13 +638,17 @@ class StrPointsHead(nn.Module):
                 points = points[topk_inds, :]
                 bbox_pred = bbox_pred[topk_inds, :]
                 scores = scores[topk_inds, :]
-            bbox_pos_center = torch.cat([points[:, :2], points[:, :2]], dim=1)
+            #bbox_pos_center = torch.cat([points[:, :2], points[:, :2]], dim=1)
+            bbox_pos_center = points[:, :2].repeat(1, cn//2)
             bboxes = bbox_pred * self.point_strides[i_lvl] + bbox_pos_center
-            x1 = bboxes[:, 0].clamp(min=0, max=img_shape[1])
-            y1 = bboxes[:, 1].clamp(min=0, max=img_shape[0])
-            x2 = bboxes[:, 2].clamp(min=0, max=img_shape[1])
-            y2 = bboxes[:, 3].clamp(min=0, max=img_shape[0])
-            bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
+            #x1 = bboxes[:, 0].clamp(min=0, max=img_shape[1])
+            #y1 = bboxes[:, 1].clamp(min=0, max=img_shape[0])
+            #x2 = bboxes[:, 2].clamp(min=0, max=img_shape[1])
+            #y2 = bboxes[:, 3].clamp(min=0, max=img_shape[0])
+            #bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
+            for j_c in range(0, cn, 2):
+                bboxes[:, j_c]= bboxes[:, j_c].clamp(min=0, max=img_shape[1])
+                bboxes[:, j_c+1] = bboxes[:, j_c+1].clamp(min=0, max=img_shape[0])
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
         mlvl_bboxes = torch.cat(mlvl_bboxes)
