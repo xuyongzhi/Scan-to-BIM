@@ -1,6 +1,6 @@
 import torch
 
-from ..geometry import bbox_overlaps, auged_bbox_overlaps, auged_iou_dis_bbox_overlaps
+from ..geometry import bbox_overlaps, dilated_bbox_overlaps, dsiou_bbox_overlaps
 from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
@@ -106,10 +106,10 @@ class MaxIoUAssigner(BaseAssigner):
           overlaps_fun = bbox_overlaps
         elif self.overlap_fun == 'line':
           overlaps_fun = line_overlaps
-        elif self.overlap_fun == 'aug_iou':
-          overlaps_fun = auged_bbox_overlaps
-        elif self.overlap_fun == 'aug_iou_dis':
-          overlaps_fun = auged_iou_dis_bbox_overlaps
+        elif self.overlap_fun == 'dil_ou':
+          overlaps_fun = dilated_bbox_overlaps
+        elif self.overlap_fun == 'dil_iou_dis':
+          overlaps_fun = dsiou_bbox_overlaps
         else:
           raise NotImplemented
 

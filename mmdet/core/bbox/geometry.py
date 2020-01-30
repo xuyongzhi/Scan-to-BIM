@@ -87,12 +87,12 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
 
     return ious
 
-def auged_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
-  bboxes1_a = aug_bboxes(bboxes1)
-  bboxes2_a = aug_bboxes(bboxes2)
+def dilated_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
+  bboxes1_a = dilated_bboxes(bboxes1)
+  bboxes2_a = dilated_bboxes(bboxes2)
   return bbox_overlaps(bboxes1_a, bboxes2_a, mode, is_aligned)
 
-def aug_bboxes(bboxes0, size_rate_thres=0.25):
+def dilated_bboxes(bboxes0, size_rate_thres=0.25):
   assert bboxes0.shape[1] == 4
   bboxes1 = bboxes0.clone()
   box_size = bboxes1[:,[2,3]] - bboxes1[:,[0,1]]
@@ -130,11 +130,11 @@ def relative_dis(bboxes1, bboxes2, mode='gt_size_as_ref'):
   rel_diss = rel_diss ** 2
   return rel_diss
 
-def auged_iou_dis_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
+def dsiou_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
   #import time
   #t0 = time.time()
   iou_w = 0.6
-  aug_ious = auged_bbox_overlaps(bboxes1, bboxes2, mode, is_aligned)
+  aug_ious = dilated_bbox_overlaps(bboxes1, bboxes2, mode, is_aligned)
   #t1 = time.time()
   rel_diss = relative_dis(bboxes1, bboxes2)
   #t2 = time.time()
