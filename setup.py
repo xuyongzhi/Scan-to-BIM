@@ -182,6 +182,10 @@ if __name__ == '__main__':
                 module='mmdet.ops.nms',
                 sources=['src/nms_cuda.cpp', 'src/nms_kernel.cu']),
             make_cuda_ext(
+                name='nms_dsiou_cuda',
+                module='mmdet.ops.nms',
+                sources=['src/nms_dsiou_cuda.cpp', 'src/nms_dsiou_kernel.cu']),
+            make_cuda_ext(
                 name='roi_align_cuda',
                 module='mmdet.ops.roi_align',
                 sources=['src/roi_align_cuda.cpp', 'src/roi_align_kernel.cu']),
