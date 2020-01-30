@@ -21,7 +21,7 @@ LOAD_CLASSES = ['wall']
 
 DEBUG = True
 BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
-WRITE_ANNO_IMG = 0
+WRITE_ANNO_IMG = 1
 
 class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
@@ -62,7 +62,8 @@ class BEIKE:
         n0 = len(self.img_infos)
         if WRITE_ANNO_IMG:
           for i in range(n0):
-            self.draw_anno(i, with_img=1)
+            #self.draw_anno_raw(i, with_img=1)
+            self.draw_anno_img(i, with_img=1)
 
         self.rm_bad_scenes()
         pass
@@ -313,10 +314,36 @@ class BEIKE:
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-    def draw_anno(self, idx,  with_img=True):
+    def draw_anno_img(self, idx,  with_img=True):
+      colors_line   = {'wall': (255,0,0), 'door': (0,255,255), 'window': (0,255,255), 'other':(100,100,0)}
+      anno = self.img_infos[idx]['ann']
+      bboxes = anno['bboxes']
+
+      if not with_img:
+        img = None
+      else:
+        scene_name = self.img_infos[idx]['filename'].split('.')[0]
+        img = self.load_data(scene_name)
+
+        mask = img[:,:,1] == 0
+        img[:,:,1] = mask * 30
+        img[:,:,0] = mask * 30
+
+      #mmcv.imshow_bboxes(img, bboxes)
+      print(bboxes[:,-1])
+      lines = bboxes[:,:4].reshape(-1,2,2)
+
+      for i in range(lines.shape[0]):
+        s, e = lines[i]
+        cv2.line(img, (s[0], s[1]), (e[0], e[1]), colors_line['wall'])
+      mmcv.imshow(img)
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
+
+    def draw_anno_raw(self, idx,  with_img=True):
       self.show_summary(idx)
       anno = self.img_infos[idx]['ann_raw']
-      anno_org = self.img_infos[idx]['ann']
       if not with_img:
         img = None
       else:
@@ -382,7 +409,7 @@ def sort_2points_per_box(bboxes):
 
       Used in mmdet/datasets/pipelines/transforms.py /RandomLineFlip/line_flip
       '''
-      method = 'topleft'
+      method = 'scope'
       #method = 'close_to_zero'
 
       if bboxes.ndim == 2:
@@ -403,10 +430,12 @@ def sort_2points_per_box(bboxes):
               bboxes[i] = bboxes[i,[1,0],:]
           bboxes = bboxes.reshape(-1,4)
 
-      elif method == 'topleft':
+      elif method == 'scope':
           xy_min = bboxes.min(axis=1)
           xy_max = bboxes.max(axis=1)
-          bboxes = np.concatenate([xy_min, xy_max], axis=1)
+          istopleft = (bboxes - np.expand_dims(xy_min, 1)) < 1e-6
+          istopleft = istopleft.all(axis=2).any(axis=1).reshape(-1,1)
+          bboxes = np.concatenate([xy_min, xy_max, istopleft], axis=1)
       return bboxes
 
 def gen_images_from_npy(data_path):
