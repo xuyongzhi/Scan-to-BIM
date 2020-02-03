@@ -14,6 +14,7 @@ import time
 import mmcv
 import glob
 
+from configs.common import BOXCN
 
 IMAGE_SIZE = 512
 #LOAD_CLASSES = ['wall', 'window', 'door']
@@ -21,7 +22,7 @@ LOAD_CLASSES = ['wall']
 
 DEBUG = True
 BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
-WRITE_ANNO_IMG = 1
+WRITE_ANNO_IMG = 0
 
 class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
@@ -435,7 +436,9 @@ def sort_2points_per_box(bboxes):
           xy_max = bboxes.max(axis=1)
           istopleft = (bboxes - np.expand_dims(xy_min, 1)) < 1e-6
           istopleft = istopleft.all(axis=2).any(axis=1).reshape(-1,1)
-          bboxes = np.concatenate([xy_min, xy_max, istopleft], axis=1)
+          bboxes = np.concatenate([xy_min, xy_max], axis=1)
+          if BOXCN == 5:
+            bboxes = np.concatenate([bboxes, istopleft], axis=1)
       return bboxes
 
 def gen_images_from_npy(data_path):
