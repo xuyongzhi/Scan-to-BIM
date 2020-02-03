@@ -1,1 +1,1 @@
-BOXCN = 4
+BOX_CN = 4

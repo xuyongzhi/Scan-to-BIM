@@ -9,7 +9,6 @@ from numpy import random
 
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..registry import PIPELINES
-from beike_data_utils.beike_utils import sort_2points_per_box
 
 @PIPELINES.register_module
 class Resize(object):
@@ -41,7 +40,8 @@ class Resize(object):
                  img_scale=None,
                  multiscale_mode='range',
                  ratio_range=None,
-                 keep_ratio=True):
+                 keep_ratio=True,
+                 obj_dim=4):
         if img_scale is None:
             self.img_scale = None
         else:
@@ -61,6 +61,7 @@ class Resize(object):
         self.multiscale_mode = multiscale_mode
         self.ratio_range = ratio_range
         self.keep_ratio = keep_ratio
+        self.obj_dim = obj_dim
 
     @staticmethod
     def random_select(img_scales):
@@ -126,10 +127,11 @@ class Resize(object):
     def _resize_bboxes(self, results):
         img_shape = results['img_shape']
         for key in results.get('bbox_fields', []):
-            bboxes = results[key] * results['scale_factor']
+            assert results[key].shape[1] == self.obj_dim
+            bboxes = results[key][:,:4] * results['scale_factor']
             bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1] - 1)
             bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0] - 1)
-            results[key] = bboxes
+            results[key][:,:4] = bboxes
 
     def _resize_masks(self, results):
         for key in results.get('mask_fields', []):
@@ -264,34 +266,39 @@ class RandomLineFlip(object):
         flip_ratio (float, optional): The flipping probability.
     """
 
-    def __init__(self, flip_ratio=None, direction='horizontal'):
+    def __init__(self, flip_ratio=None, direction='horizontal', obj_rep='scope'):
         self.flip_ratio = flip_ratio
         self.direction = direction
+        self.obj_rep = obj_rep
         if flip_ratio is not None:
             assert flip_ratio >= 0 and flip_ratio <= 1
         assert direction in ['horizontal', 'vertical']
+        assert obj_rep in ['scope']
 
-    def line_flip(self, bboxes, img_shape, direction):
+    def bbox_flip(self, bboxes, img_shape, direction, obj_rep):
         """Flip bboxes horizontally.
 
         Args:
             bboxes(ndarray): shape (..., 4*k)
             img_shape(tuple): (height, width)
         """
+        if obj_rep == 'scope':
+          return self.bbox_flip_scope(bboxes, img_shape, direction)
+
+    def bbox_flip_scope(self, bboxes, img_shape, direction):
         assert bboxes.shape[-1] % 4 == 0
         flipped = bboxes.copy()
         if direction == 'horizontal':
             w = img_shape[1]
-            flipped[..., 0::4] = w - bboxes[..., 0::4] - 1
-            flipped[..., 2::4] = w - bboxes[..., 2::4] - 1
+            flipped[..., 0::4] = w - bboxes[..., 2::4] - 1
+            flipped[..., 2::4] = w - bboxes[..., 0::4] - 1
         elif direction == 'vertical':
             h = img_shape[0]
-            flipped[..., 1::4] = h - bboxes[..., 1::4] - 1
-            flipped[..., 3::4] = h - bboxes[..., 3::4] - 1
+            flipped[..., 1::4] = h - bboxes[..., 3::4] - 1
+            flipped[..., 3::4] = h - bboxes[..., 1::4] - 1
         else:
             raise ValueError(
                 'Invalid flipping direction "{}"'.format(direction))
-        flipped = sort_2points_per_box(flipped)
         return flipped
 
     def __call__(self, results):
@@ -300,15 +307,18 @@ class RandomLineFlip(object):
             results['flip'] = flip
         if 'flip_direction' not in results:
             results['flip_direction'] = self.direction
+        if 'obj_rep' not in results:
+            results['obj_rep'] = self.obj_rep
         if results['flip']:
             # flip image
             results['img'] = mmcv.imflip(
                 results['img'], direction=results['flip_direction'])
             # flip bboxes
             for key in results.get('bbox_fields', []):
-                results[key] = self.line_flip(results[key],
+                results[key] = self.bbox_flip(results[key],
                                               results['img_shape'],
-                                              results['flip_direction'])
+                                              results['flip_direction'],
+                                              results['obj_rep'])
             # flip masks
             for key in results.get('mask_fields', []):
                 results[key] = [

@@ -9,6 +9,19 @@
   img_norm_cfg
   transform_method
 '''
+
+from configs.common import BOX_CN
+
+_all_obj_rep_dims = {'scope': 4}
+
+_obj_rep='scope'
+_transform_method='moment'
+_obj_dim = _all_obj_rep_dims[_obj_rep]
+assert BOX_CN == 4
+
+#_obj_rep='scope_istopleft'
+#_transform_method='moment_scope_istopleft'
+
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 model = dict(
@@ -50,7 +63,7 @@ model = dict(
             loss_weight=1.0),
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
-        transform_method='moment_scope_istopleft'))
+        transform_method=_transform_method))
         #transform_method='minmax'))
         #transform_method='center_size_istopleft'))
 # training and testing settings
@@ -86,8 +99,8 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='Load2ImagesFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='Resize', img_scale=(512,512), keep_ratio=True),
-    dict(type='RandomLineFlip', flip_ratio=0.5),
+    dict(type='Resize', img_scale=(512,512), keep_ratio=True, obj_dim=_obj_dim),
+    dict(type='RandomLineFlip', flip_ratio=0.5, obj_rep=_obj_rep),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
@@ -149,7 +162,7 @@ log_config = dict(
 total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/strpoints_moment_r50_fpn_1x'
+work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_debuging'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'

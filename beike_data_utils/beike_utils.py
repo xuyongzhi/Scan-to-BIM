@@ -14,7 +14,7 @@ import time
 import mmcv
 import glob
 
-from configs.common import BOXCN
+from configs.common import BOX_CN
 
 IMAGE_SIZE = 512
 #LOAD_CLASSES = ['wall', 'window', 'door']
@@ -204,11 +204,12 @@ class BEIKE:
       lines_pt_ordered = sort_2points_per_box(lines_pt)
       anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
-      anno_img['bboxes_ignore'] = np.empty([0,4], dtype=np.float32)
+      anno_img['bboxes_ignore'] = np.empty([0,BOX_CN], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
-      assert anno_img['bboxes'].max() < IMAGE_SIZE
-      assert anno_img['bboxes'].min() >= 0
+      bboxes = anno_img['bboxes'][:,:4]
+      assert bboxes.max() < IMAGE_SIZE
+      assert bboxes.min() >= 0
       return anno_img
 
     @staticmethod
@@ -437,7 +438,7 @@ def sort_2points_per_box(bboxes):
           istopleft = (bboxes - np.expand_dims(xy_min, 1)) < 1e-6
           istopleft = istopleft.all(axis=2).any(axis=1).reshape(-1,1)
           bboxes = np.concatenate([xy_min, xy_max], axis=1)
-          if BOXCN == 5:
+          if BOX_CN == 5:
             bboxes = np.concatenate([bboxes, istopleft], axis=1)
       return bboxes
 

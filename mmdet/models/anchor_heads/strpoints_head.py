@@ -166,7 +166,7 @@ class StrPointsHead(nn.Module):
         normal_init(self.reppoints_pts_refine_conv, std=0.01)
         normal_init(self.reppoints_pts_refine_out, std=0.01)
 
-    def points2bbox(self, pts, y_first=False):
+    def points2bbox(self, pts, y_first=True):
         """
         Converting the points set into bounding box.
         :param pts: the input points sets (fields), each points
