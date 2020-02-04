@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 from .pipelines import Compose
 from .registry import DATASETS
-
+np.set_printoptions(precision=3, suppress=True)
 
 @DATASETS.register_module
 class CustomDataset(Dataset):
@@ -174,10 +174,22 @@ def show_results(results):
   img = np.moveaxis(img, 0, -1)
   gt_bboxes = results['gt_bboxes'].data.cpu().numpy()
   gt_labels = results['gt_labels'].data.cpu().numpy()
+  if gt_bboxes.shape[1] == 5:
+    istopleft = gt_bboxes[:,4]
+    print(istopleft)
+    gt_bboxes = gt_bboxes[:,:4]
+    n = gt_bboxes.shape[0]
+    for i in range(n):
+      if istopleft[i]<0:
+        gt_bboxes[i] = gt_bboxes[i,[2,1,0,3]]
+    lines = gt_bboxes.reshape(-1,2,2)
+  else:
+    lines = gt_bboxes.reshape(-1,2,2)
+
   #mmcv.imshow(img[:,:,:3])
   #mmcv.imshow(img[:,:,3:])
-  mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
-  draw_img_lines(img[:,:,:3], gt_bboxes.reshape(-1,2,2))
+  #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
+  draw_img_lines(img[:,:,:3], lines)
   pass
 
 def draw_img_lines(img, lines):

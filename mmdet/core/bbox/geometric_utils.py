@@ -35,6 +35,12 @@ def angle_with_x(vec0, scope_id=0, debug=0):
   return angle_from_vec0_to_vec1(vec_x, vec0, scope_id, debug)
 
 
+def angle_from_vec0_to_vec1_np(vec0, vec1, scope_id, debug=0):
+    vec0_t = torch.from_numpy(vec0)
+    vec1_t = torch.from_numpy(vec1)
+    angles = angle_from_vec0_to_vec1(vec0_t, vec1_t, scope_id, debug)
+    return angles.cpu().data.numpy()
+
 def angle_from_vec0_to_vec1(vec0, vec1, scope_id, debug=0):
   '''
     vec0: [n,2/3]
@@ -43,6 +49,8 @@ def angle_from_vec0_to_vec1(vec0, vec1, scope_id, debug=0):
 
    scope_id=0: [0,pi]
             1: (-pi/2, pi/2]
+            2: (-pi, pi]
+            3: (0, pi*2]
 
    clock wise is positive
    angle: [n]
@@ -72,13 +80,20 @@ def angle_from_vec0_to_vec1(vec0, vec1, scope_id, debug=0):
   cosa = torch.sum(vec0 * vec1,dim=1)
   mask = (cosa >= 0).to(vec1.dtype)
   angle = angle * mask + (math.pi - angle)* (1-mask)
+  # angle: [-pi/2, pi/2*3]
 
   if scope_id == 1:
-    # [-pi/2, pi]: offset=0.5, period=pi
+    # [-pi/2, pi/2]: offset=0.5, period=pi
     angle = limit_period(angle, 0.5, math.pi)
   elif scope_id == 0:
     # [0, pi]: offset=0, period=pi
     angle = limit_period(angle, 0, math.pi)
+  elif scope_id == 2:
+    # [-pi, pi]: offset=0.5, period=pi*2
+    angle = limit_period(angle, 0.5, math.pi*2)
+  elif scope_id == 3:
+    # [0, 2*pi]: offset=0, period=pi*2
+    angle = limit_period(angle, 0, math.pi*2)
   else:
     raise NotImplementedError
   return angle

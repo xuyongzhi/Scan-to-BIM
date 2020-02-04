@@ -129,8 +129,8 @@ class Resize(object):
         for key in results.get('bbox_fields', []):
             assert results[key].shape[1] == self.obj_dim
             bboxes = results[key][:,:4] * results['scale_factor']
-            bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1] - 1)
-            bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0] - 1)
+            bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, img_shape[1] - 1)
+            bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, img_shape[0] - 1)
             results[key][:,:4] = bboxes
 
     def _resize_masks(self, results):
@@ -273,7 +273,7 @@ class RandomLineFlip(object):
         if flip_ratio is not None:
             assert flip_ratio >= 0 and flip_ratio <= 1
         assert direction in ['horizontal', 'vertical']
-        assert obj_rep in ['scope']
+        assert obj_rep in ['scope', 'scope_istopleft']
 
     def bbox_flip(self, bboxes, img_shape, direction, obj_rep):
         """Flip bboxes horizontally.
@@ -284,6 +284,28 @@ class RandomLineFlip(object):
         """
         if obj_rep == 'scope':
           return self.bbox_flip_scope(bboxes, img_shape, direction)
+        elif obj_rep == 'scope_istopleft':
+          return self.bbox_flip_scope_itl(bboxes, img_shape, direction)
+        else:
+          raise NotImplementedError
+
+    def bbox_flip_scope_itl(self, bboxes, img_shape, direction):
+        assert bboxes.shape[-1] == 5
+        flipped = bboxes.copy()
+        if direction == 'horizontal':
+            w = img_shape[1]
+            flipped[..., 0] = w - bboxes[..., 2] - 1
+            flipped[..., 2] = w - bboxes[..., 0] - 1
+        elif direction == 'vertical':
+            h = img_shape[0]
+            flipped[..., 1] = h - bboxes[..., 3] - 1
+            flipped[..., 3] = h - bboxes[..., 1] - 1
+        else:
+            raise ValueError(
+                'Invalid flipping direction "{}"'.format(direction))
+        flipped[:,-1] = -flipped[:,-1]
+        print('\nflipped\n')
+        return flipped
 
     def bbox_flip_scope(self, bboxes, img_shape, direction):
         assert bboxes.shape[-1] % 4 == 0

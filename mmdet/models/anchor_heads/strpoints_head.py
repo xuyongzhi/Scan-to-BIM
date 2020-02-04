@@ -229,6 +229,7 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height
             ],
                              dim=1)
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
         elif self.transform_method == 'center_size_istopleft':
             pts_y = pts_y[:, :2, ...]

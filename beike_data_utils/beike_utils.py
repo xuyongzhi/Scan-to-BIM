@@ -14,7 +14,9 @@ import time
 import mmcv
 import glob
 
-from configs.common import BOX_CN
+from mmdet.core.bbox.geometric_utils import angle_from_vec0_to_vec1_np
+from configs.common import BOX_CN, OBJ_REP
+np.set_printoptions(precision=3, suppress=True)
 
 IMAGE_SIZE = 512
 #LOAD_CLASSES = ['wall', 'window', 'door']
@@ -331,15 +333,21 @@ class BEIKE:
         img[:,:,1] = mask * 30
         img[:,:,0] = mask * 30
 
+      lines = bboxes[:,:4].copy()
+      if bboxes.shape[1] == 5:
+        istopleft = bboxes[:,-1]
+        print(istopleft)
+        n = bboxes.shape[0]
+        for i in range(n):
+          if istopleft[i] < 0:
+            lines[i] = lines[i,[2,1,0,3]]
+      lines = lines.reshape(-1,2,2)
       #mmcv.imshow_bboxes(img, bboxes)
-      print(bboxes[:,-1])
-      lines = bboxes[:,:4].reshape(-1,2,2)
 
       for i in range(lines.shape[0]):
         s, e = lines[i]
         cv2.line(img, (s[0], s[1]), (e[0], e[1]), colors_line['wall'])
       mmcv.imshow(img)
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
 
@@ -402,7 +410,7 @@ class BEIKE:
       mmcv.imshow(img)
 
 
-def sort_2points_per_box(bboxes):
+def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
       '''
       bboxes: [n,4] or [n,2,2]
       return : [n,4]
@@ -411,9 +419,6 @@ def sort_2points_per_box(bboxes):
 
       Used in mmdet/datasets/pipelines/transforms.py /RandomLineFlip/line_flip
       '''
-      method = 'scope'
-      #method = 'close_to_zero'
-
       if bboxes.ndim == 2:
         assert bboxes.shape[1] == 4
         bboxes = bboxes.copy().reshape(-1,2,2)
@@ -422,7 +427,7 @@ def sort_2points_per_box(bboxes):
         assert bboxes.shape[1] == 2
         assert bboxes.shape[2] == 2
 
-      if method == 'close_to_zero':
+      if obj_rep == 'close_to_zero':
           # the point with smaller x^2 + y^2 is the first one
           flag = np.linalg.norm(bboxes, axis=-1)
           swap = (flag[:,1] - flag[:,0]) < 0
@@ -432,14 +437,27 @@ def sort_2points_per_box(bboxes):
               bboxes[i] = bboxes[i,[1,0],:]
           bboxes = bboxes.reshape(-1,4)
 
-      elif method == 'scope':
+      elif obj_rep == 'scope':
           xy_min = bboxes.min(axis=1)
           xy_max = bboxes.max(axis=1)
-          istopleft = (bboxes - np.expand_dims(xy_min, 1)) < 1e-6
-          istopleft = istopleft.all(axis=2).any(axis=1).reshape(-1,1)
           bboxes = np.concatenate([xy_min, xy_max], axis=1)
-          if BOX_CN == 5:
-            bboxes = np.concatenate([bboxes, istopleft], axis=1)
+
+      elif obj_rep == 'scope_istopleft':
+          xy_min = bboxes.min(axis=1)
+          xy_max = bboxes.max(axis=1)
+          centroid = (xy_min + xy_max) / 2
+          bboxes_0 = bboxes - centroid.reshape(-1,1,2)
+          top_ids = bboxes_0[:,:,1].argmin(axis=-1)
+          nb = bboxes_0.shape[0]
+          tmp = np.arange(nb)
+          top_points = bboxes_0[tmp, top_ids]
+          vec_ref = np.array([[0, -1]] * nb, dtype=np.float32).reshape(-1,2)
+          angles = -angle_from_vec0_to_vec1_np( top_points,  vec_ref, scope_id=1)
+          istopleft = np.sin(angles * 2).reshape(-1,1)
+          bboxes = np.concatenate([xy_min, xy_max, istopleft], axis=1)
+          pass
+      else:
+        raise NotImplemented
       return bboxes
 
 def gen_images_from_npy(data_path):

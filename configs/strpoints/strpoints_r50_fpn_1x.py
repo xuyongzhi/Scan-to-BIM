@@ -10,14 +10,22 @@
   transform_method
 '''
 
-from configs.common import BOX_CN
+from configs.common import BOX_CN, OBJ_REP
 
-_all_obj_rep_dims = {'scope': 4}
 
-_obj_rep='scope'
-_transform_method='moment'
+#*******************************************************************************
+#_obj_rep='scope'
+#_transform_method='moment'
+
+_obj_rep='scope_istopleft'
+_transform_method='moment_scope_istopleft'
+
+#*******************************************************************************
+_all_obj_rep_dims = {'scope': 4, 'scope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
-assert BOX_CN == 4
+assert BOX_CN == _obj_dim
+assert OBJ_REP == _obj_rep
+#*******************************************************************************
 
 #_obj_rep='scope_istopleft'
 #_transform_method='moment_scope_istopleft'

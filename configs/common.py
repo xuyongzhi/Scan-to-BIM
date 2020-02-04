@@ -1,1 +1,2 @@
-BOX_CN = 4
+BOX_CN = 5
+OBJ_REP = 'scope_istopleft'
