@@ -144,3 +144,7 @@ class OBJ_DEF():
       assert torch.max(bboxes[:,-1]) <= math.pi+ofs
       assert torch.min(bboxes[:,-1]) >= 0-ofs
 
+def test():
+  pass
+
+

@@ -44,7 +44,8 @@ class MaxIoUAssigner(BaseAssigner):
                  ignore_iof_thr=-1,
                  ignore_wrt_candidates=True,
                  gpu_assign_thr=-1,
-                 overlap_fun='iou'):
+                 overlap_fun='iou',
+                 obj_rep='scope'):
         self.pos_iou_thr = pos_iou_thr
         self.neg_iou_thr = neg_iou_thr
         self.min_pos_iou = min_pos_iou
@@ -53,6 +54,8 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
         self.overlap_fun = overlap_fun
+        assert obj_rep in ['scope', 'scope_istopleft']
+        self.obj_rep = obj_rep
 
     def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
         """Assign gt to bboxes.
@@ -100,8 +103,22 @@ class MaxIoUAssigner(BaseAssigner):
             if gt_labels is not None:
                 gt_labels = gt_labels.cpu()
 
-        #bboxes = bboxes[:, :4]
-        assert bboxes.shape[1] == 4
+        if self.obj_rep == 'scope':
+          assert bboxes.shape[1] == 4
+          assert gt_bboxes.shape[1] == 4
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 4
+        elif self.obj_rep == 'scope_istopleft':
+          assert bboxes.shape[1] == 5
+          assert gt_bboxes.shape[1] == 5
+          bboxes = bboxes[:, :4]
+          gt_bboxes = gt_bboxes[:, :4]
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 5
+            gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+        else:
+          raise NotImplemented
+
         if self.overlap_fun == 'iou':
           overlaps_fun = bbox_overlaps
         elif self.overlap_fun == 'line':

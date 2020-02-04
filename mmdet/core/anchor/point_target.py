@@ -124,9 +124,10 @@ def point_target_single(flat_proposals,
                                               gt_bboxes)
 
     num_valid_proposals = proposals.shape[0]
-    bbox_gt = proposals.new_zeros([num_valid_proposals, 4])
+    box_cn = gt_bboxes.shape[1]
+    bbox_gt = proposals.new_zeros([num_valid_proposals, box_cn])
     pos_proposals = torch.zeros_like(proposals)
-    proposals_weights = proposals.new_zeros([num_valid_proposals, 4])
+    proposals_weights = proposals.new_zeros([num_valid_proposals, box_cn])
     labels = proposals.new_zeros(num_valid_proposals, dtype=torch.long)
     label_weights = proposals.new_zeros(num_valid_proposals, dtype=torch.float)
 

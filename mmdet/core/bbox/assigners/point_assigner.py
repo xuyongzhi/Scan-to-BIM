@@ -18,10 +18,11 @@ class PointAssigner(BaseAssigner):
 
     """
 
-    def __init__(self, scale=4, pos_num=3, line_object=False):
+    def __init__(self, scale=4, pos_num=3, obj_rep='scope'):
+        assert obj_rep in ['scope', 'scope_istopleft']
         self.scale = scale
         self.pos_num = pos_num
-        self.line_object = line_object
+        self.obj_rep = obj_rep
 
     def assign(self, points, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
         """Assign gt to points.
@@ -73,14 +74,25 @@ class PointAssigner(BaseAssigner):
         lvl_min, lvl_max = points_lvl.min(), points_lvl.max()
 
         # assign gt box
-        gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
-        if not self.line_object:
+        if self.obj_rep == 'scope':
+          assert gt_bboxes.shape[1] == 4
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 4
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).clamp(min=1e-6)
-        else:
+        elif self.obj_rep == 'scope_istopleft':
+          assert gt_bboxes.shape[1] == 5
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 5
+            gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+          gt_bboxes = gt_bboxes[:,:4]
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
                                                               .clamp(min=1e-6)
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
           assert gt_bboxes_wh.min() > 1
+        else:
+          raise NotImplemented
+        gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
+
         scale = self.scale
         gt_bboxes_lvl = ((torch.log2(gt_bboxes_wh[:, 0] / scale) +
                           torch.log2(gt_bboxes_wh[:, 1] / scale)) / 2).int()

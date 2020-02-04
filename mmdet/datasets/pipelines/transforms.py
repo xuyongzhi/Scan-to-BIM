@@ -304,7 +304,7 @@ class RandomLineFlip(object):
             raise ValueError(
                 'Invalid flipping direction "{}"'.format(direction))
         flipped[:,-1] = -flipped[:,-1]
-        print('\nflipped\n')
+        #print('\nflipped\n')
         return flipped
 
     def bbox_flip_scope(self, bboxes, img_shape, direction):

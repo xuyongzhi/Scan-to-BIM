@@ -12,6 +12,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob
 
+from mmdet.core.bbox.geometric_utils import angle_from_vec0_to_vec1
 from mmdet import debug_tools
 
 DEBUG = True
@@ -224,12 +225,21 @@ class StrPointsHead(nn.Module):
             moment_height_transfer = moment_transfer[1]
             half_width = pts_x_std * torch.exp(moment_width_transfer)
             half_height = pts_y_std * torch.exp(moment_height_transfer)
+
+            vec0_y = pts_y - pts_y_mean
+            vec0_x = pts_x - pts_x_mean
+            vec0 = torch.cat([vec0_x.view(-1,1), vec0_y.view(-1,1)], dim=1)
+            vec_ref = torch.zeros_like(vec0)
+            vec_ref[:,1] = -1
+            angles = angle_from_vec0_to_vec1(vec_ref, vec0, scope_id=1)
+            istopleft = torch.sin(2*angles).view(vec0_x.shape).mean(dim=1, keepdim=True)
+
             bbox = torch.cat([
                 pts_x_mean - half_width, pts_y_mean - half_height,
-                pts_x_mean + half_width, pts_y_mean + half_height
+                pts_x_mean + half_width, pts_y_mean + half_height,
+                istopleft
             ],
                              dim=1)
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
         elif self.transform_method == 'center_size_istopleft':
             pts_y = pts_y[:, :2, ...]
@@ -244,13 +254,18 @@ class StrPointsHead(nn.Module):
             half_width = pts_x_max - pts_x_min
             half_height = pts_y_max - pts_y_min
 
-            is_top_left = (pts_y[:,0:1,...] < pts_y_mean) *  \
-                          (pts_x[:,0:1,...] < pts_x_mean)
-            is_top_left = is_top_left.type(pts_y.dtype)
+            vec0_y = pts_y - pts_y_mean
+            vec0_x = pts_x - pts_x_mean
+            vec0 = torch.cat([vec0_x.view(-1,1), vec0_y.view(-1,1)], dim=1)
+            vec1 = torch.zeros_like(vec0)
+            vec1[:,1] = -1
+            angles = angle_from_vec0_to_vec1(vec0, vec1, scope_id=1)
+            istopleft = angles.view(vec0_x.shape).mean(dim=1, keepdim=True)
 
             bbox = torch.cat([ pts_x_mean, pts_y_mean, half_width, half_height,\
-                              is_top_left ],
+                              istopleft ],
                              dim=1)
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
         else:
             raise NotImplementedError
@@ -421,6 +436,7 @@ class StrPointsHead(nn.Module):
                     label_weights, bbox_gt_init, bbox_weights_init,
                     bbox_gt_refine, bbox_weights_refine, stride,
                     num_total_samples_init, num_total_samples_refine):
+        box_cn = bbox_gt_init.shape[-1]
         # classification loss
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
@@ -433,23 +449,43 @@ class StrPointsHead(nn.Module):
             avg_factor=num_total_samples_refine)
 
         # points loss
-        bbox_gt_init = bbox_gt_init.reshape(-1, 4)
-        bbox_weights_init = bbox_weights_init.reshape(-1, 4)
+        bbox_gt_init = bbox_gt_init.reshape(-1, box_cn)
+        bbox_weights_init = bbox_weights_init.reshape(-1, box_cn)
         bbox_pred_init = self.points2bbox(
             pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False)
-        bbox_gt_refine = bbox_gt_refine.reshape(-1, 4)
-        bbox_weights_refine = bbox_weights_refine.reshape(-1, 4)
+        bbox_gt_refine = bbox_gt_refine.reshape(-1, box_cn)
+        bbox_weights_refine = bbox_weights_refine.reshape(-1, box_cn)
         bbox_pred_refine = self.points2bbox(
             pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False)
         normalize_term = self.point_base_scale * stride
+
+        if box_cn == 4:
+          bbox_pred_init_nm = bbox_pred_init / normalize_term
+          bbox_gt_init_nm = bbox_gt_init / normalize_term
+        elif box_cn == 5:
+          bbox_pred_init_nm = bbox_pred_init / normalize_term
+          bbox_gt_init_nm = bbox_gt_init / normalize_term
+          bbox_pred_init_nm[:,-1] = bbox_pred_init[:,-1]
+          bbox_gt_init_nm[:,-1] = bbox_gt_init[:,-1]
+
         loss_pts_init = self.loss_bbox_init(
-            bbox_pred_init / normalize_term,
-            bbox_gt_init / normalize_term,
+            bbox_pred_init_nm,
+            bbox_gt_init_nm,
             bbox_weights_init,
             avg_factor=num_total_samples_init)
+
+        if box_cn == 4:
+          bbox_pred_refine_nm = bbox_pred_refine / normalize_term
+          bbox_gt_refine_nm = bbox_gt_refine / normalize_term
+        elif box_cn == 5:
+          bbox_pred_refine_nm = bbox_pred_refine / normalize_term
+          bbox_gt_refine_nm = bbox_gt_refine / normalize_term
+          bbox_pred_refine_nm[:,-1] = bbox_pred_refine[:,-1]
+          bbox_gt_refine_nm[:,-1] = bbox_gt_refine[:,-1]
+
         loss_pts_refine = self.loss_bbox_refine(
-            bbox_pred_refine / normalize_term,
-            bbox_gt_refine / normalize_term,
+            bbox_pred_refine_nm,
+            bbox_gt_refine_nm,
             bbox_weights_refine,
             avg_factor=num_total_samples_refine)
         return loss_cls, loss_pts_init, loss_pts_refine
@@ -518,12 +554,24 @@ class StrPointsHead(nn.Module):
                   bbox_center = center[i_lvl][:, :2]
                   bbox_cen_size[:,:2] = bbox_cen_size[:,:2] + bbox_center
                   bbox.append(torch.cat([bbox_cen_size, istopleft], dim=1))
-                else:
+                elif self.transform_method == 'moment':
+                  assert bbox_preds_init.shape[1] == 4
                   bbox_shift = bbox_preds_init * self.point_strides[i_lvl]
                   bbox_center = torch.cat(
                       [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
                   bbox.append(bbox_center +
                               bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4))
+                elif self.transform_method == 'moment_scope_istopleft':
+                  assert bbox_preds_init.shape[1] == 5
+                  bbox_shift = bbox_preds_init[:,:4] * self.point_strides[i_lvl]
+                  istopleft = bbox_preds_init[i_img,4:5].\
+                                 permute(1,2,0).reshape(-1,1)
+                  bbox_center = torch.cat(
+                      [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
+                  bbox_i = bbox_center +\
+                              bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
+                  bbox_i = torch.cat([bbox_i, istopleft], dim=1)
+                  bbox.append(bbox_i)
                 pass
             bbox_list.append(bbox)
         cls_reg_targets_refine = point_target(

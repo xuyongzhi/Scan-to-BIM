@@ -452,7 +452,7 @@ def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
           tmp = np.arange(nb)
           top_points = bboxes_0[tmp, top_ids]
           vec_ref = np.array([[0, -1]] * nb, dtype=np.float32).reshape(-1,2)
-          angles = -angle_from_vec0_to_vec1_np( top_points,  vec_ref, scope_id=1)
+          angles = angle_from_vec0_to_vec1_np( vec_ref, top_points,  scope_id=1)
           istopleft = np.sin(angles * 2).reshape(-1,1)
           bboxes = np.concatenate([xy_min, xy_max, istopleft], axis=1)
           pass

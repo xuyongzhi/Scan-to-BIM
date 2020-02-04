@@ -14,9 +14,11 @@ from configs.common import BOX_CN, OBJ_REP
 
 
 #*******************************************************************************
+# 1. coco
 #_obj_rep='scope'
 #_transform_method='moment'
 
+#2. lines beike
 _obj_rep='scope_istopleft'
 _transform_method='moment_scope_istopleft'
 
@@ -77,7 +79,7 @@ model = dict(
 # training and testing settings
 train_cfg = dict(
     init=dict(
-        assigner=dict(type='PointAssigner', scale=4, pos_num=1, line_object=True),
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -88,7 +90,8 @@ train_cfg = dict(
             neg_iou_thr=0.4,
             min_pos_iou=0,
             ignore_iof_thr=-1,
-            overlap_fun='dil_iou_dis'),
+            overlap_fun='dil_iou_dis',
+            obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
         debug=False))
