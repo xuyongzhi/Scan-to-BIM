@@ -17,12 +17,12 @@
 #_transform_method='moment'
 
 # 2. line scope
-#_obj_rep='line_scope'
-#_transform_method='moment'
+_obj_rep='line_scope'
+_transform_method='moment'
 
 #3. lines beike
-_obj_rep='lscope_istopleft'
-_transform_method='moment_lscope_istopleft'
+#_obj_rep='lscope_istopleft'
+#_transform_method='moment_lscope_istopleft'
 
 #*******************************************************************************
 from configs.common import OBJ_DIM, OBJ_REP
@@ -125,8 +125,8 @@ test_pipeline = [
         img_scale=(512,512),
         flip=False,
         transforms=[
-            dict(type='Resize', keep_ratio=True),
-            dict(type='RandomLineFlip'),
+            dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
+            dict(type='RandomLineFlip', obj_rep=_obj_rep),
             dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
@@ -158,9 +158,9 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=20,
+    warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[100, 150])
+    step=[120, 160])
 checkpoint_config = dict(interval=5)
 # yapf:disable
 log_config = dict(
@@ -174,7 +174,7 @@ log_config = dict(
 total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_debuging'
+work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_debuging'.format(_obj_rep)
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'

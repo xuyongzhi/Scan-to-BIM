@@ -185,6 +185,9 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             img_show = np.clip(img_show+1, a_min=None, a_max=255)
             class_names = tuple([c[0] for c in class_names])
 
+            if bboxes.shape[1] == 6:
+              bboxes = bboxes[:,[0,1,2,3,-1]]
+            assert bboxes.shape[1] == 5
             mmcv.imshow_det_bboxes(
                 img_show,
                 bboxes,

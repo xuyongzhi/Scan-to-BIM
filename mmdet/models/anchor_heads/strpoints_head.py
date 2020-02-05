@@ -440,7 +440,7 @@ class StrPointsHead(nn.Module):
                     label_weights, bbox_gt_init, bbox_weights_init,
                     bbox_gt_refine, bbox_weights_refine, stride,
                     num_total_samples_init, num_total_samples_refine):
-        box_cn = bbox_gt_init.shape[-1]
+        obj_dim = bbox_gt_init.shape[-1]
         # classification loss
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
@@ -453,20 +453,20 @@ class StrPointsHead(nn.Module):
             avg_factor=num_total_samples_refine)
 
         # points loss
-        bbox_gt_init = bbox_gt_init.reshape(-1, box_cn)
-        bbox_weights_init = bbox_weights_init.reshape(-1, box_cn)
+        bbox_gt_init = bbox_gt_init.reshape(-1, obj_dim)
+        bbox_weights_init = bbox_weights_init.reshape(-1, obj_dim)
         bbox_pred_init = self.points2bbox(
             pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False)
-        bbox_gt_refine = bbox_gt_refine.reshape(-1, box_cn)
-        bbox_weights_refine = bbox_weights_refine.reshape(-1, box_cn)
+        bbox_gt_refine = bbox_gt_refine.reshape(-1, obj_dim)
+        bbox_weights_refine = bbox_weights_refine.reshape(-1, obj_dim)
         bbox_pred_refine = self.points2bbox(
             pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False)
         normalize_term = self.point_base_scale * stride
 
-        if box_cn == 4:
+        if obj_dim == 4:
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
-        elif box_cn == 5:
+        elif obj_dim == 5:
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,-1] = bbox_pred_init[:,-1]
@@ -480,10 +480,10 @@ class StrPointsHead(nn.Module):
             bbox_weights_init,
             avg_factor=num_total_samples_init)
 
-        if box_cn == 4:
+        if obj_dim == 4:
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
-        elif box_cn == 5:
+        elif obj_dim == 5:
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,-1] = bbox_pred_refine[:,-1]
@@ -673,6 +673,8 @@ class StrPointsHead(nn.Module):
                           rescale=False,
                           nms=True):
         assert len(cls_scores) == len(bbox_preds) == len(mlvl_points)
+        obj_dim = bbox_preds[0].shape[0]
+        assert obj_dim == 4 or obj_dim == 5
         mlvl_bboxes = []
         mlvl_scores = []
         for i_lvl, (cls_score, bbox_pred, points) in enumerate(
@@ -684,8 +686,7 @@ class StrPointsHead(nn.Module):
                 scores = cls_score.sigmoid()
             else:
                 scores = cls_score.softmax(-1)
-            cn = bbox_pred.shape[0]
-            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, cn)
+            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, obj_dim)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0 and scores.shape[0] > nms_pre:
                 if self.use_sigmoid_cls:
@@ -696,17 +697,15 @@ class StrPointsHead(nn.Module):
                 points = points[topk_inds, :]
                 bbox_pred = bbox_pred[topk_inds, :]
                 scores = scores[topk_inds, :]
-            #bbox_pos_center = torch.cat([points[:, :2], points[:, :2]], dim=1)
-            bbox_pos_center = points[:, :2].repeat(1, cn//2)
-            bboxes = bbox_pred * self.point_strides[i_lvl] + bbox_pos_center
-            #x1 = bboxes[:, 0].clamp(min=0, max=img_shape[1])
-            #y1 = bboxes[:, 1].clamp(min=0, max=img_shape[0])
-            #x2 = bboxes[:, 2].clamp(min=0, max=img_shape[1])
-            #y2 = bboxes[:, 3].clamp(min=0, max=img_shape[0])
-            #bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
-            for j_c in range(0, cn, 2):
-                bboxes[:, j_c]= bboxes[:, j_c].clamp(min=0, max=img_shape[1])
-                bboxes[:, j_c+1] = bboxes[:, j_c+1].clamp(min=0, max=img_shape[0])
+            bbox_pos_center = points[:, :2].repeat(1, obj_dim//2)
+            bboxes = bbox_pred[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
+            x1 = bboxes[:, 0].clamp(min=0, max=img_shape[1])
+            y1 = bboxes[:, 1].clamp(min=0, max=img_shape[0])
+            x2 = bboxes[:, 2].clamp(min=0, max=img_shape[1])
+            y2 = bboxes[:, 3].clamp(min=0, max=img_shape[0])
+            bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
+            if obj_dim == 5:
+              bboxes = torch.cat([bboxes, bbox_pred[:,4:5]], dim=1)
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
         mlvl_bboxes = torch.cat(mlvl_bboxes)

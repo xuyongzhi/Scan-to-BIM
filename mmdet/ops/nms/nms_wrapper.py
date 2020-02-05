@@ -4,7 +4,6 @@ import torch
 from . import nms_cpu, nms_cuda, nms_dsiou_cuda
 from .soft_nms_cpu import soft_nms_cpu
 
-
 def nms_dsiou(dets, iou_thr, dis_weight, device_id=None):
     """Dispatch to either CPU or GPU NMS implementations.
 
@@ -48,6 +47,7 @@ def nms_dsiou(dets, iou_thr, dis_weight, device_id=None):
                 type(dets)))
 
     # execute cpu or cuda nms
+    dets_th = dets_th[:,[0,1,2,3,-1]]
     if dets_th.shape[0] == 0:
         inds = dets_th.new_zeros(0, dtype=torch.long)
     else:

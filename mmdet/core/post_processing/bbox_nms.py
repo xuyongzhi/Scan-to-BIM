@@ -1,7 +1,7 @@
 import torch
 
 from mmdet.ops.nms import nms_wrapper
-
+from configs.common import OBJ_DIM
 
 def multiclass_nms(multi_bboxes,
                    multi_scores,
@@ -37,15 +37,15 @@ def multiclass_nms(multi_bboxes,
         if not cls_inds.any():
             continue
         # get bboxes and scores of this class
-        if multi_bboxes.shape[1] == 4:
+        if multi_bboxes.shape[1] == OBJ_DIM:
             _bboxes = multi_bboxes[cls_inds, :]
         else:
-            _bboxes = multi_bboxes[cls_inds, i * 4:(i + 1) * 4]
+            _bboxes = multi_bboxes[cls_inds, i * OBJ_DIM:(i + 1) * OBJ_DIM]
         _scores = multi_scores[cls_inds, i]
         if score_factors is not None:
             _scores *= score_factors[cls_inds]
         cls_dets = torch.cat([_bboxes, _scores[:, None]], dim=1)
-        cls_dets, _ = nms_op(cls_dets, **nms_cfg_)
+        cls_dets, inds = nms_op(cls_dets, **nms_cfg_)
         cls_labels = multi_bboxes.new_full((cls_dets.shape[0], ),
                                            i - 1,
                                            dtype=torch.long)
