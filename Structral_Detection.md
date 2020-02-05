@@ -34,6 +34,15 @@ From : bbox_overlaps
 To   : line_overlaps in straight_line_distance_torch.py
 ```
 
+# Framework
+- img: [512,512]
+- feature: [ [5, 128, 128], [5, 64, 64], [5, 32, 32], [5, 16, 16] ] 
+- pts_preds_init:  [ [18, 128, 128], [18, 64, 64], [18, 32, 32], [18, 16, 16] ] 
+- pts_preds_refine:  [ [18, 128, 128], [18, 64, 64], [18, 32, 32], [18, 16, 16] ] 
+- bbox_preds: [ [5, 128, 128], [5, 64, 64], [5, 32, 32], [5, 16, 16] ]  = [5, 21760]
+- Top 1000 scores on each level    
+- nsm input: [3256,6] = 1000 + 1000 + 1000 + 256
+- det: [100,6]
 # Order of 2 points in a line
 - the one with smaller x^2+y^2 is the first one
 ```

@@ -100,7 +100,8 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
     label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
     label_text = ''
     if len(line) == 6:
-      label_text += '{:.01f}'.format(line[-1])
+      #label_text += '{:.01f}'.format(line[-1])
+      label_text += '{:.01f}'.format(line[-2])
 
     m = ((s+e)/2).astype(np.int32)
     cv2.putText(img, label_text, (m[0]-2, m[1] - 2),
@@ -110,4 +111,5 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
       imshow(img, win_name, wait_time)
   if out_file is not None:
       imwrite(img, out_file)
+      print('\twrite {}'.format(out_file))
   pass
