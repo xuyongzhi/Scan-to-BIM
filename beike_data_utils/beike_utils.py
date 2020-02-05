@@ -14,7 +14,7 @@ import time
 import mmcv
 import glob
 
-from mmdet.core.bbox.geometric_utils import angle_from_vec0_to_vec1_np
+from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece_np
 from configs.common import BOX_CN, OBJ_REP
 np.set_printoptions(precision=3, suppress=True)
 
@@ -437,23 +437,25 @@ def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
               bboxes[i] = bboxes[i,[1,0],:]
           bboxes = bboxes.reshape(-1,4)
 
-      elif obj_rep == 'scope':
+      elif obj_rep == 'box_scope' or obj_rep == 'line_scope':
           xy_min = bboxes.min(axis=1)
           xy_max = bboxes.max(axis=1)
           bboxes = np.concatenate([xy_min, xy_max], axis=1)
 
-      elif obj_rep == 'scope_istopleft':
+      elif obj_rep == 'lscope_istopleft':
           xy_min = bboxes.min(axis=1)
           xy_max = bboxes.max(axis=1)
           centroid = (xy_min + xy_max) / 2
           bboxes_0 = bboxes - centroid.reshape(-1,1,2)
           top_ids = bboxes_0[:,:,1].argmin(axis=-1)
           nb = bboxes_0.shape[0]
+
           tmp = np.arange(nb)
           top_points = bboxes_0[tmp, top_ids]
-          vec_ref = np.array([[0, -1]] * nb, dtype=np.float32).reshape(-1,2)
-          angles = angle_from_vec0_to_vec1_np( vec_ref, top_points,  scope_id=1)
-          istopleft = np.sin(angles * 2).reshape(-1,1)
+          vec_start = np.array([[0, -1]] * nb, dtype=np.float32).reshape(-1,2)
+          angles = angle_from_vecs_to_vece_np( vec_start, top_points,  scope_id=1)
+          istopleft = np.sin(angles * 2).reshape(-1,1) * 0
+
           bboxes = np.concatenate([xy_min, xy_max, istopleft], axis=1)
           pass
       else:

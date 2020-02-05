@@ -18,8 +18,8 @@ class PointAssigner(BaseAssigner):
 
     """
 
-    def __init__(self, scale=4, pos_num=3, obj_rep='scope'):
-        assert obj_rep in ['scope', 'scope_istopleft']
+    def __init__(self, scale=4, pos_num=3, obj_rep='box_scope'):
+        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
         self.scale = scale
         self.pos_num = pos_num
         self.obj_rep = obj_rep
@@ -74,11 +74,18 @@ class PointAssigner(BaseAssigner):
         lvl_min, lvl_max = points_lvl.min(), points_lvl.max()
 
         # assign gt box
-        if self.obj_rep == 'scope':
+        if self.obj_rep == 'box_scope':
           assert gt_bboxes.shape[1] == 4
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 4
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).clamp(min=1e-6)
+        elif self.obj_rep == 'line_scope':
+          assert gt_bboxes.shape[1] == 4
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 4
+          gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
+                                                              .clamp(min=1e-6)
+          gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
         elif self.obj_rep == 'scope_istopleft':
           assert gt_bboxes.shape[1] == 5
           if gt_bboxes_ignore is not None:
@@ -88,9 +95,9 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
                                                               .clamp(min=1e-6)
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
-          assert gt_bboxes_wh.min() > 1
         else:
           raise NotImplemented
+        assert gt_bboxes_wh.min() > 1
         gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
 
         scale = self.scale

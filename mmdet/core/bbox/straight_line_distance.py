@@ -4,7 +4,7 @@ import torch
 import cv2
 import numpy as np
 import sys
-from .geometric_utils import angle_from_vec0_to_vec1
+from .geometric_utils import angle_from_vecs_to_vece
 import os
 
 
@@ -77,7 +77,7 @@ def straight_lines_dis(lines0, lines1):
 def perpendicular_dis(point, line):
   vec0 = point - line[0]
   vec1 = line[1] - line[0]
-  angle = angle_from_vec0_to_vec1(vec0, vec1)
+  angle = angle_from_vecs_to_vece(vec0, vec1)
   dis_perp = vec0.norm() * torch.sin(angle)
   return dis_perp
 
@@ -94,7 +94,7 @@ def closet_dis_point_line(points, lines):
     vectors.append(vec_A1)
     vec_B1_ = (lines[:,1-i] - lines[:,i]).unsqueeze(0).repeat(pn,1,1)
     vec_B1 = vec_B1_.view(-1,2)
-    angle_1 = angle_from_vec0_to_vec1(vec_A1, vec_B1, scope_id=0)
+    angle_1 = angle_from_vecs_to_vece(vec_A1, vec_B1, scope_id=0)
     #angle_1 = angle_1.view(pn, ln)
     angles.append(angle_1)
 

@@ -9,6 +9,33 @@
   img_norm_cfg
   transform_method
 '''
+
+from configs.common import BOX_CN, OBJ_REP
+
+
+#*******************************************************************************
+# 1. coco
+#_obj_rep='box_scope'
+#_transform_method='moment'
+
+# 2. line scope
+_obj_rep='line_scope'
+_transform_method='moment'
+
+#3. lines beike
+#_obj_rep='lscope_istopleft'
+#_transform_method='moment_lscope_istopleft'
+
+#*******************************************************************************
+_all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
+_obj_dim = _all_obj_rep_dims[_obj_rep]
+assert BOX_CN == _obj_dim
+assert OBJ_REP == _obj_rep
+#*******************************************************************************
+
+#_obj_rep='scope_istopleft'
+#_transform_method='moment_scope_istopleft'
+
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 model = dict(
@@ -50,13 +77,13 @@ model = dict(
             loss_weight=1.0),
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
-        transform_method='moment_scope_istopleft'))
+        transform_method=_transform_method))
         #transform_method='minmax'))
         #transform_method='center_size_istopleft'))
 # training and testing settings
 train_cfg = dict(
     init=dict(
-        assigner=dict(type='PointAssigner', scale=4, pos_num=1, line_object=True),
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -67,7 +94,8 @@ train_cfg = dict(
             neg_iou_thr=0.4,
             min_pos_iou=0,
             ignore_iof_thr=-1,
-            overlap_fun='aug_iou'),
+            overlap_fun='dil_iou_dis',
+            obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
         debug=False))
@@ -75,7 +103,7 @@ test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
     score_thr=0.05,
-    nms=dict(type='nms', iou_thr=0.5),
+    nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
     max_per_img=100)
 # dataset settings
 dataset_type = 'BeikeDataset'
@@ -86,8 +114,8 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='Load2ImagesFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='Resize', img_scale=(512,512), keep_ratio=True),
-    dict(type='RandomLineFlip', flip_ratio=0.5),
+    dict(type='Resize', img_scale=(512,512), keep_ratio=True, obj_dim=_obj_dim),
+    dict(type='RandomLineFlip', flip_ratio=0.5, obj_rep=_obj_rep),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
@@ -133,10 +161,10 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=10,
+    warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[250, 350])
-checkpoint_config = dict(interval=50)
+    step=[100, 150])
+checkpoint_config = dict(interval=5)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -146,13 +174,13 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 400
+total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_sd'
+work_dir = './work_dirs/strpoints_moment_r50_fpn_1x_debuging'
 load_from = None
-#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x_small.pth'
-#load_from='./work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
+#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
+#load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

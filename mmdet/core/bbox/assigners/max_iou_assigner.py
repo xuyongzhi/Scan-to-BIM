@@ -45,7 +45,7 @@ class MaxIoUAssigner(BaseAssigner):
                  ignore_wrt_candidates=True,
                  gpu_assign_thr=-1,
                  overlap_fun='iou',
-                 obj_rep='scope'):
+                 obj_rep='box_scope'):
         self.pos_iou_thr = pos_iou_thr
         self.neg_iou_thr = neg_iou_thr
         self.min_pos_iou = min_pos_iou
@@ -54,7 +54,7 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
         self.overlap_fun = overlap_fun
-        assert obj_rep in ['scope', 'scope_istopleft']
+        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
         self.obj_rep = obj_rep
 
     def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
@@ -103,12 +103,12 @@ class MaxIoUAssigner(BaseAssigner):
             if gt_labels is not None:
                 gt_labels = gt_labels.cpu()
 
-        if self.obj_rep == 'scope':
+        if self.obj_rep == 'box_scope' or self.obj_rep == 'line_scope':
           assert bboxes.shape[1] == 4
           assert gt_bboxes.shape[1] == 4
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 4
-        elif self.obj_rep == 'scope_istopleft':
+        elif self.obj_rep == 'lscope_istopleft':
           assert bboxes.shape[1] == 5
           assert gt_bboxes.shape[1] == 5
           bboxes = bboxes[:, :4]

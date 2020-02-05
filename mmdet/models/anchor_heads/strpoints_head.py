@@ -12,7 +12,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob
 
-from mmdet.core.bbox.geometric_utils import angle_from_vec0_to_vec1
+from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece
 from mmdet import debug_tools
 
 DEBUG = True
@@ -226,13 +226,16 @@ class StrPointsHead(nn.Module):
             half_width = pts_x_std * torch.exp(moment_width_transfer)
             half_height = pts_y_std * torch.exp(moment_height_transfer)
 
-            vec0_y = pts_y - pts_y_mean
-            vec0_x = pts_x - pts_x_mean
-            vec0 = torch.cat([vec0_x.view(-1,1), vec0_y.view(-1,1)], dim=1)
-            vec_ref = torch.zeros_like(vec0)
-            vec_ref[:,1] = -1
-            angles = angle_from_vec0_to_vec1(vec_ref, vec0, scope_id=1)
-            istopleft = torch.sin(2*angles).view(vec0_x.shape).mean(dim=1, keepdim=True)
+
+            vec_pts_y = pts_y - pts_y_mean
+            vec_pts_x = pts_x - pts_x_mean
+            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
+            vec_start = torch.zeros_like(vec_pts)
+            vec_start[:,1] = -1
+            angles = angle_from_vecs_to_vece(vec_start, vec_pts, scope_id=1)
+            istoplefts_ = torch.sin(2*angles)
+            istoplefts = istoplefts_.view(pts_x.shape)
+            istopleft = istoplefts.mean(dim=1, keepdim=True) * 0
 
             bbox = torch.cat([
                 pts_x_mean - half_width, pts_y_mean - half_height,
@@ -254,13 +257,14 @@ class StrPointsHead(nn.Module):
             half_width = pts_x_max - pts_x_min
             half_height = pts_y_max - pts_y_min
 
-            vec0_y = pts_y - pts_y_mean
-            vec0_x = pts_x - pts_x_mean
-            vec0 = torch.cat([vec0_x.view(-1,1), vec0_y.view(-1,1)], dim=1)
-            vec1 = torch.zeros_like(vec0)
-            vec1[:,1] = -1
-            angles = angle_from_vec0_to_vec1(vec0, vec1, scope_id=1)
-            istopleft = angles.view(vec0_x.shape).mean(dim=1, keepdim=True)
+            vec_pts_y = pts_y - pts_y_mean
+            vec_pts_x = pts_x - pts_x_mean
+            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
+            vec_start = torch.zeros_like(vec_pts)
+            vec_start[:,1] = -1
+            angles = angle_from_vecs_to_vece(vec_start, vec_pts, scope_id=1)
+            istoplefts = angles.view(vec0_x.shape)
+            istopleft = istoplefts.mean(dim=1, keepdim=True)
 
             bbox = torch.cat([ pts_x_mean, pts_y_mean, half_width, half_height,\
                               istopleft ],

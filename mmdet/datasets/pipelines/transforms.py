@@ -266,14 +266,14 @@ class RandomLineFlip(object):
         flip_ratio (float, optional): The flipping probability.
     """
 
-    def __init__(self, flip_ratio=None, direction='horizontal', obj_rep='scope'):
+    def __init__(self, flip_ratio=None, direction='horizontal', obj_rep='box_scope'):
         self.flip_ratio = flip_ratio
         self.direction = direction
         self.obj_rep = obj_rep
         if flip_ratio is not None:
             assert flip_ratio >= 0 and flip_ratio <= 1
         assert direction in ['horizontal', 'vertical']
-        assert obj_rep in ['scope', 'scope_istopleft']
+        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
 
     def bbox_flip(self, bboxes, img_shape, direction, obj_rep):
         """Flip bboxes horizontally.
@@ -282,7 +282,7 @@ class RandomLineFlip(object):
             bboxes(ndarray): shape (..., 4*k)
             img_shape(tuple): (height, width)
         """
-        if obj_rep == 'scope':
+        if obj_rep == 'box_scope' or obj_rep == 'line_scope':
           return self.bbox_flip_scope(bboxes, img_shape, direction)
         elif obj_rep == 'scope_istopleft':
           return self.bbox_flip_scope_itl(bboxes, img_shape, direction)
