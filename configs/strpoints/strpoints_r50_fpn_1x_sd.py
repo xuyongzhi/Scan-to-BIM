@@ -10,8 +10,6 @@
   transform_method
 '''
 
-from configs.common import BOX_CN, OBJ_REP
-
 
 #*******************************************************************************
 # 1. coco
@@ -27,14 +25,12 @@ _obj_rep='lscope_istopleft'
 _transform_method='moment_lscope_istopleft'
 
 #*******************************************************************************
+from configs.common import OBJ_DIM, OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
-assert BOX_CN == _obj_dim
+assert OBJ_DIM == _obj_dim
 assert OBJ_REP == _obj_rep
 #*******************************************************************************
-
-#_obj_rep='scope_istopleft'
-#_transform_method='moment_scope_istopleft'
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 

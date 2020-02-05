@@ -15,7 +15,7 @@ import mmcv
 import glob
 
 from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece_np, sin2theta_np
-from configs.common import BOX_CN, OBJ_REP
+from configs.common import OBJ_DIM, OBJ_REP
 np.set_printoptions(precision=3, suppress=True)
 
 IMAGE_SIZE = 512
@@ -206,7 +206,7 @@ class BEIKE:
       lines_pt_ordered = sort_2points_per_box(lines_pt)
       anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
-      anno_img['bboxes_ignore'] = np.empty([0,BOX_CN], dtype=np.float32)
+      anno_img['bboxes_ignore'] = np.empty([0,OBJ_DIM], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
       bboxes = anno_img['bboxes'][:,:4]
