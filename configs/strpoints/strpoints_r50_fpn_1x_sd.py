@@ -19,12 +19,12 @@ from configs.common import BOX_CN, OBJ_REP
 #_transform_method='moment'
 
 # 2. line scope
-_obj_rep='line_scope'
-_transform_method='moment'
+#_obj_rep='line_scope'
+#_transform_method='moment'
 
 #3. lines beike
-#_obj_rep='lscope_istopleft'
-#_transform_method='moment_lscope_istopleft'
+_obj_rep='lscope_istopleft'
+_transform_method='moment_lscope_istopleft'
 
 #*******************************************************************************
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}

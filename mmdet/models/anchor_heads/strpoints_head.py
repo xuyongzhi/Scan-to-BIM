@@ -12,7 +12,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob
 
-from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece
+from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
 
 DEBUG = True
@@ -87,7 +87,7 @@ class StrPointsHead(nn.Module):
         self.center_init = center_init
         self.transform_method = transform_method
         if self.transform_method == 'moment' or \
-                self.transform_method == 'moment_scope_istopleft':
+                self.transform_method == 'moment_lscope_istopleft':
             self.moment_transfer = nn.Parameter(
                 data=torch.zeros(2), requires_grad=True)
             self.moment_mul = moment_mul
@@ -214,7 +214,7 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height
             ],
                              dim=1)
-        elif self.transform_method == 'moment_scope_istopleft':
+        elif self.transform_method == 'moment_lscope_istopleft':
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
             pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
@@ -232,10 +232,10 @@ class StrPointsHead(nn.Module):
             vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
             vec_start = torch.zeros_like(vec_pts)
             vec_start[:,1] = -1
-            angles = angle_from_vecs_to_vece(vec_start, vec_pts, scope_id=1)
-            istoplefts_ = torch.sin(2*angles)
-            istoplefts = istoplefts_.view(pts_x.shape)
-            istopleft = istoplefts.mean(dim=1, keepdim=True) * 0
+            istoplefts_0 = sin2theta(vec_start, vec_pts)
+
+            istoplefts_1 = istoplefts_0.view(pts_x.shape)
+            istopleft = istoplefts_1.mean(dim=1, keepdim=True)
 
             bbox = torch.cat([
                 pts_x_mean - half_width, pts_y_mean - half_height,
@@ -265,11 +265,11 @@ class StrPointsHead(nn.Module):
             angles = angle_from_vecs_to_vece(vec_start, vec_pts, scope_id=1)
             istoplefts = angles.view(vec0_x.shape)
             istopleft = istoplefts.mean(dim=1, keepdim=True)
+            istopleft = (istopleft > 0).float()
 
             bbox = torch.cat([ pts_x_mean, pts_y_mean, half_width, half_height,\
                               istopleft ],
                              dim=1)
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
         else:
             raise NotImplementedError
@@ -472,6 +472,8 @@ class StrPointsHead(nn.Module):
           bbox_pred_init_nm[:,-1] = bbox_pred_init[:,-1]
           bbox_gt_init_nm[:,-1] = bbox_gt_init[:,-1]
 
+          #bbox_weights_init = bbox_weights_init[:,:4]
+
         loss_pts_init = self.loss_bbox_init(
             bbox_pred_init_nm,
             bbox_gt_init_nm,
@@ -486,6 +488,8 @@ class StrPointsHead(nn.Module):
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,-1] = bbox_pred_refine[:,-1]
           bbox_gt_refine_nm[:,-1] = bbox_gt_refine[:,-1]
+
+          #bbox_weights_refine = bbox_weights_refine[:,:4]
 
         loss_pts_refine = self.loss_bbox_refine(
             bbox_pred_refine_nm,
@@ -565,7 +569,7 @@ class StrPointsHead(nn.Module):
                       [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
                   bbox.append(bbox_center +
                               bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4))
-                elif self.transform_method == 'moment_scope_istopleft':
+                elif self.transform_method == 'moment_lscope_istopleft':
                   assert bbox_preds_init.shape[1] == 5
                   bbox_shift = bbox_preds_init[:,:4] * self.point_strides[i_lvl]
                   istopleft = bbox_preds_init[i_img,4:5].\
@@ -576,7 +580,8 @@ class StrPointsHead(nn.Module):
                               bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
                   bbox_i = torch.cat([bbox_i, istopleft], dim=1)
                   bbox.append(bbox_i)
-                pass
+                else:
+                  raise NotImplemented
             bbox_list.append(bbox)
         cls_reg_targets_refine = point_target(
             bbox_list,

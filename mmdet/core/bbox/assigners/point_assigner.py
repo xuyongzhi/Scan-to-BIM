@@ -86,7 +86,7 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
                                                               .clamp(min=1e-6)
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
-        elif self.obj_rep == 'scope_istopleft':
+        elif self.obj_rep == 'lscope_istopleft':
           assert gt_bboxes.shape[1] == 5
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 5

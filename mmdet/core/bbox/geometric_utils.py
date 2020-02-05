@@ -36,6 +36,56 @@ def angle_with_x(vec_start, scope_id=0, debug=0):
   return angle_from_vecs_to_vece(vec_x, vec_start, scope_id, debug)
 
 
+def sin2theta(vec_start, vec_end):
+  '''
+    vec_start: [n,2/3]
+    vec_end: [n,2/3]
+    zero as ref
+
+   scope_id=0: [0,pi]
+            1: (-pi/2, pi/2]
+            2: (-pi, pi]
+            3: (0, pi*2]
+
+   clock wise is positive
+   angle: [n]
+  '''
+  assert vec_start.dim() == 2 and  vec_end.dim() == 2
+  assert (vec_start.shape[0] == vec_end.shape[0]) or vec_start.shape[0]==1 or vec_end.shape[0]==1
+  assert vec_start.shape[1] == vec_end.shape[1] # 2 or 3
+
+  vec_start = vec_start.float()
+  vec_end = vec_end.float()
+
+  norm_start = torch.norm(vec_start, dim=1, keepdim=True)
+  norm_end = torch.norm(vec_end, dim=1, keepdim=True)
+  #assert norm_start.min() > 1e-4 and norm_end.min() > 1e-4 # return nan
+  vec_start = vec_start / norm_start
+  vec_end = vec_end / norm_end
+  assert not torch.isnan(vec_end).any()
+  if vec_start.dim() == 2:
+    tmp = vec_start[:,0:1]*0
+    vec_start = torch.cat([vec_start, tmp], 1)
+    vec_end = torch.cat([vec_end, tmp], 1)
+  cz = torch.cross( vec_start, vec_end, dim=1)[:,2]
+  # sometimes abs(cz)>1 because of float drift. result in nan angle
+  mask = (torch.abs(cz) > 1).to(vec_start.dtype)
+  cz = cz * (1 - mask*1e-7)
+  # cross is positive for anti-clock wise. change to clock-wise
+  cz = -cz  # [-pi/2, pi/2]
+
+  # check :angle or pi-angle
+  cosa = torch.sum(vec_start * vec_end,dim=1)
+  res = 2 * cz * cosa
+  assert not torch.isnan(res).any()
+  return res
+
+def sin2theta_np(vec_start, vec_end):
+    vec_start_t = torch.from_numpy(vec_start)
+    vec_end_t = torch.from_numpy(vec_end)
+    res = sin2theta(vec_start_t, vec_end_t)
+    return res.cpu().data.numpy()
+
 def angle_from_vecs_to_vece_np(vec_start, vec_end, scope_id, debug=0):
     vec_start_t = torch.from_numpy(vec_start)
     vec_end_t = torch.from_numpy(vec_end)
@@ -53,7 +103,7 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
             2: (-pi, pi]
             3: (0, pi*2]
 
-   clock wise is positive
+   clock wise is positive from vec_start to vec_end
    angle: [n]
   '''
   assert vec_start.dim() == 2 and  vec_end.dim() == 2
@@ -62,11 +112,11 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
   vec_start = vec_start.float()
   vec_end = vec_end.float()
 
-  norm0 = torch.norm(vec_start, dim=1, keepdim=True)
-  norm1 = torch.norm(vec_end, dim=1, keepdim=True)
-  #assert norm0.min() > 1e-4 and norm1.min() > 1e-4 # return nan
-  vec_start = vec_start / norm0
-  vec_end = vec_end / norm1
+  norm_start = torch.norm(vec_start, dim=1, keepdim=True)
+  norm_end = torch.norm(vec_end, dim=1, keepdim=True)
+  #assert norm_start.min() > 1e-4 and norm_end.min() > 1e-4 # return nan
+  vec_start = vec_start / norm_start
+  vec_end = vec_end / norm_end
   if vec_start.dim() == 2:
     tmp = vec_start[:,0:1]*0
     vec_start = torch.cat([vec_start, tmp], 1)
@@ -99,6 +149,7 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
     angle = limit_period(angle, 0, math.pi*2)
   else:
     raise NotImplementedError
+  assert not torch.isnan(angle).any()
   return angle
 
 class OBJ_DEF():

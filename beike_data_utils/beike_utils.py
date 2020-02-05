@@ -14,7 +14,7 @@ import time
 import mmcv
 import glob
 
-from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece_np
+from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece_np, sin2theta_np
 from configs.common import BOX_CN, OBJ_REP
 np.set_printoptions(precision=3, suppress=True)
 
@@ -336,7 +336,7 @@ class BEIKE:
       lines = bboxes[:,:4].copy()
       if bboxes.shape[1] == 5:
         istopleft = bboxes[:,-1]
-        print(istopleft)
+        print('istopleft:\n',istopleft)
         n = bboxes.shape[0]
         for i in range(n):
           if istopleft[i] < 0:
@@ -453,8 +453,13 @@ def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
           tmp = np.arange(nb)
           top_points = bboxes_0[tmp, top_ids]
           vec_start = np.array([[0, -1]] * nb, dtype=np.float32).reshape(-1,2)
-          angles = angle_from_vecs_to_vece_np( vec_start, top_points,  scope_id=1)
-          istopleft = np.sin(angles * 2).reshape(-1,1) * 0
+          istopleft_0 = sin2theta_np( vec_start, top_points).reshape(-1,1)
+          #angles = angle_from_vecs_to_vece_np( vec_start, top_points,  scope_id=1)
+          #istopleft_0 = np.sin(angles * 2).reshape(-1,1)
+          #istopleft_1 = (istopleft_0 < 0).astype(np.float32)
+          #print(istopleft_0)
+
+          istopleft = istopleft_0
 
           bboxes = np.concatenate([xy_min, xy_max, istopleft], axis=1)
           pass

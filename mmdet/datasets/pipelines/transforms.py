@@ -284,7 +284,7 @@ class RandomLineFlip(object):
         """
         if obj_rep == 'box_scope' or obj_rep == 'line_scope':
           return self.bbox_flip_scope(bboxes, img_shape, direction)
-        elif obj_rep == 'scope_istopleft':
+        elif obj_rep == 'lscope_istopleft':
           return self.bbox_flip_scope_itl(bboxes, img_shape, direction)
         else:
           raise NotImplementedError

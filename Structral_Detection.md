@@ -18,11 +18,18 @@
 # Line object
 - box size for point distance normalization
 ```
-(1) core/bbox/assigners/point_assigner.py
+(1) datasets/pipelines/transforms.py
+        flipped[:,-1] = -flipped[:,-1]
+
+(2) core/bbox/assigners/point_assigner.py
 From: gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).clamp(min=1e-6)
 To:   gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1).clamp(min=1e-6)
 
-(2) core/bbox/assigners/max_iou_assigner.py
+(3) models/anchor_heads/strpoints_head.py
+angles = angle_from_vecs_to_vece(vec_start, vec_pts, scope_id=1)
+istoplefts_ = torch.sin(2*angles)
+
+(4) core/bbox/assigners/max_iou_assigner.py
 From : bbox_overlaps
 To   : line_overlaps in straight_line_distance_torch.py
 ```
