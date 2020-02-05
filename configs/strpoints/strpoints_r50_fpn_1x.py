@@ -14,22 +14,25 @@
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
-#_transform_method='moment'
 
 # 2. line scope
-_obj_rep='line_scope'
-_transform_method='moment'
+#_obj_rep='line_scope'
 
 #3. lines beike
-#_obj_rep='lscope_istopleft'
-#_transform_method='moment_lscope_istopleft'
+_obj_rep='lscope_istopleft'
 
 #*******************************************************************************
-from configs.common import OBJ_DIM, OBJ_REP
+from configs.common import  OBJ_REP
+assert OBJ_REP == _obj_rep
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
-assert OBJ_DIM == _obj_dim
-assert OBJ_REP == _obj_rep
+
+if _obj_rep == 'box_scope':
+  _transform_method = 'moment'
+elif _obj_rep == 'line_scope':
+  _transform_method = 'moment'
+elif _obj_rep == 'lscope_istopleft':
+  _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
 
 
@@ -174,7 +177,7 @@ log_config = dict(
 total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_debuging'.format(_obj_rep)
+work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x'.format(_obj_rep)
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'

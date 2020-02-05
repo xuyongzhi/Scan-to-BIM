@@ -722,3 +722,7 @@ class StrPointsHead(nn.Module):
             return det_bboxes, det_labels
         else:
             return mlvl_bboxes, mlvl_scores
+
+    def normalize_istopleft_loss(self, itl_loss):
+        itl_loss_nm = 1 - torch.exp(-itl_loss)
+        return itl_loss_nm
