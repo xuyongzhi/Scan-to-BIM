@@ -4,6 +4,7 @@ import mmcv
 import numpy as np
 import pycocotools.mask as maskUtils
 import torch.nn as nn
+import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
 
@@ -185,14 +186,42 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             img_show = np.clip(img_show+1, a_min=None, a_max=255)
             class_names = tuple([c[0] for c in class_names])
 
+
             if bboxes.shape[1] == 6:
-              bboxes = bboxes[:,[0,1,2,3,-1]]
-            assert bboxes.shape[1] == 5
+                filename = img_meta['filename']
+                scene_name = os.path.basename(filename).replace('density', '')
+                out_dir = './res_line_det/'
+                out_file = out_dir + scene_name
+                if not os.path.exists(out_dir):
+                  os.makedirs(out_dir)
+
+                from mmdet.debug_tools import show_det_lines
+                show_det_lines(
+                  img_show,
+                  bboxes,
+                  labels,
+                  class_names=class_names,
+                  score_thr=score_thr,
+                  line_color='green',
+                  thickness=1,
+                  show=False,
+                  out_file=out_file)
+                continue
+
+
+            bboxes_s = bboxes.copy()
+
+
+            if bboxes_s.shape[1] == 6:
+              bboxes_s = bboxes_s[:,[0,1,2,3,-1]]
+            assert bboxes_s.shape[1] == 5
             mmcv.imshow_det_bboxes(
                 img_show,
-                bboxes,
+                bboxes_s,
                 labels,
                 class_names=class_names,
                 score_thr=score_thr,
                 bbox_color='green',
-                thickness=1)
+                thickness=1,)
+
+            pass

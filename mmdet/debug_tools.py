@@ -1,7 +1,10 @@
 import torch
 import numpy as np
 import mmcv
+from mmcv.image import imread, imwrite
+import cv2
 
+from .color import color_val
 
 def show_multi_ls_shapes(in_ls, names_ls, env):
   for i,ls in enumerate(in_ls):
@@ -42,5 +45,69 @@ def draw_img_lines(img, lines, color='random', lines_ref=None):
       #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
       #            (255, 255, 255), 1)
     mmcv.imshow(img)
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
+
+
+def imshow(img, win_name='', wait_time=0):
+    """Show an image.
+    Args:
+        img (str or ndarray): The image to be displayed.
+        win_name (str): The window name.
+        wait_time (int): Value of waitKey param.
+    """
+    cv2.imshow(win_name, imread(img))
+    if wait_time == 0:  # prevent from hangning if windows was closed
+        while True:
+            ret = cv2.waitKey(1)
+
+            closed = cv2.getWindowProperty(win_name, cv2.WND_PROP_VISIBLE) < 1
+            # if user closed window or if some key pressed
+            if closed or ret != -1:
+                break
+    else:
+        ret = cv2.waitKey(wait_time)
+
+def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
+                   line_color='green', text_color='green', thickness=1,
+                   font_scale=0.5,show=True, win_name='', wait_time=0,out_file=None):
+  assert lines.ndim == 2
+  assert lines.shape[1] == 6 or lines.shape[1] == 5
+  assert labels.ndim == 1
+  assert labels.shape[0] == lines.shape[0]
+  img = imread(img)
+
+
+  if score_thr > 0:
+    assert lines.shape[1] == 6
+    scores = lines[:,-1]
+    inds = lines[:,-1] > score_thr
+    lines = lines[inds, :]
+    labels = labels[inds]
+
+  line_color = color_val(line_color)
+  text_color = color_val(text_color)
+
+  for line, label in zip(lines, labels):
+    istopleft = line[4] >= 0
+    if not istopleft:
+      line[0], line[2] = line[2], line[0]
+    line_int = line.astype(np.int32)
+    s = line_int[0:2]
+    e = line_int[2:4]
+
+    cv2.line(img, (s[0], s[1]), (e[0], e[1]), line_color)
+
+    label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
+    label_text = ''
+    if len(line) == 6:
+      label_text += '{:.01f}'.format(line[-1])
+
+    m = ((s+e)/2).astype(np.int32)
+    cv2.putText(img, label_text, (m[0]-2, m[1] - 2),
+                cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
+
+  if show:
+      imshow(img, win_name, wait_time)
+  if out_file is not None:
+      imwrite(img, out_file)
+  pass
