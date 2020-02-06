@@ -7,7 +7,7 @@ import torch.nn as nn
 import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-
+from configs.common import OBJ_DIM, OUT_PTS_DIM
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -145,6 +145,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             bbox_result, segm_result = result
         else:
             bbox_result, segm_result = result, None
+        assert bbox_result[0].shape[1] == OBJ_DIM + OUT_PTS_DIM + 1
 
         img_tensor = data['img'][0]
         img_metas = data['img_meta'][0].data[0]
@@ -187,30 +188,36 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             class_names = tuple([c[0] for c in class_names])
 
 
+            if OUT_PTS_DIM > 0:
+              key_points = bboxes[:,-1-OUT_PTS_DIM:-1].reshape(bboxes.shape[0], -1,2)
+              bboxes = np.concatenate([ bboxes[:,:OBJ_DIM], bboxes[:, -1:]], axis=1 )
+            else:
+              key_points = None
+
             if bboxes.shape[1] == 6:
                 filename = img_meta['filename']
-                scene_name = os.path.basename(filename).replace('density', '')
+                scene_name = os.path.basename(filename).replace('density.', '')
                 out_dir = './res_line_det/'
                 out_file = out_dir + scene_name
                 if not os.path.exists(out_dir):
                   os.makedirs(out_dir)
 
-                from mmdet.debug_tools import show_det_lines
-                show_det_lines(
+                from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
+                show_det_lines_1by1(
+                #show_det_lines(
                   img_show,
                   bboxes,
                   labels,
                   class_names=class_names,
                   score_thr=score_thr,
                   line_color='green',
-                  thickness=1,
-                  show=False,
-                  out_file=out_file)
+                  thickness=2,
+                  show=1,
+                  out_file=out_file,
+                  key_points=key_points)
                 continue
 
-
             bboxes_s = bboxes.copy()
-
 
             if bboxes_s.shape[1] == 6:
               bboxes_s = bboxes_s[:,[0,1,2,3,-1]]

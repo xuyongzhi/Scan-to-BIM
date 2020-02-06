@@ -1,7 +1,9 @@
 import torch
 
 from mmdet.ops.nms import nms_wrapper
-from configs.common import OBJ_DIM
+from configs.common import OBJ_DIM, OUT_PTS_DIM
+OUT_PTS_DIM = 0 if OUT_PTS_DIM < 0 else OUT_PTS_DIM
+OBJ_DIM += OUT_PTS_DIM
 
 def multiclass_nms(multi_bboxes,
                    multi_scores,
