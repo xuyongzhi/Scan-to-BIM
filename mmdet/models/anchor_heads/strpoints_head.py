@@ -17,6 +17,7 @@ from mmdet import debug_tools
 
 from configs.common import OBJ_DIM, OBJ_REP, OUT_PTS_DIM
 
+LINE_CONSTRAIN_LOSS = True
 DEBUG = True
 
 @HEADS.register_module
@@ -168,7 +169,7 @@ class StrPointsHead(nn.Module):
         normal_init(self.reppoints_pts_refine_conv, std=0.01)
         normal_init(self.reppoints_pts_refine_out, std=0.01)
 
-    def points2bbox(self, pts, y_first=True):
+    def points2bbox(self, pts, y_first=True, out_line_constrain=False):
         """
         Converting the points set into bounding box.
         :param pts: the input points sets (fields), each points
@@ -238,12 +239,17 @@ class StrPointsHead(nn.Module):
             istoplefts_1 = istoplefts_0.view(pts_x.shape)
             istopleft = istoplefts_1.mean(dim=1, keepdim=True)
 
+            isaline = istoplefts_1.max(dim=1, keepdim=True)[0] - \
+                      istoplefts_1.min(dim=1, keepdim=True)[0]
+
             bbox = torch.cat([
                 pts_x_mean - half_width, pts_y_mean - half_height,
                 pts_x_mean + half_width, pts_y_mean + half_height,
                 istopleft
             ],
                              dim=1)
+            if out_line_constrain:
+              bbox = torch.cat([bbox, isaline], dim=1)
             pass
         elif self.transform_method == 'center_size_istopleft':
             pts_y = pts_y[:, :2, ...]
@@ -457,11 +463,13 @@ class StrPointsHead(nn.Module):
         bbox_gt_init = bbox_gt_init.reshape(-1, obj_dim)
         bbox_weights_init = bbox_weights_init.reshape(-1, obj_dim)
         bbox_pred_init = self.points2bbox(
-            pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False)
+            pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False,
+            out_line_constrain=LINE_CONSTRAIN_LOSS)
         bbox_gt_refine = bbox_gt_refine.reshape(-1, obj_dim)
         bbox_weights_refine = bbox_weights_refine.reshape(-1, obj_dim)
         bbox_pred_refine = self.points2bbox(
-            pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False)
+            pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False,
+            out_line_constrain=LINE_CONSTRAIN_LOSS)
         normalize_term = self.point_base_scale * stride
 
         if obj_dim == 4:
@@ -470,10 +478,14 @@ class StrPointsHead(nn.Module):
         elif obj_dim == 5:
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
-          bbox_pred_init_nm[:,-1] = bbox_pred_init[:,-1]
-          bbox_gt_init_nm[:,-1] = bbox_gt_init[:,-1]
+          bbox_pred_init_nm[:,4] = bbox_pred_init[:,4]
+          bbox_gt_init_nm[:,4] = bbox_gt_init[:,4]
 
-          #bbox_weights_init = bbox_weights_init[:,:4]
+
+        if LINE_CONSTRAIN_LOSS:
+          tmp = torch.zeros_like(bbox_gt_init_nm)[:,0:1]
+          bbox_gt_init_nm = torch.cat([bbox_gt_init_nm, tmp], dim=1)
+          bbox_weights_init = torch.cat([bbox_weights_init, bbox_weights_init[:,0:1]], dim=1)
 
         loss_pts_init = self.loss_bbox_init(
             bbox_pred_init_nm,
@@ -487,10 +499,13 @@ class StrPointsHead(nn.Module):
         elif obj_dim == 5:
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
-          bbox_pred_refine_nm[:,-1] = bbox_pred_refine[:,-1]
-          bbox_gt_refine_nm[:,-1] = bbox_gt_refine[:,-1]
+          bbox_pred_refine_nm[:,4] = bbox_pred_refine[:,4]
+          bbox_gt_refine_nm[:,4] = bbox_gt_refine[:,4]
 
-          #bbox_weights_refine = bbox_weights_refine[:,:4]
+        if LINE_CONSTRAIN_LOSS:
+          tmp = torch.zeros_like(bbox_gt_init_nm)[:,0:1]
+          bbox_gt_refine_nm = torch.cat([bbox_gt_refine_nm, tmp], dim=1)
+          bbox_weights_refine = torch.cat([bbox_weights_refine, bbox_weights_refine[:,0:1]], dim=1)
 
         loss_pts_refine = self.loss_bbox_refine(
             bbox_pred_refine_nm,
