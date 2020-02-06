@@ -185,7 +185,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             labels = np.concatenate(labels)
 
             img_show = np.clip(img_show+1, a_min=None, a_max=255)
-            #class_names = tuple([c[0] for c in class_names])
+            class_names = tuple([c[0] for c in class_names])
 
 
             if OUT_PTS_DIM > 0:

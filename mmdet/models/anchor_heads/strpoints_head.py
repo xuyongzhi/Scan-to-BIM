@@ -239,8 +239,10 @@ class StrPointsHead(nn.Module):
             istoplefts_1 = istoplefts_0.view(pts_x.shape)
             istopleft = istoplefts_1.mean(dim=1, keepdim=True)
 
-            isaline = istoplefts_1.max(dim=1, keepdim=True)[0] - \
-                      istoplefts_1.min(dim=1, keepdim=True)[0]
+            #isaline = istoplefts_1.max(dim=1, keepdim=True)[0] - \
+            #          istoplefts_1.min(dim=1, keepdim=True)[0]
+
+            isaline = istoplefts_1.std(dim=1, keepdim=True)
 
             bbox = torch.cat([
                 pts_x_mean - half_width, pts_y_mean - half_height,

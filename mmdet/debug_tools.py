@@ -78,7 +78,8 @@ def show_det_lines_1by1(img, lines, labels, class_names=None, score_thr=0,
     inds = lines[:,-1] > score_thr
     lines = lines[inds, :]
     labels = labels[inds]
-    key_points = key_points[inds, :]
+    if key_points is not None:
+      key_points = key_points[inds, :]
 
   size = img.shape[0:2]
   show = 0
@@ -90,9 +91,13 @@ def show_det_lines_1by1(img, lines, labels, class_names=None, score_thr=0,
   n = lines.shape[0]
   for i in range(n):
     img0 = img.copy()
+    if key_points is not None:
+      kpi = key_points[i:i+1]
+    else:
+      kpi = None
     show_det_lines(img0, lines[i:i+1], labels[i:i+1], class_names, score_thr,
                    line_color, text_color, thickness, font_scale, show, win_name,
-                   wait_time, None, key_points[i:i+1], point_color)
+                   wait_time, None, kpi, point_color)
     out.write(img0)
     img0 = img.copy()
 
@@ -123,7 +128,8 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
     inds = lines[:,-1] > score_thr
     lines = lines[inds, :]
     labels = labels[inds]
-    key_points = key_points[inds, :]
+    if key_points is not None:
+      key_points = key_points[inds, :]
 
   line_color = color_val(line_color)
   text_color = color_val(text_color)
