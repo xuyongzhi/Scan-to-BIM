@@ -104,6 +104,7 @@ def nms(dets, iou_thr, device_id=None):
                 type(dets)))
 
     # execute cpu or cuda nms
+    dets_th = dets_th[:,[0,1,2,3,-1]]
     if dets_th.shape[0] == 0:
         inds = dets_th.new_zeros(0, dtype=torch.long)
     else:

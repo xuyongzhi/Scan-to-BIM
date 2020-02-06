@@ -185,7 +185,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             labels = np.concatenate(labels)
 
             img_show = np.clip(img_show+1, a_min=None, a_max=255)
-            class_names = tuple([c[0] for c in class_names])
+            #class_names = tuple([c[0] for c in class_names])
 
 
             if OUT_PTS_DIM > 0:
@@ -194,14 +194,17 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             else:
               key_points = None
 
+            filename = img_meta['filename']
+            scene_name = os.path.basename(filename).replace('density.', '')
             if bboxes.shape[1] == 6:
-                filename = img_meta['filename']
-                scene_name = os.path.basename(filename).replace('density.', '')
-                out_dir = './res_line_det/'
-                out_file = out_dir + scene_name
-                if not os.path.exists(out_dir):
-                  os.makedirs(out_dir)
+              out_dir = './line_det_res/'
+            else:
+              out_dir = './box_det_res/'
+            out_file = out_dir + scene_name
+            if not os.path.exists(out_dir):
+              os.makedirs(out_dir)
 
+            if bboxes.shape[1] == 6:
                 from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
                 show_det_lines_1by1(
                 #show_det_lines(
@@ -222,6 +225,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             if bboxes_s.shape[1] == 6:
               bboxes_s = bboxes_s[:,[0,1,2,3,-1]]
             assert bboxes_s.shape[1] == 5
+            if key_points is not None:
+              draw_key_points(img_show, key_points, bboxes_s, score_thr)
             mmcv.imshow_det_bboxes(
                 img_show,
                 bboxes_s,
@@ -229,6 +234,18 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 class_names=class_names,
                 score_thr=score_thr,
                 bbox_color='green',
-                thickness=1,)
+                thickness=1,
+                out_file=out_file)
 
             pass
+def draw_key_points(img, key_points, bboxes_s, score_thr,
+                    point_color=(0,0,255), thickness=2):
+    import cv2
+    for i in range(bboxes_s.shape[0]):
+      if bboxes_s[i,-1] < score_thr:
+        continue
+      for j in range(key_points.shape[1]):
+        p = key_points[i][j].astype(np.int32)
+        cv2.circle(img, (p[0], p[1]), 2, point_color, thickness=thickness)
+
+

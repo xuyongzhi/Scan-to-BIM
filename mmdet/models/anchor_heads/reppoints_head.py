@@ -14,6 +14,7 @@ from ..utils import ConvModule, bias_init_with_prob
 
 
 from mmdet import debug_tools
+from configs.common import OBJ_DIM, OBJ_REP, OUT_PTS_DIM
 
 @HEADS.register_module
 class RepPointsHead(nn.Module):
@@ -528,6 +529,11 @@ class RepPointsHead(nn.Module):
             for pts_pred_refine in pts_preds_refine
         ]
         num_levels = len(cls_scores)
+
+        if OUT_PTS_DIM > 0:
+          for i in range(num_levels):
+            bbox_preds_refine[i] = torch.cat([bbox_preds_refine[i], pts_preds_refine[i]], dim=1)
+
         mlvl_points = [
             self.point_generators[i].grid_points(cls_scores[i].size()[-2:],
                                                  self.point_strides[i])
@@ -562,6 +568,11 @@ class RepPointsHead(nn.Module):
         assert len(cls_scores) == len(bbox_preds) == len(mlvl_points)
         mlvl_bboxes = []
         mlvl_scores = []
+        obj_dim = bbox_preds[0].shape[0]
+        if OUT_PTS_DIM <=0:
+          assert obj_dim == OBJ_DIM
+        else:
+          assert obj_dim == OBJ_DIM + 18
         for i_lvl, (cls_score, bbox_pred, points) in enumerate(
                 zip(cls_scores, bbox_preds, mlvl_points)):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
@@ -571,7 +582,7 @@ class RepPointsHead(nn.Module):
                 scores = cls_score.sigmoid()
             else:
                 scores = cls_score.softmax(-1)
-            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
+            bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, obj_dim)
             nms_pre = cfg.get('nms_pre', -1)
             if nms_pre > 0 and scores.shape[0] > nms_pre:
                 if self.use_sigmoid_cls:
@@ -582,13 +593,28 @@ class RepPointsHead(nn.Module):
                 points = points[topk_inds, :]
                 bbox_pred = bbox_pred[topk_inds, :]
                 scores = scores[topk_inds, :]
-            bbox_pos_center = torch.cat([points[:, :2], points[:, :2]], dim=1)
-            bboxes = bbox_pred * self.point_strides[i_lvl] + bbox_pos_center
+            bbox_pos_center = points[:, :2].repeat(1, OBJ_DIM//2)
+            bboxes = bbox_pred[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
             x1 = bboxes[:, 0].clamp(min=0, max=img_shape[1])
             y1 = bboxes[:, 1].clamp(min=0, max=img_shape[0])
             x2 = bboxes[:, 2].clamp(min=0, max=img_shape[1])
             y2 = bboxes[:, 3].clamp(min=0, max=img_shape[0])
             bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
+
+
+            if OUT_PTS_DIM > 0:
+              bbox_pos_center = points[:, :2].repeat(1, OUT_PTS_DIM//2)
+              bn = bboxes.shape[0]
+              # key_points store in y-first, but box in x-first.
+              # change key-points to x-first
+              key_points = bbox_pred[:,-OUT_PTS_DIM:].\
+                            reshape(bn,-1,2)[:,:,[1,0]].reshape(bn,-1)
+              key_points = key_points * self.point_strides[i_lvl] + bbox_pos_center
+              for kp in range(0, key_points.shape[1], 2):
+                key_points[:,kp] = key_points[:,kp].clamp(min=0, max=img_shape[1])
+                key_points[:,kp+1] = key_points[:,kp+1].clamp(min=0, max=img_shape[0])
+              bboxes = torch.cat([bboxes, key_points], dim=1)
+
             mlvl_bboxes.append(bboxes)
             mlvl_scores.append(scores)
         mlvl_bboxes = torch.cat(mlvl_bboxes)
