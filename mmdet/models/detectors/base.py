@@ -206,8 +206,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
             if bboxes.shape[1] == 6:
                 from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
-                show_det_lines_1by1(
-                #show_det_lines(
+                #show_det_lines_1by1(
+                show_det_lines(
                   img_show,
                   bboxes,
                   labels,
@@ -215,7 +215,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                   score_thr=score_thr,
                   line_color='green',
                   thickness=2,
-                  show=1,
+                  show=0,
                   out_file=out_file,
                   key_points=key_points)
                 continue

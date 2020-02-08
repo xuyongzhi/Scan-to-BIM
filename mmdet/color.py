@@ -1,6 +1,6 @@
 # Copyright (c) Open-MMLab. All rights reserved.
 from enum import Enum
-
+import random
 import numpy as np
 
 from mmcv.utils import is_str
@@ -20,6 +20,10 @@ class Color(Enum):
     white = (255, 255, 255)
     black = (0, 0, 0)
 
+def get_random_color():
+  colors = ['red', 'green', 'blue','cyan','yellow','magenta','white']
+  col = random.sample(colors, 1)[0]
+  return Color[col].value
 
 def color_val(color):
     """Convert various input to color tuples.

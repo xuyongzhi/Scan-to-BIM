@@ -4,7 +4,7 @@ import mmcv
 from mmcv.image import imread, imwrite
 import cv2
 
-from .color import color_val
+from .color import color_val, get_random_color
 
 def show_multi_ls_shapes(in_ls, names_ls, env):
   for i,ls in enumerate(in_ls):
@@ -145,6 +145,7 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
     s = line_int[0:2]
     e = line_int[2:4]
 
+    line_color = get_random_color()
     cv2.line(img, (s[0], s[1]), (e[0], e[1]), line_color, thickness=thickness)
 
     if key_points is not None:
@@ -155,8 +156,8 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
     label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
     label_text = ''
     if len(line) == 6:
-      #label_text += '{:.01f}'.format(line[-1])
-      label_text += '{:.01f}'.format(line[-2])
+      label_text += '{:.01f}'.format(line[-1]) # score
+      #label_text += '{:.01f}'.format(line[-2]) # rotation
 
     m = ((s+e)/2).astype(np.int32)
     cv2.putText(img, label_text, (m[0]-2, m[1] - 2),
