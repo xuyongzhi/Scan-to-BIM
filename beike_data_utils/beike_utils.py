@@ -503,7 +503,7 @@ def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
 
 def gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')
-  den_image_path = os.path.join(data_path, 'images/test')
+  den_image_path = os.path.join(data_path, f'images/public100_{IMAGE_SIZE}')
   norm_image_path = den_image_path
 
   if not os.path.exists(den_image_path):
@@ -596,13 +596,13 @@ if __name__ == '__main__':
   DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
-  #gen_images_from_npy(DATA_PATH)
+  gen_images_from_npy(DATA_PATH)
   #cal_images_mean_std(DATA_PATH)
   #get_scene_pcl_scopes(DATA_PATH)
 
   scene = ['3Q92imFGVI1hZ5b0sDFFC3', '3sr-fOoghhC9kiOaGrvr7f']
 
-  beike = BEIKE(ANNO_PATH)
+  #beike = BEIKE(ANNO_PATH)
   #beike.show_scene_anno('JW2-KX2A-3FQkoQkR7kpC7', False)
   pass
 

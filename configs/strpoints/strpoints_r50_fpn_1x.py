@@ -10,7 +10,7 @@
   transform_method
 '''
 
-DATA='D'
+DATA='A'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -142,17 +142,17 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/_train_80_' + DATA,
+        img_prefix=data_root + 'images/_train_87_' + DATA,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/_test_17_' + DATA,
+        img_prefix=data_root + 'images/_test_10_' + DATA,
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/_test_17_' + DATA,
+        img_prefix=data_root + 'images/_test_10_' + DATA,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
