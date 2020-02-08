@@ -272,7 +272,7 @@ class RandomLineFlip(object):
         self.obj_rep = obj_rep
         if flip_ratio is not None:
             assert flip_ratio >= 0 and flip_ratio <= 1
-        assert direction in ['horizontal', 'vertical']
+        assert direction in ['horizontal', 'vertical', 'random']
         assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
 
     def bbox_flip(self, bboxes, img_shape, direction, obj_rep):
@@ -331,6 +331,10 @@ class RandomLineFlip(object):
             results['flip'] = flip
         if 'flip_direction' not in results:
             results['flip_direction'] = self.direction
+        if results['flip_direction'] == 'random':
+          i = np.random.choice([0,1])
+          results['flip_direction'] = ['horizontal', 'vertical'][i]
+          #print(results['flip_direction'])
         if 'obj_rep' not in results:
             results['obj_rep'] = self.obj_rep
         if results['flip']:
