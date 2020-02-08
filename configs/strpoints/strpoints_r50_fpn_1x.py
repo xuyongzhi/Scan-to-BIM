@@ -10,7 +10,7 @@
   transform_method
 '''
 
-
+DATA='A'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -110,7 +110,7 @@ dataset_type = 'BeikeDataset'
 data_root = 'data/beike/processed_512/'
 img_norm_cfg = dict(
     mean=[ 2.91710224,  2.91710224,  2.91710224,  5.71324154,  5.66696014, 11.13778194],
-  std=[16.58656351, 16.58656351, 16.58656351, 27.51977998, 27.0712237,  34.75132369], to_rgb=False)
+    std=[16.58656351, 16.58656351, 16.58656351, 27.51977998, 27.0712237,  34.75132369], to_rgb=False)
 train_pipeline = [
     dict(type='Load2ImagesFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -142,17 +142,17 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/_train_80_' + DATA,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/_test_17_' + DATA,
         pipeline=test_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/test',
+        img_prefix=data_root + 'images/_test_17_' + DATA,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
@@ -177,7 +177,7 @@ log_config = dict(
 total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x'.format(_obj_rep)
+work_dir = './work_dirs/{}_{}_strpoints_moment_r50_fpn_1x'.format(DATA, _obj_rep)
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
