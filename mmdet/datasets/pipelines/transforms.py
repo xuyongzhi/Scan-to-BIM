@@ -304,6 +304,8 @@ class RandomLineFlip(object):
             raise ValueError(
                 'Invalid flipping direction "{}"'.format(direction))
         flipped[:,-1] = -flipped[:,-1]
+        #mask = (np.abs(flipped[:,-1]) >2).reshape(-1,1)
+        #flipped = flipped - mask * flipped * 2
         #print('\nflipped\n')
         return flipped
 

@@ -169,11 +169,16 @@ class CustomDataset(Dataset):
         return self.pipeline(results)
 
 def show_results(results):
+  from beike_data_utils.beike_utils import split_line_corner
+
   print('\ncustom, after data augmentation',results['img_meta'].data['filename'])
   img = results['img'].data.cpu().numpy()
   img = np.moveaxis(img, 0, -1)
   gt_bboxes = results['gt_bboxes'].data.cpu().numpy()
   gt_labels = results['gt_labels'].data.cpu().numpy()
+
+  gt_bboxes, gt_labels, corners, corner_labels = split_line_corner(gt_bboxes, gt_labels)
+
   if gt_bboxes.shape[1] == 5:
     istopleft = gt_bboxes[:,4]
     print(istopleft)
@@ -189,13 +194,17 @@ def show_results(results):
   #mmcv.imshow(img[:,:,:3])
   #mmcv.imshow(img[:,:,3:])
   #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
-  draw_img_lines(img[:,:,:3], lines)
+  draw_img_lines(img[:,:,:3], lines, corners)
   pass
 
-def draw_img_lines(img, lines):
+def draw_img_lines(img, lines, corners):
   import cv2
   img = img.copy()
   for i in range(lines.shape[0]):
     s, e = lines[i]
     cv2.line(img, (s[0], s[1]), (e[0], e[1]), (0,255,0), 2)
+  for i in range(corners.shape[0]):
+    c = corners[i]
+    cv2.circle(img, (c[0], c[1]), thickness=2, radius=2, color=(255,0,255))
   mmcv.imshow(img)
+

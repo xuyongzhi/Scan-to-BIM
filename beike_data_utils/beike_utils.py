@@ -15,7 +15,7 @@ import mmcv
 import glob
 
 from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece_np, sin2theta_np
-from configs.common import OBJ_DIM, OBJ_REP
+from configs.common import OBJ_DIM, OBJ_REP, CORNER_FLAG, INCLUDE_CORNERS
 np.set_printoptions(precision=3, suppress=True)
 
 IMAGE_SIZE = 512
@@ -204,8 +204,18 @@ class BEIKE:
       anno_img = {}
       corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = sort_2points_per_box(lines_pt)
-      anno_img['bboxes'] = lines_pt_ordered
-      anno_img['labels'] = anno_raw['line_cat_ids']
+      corners_pt_inbox = corners_as_boxformat(corners_pt)
+      bboxes_line_corner = np.concatenate([lines_pt_ordered, corners_pt_inbox], axis=0)
+      labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)
+
+      if INCLUDE_CORNERS:
+        anno_img['bboxes'] = bboxes_line_corner
+        anno_img['labels'] = labels_line_corner
+      else:
+        anno_img['bboxes'] = lines_pt_ordered
+        anno_img['labels'] = anno_raw['line_cat_ids']
+
+
       anno_img['bboxes_ignore'] = np.empty([0,OBJ_DIM], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
@@ -320,8 +330,11 @@ class BEIKE:
 
     def draw_anno_img(self, idx,  with_img=True):
       colors_line   = {'wall': (255,0,0), 'door': (0,255,255), 'window': (0,255,255), 'other':(100,100,0)}
+      colors_corner = {'wall': (0,0,255), 'door': (0,255,0), 'window': (255,0,0), 'other':(255,255,255)}
       anno = self.img_infos[idx]['ann']
       bboxes = anno['bboxes']
+      labels = anno['labels']
+      bboxes, bbox_labels, corners, corner_labels = split_line_corner(bboxes, labels)
 
       if not with_img:
         img = None
@@ -347,6 +360,10 @@ class BEIKE:
       for i in range(lines.shape[0]):
         s, e = lines[i]
         cv2.line(img, (s[0], s[1]), (e[0], e[1]), colors_line['wall'])
+      for i in range(corners.shape[0]):
+        c = corners[i]
+        cv2.circle(img, (c[0], c[1]), radius=3, color=colors_corner['wall'],
+                   thickness=2)
       mmcv.imshow(img)
       pass
 
@@ -408,6 +425,23 @@ class BEIKE:
           break
       img = self.draw_anno(idx, with_img)
       mmcv.imshow(img)
+
+
+def split_line_corner(bboxes, labels):
+  assert bboxes.shape[1] == 5
+  mask = np.abs(np.abs(bboxes[:,-1]) - CORNER_FLAG) < 1e-5
+  lines = bboxes[mask==0]
+  line_labels = labels[mask==0]
+  corners = bboxes[mask]
+  corner_labels = labels[mask]
+  return lines, line_labels, corners, corner_labels
+
+def corners_as_boxformat(corners_pt):
+  n = corners_pt.shape[0]
+  tmp0 = np.zeros((n,1), dtype = corners_pt.dtype) + CORNER_FLAG
+  tmp1 = np.clip(corners_pt.copy() + 0, a_min=0, a_max=IMAGE_SIZE-1)
+  corners_as_box = np.concatenate([corners_pt, tmp1, tmp0], axis=1)
+  return corners_as_box
 
 
 def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
