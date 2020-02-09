@@ -1,8 +1,9 @@
 import os, glob, random, shutil
+IMAGE_SIZE = 512
 
-ORG_PATH = '/DT/BEIKE_Floorplan/processed_1024/images/public100_1024'
-TRAIN_PATH = '/DT/BEIKE_Floorplan/processed_1024/images/_train_87'
-TEST_PATH = '/DT/BEIKE_Floorplan/processed_1024/images/_test_10'
+ORG_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/pub100'
+TRAIN_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_train_87'
+TEST_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_test_10'
 
 
 BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
@@ -15,8 +16,8 @@ def split(flag):
   if not os.path.exists(test_path):
     os.makedirs(test_path)
 
-  files = glob.glob(ORG_PATH+'/*.density.png')
-  scenes = [os.path.basename(f.replace('.density.png','')) for f in files]
+  files = glob.glob(ORG_PATH+'/*.npy')
+  scenes = [os.path.basename(f.replace('.npy','')) for f in files]
   scenes = [s for s in scenes if s not in BAD_SCENES]
   n = len(scenes)
   train_scenes = random.sample(scenes, 87)
@@ -24,18 +25,14 @@ def split(flag):
 
 
   for s in train_scenes:
-    shutil.copyfile(  os.path.join(ORG_PATH,    s+'.density.png'),\
-                      os.path.join(train_path,  s+'.density.png'))
-    shutil.copyfile(  os.path.join(ORG_PATH,    s+'.norm.png'),\
-                      os.path.join(train_path,  s+'.norm.png'))
+    shutil.copyfile(  os.path.join(ORG_PATH,    s+'.npy'),\
+                      os.path.join(train_path,  s+'.npy'))
 
   for s in test_scenes:
-    shutil.copyfile(  os.path.join(ORG_PATH,    s+'.density.png'),\
-                      os.path.join(test_path,  s+'.density.png'))
-    shutil.copyfile(  os.path.join(ORG_PATH,    s+'.norm.png'),\
-                      os.path.join(test_path,  s+'.norm.png'))
+    shutil.copyfile(  os.path.join(ORG_PATH,    s+'.npy'),\
+                      os.path.join(test_path,  s+'.npy'))
   print(f'split ok: {flag}')
 
 if __name__ == '__main__':
-  for flag in ['A', 'B', 'C', 'D', 'E']:
+  for flag in ['A', 'B', 'C', 'D']:
     split( flag )

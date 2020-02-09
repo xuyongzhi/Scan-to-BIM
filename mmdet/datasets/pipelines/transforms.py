@@ -457,6 +457,34 @@ class Normalize(object):
 
 
 @PIPELINES.register_module
+class NormalizeTopview(object):
+    """Normalize the image.
+
+    Args:
+        mean (sequence): Mean values of 3 channels.
+        std (sequence): Std values of 3 channels.
+        to_rgb (bool): Whether to convert the image from BGR to RGB,
+            default is true.
+    """
+
+    def __init__(self, mean, std, to_rgb=True):
+        self.mean = np.array(mean, dtype=np.float32)
+        self.std = np.array(std, dtype=np.float32)
+        self.to_rgb = to_rgb
+
+    def __call__(self, results):
+        results['img'][:,:,0] = results['img'][:,:,0] / 255
+        results['img_norm_cfg'] = dict( density=1, norm=None )
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += '(mean={}, std={}, to_rgb={})'.format(
+            self.mean, self.std, self.to_rgb)
+        return repr_str
+
+
+@PIPELINES.register_module
 class RandomCrop(object):
     """Random crop the image & bboxes & masks.
 

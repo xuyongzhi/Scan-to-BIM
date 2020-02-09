@@ -55,7 +55,7 @@ class BEIKE:
           pcl_scope = np.array(self.pcl_scopes[anno_raw['filename'].split('.')[0]] )
           anno_raw['pcl_scope'] = pcl_scope
           anno_img = BEIKE.raw_anno_to_img(anno_raw)
-          filename = jfn.split('.')[0]+'.density.png'
+          filename = jfn.split('.')[0]+'.npy'
           img_info = {'filename': filename,
                       'ann': anno_img,
                       'ann_raw': anno_raw}
@@ -306,7 +306,7 @@ class BEIKE:
       assert True, f'cannot fine scene {scene_name}'
 
     def load_data(self, scene_name):
-      seperate_room_path = self.anno_folder.replace('json', 'seperate_room_data/test')
+      seperate_room_path = self.anno_folder.replace('json', 'topview/pub100')
       seperate_room_file = os.path.join(seperate_room_path, scene_name+'.npy')
       data = np.load(seperate_room_file, allow_pickle=True).tolist()
       img = data['topview_image']
@@ -314,8 +314,8 @@ class BEIKE:
       #room_map = data['room_map']
       #bg_idx = data['bg_idx']
       normal_image = data['topview_mean_normal']
-      lines = data['lines']
-      point_dict = data['point_dict']
+      #lines = data['lines']
+      #point_dict = data['point_dict']
 
       #ann = self.load_anno_1scene(scene_name+'.json')
       #corners = ann['corners']
@@ -526,7 +526,7 @@ def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
         raise NotImplemented
       return bboxes
 
-def gen_images_from_npy(data_path):
+def _UnUsed_gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')
   den_image_path = os.path.join(data_path, f'images/public100_{IMAGE_SIZE}')
   norm_image_path = den_image_path
@@ -577,7 +577,7 @@ def get_scene_pcl_scopes(data_path):
     json.dump(pcl_scopes, f)
   print(f'save {pcl_scopes_file}')
 
-def cal_images_mean_std(data_path):
+def _UnUsed_cal_images_mean_std(data_path):
   '''
   mean: [ 2.91710224  2.91710224  2.91710224  5.71324154  5.66696014 11.13778194]
   std: [16.58656351 16.58656351 16.58656351 27.51977998 27.0712237  34.75132369]
@@ -621,13 +621,11 @@ if __name__ == '__main__':
   DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
-  #gen_images_from_npy(DATA_PATH)
-  #cal_images_mean_std(DATA_PATH)
   #get_scene_pcl_scopes(DATA_PATH)
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll']
 
   beike = BEIKE(ANNO_PATH)
-  beike.show_scene_anno(scenes[0], False)
+  beike.show_scene_anno(scenes[0], 1)
   pass
 

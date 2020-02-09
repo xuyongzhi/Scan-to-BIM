@@ -174,6 +174,37 @@ class Load2ImagesFromFile(object):
             self.to_float32)
 
 
+@PIPELINES.register_module
+class LoadTopviewFromFile(object):
+    def __init__(self, to_float32=False):
+        self.to_float32 = to_float32
+
+    def __call__(self, results):
+        if results['img_prefix'] is not None:
+            filename = osp.join(results['img_prefix'],
+                                results['img_info']['filename'])
+        else:
+            filename = results['img_info']['filename']
+        data = np.load(filename, allow_pickle=True).tolist()
+        density = np.expand_dims( data['topview_image'], axis=2)
+        mean_norm = data['topview_mean_normal']
+
+        img = np.concatenate([density, mean_norm], axis=2).astype(np.float32)
+
+        if self.to_float32:
+            img = img.astype(np.float32)
+        results['filename'] = filename
+        results['img'] = img
+        results['img_shape'] = img.shape
+        results['ori_shape'] = img.shape
+
+        #show_results(results)
+        return results
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(to_float32={})'.format(
+            self.to_float32)
+
 
 def show_results(results):
   print('\nLoad2ImagesFromFile, before data augmentation', results['img_info']['filename'])
@@ -186,6 +217,7 @@ def show_results(results):
   #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
   draw_img_lines(img, gt_bboxes.reshape(-1,2,2))
   pass
+
 
 def draw_img_lines(img, lines):
   import cv2

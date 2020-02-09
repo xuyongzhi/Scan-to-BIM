@@ -1,4 +1,4 @@
-IMAGE_SIZE = 1024
+IMAGE_SIZE = 512
 OBJ_REP = 'lscope_istopleft'
 
 #OBJ_REP = 'line_scope'

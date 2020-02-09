@@ -44,7 +44,7 @@ model = dict(
     backbone=dict(
         type='ResNet',
         depth=50,
-        in_channels=6,
+        in_channels=4,
         num_stages=4,
         out_indices=( 0, 1, 2),
         frozen_stages=-1,
@@ -112,17 +112,17 @@ img_norm_cfg = dict(
     mean=[ 2.91710224,  2.91710224,  2.91710224,  5.71324154,  5.66696014, 11.13778194],
     std=[16.58656351, 16.58656351, 16.58656351, 27.51977998, 27.0712237,  34.75132369], to_rgb=False)
 train_pipeline = [
-    dict(type='Load2ImagesFromFile'),
+    dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
-    dict(type='Normalize', **img_norm_cfg),
+    dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
 test_pipeline = [
-    dict(type='Load2ImagesFromFile'),
+    dict(type='LoadTopviewFromFile'),
     dict(
         type='MultiScaleFlipAug',
         img_scale=(512,512),
@@ -130,7 +130,7 @@ test_pipeline = [
         transforms=[
             dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='Normalize', **img_norm_cfg),
+            dict(type='NormalizeTopview', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
@@ -138,21 +138,21 @@ test_pipeline = [
 ]
 data = dict(
     imgs_per_gpu=2,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/_train_87_' + DATA,
+        img_prefix=data_root + 'topview/_train_87_' + DATA,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/_test_10_' + DATA,
+        img_prefix=data_root + 'topview/_test_10_' + DATA,
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'images/_test_10_' + DATA,
+        img_prefix=data_root + 'topview/_test_10_' + DATA,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)

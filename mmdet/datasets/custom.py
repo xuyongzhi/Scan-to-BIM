@@ -112,7 +112,7 @@ class CustomDataset(Dataset):
       valid_img_infos = [self.img_infos[i] for i in valid_inds]
       self.img_infos = valid_img_infos
       n = len(self.img_infos)
-      print(f'\n{n} valid scenes with annotation in total {n0}\n')
+      print(f'\n{n} valid scenes with annotation in total {n0} in {self.img_prefix}\n')
 
     def _filter_imgs(self, min_size=32):
         """Filter images too small."""
@@ -194,7 +194,7 @@ def show_results(results):
   #mmcv.imshow(img[:,:,:3])
   #mmcv.imshow(img[:,:,3:])
   #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
-  draw_img_lines(img[:,:,:3], lines, corners)
+  draw_img_lines(img[:,:,1:4], lines, corners)
   pass
 
 def draw_img_lines(img, lines, corners):
@@ -202,7 +202,7 @@ def draw_img_lines(img, lines, corners):
   img = img.copy()
   for i in range(lines.shape[0]):
     s, e = lines[i]
-    cv2.line(img, (s[0], s[1]), (e[0], e[1]), (0,255,0), 2)
+    cv2.line(img, (s[0], s[1]), (e[0], e[1]), (255,255,255), 2)
   for i in range(corners.shape[0]):
     c = corners[i]
     cv2.circle(img, (c[0], c[1]), thickness=2, radius=2, color=(255,0,255))
