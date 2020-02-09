@@ -177,7 +177,7 @@ log_config = dict(
 total_epochs = 300
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}'.format(_obj_rep, DATA)
+work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}_{}'.format(_obj_rep, DATA, IMAGE_SIZE)
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
