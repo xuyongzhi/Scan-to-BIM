@@ -14,7 +14,7 @@ CORNER_FLAG = 100
 INCLUDE_CORNERS = False
 
 #*******************************************************************************
-MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024 for 1024, 2 for 512
+MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
 PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0
 #*******************************************************************************
