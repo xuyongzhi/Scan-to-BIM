@@ -107,7 +107,7 @@ class BEIKE:
       return len(self.img_infos)
 
     def getCatIds(self):
-      return BEIKE._category_ids_map.values()
+      return list(BEIKE._category_ids_map.values())
 
     def getImgIds(self):
       return list(range(len(self)))

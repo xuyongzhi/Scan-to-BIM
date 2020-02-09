@@ -7,7 +7,7 @@ CONFIG=configs/strpoints/strpoints_r50_fpn_1x_A.py
 ./tools/dist_train.sh ${CONFIG} 2
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x_B.py
-./tools/dist_train.sh ${CONFIG} 2
+#./tools/dist_train.sh ${CONFIG} 2
 
 #CONFIG=configs/strpoints/strpoints_r50_fpn_1x_C.py
 #./tools/dist_train.sh ${CONFIG} 2
