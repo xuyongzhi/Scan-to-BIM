@@ -165,7 +165,10 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
         for img, img_meta in zip(imgs, img_metas):
             h, w, _ = img_meta['img_shape']
-            img_show = img[:h, :w, :3]
+            if img.shape[-1] == 4:
+              img_show = np.repeat(img[:h, :w, 0:1], 3, axis=2)
+            else:
+              img_show = img[:h, :w, :3]
 
             bboxes = np.vstack(bbox_result)
             # draw segmentation masks
@@ -195,7 +198,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
               key_points = None
 
             filename = img_meta['filename']
-            scene_name = os.path.basename(filename).replace('density.', '')
+            scene_name = os.path.basename(filename).replace('npy', 'png')
             if bboxes.shape[1] == 6:
               out_dir = './line_det_res/'
             else:

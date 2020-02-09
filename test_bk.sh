@@ -1,7 +1,8 @@
 #export CUDA_VISIBLE_DEVICES=1
-CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
-DATA=A
-CHECKPOINT=work_dirs/lscope_istopleft_strpoints_moment_r50_fpn_1x_${DATA}/best_800.pth
+DATA=D
+IMAGE_SIZE=1024
+CONFIG=configs/strpoints/strpoints_r50_fpn_1x_${DATA}.py
+CHECKPOINT=work_dirs/lscope_istopleft_strpoints_moment_r50_fpn_1x_${DATA}_${IMAGE_SIZE}/best.pth
 
 #CONFIG=configs/strpoints/strpoints_r50_fpn_1x_sd.py
 

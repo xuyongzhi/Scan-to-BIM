@@ -621,11 +621,11 @@ if __name__ == '__main__':
   DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
-  #get_scene_pcl_scopes(DATA_PATH)
+  get_scene_pcl_scopes(DATA_PATH)
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll']
 
   beike = BEIKE(ANNO_PATH)
-  beike.show_scene_anno(scenes[0], 1)
+  #beike.show_scene_anno(scenes[0], 1)
   pass
 

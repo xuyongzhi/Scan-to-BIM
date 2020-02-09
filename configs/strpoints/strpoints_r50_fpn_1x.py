@@ -10,7 +10,7 @@
   transform_method
 '''
 
-DATA='A'
+DATA='D'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -109,14 +109,14 @@ test_cfg = dict(
 dataset_type = 'BeikeDataset'
 data_root = f'data/beike/processed_{IMAGE_SIZE}/'
 img_norm_cfg = dict(
-    mean=[ 2.91710224,  2.91710224,  2.91710224,  5.71324154,  5.66696014, 11.13778194],
-    std=[16.58656351, 16.58656351, 16.58656351, 27.51977998, 27.0712237,  34.75132369], to_rgb=False)
+    mean=[ 0, 0, 0, 0.0],
+    std=[255.0, 1, 1, 1,], to_rgb=False)
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
-    dict(type='NormalizeTopview', **img_norm_cfg),
+    dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
@@ -130,7 +130,7 @@ test_pipeline = [
         transforms=[
             dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='NormalizeTopview', **img_norm_cfg),
+            dict(type='Normalize', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),
@@ -170,7 +170,7 @@ log_config = dict(
     interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
-        # dict(type='TensorboardLoggerHook')
+        dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 # runtime settings
@@ -184,3 +184,4 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+
