@@ -1,8 +1,8 @@
 import os, glob, random, shutil
 
-ORG_PATH = '/DT/BEIKE_Floorplan/processed_512/images/pub100'
-TRAIN_PATH = '/DT/BEIKE_Floorplan/processed_512/images/_train_87'
-TEST_PATH = '/DT/BEIKE_Floorplan/processed_512/images/_test_10'
+ORG_PATH = '/DT/BEIKE_Floorplan/processed_1024/images/public100_1024'
+TRAIN_PATH = '/DT/BEIKE_Floorplan/processed_1024/images/_train_87'
+TEST_PATH = '/DT/BEIKE_Floorplan/processed_1024/images/_test_10'
 
 
 BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']

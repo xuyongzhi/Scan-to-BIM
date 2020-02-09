@@ -6,7 +6,8 @@ from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 import cv2
 from mmdet import debug_tools
-DEBUG = 1
+
+from configs.common import PRINT_IOU_ASSIGNER
 
 class MaxIoUAssigner(BaseAssigner):
     """Assign a corresponding gt bbox or background to each bbox.
@@ -151,7 +152,7 @@ class MaxIoUAssigner(BaseAssigner):
             if assign_result.labels is not None:
                 assign_result.labels = assign_result.labels.to(device)
 
-        if DEBUG:
+        if PRINT_IOU_ASSIGNER:
           print('\tmax_iou_assigner\t' + str(assign_result))
           #show_assign_res(bboxes, gt_bboxes, assign_result)
         return assign_result

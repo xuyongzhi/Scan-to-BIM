@@ -1,7 +1,7 @@
 #export CUDA_VISIBLE_DEVICES=1
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
-DATA=D
-CHECKPOINT=work_dirs/${DATA}_lscope_istopleft_strpoints_moment_r50_fpn_1x//best.pth
+DATA=A
+CHECKPOINT=work_dirs/lscope_istopleft_strpoints_moment_r50_fpn_1x_${DATA}/best_800.pth
 
 #CONFIG=configs/strpoints/strpoints_r50_fpn_1x_sd.py
 

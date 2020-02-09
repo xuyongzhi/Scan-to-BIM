@@ -15,10 +15,10 @@ import mmcv
 import glob
 
 from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece_np, sin2theta_np
-from configs.common import OBJ_DIM, OBJ_REP, CORNER_FLAG, INCLUDE_CORNERS
+from configs.common import OBJ_DIM, OBJ_REP, CORNER_FLAG, INCLUDE_CORNERS, IMAGE_SIZE
+from mmdet.debug_tools import get_random_color
 np.set_printoptions(precision=3, suppress=True)
 
-IMAGE_SIZE = 512
 #LOAD_CLASSES = ['wall', 'window', 'door']
 LOAD_CLASSES = ['wall']
 
@@ -48,6 +48,7 @@ class BEIKE:
         assert len(json_files) > 0
 
         img_infos = []
+        all_min_line_sizes = []
         for jfn in json_files:
           scene_name = jfn.split('.')[0]
           anno_raw = self.load_anno_1scene(jfn)
@@ -59,8 +60,11 @@ class BEIKE:
                       'ann': anno_img,
                       'ann_raw': anno_raw}
           img_infos.append(img_info)
+          all_min_line_sizes.append(anno_img['min_line_size'])
 
         self.img_infos = img_infos
+        self.all_min_line_sizes = np.array( all_min_line_sizes )
+        print(f'min line size: {self.all_min_line_sizes.min()}')
 
         n0 = len(self.img_infos)
         if WRITE_ANNO_IMG:
@@ -204,6 +208,8 @@ class BEIKE:
       anno_img = {}
       corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = sort_2points_per_box(lines_pt)
+      line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
+      min_line_size = line_sizes.min()
       corners_pt_inbox = corners_as_boxformat(corners_pt)
       bboxes_line_corner = np.concatenate([lines_pt_ordered, corners_pt_inbox], axis=0)
       labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)
@@ -214,6 +220,8 @@ class BEIKE:
       else:
         anno_img['bboxes'] = lines_pt_ordered
         anno_img['labels'] = anno_raw['line_cat_ids']
+
+      anno_img['min_line_size'] = min_line_size
 
 
       anno_img['bboxes_ignore'] = np.empty([0,OBJ_DIM], dtype=np.float32)
@@ -285,6 +293,10 @@ class BEIKE:
       if floor:
         corners_pt = np.floor(corners_pt).astype(np.uint32)
         lines_pt = np.floor(lines_pt).astype(np.uint32)
+
+      line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
+      line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
+      #assert line_size_pt.min() > 3
       return corners_pt, lines_pt
 
     def get_scene_index(self, scene_name):
@@ -336,10 +348,12 @@ class BEIKE:
       labels = anno['labels']
       bboxes, bbox_labels, corners, corner_labels = split_line_corner(bboxes, labels)
 
+      scene_name = self.img_infos[idx]['filename'].split('.')[0]
+      print(f'{scene_name}')
+
       if not with_img:
-        img = None
+        img = np.zeros((IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
       else:
-        scene_name = self.img_infos[idx]['filename'].split('.')[0]
         img = self.load_data(scene_name)
 
         mask = img[:,:,1] == 0
@@ -355,16 +369,28 @@ class BEIKE:
           if istopleft[i] < 0:
             lines[i] = lines[i,[2,1,0,3]]
       lines = lines.reshape(-1,2,2)
+      line_sizes = np.linalg.norm(lines[:,0]-lines[:,1], axis=1)
+      idx_min_size = line_sizes.argmin()
+      min_line_size = line_sizes[idx_min_size]
+      print(f'min line size: {min_line_size}')
       #mmcv.imshow_bboxes(img, bboxes)
 
       for i in range(lines.shape[0]):
         s, e = lines[i]
-        cv2.line(img, (s[0], s[1]), (e[0], e[1]), colors_line['wall'])
+        #color = get_random_color()
+        if i != idx_min_size:
+          color = colors_line['wall']
+          thickness = 1
+        else:
+          color = (0,255,255)
+          thickness = 3
+        cv2.line(img, (s[0], s[1]), (e[0], e[1]), color, thickness=thickness)
       for i in range(corners.shape[0]):
         c = corners[i]
         cv2.circle(img, (c[0], c[1]), radius=3, color=colors_corner['wall'],
                    thickness=2)
       mmcv.imshow(img)
+      return img
       pass
 
 
@@ -423,8 +449,7 @@ class BEIKE:
         if sn == scene_name:
           idx = i
           break
-      img = self.draw_anno(idx, with_img)
-      mmcv.imshow(img)
+      self.draw_anno_img(idx, with_img)
 
 
 def split_line_corner(bboxes, labels):
@@ -596,13 +621,13 @@ if __name__ == '__main__':
   DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
-  gen_images_from_npy(DATA_PATH)
+  #gen_images_from_npy(DATA_PATH)
   #cal_images_mean_std(DATA_PATH)
   #get_scene_pcl_scopes(DATA_PATH)
 
-  scene = ['3Q92imFGVI1hZ5b0sDFFC3', '3sr-fOoghhC9kiOaGrvr7f']
+  scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll']
 
-  #beike = BEIKE(ANNO_PATH)
-  #beike.show_scene_anno('JW2-KX2A-3FQkoQkR7kpC7', False)
+  beike = BEIKE(ANNO_PATH)
+  beike.show_scene_anno(scenes[0], False)
   pass
 

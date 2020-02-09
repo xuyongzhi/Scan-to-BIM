@@ -22,7 +22,7 @@ DATA='A'
 _obj_rep='lscope_istopleft'
 
 #*******************************************************************************
-from configs.common import  OBJ_REP
+from configs.common import  OBJ_REP, IMAGE_SIZE
 assert OBJ_REP == _obj_rep
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
@@ -107,14 +107,14 @@ test_cfg = dict(
     max_per_img=100)
 # dataset settings
 dataset_type = 'BeikeDataset'
-data_root = 'data/beike/processed_512/'
+data_root = f'data/beike/processed_{IMAGE_SIZE}/'
 img_norm_cfg = dict(
     mean=[ 2.91710224,  2.91710224,  2.91710224,  5.71324154,  5.66696014, 11.13778194],
     std=[16.58656351, 16.58656351, 16.58656351, 27.51977998, 27.0712237,  34.75132369], to_rgb=False)
 train_pipeline = [
     dict(type='Load2ImagesFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='Resize', img_scale=(512,512), keep_ratio=True, obj_dim=_obj_dim),
+    dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
@@ -137,7 +137,7 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    imgs_per_gpu=6,
+    imgs_per_gpu=2,
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
@@ -148,7 +148,7 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=data_root + 'images/_test_10_' + DATA,
-        pipeline=test_pipeline),
+        pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
@@ -177,10 +177,10 @@ log_config = dict(
 total_epochs = 200
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/{}_{}_strpoints_moment_r50_fpn_1x'.format(DATA, _obj_rep)
+work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}'.format(_obj_rep, DATA)
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'
 resume_from = None
 auto_resume = True
-workflow = [('train', 1)]
+workflow = [('train', 1), ('val', 1)]

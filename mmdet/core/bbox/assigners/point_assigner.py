@@ -3,8 +3,8 @@ import torch
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
-
-DEBUG = 1
+from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE
+DEBUG = 0
 CHECK = True
 
 class PointAssigner(BaseAssigner):
@@ -97,7 +97,9 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
         else:
           raise NotImplemented
-        assert gt_bboxes_wh.min() > 1
+        if not gt_bboxes_wh.min() > MIN_BOX_SIZE:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
 
         scale = self.scale
@@ -132,9 +134,9 @@ class PointAssigner(BaseAssigner):
             #print(f'min_dist: {min_dist}')
             if CHECK:
               if min_dist.max() > 1:
-                print(f'min_dist is too large: {min_dist}')
+                print(f'\n\tmin_dist is too large: {min_dist}\n')
                 import pdb; pdb.set_trace()  # XXX BREAKPOINT
-                assert False
+                #assert False
                 pass
             # the index of nearest k points to gt center in this level
             min_dist_points_index = points_index[min_dist_index]
@@ -161,7 +163,7 @@ class PointAssigner(BaseAssigner):
                 assigned_labels[pos_inds] = gt_labels[
                     assigned_gt_inds[pos_inds] - 1]
 
-            if DEBUG:
+            if PRINT_POINT_ASSIGNER:
               pos_dist = assigned_gt_dist[pos_inds]
             #  print(f'pos_dist: {pos_dist}')
         else:
@@ -170,7 +172,7 @@ class PointAssigner(BaseAssigner):
         assign_res = AssignResult(
             num_gts, assigned_gt_inds, None, labels=assigned_labels, env='PointAssigner')
 
-        if DEBUG:
+        if PRINT_POINT_ASSIGNER:
           assign_res.dg_add_pos_dist(pos_dist)
           print('\tPointAssigner\t' + str(assign_res))
 

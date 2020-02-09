@@ -10,6 +10,7 @@
 - point_strides
 - point_base_scale
 - image mean is too small    
+- check if fp16 is used
 
 
 # Debug
