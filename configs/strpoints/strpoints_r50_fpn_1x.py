@@ -116,7 +116,7 @@ train_pipeline = [
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
-    dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
+    dict(type='RandomRotate', rotate_ratio=0.7, obj_rep=_obj_rep),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
@@ -137,13 +137,20 @@ test_pipeline = [
             dict(type='Collect', keys=['img']),
         ])
 ]
+if IMAGE_SIZE == 512:
+  batch_size = 6
+  lra = 0.01
+if IMAGE_SIZE == 1024:
+  batch_size = 2
+  lra = 0.002
+
 data = dict(
-    imgs_per_gpu=2,
+    imgs_per_gpu=batch_size,
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'topview/_train_87_' + DATA,
+        img_prefix=data_root + 'topview/_train_89_' + DATA,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -156,7 +163,7 @@ data = dict(
         img_prefix=data_root + 'topview/_test_10_' + DATA,
         pipeline=test_pipeline))
 # optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(
@@ -178,7 +185,7 @@ log_config = dict(
 total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}_{}'.format(_obj_rep, DATA, IMAGE_SIZE)
+work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}_{}_lr{}'.format(_obj_rep, DATA, IMAGE_SIZE, int(1000*lra))
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = './work_dirs/strpoints_moment_r50_fpn_1x/best.pth'

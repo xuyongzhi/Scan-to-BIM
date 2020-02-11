@@ -1,8 +1,8 @@
 import os, glob, random, shutil
-IMAGE_SIZE = 1024
+IMAGE_SIZE = 512
 
 ORG_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/pub100'
-TRAIN_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_train_87'
+TRAIN_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_train_89'
 TEST_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_test_10'
 
 
@@ -20,7 +20,7 @@ def split(flag):
   scenes = [os.path.basename(f.replace('.npy','')) for f in files]
   scenes = [s for s in scenes if s not in BAD_SCENES]
   n = len(scenes)
-  train_scenes = random.sample(scenes, 87)
+  train_scenes = random.sample(scenes, 89)
   test_scenes = [s for s in scenes if s not in train_scenes]
 
 
@@ -34,5 +34,5 @@ def split(flag):
   print(f'split ok: {flag}')
 
 if __name__ == '__main__':
-  for flag in ['A', 'B', 'C', 'D']:
+  for flag in ['A', 'B', 'C']:
     split( flag )

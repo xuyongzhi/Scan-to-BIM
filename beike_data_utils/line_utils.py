@@ -57,7 +57,7 @@ def encode_line_rep(lines, obj_rep):
       pass
   else:
     raise NotImplemented
-  return lines_out
+  return lines_out.astype(np.float32)
   pass
 
 def decode_line_rep(lines, obj_rep):
@@ -192,7 +192,7 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   scale = np.floor(scale * 100)/100.0
   if scale < 1:
     scale = scale - 0.03
-  print(f'scale: {scale}')
+  #print(f'scale: {scale}')
 
   center = np.repeat(center, 2)
   lines_rotated[:,:4] = (lines_rotated[:,:4] - center) * scale + center
@@ -217,6 +217,6 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   new_img = mmcv.imcrop(img_r, region_int)
   assert new_img.shape[:2] == img_shape
 
-  return lines_rotated.astype(np.float32), new_img
+  return lines_rotated.astype(np.float32), new_img.astype(np.float32)
 
 

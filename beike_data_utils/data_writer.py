@@ -14,7 +14,7 @@ from skimage import measure
 from plyfile import PlyData, PlyElement
 
 from floorplan_utils import calcLineDirection, MAX_NUM_CORNERS, NUM_WALL_CORNERS, getRoomLabelMap, getLabelRoomMap
-from utils import getDensity, drawDensityImage
+from utils_floorsp import getDensity, drawDensityImage
 import mmcv
 
 
@@ -704,7 +704,7 @@ class RecordWriter:
 
 
 if __name__ == '__main__':
-    image_size = 512
+    image_size = 1024
     base_dir = f'../data/beike/processed_{image_size}'
     record_writer_test = RecordWriter(num_points=50000*10, base_dir=base_dir, phase='test', im_size=image_size,
                                       save_prefix='beike_100', allow_non_man=True, all_test=True)
