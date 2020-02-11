@@ -9,6 +9,7 @@ from numpy import random
 
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..registry import PIPELINES
+from beike_data_utils.line_utils import rotate_lines
 
 @PIPELINES.register_module
 class Resize(object):
@@ -1013,16 +1014,14 @@ class RandomRotate(object):
         rotate_ratio (float, optional): The rotateping probability.
     """
 
-    def __init__(self, rotate_ratio=None, direction='horizontal', obj_rep='box_scope'):
+    def __init__(self, rotate_ratio=None,  obj_rep='box_scope'):
         self.rotate_ratio = rotate_ratio
-        self.direction = direction
         self.obj_rep = obj_rep
         if rotate_ratio is not None:
             assert rotate_ratio >= 0 and rotate_ratio <= 1
-        assert direction in ['horizontal', 'vertical', 'random']
         assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
 
-    def bbox_rotate(self, bboxes, img_shape, direction, obj_rep):
+    def bbox_rotate(self, bboxes, img_shape, angle, obj_rep):
         """Flip bboxes horizontally.
 
         Args:
@@ -1030,33 +1029,19 @@ class RandomRotate(object):
             img_shape(tuple): (height, width)
         """
         if obj_rep == 'box_scope' or obj_rep == 'line_scope':
-          return self.bbox_rotate_scope(bboxes, img_shape, direction)
+          return self.bbox_rotate_scope(bboxes, img_shape, angle)
         elif obj_rep == 'lscope_istopleft':
-          return self.bbox_rotate_scope_itl(bboxes, img_shape, direction)
+          return self.bbox_rotate_scope_itl(bboxes, img_shape, angle)
         else:
           raise NotImplementedError
 
-    def bbox_rotate_scope_itl(self, bboxes, img_shape, direction):
+    def bbox_rotate_scope_itl(self, bboxes, img_shape, angle):
         assert bboxes.shape[-1] == 5
-        rotateped = bboxes.copy()
-        if direction == 'horizontal':
-            w = img_shape[1]
-            rotateped[..., 0] = w - bboxes[..., 2] - 1
-            rotateped[..., 2] = w - bboxes[..., 0] - 1
-        elif direction == 'vertical':
-            h = img_shape[0]
-            rotateped[..., 1] = h - bboxes[..., 3] - 1
-            rotateped[..., 3] = h - bboxes[..., 1] - 1
-        else:
-            raise ValueError(
-                'Invalid rotateping direction "{}"'.format(direction))
-        rotateped[:,-1] = -rotateped[:,-1]
-        #mask = (np.abs(rotateped[:,-1]) >2).reshape(-1,1)
-        #rotateped = rotateped - mask * rotateped * 2
-        #print('\nrotateped\n')
+        rotateped = rotate_lines(bboxes, angle, self.obj_rep)
         return rotateped
 
     def bbox_rotate_scope(self, bboxes, img_shape, direction):
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         assert bboxes.shape[-1] % 4 == 0
         rotateped = bboxes.copy()
         if direction == 'horizontal':
@@ -1076,35 +1061,35 @@ class RandomRotate(object):
         if 'rotate' not in results:
             rotate = True if np.random.rand() < self.rotate_ratio else False
             results['rotate'] = rotate
-        if 'rotate_direction' not in results:
-            results['rotate_direction'] = self.direction
-        if results['rotate_direction'] == 'random':
-          i = np.random.choice([0,1])
-          results['rotate_direction'] = ['horizontal', 'vertical'][i]
-          #print(results['rotate_direction'])
         if 'obj_rep' not in results:
             results['obj_rep'] = self.obj_rep
         if results['rotate']:
             # rotate image
-            results['img'] = mmcv.imrotate(
-                results['img'], direction=results['rotate_direction'])
+            angle = (np.random.rand() - 0.5) * 180
+            results['rotate_angle'] = angle
+            img_rotated = mmcv.imrotate( results['img'], angle )
+            #mmcv.imshow(results['img'])
+            #mmcv.imshow(img_rotated)
+            results['img']  = img_rotated
             # rotate bboxes
             for key in results.get('bbox_fields', []):
                 results[key] = self.bbox_rotate(results[key],
                                               results['img_shape'],
-                                              results['rotate_direction'],
+                                              results['rotate_angle'],
                                               results['obj_rep'])
             # rotate masks
             for key in results.get('mask_fields', []):
+                raise NotImplementedError
                 results[key] = [
-                    mmcv.imrotate(mask, direction=results['rotate_direction'])
+                    mmcv.imrotate(mask, direction=results['rotate_angle'])
                     for mask in results[key]
                 ]
 
             # rotate segs
             for key in results.get('seg_fields', []):
+                raise NotImplementedError
                 results[key] = mmcv.imrotate(
-                    results[key], direction=results['rotate_direction'])
+                    results[key], direction=results['rotate_angle'])
         return results
 
     def __repr__(self):

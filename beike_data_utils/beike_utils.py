@@ -14,8 +14,9 @@ import time
 import mmcv
 import glob
 
-from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece_np, sin2theta_np
 from configs.common import OBJ_DIM, OBJ_REP, CORNER_FLAG, INCLUDE_CORNERS, IMAGE_SIZE
+from beike_data_utils.line_utils import encode_line_rep
+from line_utils import rotate_lines_img
 from mmdet.debug_tools import get_random_color
 np.set_printoptions(precision=3, suppress=True)
 
@@ -207,7 +208,7 @@ class BEIKE:
     def raw_anno_to_img(anno_raw):
       anno_img = {}
       corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
-      lines_pt_ordered = sort_2points_per_box(lines_pt)
+      lines_pt_ordered = encode_line_rep(lines_pt, OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()
       corners_pt_inbox = corners_as_boxformat(corners_pt)
@@ -309,7 +310,7 @@ class BEIKE:
       seperate_room_path = self.anno_folder.replace('json', 'topview/pub100')
       seperate_room_file = os.path.join(seperate_room_path, scene_name+'.npy')
       data = np.load(seperate_room_file, allow_pickle=True).tolist()
-      img = data['topview_image']
+      img = np.expand_dims(data['topview_image'],axis=2)
       #lines = data['line_coords']
       #room_map = data['room_map']
       #bg_idx = data['bg_idx']
@@ -321,7 +322,8 @@ class BEIKE:
       #corners = ann['corners']
 
       #cv2.imwrite(f'./img_{scene_name}.png', img)
-      return img
+      img = np.concatenate([img, normal_image], axis=2)
+      return  img
 
     @ staticmethod
     def add_anno_summary(anno):
@@ -340,13 +342,16 @@ class BEIKE:
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-    def draw_anno_img(self, idx,  with_img=True):
-      colors_line   = {'wall': (255,0,0), 'door': (0,255,255), 'window': (0,255,255), 'other':(100,100,0)}
-      colors_corner = {'wall': (0,0,255), 'door': (0,255,0), 'window': (255,0,0), 'other':(255,255,255)}
+    def draw_anno_img(self, idx,  with_img=True, rotate_angle=0):
+      colors_line   = {'wall': (0,0,255), 'door': (0,255,255),
+                       'window': (0,255,255), 'other':(100,100,0)}
+      colors_corner = {'wall': (0,0,255), 'door': (0,255,0),
+                       'window': (255,0,0), 'other':(255,255,255)}
       anno = self.img_infos[idx]['ann']
       bboxes = anno['bboxes']
       labels = anno['labels']
-      bboxes, bbox_labels, corners, corner_labels = split_line_corner(bboxes, labels)
+      bboxes, bbox_labels, corners, corner_labels = \
+            split_line_corner(bboxes, labels)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
@@ -355,12 +360,21 @@ class BEIKE:
         img = np.zeros((IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
       else:
         img = self.load_data(scene_name)
+        #img[:,1:] = np.abs(img[:,1:]) * 255
+        img = img.astype(np.uint8)
 
-        mask = img[:,:,1] == 0
-        img[:,:,1] = mask * 30
-        img[:,:,0] = mask * 30
+        #mask = (img[:,:,1] == 0).astype(np.float32)
+        #img[:,:,1] = mask * 0
+        #img[:,:,2] = mask * 0
+
+
+      if rotate_angle != 0:
+        bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
+                                     (IMAGE_SIZE, IMAGE_SIZE), OBJ_REP,
+                                     check_by_cross=True)
 
       lines = bboxes[:,:4].copy()
+
       if bboxes.shape[1] == 5:
         istopleft = bboxes[:,-1]
         print('istopleft:\n',istopleft)
@@ -368,7 +382,7 @@ class BEIKE:
         for i in range(n):
           if istopleft[i] < 0:
             lines[i] = lines[i,[2,1,0,3]]
-      lines = lines.reshape(-1,2,2)
+      lines = lines.reshape(-1,2,2).astype(np.int32)
       line_sizes = np.linalg.norm(lines[:,0]-lines[:,1], axis=1)
       idx_min_size = line_sizes.argmin()
       min_line_size = line_sizes[idx_min_size]
@@ -378,7 +392,7 @@ class BEIKE:
       for i in range(lines.shape[0]):
         s, e = lines[i]
         #color = get_random_color()
-        if i != idx_min_size:
+        if i != idx_min_size or 1:
           color = colors_line['wall']
           thickness = 1
         else:
@@ -441,15 +455,14 @@ class BEIKE:
       mmcv.imshow(img)
       return img
 
-
-    def show_scene_anno(self, scene_name, with_img=True):
+    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0):
       idx = None
       for i in range(len(self)):
         sn = self.img_infos[i]['filename'].split('.')[0]
         if sn == scene_name:
           idx = i
           break
-      self.draw_anno_img(idx, with_img)
+      self.draw_anno_img(idx, with_img, rotate_angle)
 
 
 def split_line_corner(bboxes, labels):
@@ -468,63 +481,6 @@ def corners_as_boxformat(corners_pt):
   corners_as_box = np.concatenate([corners_pt, tmp1, tmp0], axis=1)
   return corners_as_box
 
-
-def sort_2points_per_box(bboxes, obj_rep=OBJ_REP):
-      '''
-      bboxes: [n,4] or [n,2,2]
-      return : [n,4]
-
-      make the point with smaller x^2+y^2 the first
-
-      Used in mmdet/datasets/pipelines/transforms.py /RandomLineFlip/line_flip
-      '''
-      if bboxes.ndim == 2:
-        assert bboxes.shape[1] == 4
-        bboxes = bboxes.copy().reshape(-1,2,2)
-      else:
-        assert bboxes.ndim == 3
-        assert bboxes.shape[1] == 2
-        assert bboxes.shape[2] == 2
-
-      if obj_rep == 'close_to_zero':
-          # the point with smaller x^2 + y^2 is the first one
-          flag = np.linalg.norm(bboxes, axis=-1)
-          swap = (flag[:,1] - flag[:,0]) < 0
-          n = bboxes.shape[0]
-          for i in range(n):
-            if swap[i]:
-              bboxes[i] = bboxes[i,[1,0],:]
-          bboxes = bboxes.reshape(-1,4)
-
-      elif obj_rep == 'box_scope' or obj_rep == 'line_scope':
-          xy_min = bboxes.min(axis=1)
-          xy_max = bboxes.max(axis=1)
-          bboxes = np.concatenate([xy_min, xy_max], axis=1)
-
-      elif obj_rep == 'lscope_istopleft':
-          xy_min = bboxes.min(axis=1)
-          xy_max = bboxes.max(axis=1)
-          centroid = (xy_min + xy_max) / 2
-          bboxes_0 = bboxes - centroid.reshape(-1,1,2)
-          top_ids = bboxes_0[:,:,1].argmin(axis=-1)
-          nb = bboxes_0.shape[0]
-
-          tmp = np.arange(nb)
-          top_points = bboxes_0[tmp, top_ids]
-          vec_start = np.array([[0, -1]] * nb, dtype=np.float32).reshape(-1,2)
-          istopleft_0 = sin2theta_np( vec_start, top_points).reshape(-1,1)
-          #angles = angle_from_vecs_to_vece_np( vec_start, top_points,  scope_id=1)
-          #istopleft_0 = np.sin(angles * 2).reshape(-1,1)
-          #istopleft_1 = (istopleft_0 < 0).astype(np.float32)
-          #print(istopleft_0)
-
-          istopleft = istopleft_0
-
-          bboxes = np.concatenate([xy_min, xy_max, istopleft], axis=1)
-          pass
-      else:
-        raise NotImplemented
-      return bboxes
 
 def _UnUsed_gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')
@@ -621,11 +577,11 @@ if __name__ == '__main__':
   DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
 
-  get_scene_pcl_scopes(DATA_PATH)
+  #get_scene_pcl_scopes(DATA_PATH)
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll']
 
   beike = BEIKE(ANNO_PATH)
-  #beike.show_scene_anno(scenes[0], 1)
+  beike.show_scene_anno(scenes[1], True, 170)
   pass
 
