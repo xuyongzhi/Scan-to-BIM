@@ -15,8 +15,7 @@ import mmcv
 import glob
 
 from configs.common import OBJ_DIM, OBJ_REP, CORNER_FLAG, INCLUDE_CORNERS, IMAGE_SIZE
-from beike_data_utils.line_utils import encode_line_rep
-from line_utils import rotate_lines_img
+from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines
 from mmdet.debug_tools import get_random_color
 np.set_printoptions(precision=3, suppress=True)
 
@@ -24,8 +23,21 @@ np.set_printoptions(precision=3, suppress=True)
 LOAD_CLASSES = ['wall']
 
 DEBUG = True
-BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
+UNALIGNED_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y',
+               'B9Abt6B78a0j2eRcygHjqC', 'Akkq4Ch_48pVUAum3ooSnK',
+               'w2BaBfwjX0iN2cMjvpUNfa', 'yY5OzetjnLred7G8oOzZr1',
+               'wIGxjDDGkPk3udZW4vo-ic', ]
+BAD_SCENES = ['vZIjhovtYde9e2qUjMzvz3']
 WRITE_ANNO_IMG = 0
+
+BAD_SCENE_TRANSFERS_1024 = {'7w6zvVsOBAQK4h4Bne7caQ': (-44,-208,-153),
+                            'IDZkUGse-74FIy2OqM2u_Y': (30,-97,58),
+                            'B9Abt6B78a0j2eRcygHjqC': (44,-52,93),
+                            'Akkq4Ch_48pVUAum3ooSnK': (2,9,0),
+                            'w2BaBfwjX0iN2cMjvpUNfa': (2,10,3),
+                            'yY5OzetjnLred7G8oOzZr1': (-2,-7,0),
+                            'wIGxjDDGkPk3udZW4vo-ic': (-1,7,5),
+                            'vZIjhovtYde9e2qUjMzvz3': (-1, 5, 0)}
 
 class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
@@ -71,10 +83,23 @@ class BEIKE:
         if WRITE_ANNO_IMG:
           for i in range(n0):
             #self.draw_anno_raw(i, with_img=1)
-            self.draw_anno_img(i, with_img=1)
+            self.show_anno_img(i, with_img=1)
 
         self.rm_bad_scenes()
+        self.fix_bad_scenes()
         pass
+
+    def fix_bad_scenes(self):
+      n0 = len(self.img_infos)
+      for i in range(n0):
+        sn = self.img_infos[i]['filename'].split('.')[0]
+        if sn in UNALIGNED_SCENES:
+          angle, cx, cy = BAD_SCENE_TRANSFERS_1024[sn]
+          scale = IMAGE_SIZE / 1024.0
+          self.img_infos[i]['ann']['bboxes'] = transfer_lines(
+            self.img_infos[i]['ann']['bboxes'], OBJ_REP,
+            (IMAGE_SIZE, IMAGE_SIZE), angle, (cx*scale, cy*scale))
+          pass
 
     def rm_bad_scenes(self):
       valid_ids = []
@@ -283,7 +308,7 @@ class BEIKE:
 
       if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
             scene_name = scene.split('.')[0]
-            if scene_name not in BAD_SCENES:
+            if scene_name not in UNALIGNED_SCENES:
               print(scene)
               print(corners_pt.min())
               print(corners_pt.max())
@@ -342,7 +367,7 @@ class BEIKE:
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-    def draw_anno_img(self, idx,  with_img=True, rotate_angle=0):
+    def show_anno_img(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
       colors_line   = {'wall': (0,0,255), 'door': (0,255,255),
                        'window': (0,255,255), 'other':(100,100,0)}
       colors_corner = {'wall': (0,0,255), 'door': (0,255,0),
@@ -360,18 +385,26 @@ class BEIKE:
         img = np.zeros((IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
       else:
         img = self.load_data(scene_name)
-        #img[:,1:] = np.abs(img[:,1:]) * 255
-        img = img.astype(np.uint8)
+        #img_type = 'density'
+        img_type = 'norm'
+        if img_type == 'density':
+          img = np.repeat(img[:,:,0:1], 3, axis=2)
+        if img_type == 'norm':
+          img = img[:,:,1:]
+          img[:,:,1:] = np.abs(img[:,:,1:]) * 255
+          img = img.astype(np.uint8)
 
         #mask = (img[:,:,1] == 0).astype(np.float32)
         #img[:,:,1] = mask * 0
         #img[:,:,2] = mask * 0
 
+      if (np.array(lines_transfer) != 0).any():
+        angle, cx, cy = lines_transfer
+        bboxes = transfer_lines(bboxes, OBJ_REP, img.shape[:2], angle, (cx,cy))
 
       if rotate_angle != 0:
         bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
-                                     (IMAGE_SIZE, IMAGE_SIZE), OBJ_REP,
-                                     check_by_cross=True)
+                                      OBJ_REP, check_by_cross=True)
 
       lines = bboxes[:,:4].copy()
 
@@ -455,14 +488,14 @@ class BEIKE:
       mmcv.imshow(img)
       return img
 
-    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0):
+    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
       idx = None
       for i in range(len(self)):
         sn = self.img_infos[i]['filename'].split('.')[0]
         if sn == scene_name:
           idx = i
           break
-      self.draw_anno_img(idx, with_img, rotate_angle)
+      self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
 
 
 def split_line_corner(bboxes, labels):
@@ -579,9 +612,17 @@ if __name__ == '__main__':
 
   #get_scene_pcl_scopes(DATA_PATH)
 
-  scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll']
+  scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
 
   beike = BEIKE(ANNO_PATH)
-  beike.show_scene_anno(scenes[1], True, 170)
-  pass
+
+  #beike.show_scene_anno( BAD_SCENES[0], True, 0)
+
+
+  for s in UNALIGNED_SCENES:
+    beike.show_scene_anno(s, True, 0)
+
+  #for i in range(len(beike)):
+  #  beike.show_anno_img( i, True, 0 )
+  #pass
 

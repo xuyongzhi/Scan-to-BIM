@@ -12,7 +12,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob
 
-from mmdet.core.bbox.geometric_utils import angle_from_vecs_to_vece, sin2theta
+from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
 
 from configs.common import OBJ_DIM, OBJ_REP, OUT_PTS_DIM

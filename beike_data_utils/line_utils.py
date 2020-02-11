@@ -1,7 +1,7 @@
 # xyz
 import numpy as np
 import mmcv
-from geometric_utils import sin2theta_np
+from .geometric_utils import sin2theta_np
 import cv2
 
 def encode_line_rep(lines, obj_rep):
@@ -112,15 +112,37 @@ def add_cross_in_lines(lines, img_shape):
   return lines
 
 
-def rotate_lines_img(lines, img, angle, img_shape, obj_rep, check_by_cross=False):
-  assert img.ndim == 3
+def transfer_lines(lines, obj_rep, img_shape, angle, offset):
+  '''
+  angle: clock-wise is positive
+  '''
+  scale = 1
+  h, w = img_shape
+  assert h%2 == 0
+  assert w%2 == 0
+  center = ((w - 1) * 0.5, (h - 1) * 0.5 )
+  matrix = cv2.getRotationMatrix2D(center, -angle, scale)
+  n = lines.shape[0]
 
+  lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
+
+  ones = np.ones([n,2,1], dtype=lines.dtype)
+  tmp = np.concatenate([lines_2endpts, ones], axis=2).reshape([n*2, 3])
+  lines_2pts_r = np.matmul( tmp, matrix.T ).reshape([n,2,2])
+  lines_2pts_r[:,:,0] += offset[0]
+  lines_2pts_r[:,:,1] += offset[1]
+  lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
+  return lines_rotated
+
+def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
+  assert img.ndim == 3
+  img_shape = img.shape[:2]
   if check_by_cross:
     lines = add_cross_in_lines(lines, img_shape)
 
   n = lines.shape[0]
   if n == 0:
-    return lines
+    return lines, img
   lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
 
   h, w = img_shape
@@ -195,6 +217,6 @@ def rotate_lines_img(lines, img, angle, img_shape, obj_rep, check_by_cross=False
   new_img = mmcv.imcrop(img_r, region_int)
   assert new_img.shape[:2] == img_shape
 
-  return lines_rotated, new_img
+  return lines_rotated.astype(np.float32), new_img
 
 

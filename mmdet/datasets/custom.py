@@ -157,7 +157,7 @@ class CustomDataset(Dataset):
         self.pre_pipeline(results)
         results = self.pipeline(results)
 
-        #show_results(results)
+        show_results(results)
         return results
 
     def prepare_test_img(self, idx):
