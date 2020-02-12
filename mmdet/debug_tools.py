@@ -1,4 +1,4 @@
-#import open3d as o3d
+import open3d as o3d
 import torch
 import numpy as np
 import mmcv
@@ -171,7 +171,11 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
       print('\twrite {}'.format(out_file))
   pass
 
-def show_points(points):
+
+def show_points_3d(points):
+  '''
+  points: [n,3/6/9]    xyz - color - normal
+  '''
   pcl = o3d.geometry.PointCloud()
   pcl.points = o3d.utility.Vector3dVector(points[:,0:3])
   if points.shape[1] >= 6:
@@ -188,3 +192,18 @@ def show_points(points):
   o3d.visualization.draw_geometries([pcl])
 
 
+def show_img_with_norm(img):
+  assert img.shape[2] == 4
+  h,w = img.shape[:2]
+  xs = np.repeat( np.arange(w).reshape(1,-1,1), h, axis=0).astype(np.float32)/h
+  ys = np.repeat( np.arange(h).reshape(-1,1,1), w, axis=1).astype(np.float32)/w
+  zs = np.zeros_like(ys)
+
+  density = np.repeat(img[:,:,0:1], 3, axis=2)
+
+  img3d = np.concatenate([xs,ys,zs, density,  img[:,:,1:] ], axis=2)
+  assert img3d.shape[-1] == 9
+  img3d = img3d.reshape(-1,9)
+
+  show_points_3d(img3d)
+  pass

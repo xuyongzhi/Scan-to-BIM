@@ -4,6 +4,8 @@ import os
 import os.path as osp
 import time
 
+import open3d as o3d
+
 import mmcv
 import torch
 from mmcv import Config

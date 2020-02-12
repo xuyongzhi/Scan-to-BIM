@@ -1,5 +1,5 @@
 import os, glob, random, shutil
-IMAGE_SIZE = 512
+IMAGE_SIZE = 1024
 
 ORG_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/test'
 TRAIN_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_train_89'

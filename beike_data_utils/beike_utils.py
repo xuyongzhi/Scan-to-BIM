@@ -1,4 +1,5 @@
 # from floor-sp
+import open3d as o3d
 import os
 import os.path as osp
 import sys
@@ -16,7 +17,7 @@ import glob
 
 from configs.common import OBJ_DIM, OBJ_REP, CORNER_FLAG, INCLUDE_CORNERS, IMAGE_SIZE
 from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines
-from mmdet.debug_tools import get_random_color
+from mmdet.debug_tools import get_random_color, show_img_with_norm
 np.set_printoptions(precision=3, suppress=True)
 
 #LOAD_CLASSES = ['wall', 'window', 'door']
@@ -384,19 +385,7 @@ class BEIKE:
         img = np.zeros((IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
       else:
         img = self.load_data(scene_name)
-        #img_type = 'density'
-        img_type = 'norm'
-        if img_type == 'density':
-          img = np.repeat(img[:,:,0:1], 3, axis=2)
-        if img_type == 'norm':
-          img = img[:,:,1:]
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          img[:,:,1:] = (img[:,:,1:]) * 255
-          #img = img.astype(np.uint8)
 
-        #mask = (img[:,:,1] == 0).astype(np.float32)
-        #img[:,:,1] = mask * 0
-        #img[:,:,2] = mask * 0
 
       if (np.array(lines_transfer) != 0).any():
         angle, cx, cy = lines_transfer
@@ -405,6 +394,17 @@ class BEIKE:
       if rotate_angle != 0:
         bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
                                       OBJ_REP, check_by_cross=True)
+
+      show_img_with_norm(img)
+
+      img_type = 'density'
+      #img_type = 'norm'
+      if img_type == 'density':
+        img = np.repeat(img[:,:,0:1], 3, axis=2)
+      if img_type == 'norm':
+        img = img[:,:,1:]
+        img[:,:,1:] = (img[:,:,1:]) * 255
+        #img = img.astype(np.uint8)
 
       lines = bboxes[:,:4].copy()
 

@@ -1030,6 +1030,7 @@ class RandomRotate(object):
         if results['rotate']:
             # rotate image
             angle = (np.random.rand() - 0.5) * 360
+            angle = 45
             #print(f'angle: {angle}')
             results['rotate_angle'] = angle
             # rotate bboxes

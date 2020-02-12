@@ -3,6 +3,7 @@ import numpy as np
 import mmcv
 from .geometric_utils import sin2theta_np
 import cv2
+from mmdet.debug_tools import show_img_with_norm
 
 def encode_line_rep(lines, obj_rep):
   '''
@@ -136,6 +137,8 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
 
 def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   assert img.ndim == 3
+  assert img.shape[2] == 4
+
   img_shape = img.shape[:2]
   if check_by_cross:
     lines = add_cross_in_lines(lines, img_shape)
@@ -153,8 +156,8 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   matrix = cv2.getRotationMatrix2D(center, -angle, scale)
 
   ones = np.ones([n,2,1], dtype=lines.dtype)
-  tmp = np.concatenate([lines_2endpts, ones], axis=2).reshape([n*2, 3])
-  lines_2pts_r = np.matmul( tmp, matrix.T ).reshape([n,2,2])
+  tmp = np.concatenate([lines_2endpts, ones], axis=2)
+  lines_2pts_r = np.matmul( tmp, matrix.T )
 
   # (1) rotate the lines
   lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
@@ -217,6 +220,11 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   new_img = mmcv.imcrop(img_r, region_int)
   assert new_img.shape[:2] == img_shape
 
+  # rotate the surface normal
+  new_img[:,:,[1,2]] = np.matmul( new_img[:,:,[1,2]], matrix[:,:2].T )
+
+  #show_img_with_norm(img)
+ # show_img_with_norm(new_img)
   return lines_rotated.astype(np.float32), new_img.astype(np.float32)
 
 

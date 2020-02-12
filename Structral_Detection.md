@@ -1,5 +1,6 @@
 # Questions
 * No ignored points: each gt box is assigned with one pos point, all others are negative
+* The direction of normal. Does the positive meaning is learnable. After rotation, is the direction should be updated.    
 
 # Big ideas
 * compare performance of feeding images and point clouds
