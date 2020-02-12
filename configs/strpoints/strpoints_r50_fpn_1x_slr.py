@@ -146,7 +146,7 @@ if IMAGE_SIZE == 1024:
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
