@@ -393,7 +393,7 @@ class BEIKE:
 
       if rotate_angle != 0:
         bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
-                                      OBJ_REP, check_by_cross=True)
+                                      OBJ_REP, check_by_cross=False)
 
       show_img_with_norm(img)
 
@@ -620,7 +620,7 @@ if __name__ == '__main__':
 
 
   for s in UNALIGNED_SCENES:
-    beike.show_scene_anno(s, True, 0)
+    beike.show_scene_anno(s, True, 45)
 
   #for i in range(len(beike)):
   #  beike.show_anno_img( i, True, 45 )

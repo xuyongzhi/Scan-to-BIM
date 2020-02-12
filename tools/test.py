@@ -5,6 +5,8 @@ import pickle
 import shutil
 import tempfile
 
+
+import open3d
 import mmcv
 import torch
 import torch.distributed as dist
