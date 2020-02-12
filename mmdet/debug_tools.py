@@ -1,3 +1,4 @@
+#import open3d as o3d
 import torch
 import numpy as np
 import mmcv
@@ -169,3 +170,21 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
       imwrite(img, out_file)
       print('\twrite {}'.format(out_file))
   pass
+
+def show_points(points):
+  pcl = o3d.geometry.PointCloud()
+  pcl.points = o3d.utility.Vector3dVector(points[:,0:3])
+  if points.shape[1] >= 6:
+    colors = points[:,3:6]
+    if colors.max() > 200:
+      colors = colors/255
+    pcl.colors = o3d.utility.Vector3dVector( colors )
+  else:
+    color = (0,0,255)
+    pcl.paint_uniform_color(color)
+  if points.shape[1] >= 9:
+    pcl.normals = o3d.utility.Vector3dVector(points[:,6:9])
+
+  o3d.visualization.draw_geometries([pcl])
+
+

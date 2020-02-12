@@ -115,5 +115,5 @@ class AssignResult(object):
     # for debug:
     def dg_add_pos_dist(self, pos_dist):
       self.pos_dist = pos_dist
-      self.summary_pos_dist = torch.stack([pos_dist.min(), pos_dist.mean(), pos_dist.std()])
+      self.summary_pos_dist = torch.stack([pos_dist.min(), pos_dist.mean(), pos_dist.max()])
       self.pos_dist_str = ','.join([f'{d:.2}' for d in self.summary_pos_dist.cpu().data.numpy()])

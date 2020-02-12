@@ -16,6 +16,7 @@ from plyfile import PlyData, PlyElement
 from floorplan_utils import calcLineDirection, MAX_NUM_CORNERS, NUM_WALL_CORNERS, getRoomLabelMap, getLabelRoomMap
 from utils_floorsp import getDensity, drawDensityImage
 import mmcv
+from mmdet.debug_tools import  show_points
 
 
 import pdb
@@ -407,19 +408,21 @@ class RecordWriter:
         new_points = np.concatenate([xyz, points[:, 3:9]], axis=1)
         points = new_points
 
-        topview_mean_normal = self.get_topview_mean_normal(points).astype(np.float32)
         # down-sampling points to get a subset with size 50,000
         if points.shape[0] < self.num_points:
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             indices = np.arange(points.shape[0])
             points = np.concatenate([points, points[np.random.choice(indices, self.num_points - points.shape[0])]],
                                     axis=0)
             topview_points = self.get_topview_data(points)
-            vertical_points = points
+            topview_mean_normal = self.get_topview_mean_normal(points).astype(np.float32)
         else:
-            normal_z = points[:, 8]
+            normal_z = points[:, 8] # vertical = z
 
             horizontal_points = np.array([point for p_i, point in enumerate(points) if abs(normal_z[p_i]) >= 0.5])
             vertical_points = np.array([point for p_i, point in enumerate(points) if abs(normal_z[p_i]) < 0.5])
+            #show_points(vertical_points)
+            #show_points(horizontal_points)
 
             point_subsets = [horizontal_points, vertical_points]
             subset_ratio = [0.3, 0.7]
@@ -431,9 +434,11 @@ class RecordWriter:
             points = np.concatenate(sampled_points, axis=0)
             # note: only use vertical points for the full density map. Otherwise all fine details are ruined
             topview_points = self.get_topview_data(vertical_points)
+            topview_mean_normal = self.get_topview_mean_normal(vertical_points).astype(np.float32)
 
         annot = self.parse_annot(annot_path, mins, max_range)
         scene_id, _ = os.path.splitext(os.path.basename(annot_path))
+
 
         points[:, 3:6] = points[:, 3:6] / 255 - 0.5  # normalize color
 
@@ -706,7 +711,7 @@ class RecordWriter:
 if __name__ == '__main__':
     image_size = 1024
     base_dir = f'../data/beike/processed_{image_size}'
-    record_writer_test = RecordWriter(num_points=50000*10, base_dir=base_dir, phase='test', im_size=image_size,
+    record_writer_test = RecordWriter(num_points=50000, base_dir=base_dir, phase='test', im_size=image_size,
                                       save_prefix='beike_100', allow_non_man=True, all_test=True)
 
     record_writer_test.write()

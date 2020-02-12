@@ -86,10 +86,9 @@ class BEIKE:
             self.show_anno_img(i, with_img=1)
 
         self.rm_bad_scenes()
-        self.fix_bad_scenes()
-        pass
+        self.fix_unaligned_scenes()
 
-    def fix_bad_scenes(self):
+    def fix_unaligned_scenes(self):
       n0 = len(self.img_infos)
       for i in range(n0):
         sn = self.img_infos[i]['filename'].split('.')[0]
@@ -332,7 +331,7 @@ class BEIKE:
       assert True, f'cannot fine scene {scene_name}'
 
     def load_data(self, scene_name):
-      seperate_room_path = self.anno_folder.replace('json', 'topview/pub100')
+      seperate_room_path = self.anno_folder.replace('json', 'topview/test')
       seperate_room_file = os.path.join(seperate_room_path, scene_name+'.npy')
       data = np.load(seperate_room_file, allow_pickle=True).tolist()
       img = np.expand_dims(data['topview_image'],axis=2)
@@ -391,8 +390,9 @@ class BEIKE:
           img = np.repeat(img[:,:,0:1], 3, axis=2)
         if img_type == 'norm':
           img = img[:,:,1:]
-          img[:,:,1:] = np.abs(img[:,:,1:]) * 255
-          img = img.astype(np.uint8)
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          img[:,:,1:] = (img[:,:,1:]) * 255
+          #img = img.astype(np.uint8)
 
         #mask = (img[:,:,1] == 0).astype(np.float32)
         #img[:,:,1] = mask * 0
@@ -427,7 +427,7 @@ class BEIKE:
         #color = get_random_color()
         if i != idx_min_size or 1:
           color = colors_line['wall']
-          thickness = 1
+          thickness = 2
         else:
           color = (0,255,255)
           thickness = 3
@@ -623,6 +623,6 @@ if __name__ == '__main__':
     beike.show_scene_anno(s, True, 0)
 
   #for i in range(len(beike)):
-  #  beike.show_anno_img( i, True, 0 )
+  #  beike.show_anno_img( i, True, 45 )
   #pass
 

@@ -198,6 +198,9 @@ class LoadTopviewFromFile(object):
         results['img_shape'] = img.shape
         results['ori_shape'] = img.shape
 
+        scene_id = osp.basename(filename)
+        print(f'\t\tloading {scene_id}')
+
         #show_results(results)
         return results
 
