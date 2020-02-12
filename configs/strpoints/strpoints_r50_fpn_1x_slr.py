@@ -139,10 +139,10 @@ test_pipeline = [
 ]
 if IMAGE_SIZE == 512:
   batch_size = 6
-  lra = 0.01/5
+  lra = 0.01 / 2
 if IMAGE_SIZE == 1024:
   batch_size = 2
-  lra = 0.002/5
+  lra = 0.004 / 2
 
 data = dict(
     imgs_per_gpu=batch_size,

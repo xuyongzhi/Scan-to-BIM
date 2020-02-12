@@ -142,7 +142,7 @@ if IMAGE_SIZE == 512:
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 2
-  lra = 0.002
+  lra = 0.004
 
 data = dict(
     imgs_per_gpu=batch_size,
