@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=1
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/strpoints_r50_fpn_1x_noaug.py
+CONFIG=configs/strpoints/strpoints_r50_fpn_1x_nor.py
 
 ipython tools/train.py -- ${CONFIG} 
 

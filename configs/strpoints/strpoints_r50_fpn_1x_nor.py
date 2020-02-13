@@ -116,7 +116,6 @@ train_pipeline = [
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
-    dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
     dict(type='Normalize', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
@@ -171,7 +170,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[200, 300])
+    step=[200, 250])
 checkpoint_config = dict(interval=10)
 # yapf:disable
 log_config = dict(
@@ -182,10 +181,10 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 400
+total_epochs = 300
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}_{}_lr{}'.format(_obj_rep, DATA, IMAGE_SIZE, int(1000*lra))
+work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}_{}_lr{}_nor'.format(_obj_rep, DATA, IMAGE_SIZE, int(1000*lra))
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
