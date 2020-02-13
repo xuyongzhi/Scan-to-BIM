@@ -1,12 +1,11 @@
 import os, glob, random, shutil
-IMAGE_SIZE = 1024
+IMAGE_SIZE =  512
+TOPVIEW = 'TopView_All'
+TOPVIEW = 'TopView_Ver'
 
-ORG_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/test'
-TRAIN_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_train_89'
-TEST_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/topview/_test_10'
-
-
-BAD_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y', 'B9Abt6B78a0j2eRcygHjqC']
+ORG_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/{TOPVIEW}/test'
+TRAIN_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/{TOPVIEW}/_train_90'
+TEST_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/{TOPVIEW}/_test_10'
 
 def split(flag):
   train_path = TRAIN_PATH + '_' + flag
@@ -18,9 +17,8 @@ def split(flag):
 
   files = glob.glob(ORG_PATH+'/*.npy')
   scenes = [os.path.basename(f.replace('.npy','')) for f in files]
-  scenes = [s for s in scenes if s not in BAD_SCENES]
   n = len(scenes)
-  train_scenes = random.sample(scenes, 89)
+  train_scenes = random.sample(scenes, 90)
   test_scenes = [s for s in scenes if s not in train_scenes]
 
 
@@ -34,5 +32,5 @@ def split(flag):
   print(f'split ok: {flag}')
 
 if __name__ == '__main__':
-  for flag in ['A', 'B', 'C']:
+  for flag in ['A', 'B']:
     split( flag )

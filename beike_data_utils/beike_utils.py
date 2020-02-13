@@ -28,7 +28,10 @@ UNALIGNED_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y',
                     'B9Abt6B78a0j2eRcygHjqC', 'Akkq4Ch_48pVUAum3ooSnK',
                     'w2BaBfwjX0iN2cMjvpUNfa', 'yY5OzetjnLred7G8oOzZr1',
                     'wIGxjDDGkPk3udZW4vo-ic', ]
-BAD_SCENES = ['vZIjhovtYde9e2qUjMzvz3']
+gt_out_pcl = ['vZIjhovtYde9e2qUjMzvz3', 'pMh3-KweDzzp_b_HI11eMA',
+              'vYlCbx-H_v_uvacuiMq0no']
+lost_gt_scenes = ['vYlCbx-H_v_uvacuiMq0no']
+BAD_SCENES = []
 WRITE_ANNO_IMG = 0
 
 BAD_SCENE_TRANSFERS_1024 = {'7w6zvVsOBAQK4h4Bne7caQ': (-44,-208,-153),
@@ -44,9 +47,10 @@ class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
     _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
-    def __init__(self, anno_folder='data/beike100/json/'):
+    def __init__(self, anno_folder='data/beike100/json/', topview_path=''):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
+        self.topview_path = topview_path
         if WRITE_ANNO_IMG:
           self.anno_img_folder = self.anno_folder.replace('json', 'anno_imgs')
           if not os.path.exists(self.anno_img_folder):
@@ -332,7 +336,7 @@ class BEIKE:
       assert True, f'cannot fine scene {scene_name}'
 
     def load_data(self, scene_name):
-      seperate_room_path = self.anno_folder.replace('json', 'topview/test')
+      seperate_room_path = self.anno_folder.replace('json', f'{self.topview_path}/test')
       seperate_room_file = os.path.join(seperate_room_path, scene_name+'.npy')
       data = np.load(seperate_room_file, allow_pickle=True).tolist()
       img = np.expand_dims(data['topview_image'],axis=2)
@@ -395,16 +399,15 @@ class BEIKE:
         bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
                                       OBJ_REP, check_by_cross=False)
 
-      show_img_with_norm(img)
+      #show_img_with_norm(img)
 
       img_type = 'density'
       #img_type = 'norm'
       if img_type == 'density':
-        img = np.repeat(img[:,:,0:1], 3, axis=2)
+        img = np.repeat(img[:,:,0:1], 3, axis=2).astype(np.uint8)
       if img_type == 'norm':
-        img = img[:,:,1:]
-        img[:,:,1:] = (img[:,:,1:]) * 255
-        #img = img.astype(np.uint8)
+        img = np.abs(img[:,:,1:]) * 255
+        img = img.astype(np.uint8)
 
       lines = bboxes[:,:4].copy()
 
@@ -422,12 +425,14 @@ class BEIKE:
       print(f'min line size: {min_line_size}')
       #mmcv.imshow_bboxes(img, bboxes)
 
+      #mmcv.imshow(img)
+
       for i in range(lines.shape[0]):
         s, e = lines[i]
         #color = get_random_color()
         if i != idx_min_size or 1:
           color = colors_line['wall']
-          thickness = 2
+          thickness = 1
         else:
           color = (0,255,255)
           thickness = 3
@@ -495,6 +500,7 @@ class BEIKE:
         if sn == scene_name:
           idx = i
           break
+      assert idx is not None, f'cannot find {scene_name}'
       self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
 
 
@@ -609,18 +615,19 @@ def draw_img_lines(img, lines):
 if __name__ == '__main__':
   DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
+  topview_path = 'TopView_All'
 
   #get_scene_pcl_scopes(DATA_PATH)
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
 
-  beike = BEIKE(ANNO_PATH)
+  beike = BEIKE(ANNO_PATH, topview_path)
 
-  #beike.show_scene_anno( BAD_SCENES[0], True, 0)
+  beike.show_scene_anno( lost_gt_scenes[0], True, 0)
 
 
-  for s in UNALIGNED_SCENES:
-    beike.show_scene_anno(s, True, 45)
+  #for s in UNALIGNED_SCENES:
+  #  beike.show_scene_anno(s, True, 45)
 
   #for i in range(len(beike)):
   #  beike.show_anno_img( i, True, 45 )

@@ -16,7 +16,7 @@ from plyfile import PlyData, PlyElement
 from floorplan_utils import calcLineDirection, MAX_NUM_CORNERS, NUM_WALL_CORNERS, getRoomLabelMap, getLabelRoomMap
 from utils_floorsp import getDensity, drawDensityImage
 import mmcv
-from mmdet.debug_tools import  show_points
+from mmdet.debug_tools import  show_points_3d
 
 
 import pdb
@@ -257,8 +257,9 @@ def write_scene_pc(points, output_path):
 
 
 class RecordWriter:
-    def __init__(self, num_points, base_dir, phase, im_size, save_prefix, allow_non_man=False, extra_test=None, all_test=False):
+    def __init__(self, num_points, base_dir, phase, im_size, save_prefix, allow_non_man=False, extra_test=None, all_test=False, vertical_density=True):
         self.num_points = num_points
+        self.vertical_density = vertical_density
         self.base_dir = base_dir
         self.ply_base_dir = os.path.join \
             (self.base_dir, 'ply')
@@ -280,7 +281,11 @@ class RecordWriter:
         self.log_lines = list()
 
         # if a separate room dataset is required
-        self.topview_base_dir = os.path.join(self.base_dir, 'topview')
+        self.topview_base_dir = os.path.join(self.base_dir, 'TopView')
+        if self.vertical_density:
+          self.topview_base_dir += '_VerD'
+        else:
+          self.topview_base_dir += '_All'
         if not os.path.exists(self.topview_base_dir):
             os.mkdir(self.topview_base_dir)
         self.topview_write_base = os.path.join(self.topview_base_dir, phase)
@@ -366,21 +371,21 @@ class RecordWriter:
             if succ:
                 succ_count += 1
                 num_points += stats['num_points']
-                num_rooms += stats['num_rooms']
-                num_edges += stats['num_edges']
-                num_corners += stats['num_corners']
-                non_man_rooms += stats['non_manhattan_rooms']
+                #num_rooms += stats['num_rooms']
+                #num_edges += stats['num_edges']
+                #num_corners += stats['num_corners']
+                #non_man_rooms += stats['non_manhattan_rooms']
                 scene_ids.append(stats['id'])
 
         avg_points = num_points * 1.0 / succ_count
-        avg_corners = num_corners * 1.0 / succ_count
-        avg_edges = num_edges * 1.0 / succ_count
-        avg_rooms = num_rooms * 1.0 / succ_count
+        #avg_corners = num_corners * 1.0 / succ_count
+        #avg_edges = num_edges * 1.0 / succ_count
+        #avg_rooms = num_rooms * 1.0 / succ_count
 
         self.log_lines.append(
             '{} / {} samples successfully processed'.format(succ_count, len(self.ply_paths)))
-        self.log_lines.append('avg points {}\tavg corners {}\navg edges {}\tavg_rooms {}'.format(avg_points, avg_corners, avg_edges, avg_rooms))
-        self.log_lines.append('room num: {} \t non man rooms: {}'.format(num_rooms, non_man_rooms))
+        self.log_lines.append('avg points {}'.format(avg_points))
+        self.log_lines.append('room num: {} '.format(num_rooms))
         with open(self.log_path, 'w') as f:
             for line in self.log_lines:
                 f.write(line + '\n')
@@ -388,7 +393,7 @@ class RecordWriter:
             for scene_id in scene_ids:
                 f.write(scene_id + '\n')
 
-    def write_example(self, ply_path, annot_path):
+    def write_example(self, ply_path, annot_path, ):
         points = read_scene_pc(ply_path)
 
         xyz = points[:, :3]
@@ -409,18 +414,19 @@ class RecordWriter:
         points = new_points
 
         # down-sampling points to get a subset with size 50,000
-        if points.shape[0] < self.num_points:
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        topview_mean_normal = self.get_topview_mean_normal(points).astype(np.float32)
+        if not self.vertical_density:
             indices = np.arange(points.shape[0])
-            points = np.concatenate([points, points[np.random.choice(indices, self.num_points - points.shape[0])]],
-                                    axis=0)
+            if self.num_points < points.shape[0]:
+              points = points[ np.random.choice(points.shape[0], self.num_points, replace=False) ]
             topview_points = self.get_topview_data(points)
-            topview_mean_normal = self.get_topview_mean_normal(points).astype(np.float32)
         else:
             normal_z = points[:, 8] # vertical = z
 
             horizontal_points = np.array([point for p_i, point in enumerate(points) if abs(normal_z[p_i]) >= 0.5])
             vertical_points = np.array([point for p_i, point in enumerate(points) if abs(normal_z[p_i]) < 0.5])
+            # note: only use vertical points for the full density map. Otherwise all fine details are ruined
+            topview_points = self.get_topview_data(vertical_points)
             #show_points(vertical_points)
             #show_points(horizontal_points)
 
@@ -432,9 +438,8 @@ class RecordWriter:
                 np.random.shuffle(sampled_indices)
                 sampled_points.append(point_subset[sampled_indices[:int(self.num_points * ratio)]])
             points = np.concatenate(sampled_points, axis=0)
-            # note: only use vertical points for the full density map. Otherwise all fine details are ruined
-            topview_points = self.get_topview_data(vertical_points)
-            topview_mean_normal = self.get_topview_mean_normal(vertical_points).astype(np.float32)
+
+
 
         annot = self.parse_annot(annot_path, mins, max_range)
         scene_id, _ = os.path.splitext(os.path.basename(annot_path))
@@ -442,98 +447,98 @@ class RecordWriter:
 
         points[:, 3:6] = points[:, 3:6] / 255 - 0.5  # normalize color
 
-        # Prepare other g.t. related inputs to be zeros for now
-        corners = annot['points']
-        lines = annot['lines']
-        point_dict = annot['point_dict']
+        ## Prepare other g.t. related inputs to be zeros for now
+        #corners = annot['points']
+        #lines = annot['lines']
+        #point_dict = annot['point_dict']
 
-        corner_type_map, status, err_msg = _get_corner_type(corners, lines, point_dict,
-                                                            allow_non_manhattan=self.allow_non_man)
-        if status is False:
-            print(err_msg)
-            self.log_lines.append(err_msg + ' in {}'.format(ply_path))
-            return False, None
+        #corner_type_map, status, err_msg = _get_corner_type(corners, lines, point_dict,
+        #                                                    allow_non_manhattan=self.allow_non_man)
+        #if status is False:
+        #    print(err_msg)
+        #    self.log_lines.append(err_msg + ' in {}'.format(ply_path))
+        #    return False, None
 
-        for corner_id, type in corner_type_map.items():
-            if point_dict[corner_id]['img_x'] >= self.im_size or point_dict[corner_id]['img_x'] < 0 or \
-                            point_dict[corner_id]['img_y'] >= self.im_size or point_dict[corner_id]['img_y'] < 0:
-                err_msg = 'corner out of image boundary due to small point density in {}'.format(ply_path)
-                if point_dict[corner_id]['img_x'] >= self.im_size:
-                    point_dict[corner_id]['img_x'] = self.im_size-1
-                if point_dict[corner_id]['img_x'] < 0:
-                    point_dict[corner_id]['img_x'] = 0
-                if point_dict[corner_id]['img_y'] >= self.im_size:
-                    point_dict[corner_id]['img_y'] = self.im_size-1
-                if point_dict[corner_id]['img_y'] < 0:
-                    point_dict[corner_id]['img_y'] = 0
-                print(err_msg)
-                self.log_lines.append(err_msg)
-                #return False, None
+        #for corner_id, type in corner_type_map.items():
+        #    if point_dict[corner_id]['img_x'] >= self.im_size or point_dict[corner_id]['img_x'] < 0 or \
+        #                    point_dict[corner_id]['img_y'] >= self.im_size or point_dict[corner_id]['img_y'] < 0:
+        #        err_msg = 'corner out of image boundary due to small point density in {}'.format(ply_path)
+        #        if point_dict[corner_id]['img_x'] >= self.im_size:
+        #            point_dict[corner_id]['img_x'] = self.im_size-1
+        #        if point_dict[corner_id]['img_x'] < 0:
+        #            point_dict[corner_id]['img_x'] = 0
+        #        if point_dict[corner_id]['img_y'] >= self.im_size:
+        #            point_dict[corner_id]['img_y'] = self.im_size-1
+        #        if point_dict[corner_id]['img_y'] < 0:
+        #            point_dict[corner_id]['img_y'] = 0
+        #        print(err_msg)
+        #        self.log_lines.append(err_msg)
+        #        #return False, None
 
-        # Prepare room segmentation map, get the label for every room
-        room_segmentation = np.zeros((self.im_size, self.im_size), dtype=np.uint8)
-        room_segmentation_large = np.zeros((self.im_size, self.im_size), dtype=np.uint8)
+        ## Prepare room segmentation map, get the label for every room
+        #room_segmentation = np.zeros((self.im_size, self.im_size), dtype=np.uint8)
+        #room_segmentation_large = np.zeros((self.im_size, self.im_size), dtype=np.uint8)
 
-        line_coords = list()
-        for line_item in lines:
-            point_id_1, point_id_2 = line_item['points']
-            line = ((point_dict[point_id_1]['img_x'], point_dict[point_id_1]['img_y']),
-                    (point_dict[point_id_2]['img_x'], point_dict[point_id_2]['img_y']))
-            cv2.line(room_segmentation, line[0], line[1], color=15 + calcLineDirection(line), thickness=self.gap)
-            line_coords.append(line)
-            cv2.line(room_segmentation_large, line[0], line[1], color=15 + calcLineDirection(line), thickness=2)
+        #line_coords = list()
+        #for line_item in lines:
+        #    point_id_1, point_id_2 = line_item['points']
+        #    line = ((point_dict[point_id_1]['img_x'], point_dict[point_id_1]['img_y']),
+        #            (point_dict[point_id_2]['img_x'], point_dict[point_id_2]['img_y']))
+        #    cv2.line(room_segmentation, line[0], line[1], color=15 + calcLineDirection(line), thickness=self.gap)
+        #    line_coords.append(line)
+        #    cv2.line(room_segmentation_large, line[0], line[1], color=15 + calcLineDirection(line), thickness=2)
 
-        rooms = measure.label(room_segmentation == 0, background=0)
-        rooms_large = measure.label(room_segmentation_large == 0, background=0)
+        #rooms = measure.label(room_segmentation == 0, background=0)
+        #rooms_large = measure.label(room_segmentation_large == 0, background=0)
 
-        wall_idx = rooms.min()
-        for pixel in [(0, 0), (0, self.im_size - 1), (self.im_size - 1, 0), (self.im_size - 1, self.im_size - 1)]:
-            bg_idx = rooms[pixel[1]][pixel[0]]
-            if bg_idx != wall_idx:
-                break
+        #wall_idx = rooms.min()
+        #for pixel in [(0, 0), (0, self.im_size - 1), (self.im_size - 1, 0), (self.im_size - 1, self.im_size - 1)]:
+        #    bg_idx = rooms[pixel[1]][pixel[0]]
+        #    if bg_idx != wall_idx:
+        #        break
 
-        room_annots = annot['areas']
-        room_label_map = dict()
-        room_instances = list()
+        #room_annots = annot['areas']
+        #room_label_map = dict()
+        #room_instances = list()
 
-        for room_annot in room_annots:
-            room_label = _convert_room_label(room_annot['roomName'])
+        #for room_annot in room_annots:
+        #    room_label = _convert_room_label(room_annot['roomName'])
 
-            internal_point = _get_internal_point(room_annot['points'], point_dict)
+        #    internal_point = _get_internal_point(room_annot['points'], point_dict)
 
-            room_corners = list()
+        #    room_corners = list()
 
-            for point_id in room_annot['points']:
-                room_corners.append((point_dict[point_id]['img_x'], point_dict[point_id]['img_y']))
+        #    for point_id in room_annot['points']:
+        #        room_corners.append((point_dict[point_id]['img_x'], point_dict[point_id]['img_y']))
 
-            room_idx = rooms[internal_point[1]][internal_point[0]]
-            if room_idx == wall_idx or room_idx == bg_idx:
-                error_line = 'Data error: the room label is the same as bg or wall, in {}'.format(ply_path)
-                self.log_lines.append(error_line)
-                #return False, None
-            if room_idx in room_label_map:
-                error_line = 'the room idx {} is encourted multiple times, in {}'.format(room_idx, ply_path)
-                self.log_lines.append(error_line)
-                return False, None
+        #    room_idx = rooms[internal_point[1]][internal_point[0]]
+        #    if room_idx == wall_idx or room_idx == bg_idx:
+        #        error_line = 'Data error: the room label is the same as bg or wall, in {}'.format(ply_path)
+        #        self.log_lines.append(error_line)
+        #        #return False, None
+        #    if room_idx in room_label_map:
+        #        error_line = 'the room idx {} is encourted multiple times, in {}'.format(room_idx, ply_path)
+        #        self.log_lines.append(error_line)
+        #        return False, None
 
-            room_label_map[room_idx] = room_label
+        #    room_label_map[room_idx] = room_label
 
-            room_large_idx = rooms_large[internal_point[1]][internal_point[0]]
-            room_instances.append({
-                'mask': rooms == room_idx,
-                'class': room_label,
-                'mask_large': rooms_large == room_large_idx,
-                'room_corners': room_corners
-            })
+        #    room_large_idx = rooms_large[internal_point[1]][internal_point[0]]
+        #    room_instances.append({
+        #        'mask': rooms == room_idx,
+        #        'class': room_label,
+        #        'mask_large': rooms_large == room_large_idx,
+        #        'room_corners': room_corners
+        #    })
 
-        # For testing purpose: draw the density image to check the valadity and quality
-        #filename, _ = os.path.splitext(os.path.basename(ply_path))
-        # write_scene_pc(points, './debug/{}.ply'.format(filename))
-        #density_img = drawDensityImage(getDensity(points=points))
-        #cv2.imwrite('./data_check/{}_density.png'.format(filename), density_img)
+        ## For testing purpose: draw the density image to check the valadity and quality
+        ##filename, _ = os.path.splitext(os.path.basename(ply_path))
+        ## write_scene_pc(points, './debug/{}.ply'.format(filename))
+        ##density_img = drawDensityImage(getDensity(points=points))
+        ##cv2.imwrite('./data_check/{}_density.png'.format(filename), density_img)
 
-        #density_img = np.stack([density_img] * 3, axis=2)
-        #_, annot_image = self.parse_annot(annot_path, mins, max_range, draw_img=True, img=density_img)
+        ##density_img = np.stack([density_img] * 3, axis=2)
+        ##_, annot_image = self.parse_annot(annot_path, mins, max_range, draw_img=True, img=density_img)
 
         topview_image = drawDensityImage(topview_points[:, :, -1], nChannels=1).astype(np.float32)
         room_data = {
@@ -554,24 +559,21 @@ class RecordWriter:
         with open(output_path, 'wb') as f:
             np.save(f, room_data)
 
-        output_path = os.path.join(self.topview_write_base, file_id + '_density.png')
-        cv2.imwrite(output_path, topview_image)
-        output_path = os.path.join(self.topview_write_base, file_id + '_norm.png')
-        cv2.imwrite(output_path, np.abs(topview_mean_normal)*255)
+        output_path_d = os.path.join(self.topview_write_base, file_id + '_density.png')
+        cv2.imwrite(output_path_d, topview_image)
+        output_path_n = os.path.join(self.topview_write_base, file_id + '_norm.png')
+        cv2.imwrite(output_path_n, np.abs(topview_mean_normal)*255)
 
-        num_non_manhattan_room = 0
-        for room_instance in room_instances:
-            manhattan = self.check_manhattan(room_instance)
-            if not manhattan:
-                num_non_manhattan_room += 1
+
+        #num_non_manhattan_room = 0
+        #for room_instance in room_instances:
+        #    manhattan = self.check_manhattan(room_instance)
+        #    if not manhattan:
+        #        num_non_manhattan_room += 1
 
         stats = {
             'id': scene_id,
-            'num_points': len(vertical_points),
-            'num_corners': len(point_dict),
-            'num_edges': len(lines),
-            'num_rooms': len(room_annots),
-            'non_manhattan_rooms': num_non_manhattan_room,
+            'num_points': points.shape[0],
         }
 
         return True, stats
@@ -710,9 +712,12 @@ class RecordWriter:
 
 if __name__ == '__main__':
     image_size = 1024
+    vertical_density = 1
     base_dir = f'../data/beike/processed_{image_size}'
-    record_writer_test = RecordWriter(num_points=50000, base_dir=base_dir, phase='test', im_size=image_size,
-                                      save_prefix='beike_100', allow_non_man=True, all_test=True)
+    record_writer_test = RecordWriter(num_points=50000*5, base_dir=base_dir, phase='test', im_size=image_size,
+                                      save_prefix='beike_100_vertical_density' + str(vertical_density),
+                                      allow_non_man=True, all_test=True,
+                                      vertical_density=vertical_density)
 
     record_writer_test.write()
 
