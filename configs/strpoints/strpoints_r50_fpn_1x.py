@@ -11,6 +11,7 @@
 '''
 
 DATA='A'
+TOPVIEW = 'VerD'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -150,17 +151,17 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'TopView_All/_train_90_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_90_' + DATA,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'TopView_All/_test_10_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATA,
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + 'TopView_All/_test_10_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATA,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
@@ -186,6 +187,7 @@ total_epochs = 300
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}_{}_lr{}'.format(_obj_rep, DATA, IMAGE_SIZE, int(1000*lra))
+work_dir += '_' + TOPVIEW
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
