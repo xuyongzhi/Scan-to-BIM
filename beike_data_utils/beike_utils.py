@@ -572,26 +572,28 @@ def get_scene_pcl_scopes(data_path):
     json.dump(pcl_scopes, f)
   print(f'save {pcl_scopes_file}')
 
-def _UnUsed_cal_images_mean_std(data_path):
+def cal_images_mean_std(data_path, base):
   '''
-  mean: [ 2.91710224  2.91710224  2.91710224  5.71324154  5.66696014 11.13778194]
-  std: [16.58656351 16.58656351 16.58656351 27.51977998 27.0712237  34.75132369]
+  TopView_All
+  mean: [ 4.753  0.     0.    -0.015]
+  std:  [16.158  0.155  0.153  0.22 ]
+
+  TopView_VerD
+  mean: [ 2.872  0.     0.    -0.015]
+  std : [16.182  0.155  0.153  0.22 ]
   '''
-  den_image_path = os.path.join(data_path, 'images/test')
-  den_images = glob.glob(os.path.join(den_image_path, '*.density.png') )
-  norm_images = [f.replace('.density', '.norm') for f in den_images]
+  npy_path = os.path.join(data_path, base+'/test')
+  files = glob.glob(npy_path + '/*.npy')
 
-  imgs = []
-  for fn in den_images:
-    dfn = os.path.join(den_image_path, fn)
-    nfn = dfn.replace('.density', '.norm')
-    dimg = cv2.imread(dfn)
-    nimg = cv2.imread(nfn)
-    img = np.concatenate([dimg, nimg], -1)
-    imgs.append( np.expand_dims( img, 0) )
-  imgs = np.concatenate(imgs, 0)
-  imgs = imgs.reshape(-1,6)
-
+  topviews = []
+  for fn in files:
+    data = np.load(fn, allow_pickle=True).tolist()
+    topview_image = np.expand_dims(data['topview_image'], axis=2)
+    topview_mean_normal = data['topview_mean_normal']
+    topview = np.concatenate([topview_image, topview_mean_normal], axis=2)
+    topviews.append( np.expand_dims( topview, 0) )
+  topviews = np.concatenate(topviews, 0)
+  imgs = topviews.reshape(-1, topviews.shape[-1])
 
   mean = imgs.mean(axis=0)
   tmp = imgs - mean
@@ -612,12 +614,11 @@ def draw_img_lines(img, lines):
       pass
 # ------------------------------------------------------------------------------
 
-if __name__ == '__main__':
-  DATA_PATH = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
+
+def main():
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
   topview_path = 'TopView_All'
 
-  #get_scene_pcl_scopes(DATA_PATH)
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
 
@@ -632,4 +633,12 @@ if __name__ == '__main__':
   #for i in range(len(beike)):
   #  beike.show_anno_img( i, True, 45 )
   #pass
+
+
+
+if __name__ == '__main__':
+  data_path = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
+  #main(data_path)
+  #get_scene_pcl_scopes(DATA_PATH)
+  cal_images_mean_std(data_path, base='TopView_VerD')
 

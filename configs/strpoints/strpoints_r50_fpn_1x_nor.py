@@ -12,6 +12,7 @@
 
 DATA='A'
 TOPVIEW = 'VerD'
+TOPVIEW = 'All'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -110,8 +111,8 @@ test_cfg = dict(
 dataset_type = 'BeikeDataset'
 data_root = f'data/beike/processed_{IMAGE_SIZE}/'
 img_norm_cfg = dict(
-    mean=[ 0, 0, 0, 0.0],
-    std=[255.0, 1, 1, 1,], to_rgb=False)
+    mean=[  4.753,  0.,     0.,    -0.015],
+    std=[16.158,  0.155,  0.153,  0.22], to_rgb=False)
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
