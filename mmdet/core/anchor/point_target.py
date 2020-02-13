@@ -61,10 +61,11 @@ def point_target(proposals_list,
          gt_bboxes_list,
          gt_bboxes_ignore_list,
          gt_labels_list,
+         img_metas,
          cfg=cfg,
          label_channels=label_channels,
          sampling=sampling,
-         unmap_outputs=unmap_outputs)
+         unmap_outputs=unmap_outputs,)
     # no valid points
     if any([labels is None for labels in all_labels]):
         return None
@@ -102,10 +103,11 @@ def point_target_single(flat_proposals,
                         gt_bboxes,
                         gt_bboxes_ignore,
                         gt_labels,
+                        img_meta,
                         cfg,
                         label_channels=1,
                         sampling=True,
-                        unmap_outputs=True):
+                        unmap_outputs=True,):
     inside_flags = valid_flags
     if not inside_flags.any():
         return (None, ) * 7
@@ -118,7 +120,8 @@ def point_target_single(flat_proposals,
     else:
         bbox_assigner = build_assigner(cfg.assigner)
         assign_result = bbox_assigner.assign(proposals, gt_bboxes,
-                                             gt_bboxes_ignore, gt_labels)
+                                             gt_bboxes_ignore, gt_labels,
+                                             img_meta)
         bbox_sampler = PseudoSampler()
         sampling_result = bbox_sampler.sample(assign_result, proposals,
                                               gt_bboxes)

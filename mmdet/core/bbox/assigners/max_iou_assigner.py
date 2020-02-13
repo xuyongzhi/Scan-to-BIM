@@ -58,7 +58,8 @@ class MaxIoUAssigner(BaseAssigner):
         assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
         self.obj_rep = obj_rep
 
-    def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
+    def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None,
+               img_meta=None):
         """Assign gt to bboxes.
 
         This method assign a gt bbox to every bbox (proposal/anchor), each bbox

@@ -38,7 +38,8 @@ class AssignResult(object):
                       labels.shape=(7,))>
     """
 
-    def __init__(self, num_gts, gt_inds, max_overlaps, labels=None, env=''):
+    def __init__(self, num_gts, gt_inds, max_overlaps, labels=None, env='',
+                 img_meta=None):
         self.num_gts = num_gts
         self.gt_inds = gt_inds
         self.max_overlaps = max_overlaps
@@ -57,9 +58,12 @@ class AssignResult(object):
 
             self.lost_gt = self.num_pos_inds < self.num_gts
             if self.lost_gt:
-              print('gt num = {}, pos inds num = {}, lost gt!'\
-                .format(self.num_gts, self.num_pos_inds) )
-              print('\tcore/bbox/assigners/assign_result.py\n\t{}'.format(env))
+              print('\n\tgt num = {}, pos inds num = {}, lost gt!'\
+                .format(self.num_gts, self.num_pos_inds) +\
+                '\tcore/bbox/assigners/assign_result.py from \t{}'.format(env))
+              if img_meta is not None:
+                print(img_meta['filename'])
+              print('\n\n')
 
     def add_gt_(self, gt_labels):
         self_inds = torch.arange(

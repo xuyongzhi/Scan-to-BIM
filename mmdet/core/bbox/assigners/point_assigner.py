@@ -24,7 +24,8 @@ class PointAssigner(BaseAssigner):
         self.pos_num = pos_num
         self.obj_rep = obj_rep
 
-    def assign(self, points, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
+    def assign(self, points, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None,
+               img_meta=None):
         """Assign gt to points.
 
         This method assign a gt bbox to every points set, each points set
@@ -170,7 +171,8 @@ class PointAssigner(BaseAssigner):
             assigned_labels = None
 
         assign_res = AssignResult(
-            num_gts, assigned_gt_inds, None, labels=assigned_labels, env='PointAssigner')
+            num_gts, assigned_gt_inds, None, labels=assigned_labels,
+            env='PointAssigner', img_meta=img_meta)
 
         if PRINT_POINT_ASSIGNER:
           assign_res.dg_add_pos_dist(pos_dist)
