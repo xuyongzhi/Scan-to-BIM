@@ -167,7 +167,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATA,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
