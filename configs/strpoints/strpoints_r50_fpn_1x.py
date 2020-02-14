@@ -12,7 +12,7 @@
 
 DATA='A'
 TOPVIEW = 'VerD'
-TOPVIEW = 'All'
+#TOPVIEW = 'All'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -178,7 +178,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=5,
     warmup_ratio=1.0 / 3,
-    step=[550, 700])
+    step=[300, 350])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
@@ -189,7 +189,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 800
+total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
