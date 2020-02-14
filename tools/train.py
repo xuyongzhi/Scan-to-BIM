@@ -51,6 +51,7 @@ def parse_args():
     parser.add_argument('--rotate', type=int, default=None,
                         help='use data aug of rotation or not')
     parser.add_argument('--lr', type=float, default=None)
+    parser.add_argument('--bs', type=int, default=None)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -58,8 +59,10 @@ def parse_args():
 
 
 def update_config(cfg, args):
+    gpus = args.gpus
     rotate = args.rotate
     lr = args.lr
+    bs = args.bs
     if rotate is not None:
       assert rotate == 1 or rotate == 0
       assert cfg['train_pipeline'][4]['type'] == 'RandomRotate'
@@ -67,12 +70,15 @@ def update_config(cfg, args):
 
     if lr is not None:
       cfg['optimizer']['lr'] = lr
+    if bs is not None:
+      cfg['data']['imgs_per_gpu'] = bs
 
     # update work_dir
     cfg['work_dir'] += '_' + cfg['_obj_rep']
     cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
     cfg['work_dir'] += '_' + cfg['TOPVIEW']
     cfg['work_dir'] += '_' + cfg['DATA']
+    cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
     cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
     if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
       cfg['work_dir'] += '_NR'
