@@ -176,9 +176,9 @@ optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=5,
+    warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[300, 350])
+    step=[600, 700])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
@@ -189,13 +189,14 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 400
+total_epochs = 800
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
+#load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_512_All_A_bs1_lr100_NR/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]

@@ -59,7 +59,10 @@ def parse_args():
 
 
 def update_config(cfg, args):
-    gpus = args.gpus
+    try:
+      gpus = args.gpus
+    except:
+      gpus=1
     rotate = args.rotate
     lr = args.lr
     bs = args.bs
