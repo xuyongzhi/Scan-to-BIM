@@ -48,17 +48,46 @@ def parse_args():
         '--autoscale-lr',
         action='store_true',
         help='automatically scale lr with the number of gpus')
+    parser.add_argument('--rotate', type=int, default=None,
+                        help='use data aug of rotation or not')
+    parser.add_argument('--lr', type=float, default=None)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
-
     return args
+
+
+def update_config(cfg, args):
+    rotate = args.rotate
+    lr = args.lr
+    if rotate is not None:
+      assert rotate == 1 or rotate == 0
+      assert cfg['train_pipeline'][4]['type'] == 'RandomRotate'
+      cfg['train_pipeline'][4]['rotate_ratio'] *= rotate
+
+    if lr is not None:
+      cfg['optimizer']['lr'] = lr
+
+    # update work_dir
+    cfg['work_dir'] += '_' + cfg['_obj_rep']
+    cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
+    cfg['work_dir'] += '_' + cfg['TOPVIEW']
+    cfg['work_dir'] += '_' + cfg['DATA']
+    cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
+    if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
+      cfg['work_dir'] += '_NR'
+    else:
+      cfg['work_dir'] += '_RA'
+    #print(cfg['work_dir'])
+    pass
 
 
 def main():
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
+    update_config(cfg, args)
+
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True

@@ -12,6 +12,7 @@
 
 DATA='A'
 TOPVIEW = 'VerD'
+TOPVIEW = 'All'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -110,8 +111,12 @@ test_cfg = dict(
 dataset_type = 'BeikeDataset'
 data_root = f'data/beike/processed_{IMAGE_SIZE}/'
 img_norm_cfg = dict(
-    mean=[ 0, 0, 0, 0.0],
-    std=[255.0, 1, 1, 1,], to_rgb=False)
+    mean=[  4.753,  0.,     0.,    -0.015],
+    std=[16.158,  0.155,  0.153,  0.22], to_rgb=False)
+#img_norm_cfg = dict(
+#    mean=[  0, 0,0,0],
+#    std=[ 255, 1,1,1 ], to_rgb=False)
+
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -139,19 +144,20 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 8
+  batch_size = 1
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 2
   lra = 0.004
 
+TRAIN_NUM=1
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_90_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATA,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -161,7 +167,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATA,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
@@ -172,7 +178,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[200, 250])
+    step=[250, 350])
 checkpoint_config = dict(interval=10)
 # yapf:disable
 log_config = dict(
@@ -183,15 +189,15 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 300
+total_epochs = 400
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/{}_strpoints_moment_r50_fpn_1x_{}_{}_lr{}'.format(_obj_rep, DATA, IMAGE_SIZE, int(1000*lra))
-work_dir += '_' + TOPVIEW
+work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+workflow = [('train', 1)]
 
