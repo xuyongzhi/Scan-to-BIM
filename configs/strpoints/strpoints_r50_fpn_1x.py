@@ -150,7 +150,7 @@ if IMAGE_SIZE == 1024:
   batch_size = 2
   lra = 0.004
 
-TRAIN_NUM=90
+TRAIN_NUM=1
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,
@@ -167,7 +167,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATA,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
@@ -178,7 +178,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=5,
     warmup_ratio=1.0 / 3,
-    step=[250, 350])
+    step=[550, 700])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
@@ -189,7 +189,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 400
+total_epochs = 800
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
@@ -199,4 +199,6 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+if  TRAIN_NUM==1:
+  workflow = [('train', 1)]
 

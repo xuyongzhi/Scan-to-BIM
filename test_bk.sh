@@ -1,13 +1,7 @@
 #export CUDA_VISIBLE_DEVICES=1
-DATA=A
-IMAGE_SIZE=512
-CONFIG=configs/strpoints/strpoints_r50_fpn_1x_nor.py
-workdir=lscope_istopleft_strpoints_moment_r50_fpn_1x_A_512_lr10_All_nr
-CHECKPOINT=work_dirs/${workdir}/best.pth
+CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
+wdir=T1_r50_fpn_lscope_istopleft_512_All_A_bs1_lr100_NR
+CHECKPOINT=work_dirs/${wdir}/best.pth
 
-#CONFIG=configs/strpoints/strpoints_r50_fpn_1x_sd.py
-
-
-ipython tools/test.py --  $CONFIG  $CHECKPOINT --show
-#ipython tools/test.py --  $CONFIG  $CHECKPOINT --out ./res/strpoints_moment_r50_fpn_1x.pickle --eval bbox 
+ipython tools/test.py --  ${CONFIG} $CHECKPOINT  --rotate 0 --lr 0.1 --bs 1 --show
 

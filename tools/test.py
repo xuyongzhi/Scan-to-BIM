@@ -182,6 +182,10 @@ def parse_args():
         default='none',
         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)
+    parser.add_argument('--rotate', type=int, default=None,
+                        help='use data aug of rotation or not')
+    parser.add_argument('--lr', type=float, default=None)
+    parser.add_argument('--bs', type=int, default=None)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -202,6 +206,7 @@ def main():
         args.json_out = args.json_out[:-5]
 
     cfg = mmcv.Config.fromfile(args.config)
+    update_config(cfg, args)
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True
