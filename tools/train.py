@@ -87,6 +87,7 @@ def update_config(cfg, args):
       cfg['work_dir'] += '_NR'
     else:
       cfg['work_dir'] += '_RA'
+    cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
     #print(cfg['work_dir'])
     pass
 

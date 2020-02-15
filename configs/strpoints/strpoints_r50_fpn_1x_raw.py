@@ -118,13 +118,13 @@ img_norm_cfg = dict(
     mean=[  4.753,  0.,     0.,    -0.015],
     std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='raw')
 
-img_norm_cfg = dict(
-    mean=[4.753, 0.044, 0.043, 0.102],
-    std=[ 16.158,  0.144,  0.142,  0.183], to_rgb=False, method='abs')
-
-img_norm_cfg = dict(
-    mean=[4.753, 11.142, 11.044, 25.969],
-    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
+#img_norm_cfg = dict(
+#    mean=[4.753, 0.044, 0.043, 0.102],
+#    std=[ 16.158,  0.144,  0.142,  0.183], to_rgb=False, method='abs')
+#
+#img_norm_cfg = dict(
+#    mean=[4.753, 11.142, 11.044, 25.969],
+#    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
 
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),

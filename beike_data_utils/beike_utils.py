@@ -573,11 +573,21 @@ def get_scene_pcl_scopes(data_path):
     json.dump(pcl_scopes, f)
   print(f'save {pcl_scopes_file}')
 
-def cal_topview_npy_mean_std(data_path, base, abs_norm=True):
+def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
   '''
   TopView_All
-  mean: [ 4.753  0.     0.    -0.015]
-  std:  [16.158  0.155  0.153  0.22 ]
+      normnorm_method: raw
+        mean: [ 4.753,  0.,     0.,    -0.015]
+        std:  [16.158,  0.155,  0.153,  0.22 ]
+
+      normnorm_method: abs255
+        mean: [ 4.753, 11.142, 11.044, 25.969]
+        std : [16.158, 36.841, 36.229, 46.637]
+
+      normnorm_method: abs
+        mean: [4.753, 0.044, 0.043, 0.102]
+        std : [16.158,  0.144,  0.142,  0.183]
+
 
   TopView_VerD
       mean: [ 2.872  0.     0.    -0.015]
@@ -595,8 +605,13 @@ def cal_topview_npy_mean_std(data_path, base, abs_norm=True):
     data = np.load(fn, allow_pickle=True).tolist()
     topview_image = np.expand_dims(data['topview_image'], axis=2)
     topview_mean_normal = data['topview_mean_normal']
-    if abs_norm:
+    if normnorm_method == 'raw':
+      pass
+    elif normnorm_method == 'abs':
       topview_mean_normal = np.abs(topview_mean_normal)
+    elif normnorm_method == 'abs255':
+      topview_mean_normal = np.abs(topview_mean_normal) * 255
+
     topview = np.concatenate([topview_image, topview_mean_normal], axis=2)
     topviews.append( np.expand_dims( topview, 0) )
   topviews = np.concatenate(topviews, 0)
@@ -605,7 +620,7 @@ def cal_topview_npy_mean_std(data_path, base, abs_norm=True):
   mean = imgs.mean(axis=0)
   tmp = imgs - mean
   std = tmp.std(axis=0)
-  print(f'abs_norm: {abs_norm}')
+  print(f'normnorm_method: {normnorm_method}')
   print(f'mean: {mean}')
   print(f'std : {std}')
   pass
@@ -675,6 +690,6 @@ if __name__ == '__main__':
   data_path = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   #main(data_path)
   #get_scene_pcl_scopes(DATA_PATH)
-  cal_topview_npy_mean_std(data_path, base='TopView_VerD')
+  cal_topview_npy_mean_std(data_path, base='TopView_All', normnorm_method='abs')
   #gen_images_from_npy(data_path)
 

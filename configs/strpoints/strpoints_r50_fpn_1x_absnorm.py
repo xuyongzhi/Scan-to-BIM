@@ -111,14 +111,16 @@ test_cfg = dict(
 dataset_type = 'BeikeDataset'
 data_root = f'data/beike/processed_{IMAGE_SIZE}/'
 img_norm_cfg = dict(
-    mean=[  4.753,  0.,     0.,    -0.015],
-    std=[16.158,  0.155,  0.153,  0.22], to_rgb=False)
-img_norm_cfg = dict(
     mean=[  0, 0,0,0],
     std=[ 255, 1,1,1 ], to_rgb=False)
+
 img_norm_cfg = dict(
-    mean=[2.872, 0.044, 0.043, 0.102],
-    std=[ 16.182,  0.144,  0.142,  0.183 ], to_rgb=False)
+    mean=[4.753, 0.044, 0.043, 0.102],
+    std=[ 16.158,  0.144,  0.142,  0.183], to_rgb=False, method='abs')
+
+#img_norm_cfg = dict(
+#    mean=[4.753, 11.142, 11.044, 25.969],
+#    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
 
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),
@@ -140,7 +142,7 @@ test_pipeline = [
         transforms=[
             dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='Normalize', **img_norm_cfg),
+            dict(type='NormalizeTopview', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
             dict(type='Collect', keys=['img']),

@@ -468,13 +468,22 @@ class NormalizeTopview(object):
             default is true.
     """
 
-    def __init__(self, mean, std, to_rgb=True):
+    def __init__(self, mean, std, to_rgb=True, method='raw'):
         self.mean = np.array(mean, dtype=np.float32)
         self.std = np.array(std, dtype=np.float32)
         self.to_rgb = to_rgb
+        self.method = method
 
     def __call__(self, results):
-        results['img'][:,:,1:] = np.abs(results['img'][:,:,1:])
+        if self.method == 'raw':
+          pass
+        elif self.method == 'abs':
+          results['img'][:,:,1:] = np.abs(results['img'][:,:,1:])
+        elif self.method == 'abs255':
+          results['img'][:,:,1:] = np.abs(results['img'][:,:,1:]) * 255
+        else:
+          raise NotImplemented
+
         results['img'] = mmcv.imnormalize(results['img'], self.mean, self.std,
                                           self.to_rgb)
         results['img_norm_cfg'] = dict(
