@@ -116,6 +116,9 @@ img_norm_cfg = dict(
 img_norm_cfg = dict(
     mean=[  0, 0,0,0],
     std=[ 255, 1,1,1 ], to_rgb=False)
+img_norm_cfg = dict(
+    mean=[2.872, 0.044, 0.043, 0.102],
+    std=[ 16.182,  0.144,  0.142,  0.183 ], to_rgb=False)
 
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),
