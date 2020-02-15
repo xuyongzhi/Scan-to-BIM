@@ -11,8 +11,8 @@
 '''
 
 DATA='A'
-TOPVIEW = 'VerD'
-#TOPVIEW = 'All'
+#TOPVIEW = 'VerD'
+TOPVIEW = 'All'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
