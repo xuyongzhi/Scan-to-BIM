@@ -615,6 +615,33 @@ def draw_img_lines(img, lines):
       pass
 # ------------------------------------------------------------------------------
 
+def gen_images_from_npy(data_path):
+  npy_path = os.path.join(data_path, 'seperate_room_data/test')
+  den_image_path = os.path.join(data_path, f'images/public100_{IMAGE_SIZE}')
+  norm_image_path = den_image_path
+
+  if not os.path.exists(den_image_path):
+    os.makedirs(den_image_path)
+  if not os.path.exists(norm_image_path):
+    os.makedirs(norm_image_path)
+
+  file_names = os.listdir(npy_path)
+  files = [os.path.join(npy_path, f) for f in file_names]
+  den_images = [os.path.join(den_image_path, f.replace('.npy', '.density.png')) for f in file_names]
+  norm_images = [os.path.join(norm_image_path, f.replace('.npy', '.norm.png')) for f in file_names]
+  for i,fn in enumerate(files):
+      data = np.load(fn, allow_pickle=True).tolist()
+      img = data['topview_image']
+      #lines = data['line_coords']
+      #room_map = data['room_map']
+      #bg_idx = data['bg_idx']
+      normal_image = data['topview_mean_normal']
+      cv2.imwrite(den_images[i], img)
+      cv2.imwrite(norm_images[i], np.abs(normal_image)*255)
+      print(den_images[i])
+      pass
+
+  pass
 
 def main():
   ANNO_PATH = os.path.join(DATA_PATH, 'json/')
@@ -641,5 +668,6 @@ if __name__ == '__main__':
   data_path = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
   #main(data_path)
   #get_scene_pcl_scopes(DATA_PATH)
-  cal_images_mean_std(data_path, base='TopView_VerD')
+  #cal_images_mean_std(data_path, base='TopView_VerD')
+  gen_images_from_npy(data_path)
 

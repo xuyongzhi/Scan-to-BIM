@@ -113,9 +113,9 @@ data_root = f'data/beike/processed_{IMAGE_SIZE}/'
 img_norm_cfg = dict(
     mean=[  4.753,  0.,     0.,    -0.015],
     std=[16.158,  0.155,  0.153,  0.22], to_rgb=False)
-#img_norm_cfg = dict(
-#    mean=[  0, 0,0,0],
-#    std=[ 255, 1,1,1 ], to_rgb=False)
+img_norm_cfg = dict(
+    mean=[  0, 0,0,0],
+    std=[ 255, 1,1,1 ], to_rgb=False)
 
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),
@@ -123,7 +123,7 @@ train_pipeline = [
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='horizontal'),
     dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
-    dict(type='Normalize', **img_norm_cfg),
+    dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
@@ -153,7 +153,7 @@ if IMAGE_SIZE == 1024:
 TRAIN_NUM=90
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',

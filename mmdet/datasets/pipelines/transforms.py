@@ -474,8 +474,11 @@ class NormalizeTopview(object):
         self.to_rgb = to_rgb
 
     def __call__(self, results):
-        results['img'][:,:,0] = results['img'][:,:,0] / 255
-        results['img_norm_cfg'] = dict( density=1, norm=None )
+        results['img'][:,:,1:] = np.abs(results['img'][:,:,1:])
+        results['img'] = mmcv.imnormalize(results['img'], self.mean, self.std,
+                                          self.to_rgb)
+        results['img_norm_cfg'] = dict(
+            mean=self.mean, std=self.std, to_rgb=self.to_rgb)
         return results
 
     def __repr__(self):
