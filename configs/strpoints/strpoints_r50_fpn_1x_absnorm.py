@@ -183,7 +183,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[120, 160])
+    step=[200, 260])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
@@ -194,7 +194,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 200
+total_epochs = 300
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'

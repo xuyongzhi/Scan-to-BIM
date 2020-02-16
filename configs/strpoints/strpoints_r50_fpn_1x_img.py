@@ -118,16 +118,20 @@ img_norm_cfg = dict(
     mean=[  4.753,  0.,     0.,    -0.015],
     std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='raw')
 
-#img_norm_cfg = dict(
-#    mean=[4.753, 0.044, 0.043, 0.102],
-#    std=[ 16.158,  0.144,  0.142,  0.183], to_rgb=False, method='abs')
-#
-#img_norm_cfg = dict(
-#    mean=[4.753, 11.142, 11.044, 25.969],
-#    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
+img_norm_cfg = dict(
+    mean=[4.753, 0.044, 0.043, 0.102],
+    std=[ 16.158,  0.144,  0.142,  0.183], to_rgb=False, method='abs')
+
+img_norm_cfg = dict(
+    mean=[4.753, 11.142, 11.044, 25.969],
+    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
+
+img_norm_cfg = dict(
+    mean=[4.753, 11.142, 11.044, 25.969],
+    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs')
 
 train_pipeline = [
-    dict(type='LoadTopviewFromFile'),
+    dict(type='Load2ImagesFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='horizontal'),
@@ -166,7 +170,7 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATA,
+        img_prefix=data_root + f'images/abs_norm',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -187,7 +191,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[200, 260])
+    step=[180, 260])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
@@ -208,7 +212,5 @@ load_from = None
 #load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_512_All_A_bs1_lr100_NR/best.pth'
 resume_from = None
 auto_resume = True
-workflow = [('train', 1), ('val', 1)]
-if  TRAIN_NUM==1:
-  workflow = [('train', 1)]
+workflow = [('train', 1)]
 

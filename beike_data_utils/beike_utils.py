@@ -75,6 +75,7 @@ class BEIKE:
           anno_raw['pcl_scope'] = pcl_scope
           anno_img = BEIKE.raw_anno_to_img(anno_raw)
           filename = jfn.split('.')[0]+'.npy'
+          #filename = jfn.split('.')[0]+'.density.png'
           img_info = {'filename': filename,
                       'ann': anno_img,
                       'ann_raw': anno_raw}
