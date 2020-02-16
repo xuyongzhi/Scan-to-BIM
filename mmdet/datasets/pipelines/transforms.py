@@ -477,6 +477,8 @@ class NormalizeTopview(object):
     def __call__(self, results):
         if self.method == 'raw':
           pass
+        elif self.method == 'rawstd':
+          pass
         elif self.method == 'abs':
           results['img'][:,:,1:] = np.abs(results['img'][:,:,1:])
         elif self.method == 'abs255':

@@ -11,8 +11,8 @@
 '''
 
 DATA='A'
-#TOPVIEW = 'VerD'
-TOPVIEW = 'All'
+TOPVIEW = 'VerD'
+#TOPVIEW = 'All'
 #*******************************************************************************
 # 1. coco
 #_obj_rep='box_scope'
@@ -114,9 +114,9 @@ img_norm_cfg = dict(
     mean=[  0, 0,0,0],
     std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
 
-img_norm_cfg = dict(
-    mean=[  4.753,  0.,     0.,    -0.015],
-    std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='raw')
+#img_norm_cfg = dict(
+#    mean=[  4.753,  0.,     0.,    0.],
+#    std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='rawstd')
 
 #img_norm_cfg = dict(
 #    mean=[4.753, 0.044, 0.043, 0.102],
@@ -130,8 +130,8 @@ train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
-    dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='horizontal'),
-    dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
+    dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
+    dict(type='RandomRotate', rotate_ratio=0.7, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
@@ -187,8 +187,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[200, 260])
-checkpoint_config = dict(interval=20)
+    step=[500, 700])
+checkpoint_config = dict(interval=100)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -198,7 +198,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 300
+total_epochs = 800
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
