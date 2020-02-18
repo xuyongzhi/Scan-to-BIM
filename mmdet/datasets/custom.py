@@ -204,9 +204,12 @@ def show_results_train(results):
   #mmcv.imshow(img[:,:,:3])
   #mmcv.imshow(img[:,:,3:])
   #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
-  img_show = np.abs(img[:,:,1:4]*255).astype(np.uint8)
-  #img_show = (np.repeat(img[:,:,0:1], 3, axis=2)*255).astype(np.uint8)
-  draw_img_lines(img_show, lines, corners)
+  img_show_n = img[:,:,1:4]
+  img_show_n = np.abs(img_show_n)
+  img_show_d = np.repeat(img[:,:,0:1], 3, axis=2)
+
+  draw_img_lines(img_show_d, lines, corners)
+  draw_img_lines(img_show_n, lines, corners)
   pass
 
 def draw_img_lines(img, lines, corners):
@@ -214,7 +217,7 @@ def draw_img_lines(img, lines, corners):
   img = img.copy()
   for i in range(lines.shape[0]):
     s, e = lines[i]
-    cv2.line(img, (s[0], s[1]), (e[0], e[1]), (255,255,0), 2)
+    cv2.line(img, (s[0], s[1]), (e[0], e[1]), (0,0,255), 1)
   for i in range(corners.shape[0]):
     c = corners[i]
     cv2.circle(img, (c[0], c[1]), thickness=1, radius=2, color=(255,0,255))

@@ -99,13 +99,13 @@ def show_det_lines_1by1(img, lines, labels, class_names=None, score_thr=0,
     show_det_lines(img0, lines[i:i+1], labels[i:i+1], class_names, score_thr,
                    line_color, text_color, thickness, font_scale, show, win_name,
                    wait_time, None, kpi, point_color)
-    out.write(img0)
+    out.write(img0.astype(np.uint8))
     img0 = img.copy()
 
   show_det_lines(img, lines, labels, class_names, score_thr,
                   line_color, text_color, thickness, font_scale, show, win_name,
                   wait_time, out_file, key_points, point_color)
-  out.write(img)
+  out.write(img.astype(np.uint8))
 
   out.release()
   pass

@@ -86,14 +86,15 @@ class BEIKE:
         self.all_min_line_sizes = np.array( all_min_line_sizes )
         print(f'min line size: {self.all_min_line_sizes.min()}')
 
+        self.rm_bad_scenes()
+        self.fix_unaligned_scenes()
+
         n0 = len(self.img_infos)
         if WRITE_ANNO_IMG:
           for i in range(n0):
             #self.draw_anno_raw(i, with_img=1)
             self.show_anno_img(i, with_img=1)
 
-        self.rm_bad_scenes()
-        self.fix_unaligned_scenes()
 
     def fix_unaligned_scenes(self):
       n0 = len(self.img_infos)
@@ -431,19 +432,23 @@ class BEIKE:
 
       for i in range(lines.shape[0]):
         s, e = lines[i]
-        #color = get_random_color()
         if i != idx_min_size or 1:
           color = colors_line['wall']
           thickness = 1
         else:
           color = (0,255,255)
           thickness = 3
+        color = get_random_color()
         cv2.line(img, (s[0], s[1]), (e[0], e[1]), color, thickness=thickness)
       for i in range(corners.shape[0]):
         c = corners[i]
         cv2.circle(img, (c[0], c[1]), radius=3, color=colors_corner['wall'],
                    thickness=2)
-      mmcv.imshow(img)
+      #mmcv.imshow(img)
+      if WRITE_ANNO_IMG:
+        anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
+        cv2.imwrite(anno_img_file, img)
+        print(anno_img_file)
       return img
       pass
 
@@ -490,9 +495,10 @@ class BEIKE:
 
       if WRITE_ANNO_IMG:
         anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
-        #cv2.imwrite(anno_img_file, img)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        cv2.imwrite(anno_img_file, img)
         print(anno_img_file)
-      mmcv.imshow(img)
+      #mmcv.imshow(img)
       return img
 
     def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
@@ -666,10 +672,9 @@ def gen_images_from_npy(data_path):
 
   pass
 
-def main():
-  ANNO_PATH = os.path.join(DATA_PATH, 'json/')
+def main(data_path):
+  ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = 'TopView_All'
-
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
 
@@ -689,8 +694,8 @@ def main():
 
 if __name__ == '__main__':
   data_path = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
-  #main(data_path)
+  main(data_path)
   #get_scene_pcl_scopes(DATA_PATH)
-  cal_topview_npy_mean_std(data_path, base='TopView_All', normnorm_method='abs')
+  #cal_topview_npy_mean_std(data_path, base='TopView_All', normnorm_method='abs')
   #gen_images_from_npy(data_path)
 

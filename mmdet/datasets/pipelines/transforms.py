@@ -1047,12 +1047,18 @@ class RandomRotate(object):
             #print(f'angle: {angle}')
             results['rotate_angle'] = angle
             # rotate bboxes
+            is_test = True
             for key in results.get('bbox_fields', []):
                 if results[key].shape[0] == 0:
                   continue
                 results[key], results['img'] = rotate_lines_img(results[key],
                                           results['img'], angle, self.obj_rep)
+                is_test = False
                 pass
+
+            if is_test:
+              results['img'] = mmcv.imrotate(results['img'], angle, scale=0.9)
+
             # rotate masks
             for key in results.get('mask_fields', []):
                 raise NotImplementedError

@@ -7,7 +7,7 @@ import torch.nn as nn
 import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-from configs.common import OBJ_DIM, OUT_PTS_DIM
+from configs.common import OBJ_DIM, OUT_EXTAR_DIM
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -145,7 +145,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             bbox_result, segm_result = result
         else:
             bbox_result, segm_result = result, None
-        assert bbox_result[0].shape[1] == OBJ_DIM + OUT_PTS_DIM + 1
+        assert bbox_result[0].shape[1] == OBJ_DIM + OUT_EXTAR_DIM + 1
 
         img_tensor = data['img'][0]
         img_metas = data['img_meta'][0].data[0]
@@ -191,11 +191,16 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             class_names = tuple([c[0] for c in class_names])
 
 
-            if OUT_PTS_DIM > 0:
-              key_points = bboxes[:,-1-OUT_PTS_DIM:-1].reshape(bboxes.shape[0], -1,2)
-              bboxes = np.concatenate([ bboxes[:,:OBJ_DIM], bboxes[:, -1:]], axis=1 )
+            if OUT_EXTAR_DIM > 0:
+              bboxes_refine = np.concatenate([bboxes[:, 0:OBJ_DIM], bboxes[:,-1:]], axis=1)
+              bboxes_init = np.concatenate([bboxes[:, OBJ_DIM:OBJ_DIM*2], bboxes[:,-1:]], axis=1)
+              num_points = (OUT_EXTAR_DIM - OBJ_DIM)//2
+              num_box = bboxes.shape[0]
+              key_points_refine = bboxes[:, OBJ_DIM*2 : OBJ_DIM*2+num_points].reshape(num_box, -1, 2)
+              key_points_init = bboxes[:, OBJ_DIM*2+num_points : OBJ_DIM*2+num_points*2].reshape(num_box, -1, 2)
+              bboxes = bboxes_refine
             else:
-              key_points = None
+              key_points_refine = None
 
             filename = img_meta['filename']
             scene_name = os.path.basename(filename).replace('npy', 'png')
@@ -208,20 +213,58 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
               os.makedirs(out_dir)
 
             if bboxes.shape[1] == 6:
-                from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
-                #show_det_lines_1by1(
-                show_det_lines(
-                  img_show,
-                  bboxes,
-                  labels,
-                  class_names=class_names,
-                  score_thr=score_thr,
-                  line_color='green',
-                  thickness=2,
-                  show=0,
-                  out_file=out_file,
-                  key_points=key_points)
-                continue
+                    from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
+                    show_fun = show_det_lines_1by1
+                    #show_fun = show_det_lines
+
+                    show_fun(
+                      img_show.copy(),
+                      bboxes,
+                      labels,
+                      class_names=class_names,
+                      score_thr=score_thr,
+                      line_color='green',
+                      thickness=2,
+                      show=0,
+                      out_file=out_file.replace('.png','_refine.png'),
+                      key_points=None)
+                    show_fun(
+                      img_show.copy(),
+                      bboxes,
+                      labels,
+                      class_names=class_names,
+                      score_thr=score_thr,
+                      line_color='green',
+                      thickness=2,
+                      show=0,
+                      out_file=out_file.replace('.png','_refine_p.png'),
+                      key_points=key_points_refine)
+
+
+                    if OUT_EXTAR_DIM > 0:
+                      show_fun(
+                        img_show.copy(),
+                        bboxes_init,
+                        labels,
+                        class_names=class_names,
+                        score_thr=score_thr,
+                        line_color='green',
+                        thickness=2,
+                        show=0,
+                        out_file=out_file.replace('.png','_init_p.png'),
+                        key_points=key_points_init)
+                      show_fun(
+                        img_show.copy(),
+                        bboxes_init,
+                        labels,
+                        class_names=class_names,
+                        score_thr=score_thr,
+                        line_color='green',
+                        thickness=2,
+                        show=0,
+                        out_file=out_file.replace('.png','_init.png'),
+                        key_points=None)
+                    continue
 
             bboxes_s = bboxes.copy()
 

@@ -17,6 +17,11 @@
 # Debug
 - PointAssigner
 - MaxIouAssigner
+- Out key points:
+        * mmdet/core/post_processing/bbox_nms.py
+        * mmdet/models/anchor_heads/reppoints_head.py
+        * mmdet/models/anchor_heads/strpoints_head.py
+        * mmdet/models/detectors/base.py  show_det_lines_1by1  or show_det_lines
 # Line object
 - box size for point distance normalization
 ```

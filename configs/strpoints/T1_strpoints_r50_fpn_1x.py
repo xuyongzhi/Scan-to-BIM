@@ -110,9 +110,9 @@ test_cfg = dict(
 # dataset settings
 dataset_type = 'BeikeDataset'
 data_root = f'data/beike/processed_{IMAGE_SIZE}/'
-img_norm_cfg = dict(
-    mean=[  0, 0,0,0],
-    std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
+#img_norm_cfg = dict(
+#    mean=[  0, 0,0,0],
+#    std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
 
 img_norm_cfg = dict(
     mean=[  4.753,  0.,     0.,    0.],
@@ -160,7 +160,7 @@ if IMAGE_SIZE == 1024:
   batch_size = 2
   lra = 0.004
 
-TRAIN_NUM=90
+TRAIN_NUM=1
 if TRAIN_NUM == 1:
   batch_size = 1
   lra = 0.05
