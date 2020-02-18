@@ -157,7 +157,7 @@ class CustomDataset(Dataset):
         self.pre_pipeline(results)
         results = self.pipeline(results)
 
-        #show_results(results)
+        #show_results_train(results)
         return results
 
     def prepare_test_img(self, idx):
@@ -166,9 +166,19 @@ class CustomDataset(Dataset):
         if self.proposals is not None:
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)
-        return self.pipeline(results)
+        results = self.pipeline(results)
 
-def show_results(results):
+        #show_results_test(results)
+        return  results
+
+def show_results_test(results):
+  imgs = results['img']
+  for img in imgs:
+    img = img.data.cpu().numpy()
+    img = np.moveaxis(img, 0, -1)
+    mmcv.imshow(img[:,:,0:1])
+
+def show_results_train(results):
   from beike_data_utils.beike_utils import split_line_corner
 
   print('\ncustom, after data augmentation',results['img_meta'].data['filename'])

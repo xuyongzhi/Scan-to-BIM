@@ -11,7 +11,7 @@
 '''
 
 DATA='A'
-TOPVIEW = 'VerD'
+TOPVIEW = 'VerD' # better
 #TOPVIEW = 'All'
 #*******************************************************************************
 # 1. coco
@@ -116,7 +116,7 @@ img_norm_cfg = dict(
 
 img_norm_cfg = dict(
     mean=[  4.753,  0.,     0.,    0.],
-    std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='rawstd')
+    std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='rawstd') # better
 
 #img_norm_cfg = dict(
 #    mean=[4.753, 0.044, 0.043, 0.102],
@@ -146,6 +146,7 @@ test_pipeline = [
         transforms=[
             dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
+            dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
@@ -205,7 +206,7 @@ work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
-#load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_512_All_A_bs1_lr100_NR/best.pth'
+load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_512_VerD_A_bs6_lr10_RA_Normrawstd/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
