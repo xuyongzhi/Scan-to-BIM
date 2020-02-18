@@ -114,9 +114,9 @@ img_norm_cfg = dict(
     mean=[  0, 0,0,0],
     std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
 
-img_norm_cfg = dict(
-    mean=[  4.753,  0.,     0.,    0.],
-    std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='rawstd') # better
+#img_norm_cfg = dict(
+#    mean=[  4.753,  0.,     0.,    0.],
+#    std=[ 16.158,  0.155,  0.153,  0.22], to_rgb=False, method='rawstd') # better
 
 #img_norm_cfg = dict(
 #    mean=[4.753, 0.044, 0.043, 0.102],

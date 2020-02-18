@@ -134,7 +134,7 @@ class PointAssigner(BaseAssigner):
 
             #print(f'min_dist: {min_dist}')
             if CHECK:
-              if min_dist.max() > 1:
+              if min_dist.max() > 2:
                 print(f'\n\tmin_dist is too large: {min_dist}\n')
                 import pdb; pdb.set_trace()  # XXX BREAKPOINT
                 #assert False
