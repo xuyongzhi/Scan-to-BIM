@@ -16,15 +16,24 @@ def point_target(proposals_list,
                  gt_labels_list=None,
                  label_channels=1,
                  sampling=True,
-                 unmap_outputs=True):
+                 unmap_outputs=True,
+                 flag=''):
     """Compute corresponding GT box and classification targets for proposals.
 
     Args:
         points_list (list[list]): Multi level points of each image.
         valid_flag_list (list[list]): Multi level valid flags of each image.
+          padded part is invalid
         gt_bboxes_list (list[Tensor]): Ground truth bboxes of each image.
         img_metas (list[dict]): Meta info of each image.
         cfg (dict): train sample configs.
+
+
+    (1) flag == 'init'
+    points_list[i]: [n,3] 3 = center + stride
+
+    (2) flag == 'refine'
+    points_list[i]: [n,5] 5 = line
 
     Returns:
         tuple
@@ -32,8 +41,8 @@ def point_target(proposals_list,
     num_imgs = len(img_metas)
     assert len(proposals_list) == len(valid_flag_list) == num_imgs
 
-    if DEBUG:
-      debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], 'point_target A')
+    #if DEBUG:
+    #  debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], f'{flag} point_target input')
 
     # points number of multi levels
     num_level_proposals = [points.size(0) for points in proposals_list[0]]
@@ -51,7 +60,7 @@ def point_target(proposals_list,
         gt_labels_list = [None for _ in range(num_imgs)]
 
     if DEBUG:
-      debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], 'point_target B')
+      debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], f'{flag} point_target (2)')
 
     (all_labels, all_label_weights, all_bbox_gt, all_proposals,
      all_proposal_weights, pos_inds_list, neg_inds_list) = multi_apply(
@@ -66,12 +75,15 @@ def point_target(proposals_list,
          label_channels=label_channels,
          sampling=sampling,
          unmap_outputs=unmap_outputs,)
+
+
     # no valid points
     if any([labels is None for labels in all_labels]):
         return None
     # sampled points of all images
     num_total_pos = sum([max(inds.numel(), 1) for inds in pos_inds_list])
     num_total_neg = sum([max(inds.numel(), 1) for inds in neg_inds_list])
+    num_total_gt = sum([gtb.shape[0] for gtb in gt_bboxes_list])
     labels_list = images_to_levels(all_labels, num_level_proposals)
     label_weights_list = images_to_levels(all_label_weights,
                                           num_level_proposals)
@@ -79,6 +91,15 @@ def point_target(proposals_list,
     proposals_list = images_to_levels(all_proposals, num_level_proposals)
     proposal_weights_list = images_to_levels(all_proposal_weights,
                                              num_level_proposals)
+
+    if DEBUG:
+      debug_tools.show_multi_ls_shapes([all_bbox_gt], ['all_bbox_gt'], f'{flag} point_target (3)')
+      print(f'pos:{num_total_pos}\nneg:{num_total_neg}\ngt:{num_total_gt}')
+      show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag)
+      pass
+
+      #debug_tools.show_multi_ls_shapes([bbox_gt_list], ['bbox_gt_list'], f'{flag} point_target (4)')
+
     return (labels_list, label_weights_list, bbox_gt_list, proposals_list,
             proposal_weights_list, num_total_pos, num_total_neg)
 
@@ -177,3 +198,20 @@ def unmap(data, count, inds, fill=0):
         ret = data.new_full(new_size, fill)
         ret[inds, :] = data
     return ret
+
+def show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag):
+  from mmdet.debug_tools import show_lines
+  from configs.common import IMAGE_SIZE
+  for (pos_inds, proposals, bbox_gt) in zip(pos_inds_list, all_proposals, gt_bboxes_list):
+    proposals = proposals[pos_inds].cpu().data.numpy()
+    bbox_gt = bbox_gt.cpu().data.numpy()
+    if proposals.shape[1] == 3:
+      points = proposals[:,:2]
+    if proposals.shape[1] == 5:
+      points = (proposals[:,0:2] + proposals[:,2:4])/2
+      show_lines(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), lines_ref=proposals, name=flag+'_lines.png')
+    show_lines(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), points=points, name=flag+'_centroids.png')
+    pass
+
+
+

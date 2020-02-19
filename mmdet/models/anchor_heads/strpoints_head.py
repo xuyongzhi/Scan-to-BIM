@@ -18,7 +18,7 @@ from mmdet import debug_tools
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM
 
 LINE_CONSTRAIN_LOSS = True
-DEBUG = True
+DEBUG = False
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -474,6 +474,12 @@ class StrPointsHead(nn.Module):
             out_line_constrain=LINE_CONSTRAIN_LOSS)
         normalize_term = self.point_base_scale * stride
 
+        if DEBUG:
+          print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
+          print(f'stride: {stride}')
+          show_pred(bbox_pred_init, bbox_gt_init, bbox_weights_init, f'S{stride}_init')
+          show_pred(bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, f'S{stride}_refine')
+
         if obj_dim == 4:
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
@@ -553,7 +559,8 @@ class StrPointsHead(nn.Module):
             gt_bboxes_ignore_list=gt_bboxes_ignore,
             gt_labels_list=gt_labels,
             label_channels=label_channels,
-            sampling=self.sampling)
+            sampling=self.sampling,
+            flag='init')
         (*_, bbox_gt_list_init, candidate_list_init, bbox_weights_list_init,
          num_total_pos_init, num_total_neg_init) = cls_reg_targets_init
         num_total_samples_init = (
@@ -610,7 +617,8 @@ class StrPointsHead(nn.Module):
             gt_bboxes_ignore_list=gt_bboxes_ignore,
             gt_labels_list=gt_labels,
             label_channels=label_channels,
-            sampling=self.sampling)
+            sampling=self.sampling,
+            flag='refine')
         (labels_list, label_weights_list, bbox_gt_list_refine,
          candidate_list_refine, bbox_weights_list_refine, num_total_pos_refine,
          num_total_neg_refine) = cls_reg_targets_refine
@@ -773,3 +781,15 @@ class StrPointsHead(nn.Module):
     def normalize_istopleft_loss(self, itl_loss):
         itl_loss_nm = 1 - torch.exp(-itl_loss)
         return itl_loss_nm
+
+def show_pred(bbox_pred, bbox_gt, bbox_weights, flag):
+  from mmdet.debug_tools import show_lines
+  from configs.common import IMAGE_SIZE
+  inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
+  m = bbox_pred.shape[1]
+  bbox_pred = bbox_pred[inds].cpu().data.numpy().reshape(-1,m)[:,:5]
+  m = bbox_gt.shape[1]
+  bbox_gt = bbox_gt[inds].cpu().data.numpy().reshape(-1,m)
+
+  show_lines(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), lines_ref=bbox_pred, name=flag+'.png')
+  pass

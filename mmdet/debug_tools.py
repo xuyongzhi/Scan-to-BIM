@@ -38,15 +38,53 @@ def imshow_bboxes_ref(img, bboxes0, bboxes1):
     colors = ['red']*n0 + ['green']*n1
     mmcv.imshow_bboxes(img, bboxes, colors)
 
-def draw_img_lines(img, lines, color='random', lines_ref=None):
+def show_lines(lines, img_size, points=None, lines_ref=None, name='out.png'):
+  img = np.zeros(img_size + (3,), dtype=np.uint8)
+  if lines_ref is not None:
+    colors = ['green'] * lines_ref.shape[0] + ['red'] * lines.shape[0]
+    lines = np.concatenate([lines_ref, lines], axis=0)
+  else:
+    colors = ['random']
+  show_img_lines(img, lines, points=points, colors=colors, name=name)
+
+def show_img_lines(img, lines, points=None, colors=['random'], name='out.png'):
+    lines = lines_to_2points_format(lines)
     img = img.copy()
     for i in range(lines.shape[0]):
-      s, e = lines[i]
-      cv2.line(img, (s[0], s[1]), (e[0], e[1]), (255,0,0), 6)
-      #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-      #            (255, 255, 255), 1)
+        s, e = lines[i]
+        if colors[0] == 'random':
+          c = get_random_color()
+        else:
+          c = color_val(colors[i])
+        cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, 1)
+        #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+        #            (255, 255, 255), 1)
+    if points is not None:
+      for i in range(points.shape[0]):
+        p = points[i]
+        c = get_random_color()
+        cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
     mmcv.imshow(img)
+    mmcv.imwrite(img, name)
     pass
+
+
+def lines_to_2points_format(lines):
+  lines = lines.copy()
+  if lines.ndim == 3:
+    assert lines.shape[1:] == (2,2)
+    return lines
+  assert lines.ndim == 2
+  n = lines.shape[0]
+  if lines.shape[1] == 4:
+    return lines.reshape(n,2,2)
+  assert lines.shape[1] == 5
+  for i in range(lines.shape[0]):
+    istopleft = lines[i,4] >= 0
+    if not istopleft:
+      lines[i,0], lines[i,2] = lines[i,2], lines[i,0]
+  lines = lines[:,:4].reshape(n,2,2)
+  return lines
 
 
 def imshow(img, win_name='', wait_time=0):
