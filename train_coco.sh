@@ -6,5 +6,5 @@ CONFIG=configs/reppoints/d_reppoints_moment_r50_fpn_2x.py
 
 
 
-ipython tools/train.py -- ${CONFIG} 
+ipython tools/train.py -- ${CONFIG}  --cls refine_final
 #./tools/dist_train.sh ${CONFIG} 2

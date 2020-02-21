@@ -121,17 +121,17 @@ lr_config = dict(
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
     step=[16, 22])
-checkpoint_config = dict(interval=1)
+total_epochs = 24
+checkpoint_config = dict(interval=total_epochs//5)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=min(total_epochs//100+1, 50),
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/reppoints_moment_r50_fpn_2x'
