@@ -3,9 +3,8 @@ import torch
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
-from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE, MIN_POINT_ASSIGN_DIST
+from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE,  CHECK_POINT_ASSIGN
 DEBUG = 0
-CHECK = True
 
 class PointAssigner(BaseAssigner):
     """Assign a corresponding gt bbox or background to each point.
@@ -98,9 +97,10 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
         else:
           raise NotImplemented
-        if not gt_bboxes_wh.min() > MIN_BOX_SIZE:
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          pass
+        if CHECK_POINT_ASSIGN:
+          if not gt_bboxes_wh.min() > MIN_BOX_SIZE:
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
         gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
 
         scale = self.scale
@@ -133,8 +133,8 @@ class PointAssigner(BaseAssigner):
                 points_gt_dist, self.pos_num, largest=False)
 
             #print(f'min_dist: {min_dist}')
-            if CHECK:
-              if min_dist.max() > MIN_POINT_ASSIGN_DIST:
+            if CHECK_POINT_ASSIGN:
+              if min_dist.max() > 2:
                 print(f'\n\tmin_dist is too large: {min_dist}\n')
                 import pdb; pdb.set_trace()  # XXX BREAKPOINT
                 #assert False
