@@ -77,7 +77,7 @@ model = dict(
             gamma=2.0,
             alpha=0.25,
             loss_weight=1.0,),
-        cls_location='corner',
+        cls_types=['refine', 'final'],
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
         transform_method=_transform_method))

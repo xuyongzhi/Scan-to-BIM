@@ -288,6 +288,7 @@ class RepPointsHead(nn.Module):
                 pts_out_refine, bbox_out_init.detach())
         else:
             pts_out_refine = pts_out_refine + pts_out_init.detach()
+
         return cls_out, pts_out_init, pts_out_refine
 
     def forward(self, feats):
