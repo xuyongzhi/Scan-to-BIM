@@ -120,8 +120,8 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[160, 220])
-total_epochs = 240
+    step=[500, 700])
+total_epochs = 800
 checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
@@ -134,7 +134,7 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/reppoints_moment_r50_fpn_2x'
+work_dir = './work_dirs/2_reppoints_moment_r50_fpn_2x'
 load_from = None
 #load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
 resume_from = None
