@@ -98,8 +98,8 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_train2017.json',
-        img_prefix=data_root + 'train2017/',
+        ann_file=data_root + 'annotations/instances_val2017.json',
+        img_prefix=data_root + 'val_2/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -120,12 +120,12 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[16, 22])
-total_epochs = 24
-checkpoint_config = dict(interval=2)
+    step=[160, 220])
+total_epochs = 240
+checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
-    interval= 50,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
