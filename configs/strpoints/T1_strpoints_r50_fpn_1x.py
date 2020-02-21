@@ -76,7 +76,8 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=1.0),
+            loss_weight=1.0,),
+        cls_location='corner',
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
         transform_method=_transform_method))
@@ -130,8 +131,8 @@ train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
-    dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
-    dict(type='RandomRotate', rotate_ratio=0.7, obj_rep=_obj_rep),
+    dict(type='RandomLineFlip', flip_ratio=0.0, obj_rep=_obj_rep, direction='random'),
+    dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
@@ -210,7 +211,7 @@ work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
-load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_512_VerD_A_bs6_lr10_RA_Normrawstd/epoch_100.pth'
+#load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_512_VerD_A_bs6_lr10_RA_Normrawstd/epoch_100.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]

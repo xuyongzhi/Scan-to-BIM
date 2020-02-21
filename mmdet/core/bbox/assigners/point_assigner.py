@@ -3,7 +3,7 @@ import torch
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
-from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE
+from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE, MIN_POINT_ASSIGN_DIST
 DEBUG = 0
 CHECK = True
 
@@ -134,7 +134,7 @@ class PointAssigner(BaseAssigner):
 
             #print(f'min_dist: {min_dist}')
             if CHECK:
-              if min_dist.max() > 2:
+              if min_dist.max() > MIN_POINT_ASSIGN_DIST:
                 print(f'\n\tmin_dist is too large: {min_dist}\n')
                 import pdb; pdb.set_trace()  # XXX BREAKPOINT
                 #assert False

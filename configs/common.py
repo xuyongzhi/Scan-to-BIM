@@ -16,5 +16,10 @@ INCLUDE_CORNERS = False
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
 PRINT_POINT_ASSIGNER = 1
 PRINT_IOU_ASSIGNER = 1
+MIN_POINT_ASSIGN_DIST = 2
+
+# for coco
+MIN_BOX_SIZE = 0
+MIN_POINT_ASSIGN_DIST = 1000
 #*******************************************************************************
 

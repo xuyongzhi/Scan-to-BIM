@@ -41,6 +41,11 @@ From : bbox_overlaps
 To   : line_overlaps in straight_line_distance_torch.py
 ```
 
+## rep points order
+- Direct out from head is y_first: pts_preds_init, pts_preds_refine. They are feed into loss, get_bbox
+- input of self.loss_single is x_first, achieved by self.offset_to_pts: pts_coordinate_preds_init, pts_coordinate_preds_refinebackbone
+- deformable offset is y_first
+
 # Framework
 - img: [512,512]
 - feature: [ [5, 128, 128], [5, 64, 64], [5, 32, 32], [5, 16, 16] ] 
@@ -56,7 +61,6 @@ To   : line_overlaps in straight_line_distance_torch.py
 1) beike_data_utils/beike_utils.py : sort_2points_in_line
 2) datasets/pipelines/transforms.py/RandomLineFlip
 ```
-- 
 
 # point_target
 ```

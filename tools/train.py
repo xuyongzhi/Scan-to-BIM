@@ -96,7 +96,8 @@ def main():
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
-    update_config(cfg, args)
+    if args.config.split('/')[1] == 'strpoints':
+      update_config(cfg, args)
 
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):

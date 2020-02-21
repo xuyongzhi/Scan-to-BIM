@@ -89,8 +89,15 @@ class AssignResult(object):
         if self.gt_inds is None:
             pass
         else:
-            parts.append('pos num={!r}'.format(
+            try:
+             parts.append('pos num={!r}'.format(
                 self.pos_inds.shape[0]))
+            except:
+              parts.append('err pos_inds')
+              print('\n\n')
+              print(self.pos_inds)
+              print('\n\n')
+              pass
         if self.max_overlaps is None:
             pass
         else:

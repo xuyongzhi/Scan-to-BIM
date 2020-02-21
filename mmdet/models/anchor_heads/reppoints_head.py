@@ -14,7 +14,7 @@ from ..utils import ConvModule, bias_init_with_prob
 
 
 from mmdet import debug_tools
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM
+from configs.common import OUT_EXTAR_DIM
 
 @HEADS.register_module
 class RepPointsHead(nn.Module):
@@ -578,6 +578,7 @@ class RepPointsHead(nn.Module):
         mlvl_scores = []
         obj_dim = bbox_preds[0].shape[0]
         assert obj_dim == OBJ_DIM + OUT_EXTAR_DIM
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         for i_lvl, (cls_score, bbox_pred, points) in enumerate(
                 zip(cls_scores, bbox_preds, mlvl_points)):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]

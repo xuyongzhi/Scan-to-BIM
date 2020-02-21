@@ -59,7 +59,7 @@ class StrPointsHead(nn.Module):
                      use_sigmoid=True,
                      gamma=2.0,
                      alpha=0.25,
-                     loss_weight=1.0),
+                     loss_weight=1.0,),
                  loss_bbox_init=dict(
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=0.5),
                  loss_bbox_refine=dict(
@@ -67,7 +67,8 @@ class StrPointsHead(nn.Module):
                  use_grid_points=False,
                  center_init=True,
                  transform_method='moment',
-                 moment_mul=0.01):
+                 moment_mul=0.01,
+                 cls_location='center'):
         super(StrPointsHead, self).__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
@@ -83,6 +84,7 @@ class StrPointsHead(nn.Module):
         self.use_sigmoid_cls = loss_cls.get('use_sigmoid', False)
         self.sampling = loss_cls['type'] not in ['FocalLoss']
         self.loss_cls = build_loss(loss_cls)
+        self.cls_location = cls_location
         self.loss_bbox_init = build_loss(loss_bbox_init)
         self.loss_bbox_refine = build_loss(loss_bbox_refine)
         self.use_grid_points = use_grid_points
@@ -156,6 +158,15 @@ class StrPointsHead(nn.Module):
         self.reppoints_pts_refine_out = nn.Conv2d(self.point_feat_channels,
                                                   pts_out_dim, 1, 1, 0)
 
+        self.corner0_cls_conv = DeformConv(self.feat_channels,
+                                             self.point_feat_channels,
+                                             1, 1, 0)
+        self.corner1_cls_conv = DeformConv(self.feat_channels,
+                                             self.point_feat_channels,
+                                             1, 1, 0)
+        self.corners_cls_out = nn.Conv2d(self.point_feat_channels,
+                                           self.cls_out_channels, 1, 1, 0)
+
     def init_weights(self):
         for m in self.cls_convs:
             normal_init(m.conv, std=0.01)
@@ -179,6 +190,7 @@ class StrPointsHead(nn.Module):
             represented as [x1, y1, x2, y2 ... xn, yn].
         :return: each points set is converting to a bbox [x1, y1, x2, y2].
         """
+        assert pts.shape[1] == self.num_points * 2
         pts_reshape = pts.view(pts.shape[0], -1, 2, *pts.shape[2:])
         pts_y = pts_reshape[:, :, 0, ...] if y_first else pts_reshape[:, :, 1,
                                                                       ...]
@@ -350,6 +362,7 @@ class StrPointsHead(nn.Module):
         dcn_offset = pts_out_init_grad_mul - dcn_base_offset
         cls_out = self.reppoints_cls_out(
             self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset)))
+
         pts_out_refine = self.reppoints_pts_refine_out(
             self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset)))
         if self.use_grid_points:
@@ -358,11 +371,40 @@ class StrPointsHead(nn.Module):
         else:
             pts_out_refine = pts_out_refine + pts_out_init.detach()
 
+
+        # predict cls from the two end_points
+        corner_cls_out = self.get_corner_cls(pts_out_refine, cls_feat)
+
         #debug_tools.show_shapes(x, 'StrPointsHead input')
+        #debug_tools.show_shapes(cls_feat, 'StrPointsHead cls_feat')
+        #debug_tools.show_shapes(pts_feat, 'StrPointsHead pts_feat')
+        #debug_tools.show_shapes(pts_out_init, 'StrPointsHead pts_out_init')
         #debug_tools.show_shapes(cls_out, 'StrPointsHead cls_out')
-        #debug_tools.show_shapes(pts_out_init, 'StrPointsHead pts_out_refine')
-        #debug_tools.show_shapes(pts_out_refine, 'StrPointsHead pts_out_init')
-        return cls_out, pts_out_init, pts_out_refine
+        #debug_tools.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
+        return cls_out, pts_out_init, pts_out_refine, corner_cls_out
+
+    def get_corner_cls(self, pts_out_refine, cls_feat):
+        '''
+          pts_out_refine: y_first
+          deformable conv offset is also y_first
+        '''
+        assert OBJ_REP == 'lscope_istopleft'
+        # pts_out_refine is y_first
+        bbox_out_refine = self.points2bbox(pts_out_refine)
+        # bbox_out_refine is x_first
+        istopleft = (bbox_out_refine[:,-1:,:,:] >= 0).to(pts_out_refine.dtype)
+        lines_out_refine = bbox_out_refine[:,[1,0,3,2],:,:] * istopleft + bbox_out_refine[:,[1,2,3,0],:,:] * (1-istopleft)
+        # lines_out_refine is y_first
+        lines_out_refine_grad_mul = (1 - self.gradient_mul) * lines_out_refine.detach(
+        ) + self.gradient_mul * lines_out_refine
+        corner0_dcn_offset = lines_out_refine_grad_mul[:,0:2,:,:] # y_first
+        corner1_dcn_offset = lines_out_refine_grad_mul[:,2:4,:,:]
+        corner0_cls_out = self.corners_cls_out(
+            self.relu(self.corner0_cls_conv(cls_feat, corner0_dcn_offset)))
+        corner1_cls_out = self.corners_cls_out(
+            self.relu(self.corner1_cls_conv(cls_feat, corner1_dcn_offset)))
+        corner_cls_out = (corner0_cls_out + corner1_cls_out) / 2
+        return  corner_cls_out
 
     def forward(self, feats):
         return multi_apply(self.forward_single, feats)
@@ -445,7 +487,7 @@ class StrPointsHead(nn.Module):
             pts_list.append(pts_lvl)
         return pts_list
 
-    def loss_single(self, cls_score, pts_pred_init, pts_pred_refine, labels,
+    def loss_single(self, cls_score, corners_scores, pts_pred_init, pts_pred_refine, labels,
                     label_weights, bbox_gt_init, bbox_weights_init,
                     bbox_gt_refine, bbox_weights_refine, stride,
                     num_total_samples_init, num_total_samples_refine):
@@ -526,6 +568,7 @@ class StrPointsHead(nn.Module):
              cls_scores,
              pts_preds_init,
              pts_preds_refine,
+             corners_scores,
              gt_bboxes,
              gt_labels,
              img_metas,
@@ -630,6 +673,7 @@ class StrPointsHead(nn.Module):
         losses_cls, losses_pts_init, losses_pts_refine = multi_apply(
             self.loss_single,
             cls_scores,
+            corners_scores,
             pts_coordinate_preds_init,
             pts_coordinate_preds_refine,
             labels_list,
@@ -652,6 +696,7 @@ class StrPointsHead(nn.Module):
                    cls_scores,
                    pts_preds_init,
                    pts_preds_refine,
+                   corners_scores,
                    img_metas,
                    cfg,
                    rescale=False,
