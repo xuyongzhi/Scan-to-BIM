@@ -3,6 +3,8 @@
 * The direction of normal. Does the positive meaning is learnable. After rotation, is the direction should be updated.    
 
 # Big ideas
+* only use two reppoints and sample the other 7 based on the two
+* try dcn offset == reppoints location
 * compare performance of feeding images and point clouds
 * compare performace of feeding images of different resolution
 *

@@ -209,9 +209,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
-#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
-#load_from = f'{work_dir}/best.pth'
-#load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_512_VerD_A_bs6_lr10_RA_Normrawstd/epoch_100.pth'
+load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_refine_512_VerD_A_bs1_lr10_NR_Normrawstd/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]

@@ -729,8 +729,9 @@ class StrPointsHead(nn.Module):
     def cal_test_score(self, cls_scores):
       ave_cls_scores = []
       for i in range( len(cls_scores) ):
-        tmp = list(cls_scores[i].values())
-        ave_cls_scores.append( sum(tmp) / len(tmp) )
+        ave_cls_scores.append( cls_scores[i]['refine'] )
+        #tmp = list(cls_scores[i].values())
+        #ave_cls_scores.append( sum(tmp) / len(tmp) )
       return ave_cls_scores
 
     def get_bboxes(self,
