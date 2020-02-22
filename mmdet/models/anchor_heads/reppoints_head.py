@@ -694,9 +694,9 @@ class RepPointsHead(nn.Module):
             'loss_pts_refine': losses_pts_refine
         }
         for c in self.cls_types:
-          loss_dict_all['loss_'+c] = []
+          loss_dict_all['loss_cls_'+c] = []
           for lc in losses_cls:
-            loss_dict_all['loss_'+c].append( lc[c] )
+            loss_dict_all['loss_cls_'+c].append( lc[c] )
 
         return loss_dict_all
 

@@ -8,6 +8,7 @@ Gcc 7.4 is not compatiable with cuda10.1 while building sponv. Use Ubuntu 6.5.0-
 |--|--|--|--|--|
 |1080TI|Ubuntu 18  |390.116  | 9.0.176/9.2| |
 |2080TI|Ubuntu 18  |430.50  | 10.1  | 7.6.5.33 |
+|1080TI|Ubuntu 18  |440.59 | 9.0.176/9.2| |
 
 ## Clean
 ```

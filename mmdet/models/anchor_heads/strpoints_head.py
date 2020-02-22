@@ -68,7 +68,8 @@ class StrPointsHead(nn.Module):
                  center_init=True,
                  transform_method='moment',
                  moment_mul=0.01,
-                 cls_types=['refine']):
+                 cls_types=['refine'],
+                 dcn_zero_base=False):
         super(StrPointsHead, self).__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
@@ -106,6 +107,7 @@ class StrPointsHead(nn.Module):
         # we use deformable conv to extract points features
         self.dcn_kernel = int(np.sqrt(num_points))
         self.dcn_pad = int((self.dcn_kernel - 1) / 2)
+        self.dcn_zero_base = dcn_zero_base
         assert self.dcn_kernel * self.dcn_kernel == num_points, \
             "The points number should be a square number."
         assert self.dcn_kernel % 2 == 1, \
@@ -337,7 +339,10 @@ class StrPointsHead(nn.Module):
         # refine and classify reppoints
         pts_out_init_grad_mul = (1 - self.gradient_mul) * pts_out_init.detach(
         ) + self.gradient_mul * pts_out_init
-        dcn_offset = pts_out_init_grad_mul - dcn_base_offset
+        if self.dcn_zero_base:
+          dcn_offset = pts_out_init_grad_mul
+        else:
+          dcn_offset = pts_out_init_grad_mul - dcn_base_offset
         cls_out = {}
         if 'refine' in self.cls_types:
           cls_out['refine'] = self.reppoints_cls_out(
@@ -355,7 +360,10 @@ class StrPointsHead(nn.Module):
         if 'final' in self.cls_types:
           pts_out_refine_grad_mul = (1 - self.gradient_mul) * pts_out_refine.detach(
           ) + self.gradient_mul * pts_out_refine
-          dcn_offset_refine = pts_out_refine_grad_mul - dcn_base_offset
+          if self.dcn_zero_base:
+            dcn_offset_refine = pts_out_refine_grad_mul
+          else:
+            dcn_offset_refine = pts_out_refine_grad_mul - dcn_base_offset
           cls_out['final'] = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
         corner_cls_out = self.get_corner_cls(pts_out_refine, cls_feat)
@@ -719,9 +727,9 @@ class StrPointsHead(nn.Module):
             'loss_pts_refine': losses_pts_refine
         }
         for c in self.cls_types:
-          loss_dict_all['loss_'+c] = []
+          loss_dict_all['loss_cls_'+c] = []
           for lc in losses_cls:
-            loss_dict_all['loss_'+c].append( lc[c] )
+            loss_dict_all['loss_cls_'+c].append( lc[c] )
 
         return loss_dict_all
 
@@ -729,9 +737,8 @@ class StrPointsHead(nn.Module):
     def cal_test_score(self, cls_scores):
       ave_cls_scores = []
       for i in range( len(cls_scores) ):
-        ave_cls_scores.append( cls_scores[i]['refine'] )
-        #tmp = list(cls_scores[i].values())
-        #ave_cls_scores.append( sum(tmp) / len(tmp) )
+        tmp = list(cls_scores[i].values())
+        ave_cls_scores.append( sum(tmp) / len(tmp) )
       return ave_cls_scores
 
     def get_bboxes(self,

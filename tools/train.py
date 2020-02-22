@@ -53,6 +53,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=None)
     parser.add_argument('--bs', type=int, default=None)
     parser.add_argument('--cls', type=str, default=None)
+    parser.add_argument('--dcn_zero_base', type=int, default=None)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -72,6 +73,7 @@ def update_config(cfg, args, split):
     lr = args.lr
     bs = args.bs
     cls_loss = args.cls
+    dcn_zero_base = args.dcn_zero_base != 0
     if rotate is not None:
       assert rotate == 1 or rotate == 0
       if split == 'train':
@@ -91,6 +93,9 @@ def update_config(cfg, args, split):
     if cls_loss is not None:
       cls_loss = cls_loss.split('_')
       cfg['model']['bbox_head']['cls_types'] = cls_loss
+    if dcn_zero_base is not None:
+      cfg['model']['bbox_head']['dcn_zero_base'] = dcn_zero_base
+
 
     # update work_dir
     if split == 'train':
@@ -113,6 +118,8 @@ def update_config(cfg, args, split):
           cfg['work_dir'] += '_RA'
       if 'method' in cfg['img_norm_cfg']:
         cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
+      if dcn_zero_base:
+        cfg['work_dir'] += '_DcnZb'
       #print(cfg['work_dir'])
       pass
 

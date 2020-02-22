@@ -1,4 +1,6 @@
 IMAGE_SIZE = 512
+TRAIN_NUM=1
+TRAIN_NUM=90
 
 #DATA = 'coco'
 DATA = 'beike'
@@ -13,7 +15,6 @@ if DATA == 'coco':
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
 OUT_EXTAR_DIM = 9*2 * 2 + OBJ_DIM #18  # 0 or 18 or 36
-OUT_EXTAR_DIM = 0
 #*******************************************************************************
 
 CORNER_FLAG = 100

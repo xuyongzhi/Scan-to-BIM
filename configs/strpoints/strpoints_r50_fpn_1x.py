@@ -10,22 +10,12 @@
   transform_method
 '''
 
-DATA='A'
+DATAFLAG='A'
 TOPVIEW = 'VerD' # better
 #TOPVIEW = 'All'
 #*******************************************************************************
-# 1. coco
-#_obj_rep='box_scope'
-
-# 2. line scope
-#_obj_rep='line_scope'
-
-#3. lines beike
-_obj_rep='lscope_istopleft'
-
-#*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE
-assert OBJ_REP == _obj_rep
+from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM
+_obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
 
@@ -80,7 +70,10 @@ model = dict(
         cls_types=['refine', 'final'],
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
-        transform_method=_transform_method))
+        transform_method=_transform_method,
+        dcn_zero_base=False,
+        )
+    )
         #transform_method='minmax'))
         #transform_method='center_size_istopleft'))
 # training and testing settings
@@ -161,28 +154,29 @@ if IMAGE_SIZE == 1024:
   batch_size = 2
   lra = 0.004
 
-TRAIN_NUM=90
 if TRAIN_NUM == 1:
   batch_size = 1
   lra = 0.05
 
+test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
+#test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATA,
+        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG,
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATA,
+        img_prefix=test_dir,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
@@ -193,7 +187,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[260, 350])
+    step=[400, 450])
 checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
@@ -204,7 +198,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 400
+total_epochs = 500
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
