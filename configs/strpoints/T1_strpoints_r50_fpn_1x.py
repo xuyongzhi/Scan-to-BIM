@@ -147,7 +147,7 @@ test_pipeline = [
         transforms=[
             dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
+            dict(type='RandomRotate', rotate_ratio=0.1111111111, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),

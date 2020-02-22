@@ -59,7 +59,8 @@ def parse_args():
     return args
 
 
-def update_config(cfg, args):
+def update_config(cfg, args, split):
+    assert split == 'train' or split == 'test'
     if args.config.split('/')[1] != 'strpoints':
       #return
       pass
@@ -73,8 +74,15 @@ def update_config(cfg, args):
     cls_loss = args.cls
     if rotate is not None:
       assert rotate == 1 or rotate == 0
-      assert cfg['train_pipeline'][4]['type'] == 'RandomRotate'
-      cfg['train_pipeline'][4]['rotate_ratio'] *= rotate
+      if split == 'train':
+        assert cfg[f'train_pipeline'][4]['type'] == 'RandomRotate'
+        cfg[f'train_pipeline'][4]['rotate_ratio'] *= rotate
+      elif split == 'test':
+        assert cfg['test_pipeline'][1]['transforms'][2]['type'] == 'RandomRotate'
+        cfg['test_pipeline'][1]['transforms'][2]['rotate_ratio'] *= rotate
+        cfg['data']['test']['pipeline'][1]['transforms'][2]['rotate_ratio'] *= rotate
+        pass
+
 
     if lr is not None:
       cfg['optimizer']['lr'] = lr
@@ -85,34 +93,35 @@ def update_config(cfg, args):
       cfg['model']['bbox_head']['cls_types'] = cls_loss
 
     # update work_dir
-    if '_obj_rep' in cfg:
-      cfg['work_dir'] += '_' + cfg['_obj_rep']
-    if 'cls_types' in cfg['model']['bbox_head']:
-      cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
-    if 'IMAGE_SIZE' in cfg:
-      cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
-    if 'TOPVIEW' in cfg:
-      cfg['work_dir'] += '_' + cfg['TOPVIEW']
-    if 'DATA' in cfg:
-      cfg['work_dir'] += '_' + cfg['DATA']
-    cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
-    cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
-    if 'rotate_ratio' in cfg['train_pipeline'][4]:
-      if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
-        cfg['work_dir'] += '_NR'
-      else:
-        cfg['work_dir'] += '_RA'
-    if 'method' in cfg['img_norm_cfg']:
-      cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
-    #print(cfg['work_dir'])
-    pass
+    if split == 'train':
+      if '_obj_rep' in cfg:
+        cfg['work_dir'] += '_' + cfg['_obj_rep']
+      if 'cls_types' in cfg['model']['bbox_head']:
+        cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
+      if 'IMAGE_SIZE' in cfg:
+        cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
+      if 'TOPVIEW' in cfg:
+        cfg['work_dir'] += '_' + cfg['TOPVIEW']
+      if 'DATA' in cfg:
+        cfg['work_dir'] += '_' + cfg['DATA']
+      cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
+      cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
+      if 'rotate_ratio' in cfg['train_pipeline'][4]:
+        if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
+          cfg['work_dir'] += '_NR'
+        else:
+          cfg['work_dir'] += '_RA'
+      if 'method' in cfg['img_norm_cfg']:
+        cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
+      #print(cfg['work_dir'])
+      pass
 
 
 def main():
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
-    update_config(cfg, args)
+    update_config(cfg, args, 'train')
 
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):

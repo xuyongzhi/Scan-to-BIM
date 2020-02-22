@@ -208,7 +208,7 @@ def main():
         args.json_out = args.json_out[:-5]
 
     cfg = mmcv.Config.fromfile(args.config)
-    update_config(cfg, args)
+    update_config(cfg, args, 'test')
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True
