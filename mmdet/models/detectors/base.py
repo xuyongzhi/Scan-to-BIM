@@ -214,8 +214,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
             if bboxes.shape[1] == 6:
                     from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
-                    show_fun = show_det_lines_1by1
-                    #show_fun = show_det_lines
+                    #show_fun = show_det_lines_1by1
+                    show_fun = show_det_lines
 
                     show_fun(
                       img_show.copy(),
@@ -267,21 +267,41 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                     continue
 
             bboxes_s = bboxes.copy()
+            assert bboxes.shape[1] == 5
 
-            if bboxes_s.shape[1] == 6:
-              bboxes_s = bboxes_s[:,[0,1,2,3,-1]]
-            assert bboxes_s.shape[1] == 5
-            if key_points is not None:
-              draw_key_points(img_show, key_points, bboxes_s, score_thr)
-            mmcv.imshow_det_bboxes(
-                img_show,
-                bboxes_s,
-                labels,
-                class_names=class_names,
-                score_thr=score_thr,
-                bbox_color='green',
-                thickness=1,
-                out_file=out_file)
+            if key_points_init is not None:
+              draw_key_points(img_show, key_points_init, bboxes_init, score_thr)
+              mmcv.imshow_det_bboxes(
+                  img_show.copy(),
+                  bboxes_init,
+                  labels,
+                  class_names=class_names,
+                  score_thr=score_thr,
+                  bbox_color='green',
+                  thickness=1,
+                  out_file=out_file.replace('.jpg','_init.jpg'))
+
+
+              draw_key_points(img_show, key_points_refine, bboxes_refine, score_thr)
+              mmcv.imshow_det_bboxes(
+                  img_show.copy(),
+                  bboxes_refine,
+                  labels,
+                  class_names=class_names,
+                  score_thr=score_thr,
+                  bbox_color='green',
+                  thickness=1,
+                  out_file=out_file.replace('.jpg','_refine.jpg'))
+            else:
+              mmcv.imshow_det_bboxes(
+                  img_show,
+                  bboxes_s,
+                  labels,
+                  class_names=class_names,
+                  score_thr=score_thr,
+                  bbox_color='green',
+                  thickness=1,
+                  out_file=out_file)
 
             pass
 def draw_key_points(img, key_points, bboxes_s, score_thr,

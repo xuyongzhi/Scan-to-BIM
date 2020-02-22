@@ -1,12 +1,18 @@
 IMAGE_SIZE = 512
-OBJ_REP = 'lscope_istopleft'
 
-#OBJ_REP = 'line_scope'
+DATA = 'coco'
+#DATA = 'beike'
 
-OUT_EXTAR_DIM = 9*2 * 2 + 5 #18  # 0 or 18 or 36
+if DATA == 'beike':
+  OBJ_REP = 'lscope_istopleft'
+if DATA == 'coco':
+  OBJ_REP = 'box_scope'
+
+
 #*******************************************************************************
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
+OUT_EXTAR_DIM = 9*2 * 2 + OBJ_DIM #18  # 0 or 18 or 36
 #*******************************************************************************
 
 CORNER_FLAG = 100

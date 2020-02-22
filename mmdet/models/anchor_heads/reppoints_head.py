@@ -15,8 +15,7 @@ from ..utils import ConvModule, bias_init_with_prob
 from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
 
-from configs.common import OBJ_DIM, OUT_EXTAR_DIM
-OBJ_DIM = 4
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM
 LINE_CONSTRAIN_LOSS = False
 DEBUG = False
 
@@ -631,28 +630,28 @@ class RepPointsHead(nn.Module):
             num_total_neg_refine if self.sampling else num_total_pos_refine)
 
         if 'final' in self.cls_types:
-          center_list, valid_flag_list = self.get_points(featmap_sizes,
-                                                       img_metas)
-          bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
-          #debug_tools.show_shapes(pts_preds_refine, 'RepPointsHead refine')
-          #debug_tools.show_shapes(bbox_list_refineres, 'RepPointsHead refine bbox')
-          cls_reg_targets_final = point_target(
-              bbox_list_refineres,
-              valid_flag_list,
-              gt_bboxes,
-              img_metas,
-              cfg.refine,
-              gt_bboxes_ignore_list=gt_bboxes_ignore,
-              gt_labels_list=gt_labels,
-              label_channels=label_channels,
-              sampling=self.sampling,
-              flag='final')
-          (labels_list_final, label_weights_list_final, bbox_gt_list_final,
-          candidate_list_final, bbox_weights_list_final, num_total_pos_final,
-          num_total_neg_final) = cls_reg_targets_final
-          num_total_samples_finale = (
-              num_total_pos_final +
-              num_total_neg_final if self.sampling else num_total_pos_final)
+            center_list, valid_flag_list = self.get_points(featmap_sizes,
+                                                        img_metas)
+            bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
+            #debug_tools.show_shapes(pts_preds_refine, 'RepPointsHead refine')
+            #debug_tools.show_shapes(bbox_list_refineres, 'RepPointsHead refine bbox')
+            cls_reg_targets_final = point_target(
+                bbox_list_refineres,
+                valid_flag_list,
+                gt_bboxes,
+                img_metas,
+                cfg.refine,
+                gt_bboxes_ignore_list=gt_bboxes_ignore,
+                gt_labels_list=gt_labels,
+                label_channels=label_channels,
+                sampling=self.sampling,
+                flag='final')
+            (labels_list_final, label_weights_list_final, bbox_gt_list_final,
+            candidate_list_final, bbox_weights_list_final, num_total_pos_final,
+            num_total_neg_final) = cls_reg_targets_final
+            num_total_samples_finale = (
+                num_total_pos_final +
+                num_total_neg_final if self.sampling else num_total_pos_final)
 
 
         labels_list = []
@@ -701,6 +700,13 @@ class RepPointsHead(nn.Module):
 
         return loss_dict_all
 
+    def cal_test_score(self, cls_scores):
+      ave_cls_scores = []
+      for i in range( len(cls_scores) ):
+        tmp = list(cls_scores[i].values())
+        ave_cls_scores.append( sum(tmp) / len(tmp) )
+      return ave_cls_scores
+
     def get_bboxes(self,
                    cls_scores,
                    pts_preds_init,
@@ -710,6 +716,7 @@ class RepPointsHead(nn.Module):
                    rescale=False,
                    nms=True):
         assert len(cls_scores) == len(pts_preds_refine)
+        cls_scores = self.cal_test_score(cls_scores)
         bbox_preds_refine = [
             self.points2bbox(pts_pred_refine)
             for pts_pred_refine in pts_preds_refine

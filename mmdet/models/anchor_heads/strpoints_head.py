@@ -725,6 +725,14 @@ class StrPointsHead(nn.Module):
 
         return loss_dict_all
 
+
+    def cal_test_score(self, cls_scores):
+      ave_cls_scores = []
+      for i in range( len(cls_scores) ):
+        tmp = list(cls_scores[i].values())
+        ave_cls_scores.append( sum(tmp) / len(tmp) )
+      return ave_cls_scores
+
     def get_bboxes(self,
                    cls_scores,
                    pts_preds_init,
@@ -734,6 +742,7 @@ class StrPointsHead(nn.Module):
                    rescale=False,
                    nms=True):
         assert len(cls_scores) == len(pts_preds_refine)
+        cls_scores = self.cal_test_score(cls_scores)
         bbox_preds_refine = [
             self.points2bbox(pts_pred_refine)
             for pts_pred_refine in pts_preds_refine
