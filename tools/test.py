@@ -188,6 +188,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=None)
     parser.add_argument('--bs', type=int, default=None)
     parser.add_argument('--cls', type=str, default=None)
+    parser.add_argument('--dcn_zero_base', type=int, default=None)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)

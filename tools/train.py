@@ -73,7 +73,7 @@ def update_config(cfg, args, split):
     lr = args.lr
     bs = args.bs
     cls_loss = args.cls
-    dcn_zero_base = args.dcn_zero_base != 0
+    dcn_zero_base = args.dcn_zero_base
     if rotate is not None:
       assert rotate == 1 or rotate == 0
       if split == 'train':
@@ -94,7 +94,8 @@ def update_config(cfg, args, split):
       cls_loss = cls_loss.split('_')
       cfg['model']['bbox_head']['cls_types'] = cls_loss
     if dcn_zero_base is not None:
-      cfg['model']['bbox_head']['dcn_zero_base'] = dcn_zero_base
+      assert dcn_zero_base == 0 or dcn_zero_base == 1
+      cfg['model']['bbox_head']['dcn_zero_base'] = dcn_zero_base == 1
 
 
     # update work_dir
