@@ -136,7 +136,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/2_reppoints_moment_r50_fpn_2x'
 load_from = None
-#load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
+load_from = './checkpoints/reppoints_moment_r50_fpn_2x.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1)]

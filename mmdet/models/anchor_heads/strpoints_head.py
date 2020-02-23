@@ -163,14 +163,39 @@ class StrPointsHead(nn.Module):
         self.reppoints_pts_refine_out = nn.Conv2d(self.point_feat_channels,
                                                   pts_out_dim, 1, 1, 0)
 
-        self.corner0_cls_conv = DeformConv(self.feat_channels,
+        # layers for corner classificaiton and localization
+        self.cor_cls_convs = nn.ModuleList()
+        self.cor_reg_convs = nn.ModuleList()
+        for i in range(self.stacked_convs):
+            chn = self.in_channels if i == 0 else self.feat_channels
+            self.cor_cls_convs.append(
+                ConvModule(
+                    chn,
+                    self.feat_channels,
+                    3,
+                    stride=1,
+                    padding=1,
+                    conv_cfg=self.conv_cfg,
+                    norm_cfg=self.norm_cfg))
+            self.cor_reg_convs.append(
+                ConvModule(
+                    chn,
+                    self.feat_channels,
+                    3,
+                    stride=1,
+                    padding=1,
+                    conv_cfg=self.conv_cfg,
+                    norm_cfg=self.norm_cfg))
+        self.corner_cls_conv = DeformConv(self.feat_channels,
                                              self.point_feat_channels,
                                              1, 1, 0)
-        self.corner1_cls_conv = DeformConv(self.feat_channels,
-                                             self.point_feat_channels,
-                                             1, 1, 0)
-        self.corners_cls_out = nn.Conv2d(self.point_feat_channels,
+        self.corner_cls_out = nn.Conv2d(self.point_feat_channels,
                                            self.cls_out_channels, 1, 1, 0)
+        self.corner_loc_conv = DeformConv(self.feat_channels,
+                                             self.point_feat_channels,
+                                             1, 1, 0)
+        self.corner_loc_out = nn.Conv2d(self.point_feat_channels,
+                                              2, 1, 1, 0)
 
     def init_weights(self):
         for m in self.cls_convs:
@@ -366,7 +391,7 @@ class StrPointsHead(nn.Module):
             dcn_offset_refine = pts_out_refine_grad_mul - dcn_base_offset
           cls_out['final'] = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
-        corner_cls_out = self.get_corner_cls(pts_out_refine, cls_feat)
+        corner_outs = self.get_corner_cls(pts_out_refine, x)
         # predict cls from the two end_points
 
         #debug_tools.show_shapes(x, 'StrPointsHead input')
@@ -375,30 +400,49 @@ class StrPointsHead(nn.Module):
         #debug_tools.show_shapes(pts_out_init, 'StrPointsHead pts_out_init')
         #debug_tools.show_shapes(cls_out, 'StrPointsHead cls_out')
         #debug_tools.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
-        return cls_out, pts_out_init, pts_out_refine
+        return cls_out, pts_out_init, pts_out_refine, corner_outs
 
-    def get_corner_cls(self, pts_out_refine, cls_feat):
+    def get_corner_cls(self, pts_out_refine, x):
         '''
           pts_out_refine: y_first
           deformable conv offset is also y_first
         '''
+        from beike_data_utils.line_utils import decode_line_rep_th
         assert OBJ_REP == 'lscope_istopleft'
+        cor_cls_feat = x
+        cor_loc_feat = x
+        for cls_conv in self.cor_cls_convs:
+            cor_cls_feat = cls_conv(cor_cls_feat)
+        for reg_conv in self.cor_reg_convs:
+            cor_loc_feat = reg_conv(cor_loc_feat)
+
         # pts_out_refine is y_first
         bbox_out_refine = self.points2bbox(pts_out_refine)
-        # bbox_out_refine is x_first
-        istopleft = (bbox_out_refine[:,-1:,:,:] >= 0).to(pts_out_refine.dtype)
-        lines_out_refine = bbox_out_refine[:,[1,0,3,2],:,:] * istopleft + bbox_out_refine[:,[1,2,3,0],:,:] * (1-istopleft)
+        # bbox_out_refine and lines_out_refine0 is x_first,
+        lines_out_refine0 = decode_line_rep_th(bbox_out_refine, OBJ_REP)
         # lines_out_refine is y_first
+        lines_out_refine = lines_out_refine0[:,[1,0,3,2],:,:]
+
         lines_out_refine_grad_mul = (1 - self.gradient_mul) * lines_out_refine.detach(
         ) + self.gradient_mul * lines_out_refine
         corner0_dcn_offset = lines_out_refine_grad_mul[:,0:2,:,:] # y_first
         corner1_dcn_offset = lines_out_refine_grad_mul[:,2:4,:,:]
-        corner0_cls_out = self.corners_cls_out(
-            self.relu(self.corner0_cls_conv(cls_feat, corner0_dcn_offset)))
-        corner1_cls_out = self.corners_cls_out(
-            self.relu(self.corner1_cls_conv(cls_feat, corner1_dcn_offset)))
-        corner_cls_out = (corner0_cls_out + corner1_cls_out) / 2
-        return  corner_cls_out
+
+        cor0_cls_out = self.corner_cls_out(
+            self.relu(self.corner_cls_conv(cor_cls_feat, corner0_dcn_offset)))
+        cor1_cls_out = self.corner_cls_out(
+            self.relu(self.corner_cls_conv(cor_cls_feat, corner1_dcn_offset)))
+
+        cor0_refine = self.corner_loc_out(
+            self.relu(self.corner_loc_conv(cor_loc_feat, corner0_dcn_offset)))
+        cor1_refine = self.corner_loc_out(
+            self.relu(self.corner_loc_conv(cor_loc_feat, corner1_dcn_offset)))
+        corner_outs = dict(
+                        cor0_cls_out = cor0_cls_out,
+                        cor1_cls_out = cor1_cls_out,
+                        cor0_refine = cor0_refine,
+                        cor1_refine = cor1_refine )
+        return corner_outs
 
     def forward(self, feats):
         return multi_apply(self.forward_single, feats)
@@ -597,6 +641,7 @@ class StrPointsHead(nn.Module):
              cls_scores,
              pts_preds_init,
              pts_preds_refine,
+             corner_outs,
              gt_bboxes,
              gt_labels,
              img_metas,
@@ -745,6 +790,7 @@ class StrPointsHead(nn.Module):
                    cls_scores,
                    pts_preds_init,
                    pts_preds_refine,
+                   corner_outs,
                    img_metas,
                    cfg,
                    rescale=False,

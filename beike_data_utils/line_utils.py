@@ -4,6 +4,7 @@ import mmcv
 from .geometric_utils import sin2theta_np
 import cv2
 from mmdet.debug_tools import show_img_with_norm
+import torch
 
 def encode_line_rep(lines, obj_rep):
   '''
@@ -78,6 +79,29 @@ def decode_line_rep(lines, obj_rep):
     assert lines.shape[1] == 5
     istopleft = (lines[:,4:5] >= 0).astype(lines.dtype)
     end_pts = lines[:,:4] * istopleft +  lines[:,[0,3,2,1]] * (1-istopleft)
+  else:
+    raise NotImplemented
+  pass
+  return end_pts
+
+def decode_line_rep_th(lines, obj_rep):
+  '''
+  lines: [batch_size,4/5,w,h]   4:x,y,x,y    5: x,y,x,y,r
+  lines_out: [batch_size,4,w,h]
+
+  The input lines are in representation of obj_rep.
+  The outout is standard lines in two end-points.
+  '''
+  assert obj_rep in ['close_to_zero', 'box_scope', 'line_scope',\
+                     'lscope_istopleft']
+  assert lines.dim() == 4
+  if lines.shape[0] == 0:
+    return lines
+
+  if obj_rep == 'lscope_istopleft':
+    assert lines.shape[1] == 5
+    istopleft = (lines[:,4:5,:,:] >= 0).type(lines.dtype)
+    end_pts = lines[:,:4,:,:] * istopleft +  lines[:,[0,3,2,1],:,:] * (1-istopleft)
   else:
     raise NotImplemented
   pass
@@ -226,5 +250,8 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   #show_img_with_norm(img)
  # show_img_with_norm(new_img)
   return lines_rotated.astype(np.float32), new_img.astype(np.float32)
+
+
+
 
 
