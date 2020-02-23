@@ -98,7 +98,7 @@ train_cfg = dict(
 test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
-    score_thr=0.05,
+    score_thr=0.2,
     nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
     max_per_img=100)
 # dataset settings
@@ -158,8 +158,8 @@ if TRAIN_NUM == 1:
   batch_size = 1
   lra = 0.05
 
-test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
-#test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
+#test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
+test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=0,
@@ -182,12 +182,13 @@ data = dict(
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
+total_epochs = 1000
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=10,
     warmup_ratio=1.0 / 3,
-    step=[400, 450])
+    step=[int(total_epochs*0.6), int(total_epochs*0.8)])
 checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
@@ -198,14 +199,13 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 500
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
-#load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_512_VerD_A_bs6_lr10_RA_Normrawstd/epoch_100.pth'
+load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs5_lr10_RA_Normrawstd_DcnZb/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]

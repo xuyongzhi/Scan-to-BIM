@@ -65,7 +65,8 @@ def update_config(cfg, args, split):
     if args.config.split('/')[1] != 'strpoints':
       #return
       pass
-    gpus = args.gpus
+    #gpus = args.gpus
+    gpus = 1
     rotate = args.rotate
     lr = args.lr
     bs = args.bs
