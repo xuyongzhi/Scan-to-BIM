@@ -86,7 +86,8 @@ def decode_line_rep(lines, obj_rep):
 
 def decode_line_rep_th(lines, obj_rep):
   '''
-  lines: [batch_size,4/5,w,h]   4:x,y,x,y    5: x,y,x,y,r
+  lines: [batch_size,4/5,w,h] or [n,4/5]   4:x,y,x,y    5: x,y,x,y,r
+    lines.shape[1] is the channel
   lines_out: [batch_size,4,w,h]
 
   The input lines are in representation of obj_rep.
@@ -94,14 +95,14 @@ def decode_line_rep_th(lines, obj_rep):
   '''
   assert obj_rep in ['close_to_zero', 'box_scope', 'line_scope',\
                      'lscope_istopleft']
-  assert lines.dim() == 4
+  assert lines.dim() == 2 or lines.dim() == 4
   if lines.shape[0] == 0:
     return lines
 
   if obj_rep == 'lscope_istopleft':
     assert lines.shape[1] == 5
-    istopleft = (lines[:,4:5,:,:] >= 0).type(lines.dtype)
-    end_pts = lines[:,:4,:,:] * istopleft +  lines[:,[0,3,2,1],:,:] * (1-istopleft)
+    istopleft = (lines[:,4:5,...] >= 0).type(lines.dtype)
+    end_pts = lines[:,:4,...] * istopleft +  lines[:,[0,3,2,1],...] * (1-istopleft)
   else:
     raise NotImplemented
   pass

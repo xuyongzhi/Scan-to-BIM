@@ -14,6 +14,7 @@ from ..utils import ConvModule, bias_init_with_prob
 
 from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
+from beike_data_utils.line_utils import decode_line_rep_th
 
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM
 
@@ -69,7 +70,12 @@ class StrPointsHead(nn.Module):
                  transform_method='moment',
                  moment_mul=0.01,
                  cls_types=['refine'],
-                 dcn_zero_base=False):
+                 dcn_zero_base=False,
+                 corcls = False,
+                 corloc = False,
+                 loss_cor_refine=dict(
+                     type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
+                 ):
         super(StrPointsHead, self).__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
@@ -119,6 +125,9 @@ class StrPointsHead(nn.Module):
         dcn_base_offset = np.stack([dcn_base_y, dcn_base_x], axis=1).reshape(
             (-1))
         self.dcn_base_offset = torch.tensor(dcn_base_offset).view(1, -1, 1, 1)
+        self.corcls = corcls
+        self.corloc = corloc
+        self.loss_cor_refine = build_loss( loss_cor_refine )
         self._init_layers()
 
     def _init_layers(self):
@@ -407,7 +416,6 @@ class StrPointsHead(nn.Module):
           pts_out_refine: y_first
           deformable conv offset is also y_first
         '''
-        from beike_data_utils.line_utils import decode_line_rep_th
         assert OBJ_REP == 'lscope_istopleft'
         cor_cls_feat = x
         cor_loc_feat = x
@@ -417,11 +425,11 @@ class StrPointsHead(nn.Module):
             cor_loc_feat = reg_conv(cor_loc_feat)
 
         # pts_out_refine is y_first
-        bbox_out_refine = self.points2bbox(pts_out_refine)
+        bbox_out_refine_xfirst = self.points2bbox(pts_out_refine)
         # bbox_out_refine and lines_out_refine0 is x_first,
-        lines_out_refine0 = decode_line_rep_th(bbox_out_refine, OBJ_REP)
+        lines_out_refine_xfirst = decode_line_rep_th(bbox_out_refine_xfirst, OBJ_REP)
         # lines_out_refine is y_first
-        lines_out_refine = lines_out_refine0[:,[1,0,3,2],:,:]
+        lines_out_refine = lines_out_refine_xfirst[:,[1,0,3,2],:,:]
 
         lines_out_refine_grad_mul = (1 - self.gradient_mul) * lines_out_refine.detach(
         ) + self.gradient_mul * lines_out_refine
@@ -438,6 +446,7 @@ class StrPointsHead(nn.Module):
         cor1_refine = self.corner_loc_out(
             self.relu(self.corner_loc_conv(cor_loc_feat, corner1_dcn_offset)))
         corner_outs = dict(
+                        corners_from_lines = lines_out_refine_xfirst,
                         cor0_cls_out = cor0_cls_out,
                         cor1_cls_out = cor1_cls_out,
                         cor0_refine = cor0_refine,
@@ -503,18 +512,23 @@ class StrPointsHead(nn.Module):
             bbox_list.append(bbox)
         return bbox_list
 
-    def offset_to_pts(self, center_list, pred_list):
+    def offset_to_pts(self, center_list, pred_list, is_corner=False):
         """Change from point offset to point coordinate.
+        Both center_list and pred_list should be  x_first
         """
+        if is_corner:
+          np = 2
+        else:
+          np = self.num_points
         pts_list = []
         for i_lvl in range(len(self.point_strides)):
             pts_lvl = []
             for i_img in range(len(center_list)):
                 pts_center = center_list[i_img][i_lvl][:, :2].repeat(
-                    1, self.num_points)
+                    1, np)
                 pts_shift = pred_list[i_lvl][i_img]
                 yx_pts_shift = pts_shift.permute(1, 2, 0).view(
-                    -1, 2 * self.num_points)
+                    -1, np*2)
                 y_pts_shift = yx_pts_shift[..., 0::2]
                 x_pts_shift = yx_pts_shift[..., 1::2]
                 xy_pts_shift = torch.stack([x_pts_shift, y_pts_shift], -1)
@@ -524,6 +538,7 @@ class StrPointsHead(nn.Module):
             pts_lvl = torch.stack(pts_lvl, 0)
             pts_list.append(pts_lvl)
         return pts_list
+
 
     def loss_single(self, cls_score, pts_pred_init, pts_pred_refine, labels,
                     label_weights, bbox_gt_init, bbox_weights_init,
@@ -637,6 +652,75 @@ class StrPointsHead(nn.Module):
             bbox_list.append(bbox)
         return bbox_list
 
+    def loss_single_corner(self, stride, cor0_scores, cor1_scores, cor_labels, cor_label_weights, corners_gt, cor_preds, cor_refine_weights,  num_total_samples_cor):
+      normalize_term = self.point_base_scale * stride
+      cor0_scores = cor0_scores.permute(0, 2, 3,
+                                        1).reshape(-1, self.cls_out_channels)
+      cor1_scores = cor1_scores.permute(0, 2, 3,
+                                        1).reshape(-1, self.cls_out_channels)
+      cor0_loss_cls = self.loss_cls(
+              cor0_scores,
+              cor_labels.reshape(-1),
+              cor_label_weights.reshape(-1),
+              avg_factor=num_total_samples_cor)
+
+      cor1_loss_cls = self.loss_cls(
+              cor1_scores,
+              cor_labels.reshape(-1),
+              cor_label_weights.reshape(-1),
+              avg_factor=num_total_samples_cor)
+      loss_cor_cls = cor0_loss_cls + cor1_loss_cls
+
+      corners_gt_nm = corners_gt / normalize_term
+      cor_preds_nm = cor_preds / normalize_term
+      cor_refine_weights = cor_refine_weights[:,:,0:4].reshape(-1,4)
+
+      n = cor_preds_nm.shape[0]
+      dif0 = (cor_preds_nm - corners_gt_nm).norm(dim=-1, keepdim=True)
+      dif1 = (cor_preds_nm[:,[2,3, 0,1]] - corners_gt_nm).norm(dim=-1, keepdim=True)
+      is_switch = (dif0 > dif1).to(corners_gt_nm.dtype)
+      corners_gt_nm_ordered = corners_gt_nm * (1-is_switch) + corners_gt_nm[:,[2,3, 0,1]] * is_switch
+
+      loss_cor_reg = self.loss_cor_refine(
+            cor_preds_nm,
+            corners_gt_nm_ordered,
+            cor_refine_weights,
+            avg_factor=num_total_samples_cor)
+      return loss_cor_cls, loss_cor_reg
+
+    def corner_loss(self, corner_outs, center_list, cor_labels_list, cor_label_weights_list, num_total_samples_finale, bbox_gt_list_final, bbox_weights_list_final):
+      '''
+        The target of predicted corners are directly achived from line final
+        targets, instead of comparing pred_corners and gt_corners. We do not
+        encourage a corner to be close to any one, but encourage a corner to
+        be close to the one of coresponding gt line.
+      '''
+      corner_outs = convert_list_dict_order(corner_outs)
+      cor0_scores = corner_outs['cor0_cls_out']
+      cor1_scores = corner_outs['cor1_cls_out']
+
+      corners_gt = [decode_line_rep_th(bg.reshape(-1,bg.shape[-1]), OBJ_REP) \
+                    for bg in bbox_gt_list_final]
+
+      corners_from_lines = corner_outs['corners_from_lines']
+      cor_coordinates0 = self.offset_to_pts(center_list,
+                                          corners_from_lines, is_corner=True)
+      cor_preds = [cc.reshape(-1,4) for cc in cor_coordinates0]
+
+
+      losses_cor_cls, losses_cor_reg = multi_apply(
+                self.loss_single_corner,
+                self.point_strides,
+                cor0_scores,
+                cor1_scores,
+                cor_labels_list,
+                cor_label_weights_list,
+                corners_gt,
+                cor_preds,
+                bbox_weights_list_final,
+                num_total_samples_cor = num_total_samples_finale)
+      return losses_cor_cls, losses_cor_reg
+
     def loss(self,
              cls_scores,
              pts_preds_init,
@@ -651,6 +735,7 @@ class StrPointsHead(nn.Module):
         assert len(featmap_sizes) == len(self.point_generators)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
 
+        #-----------------------------------------------------------------------
         # target for initial stage
         center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
@@ -681,6 +766,7 @@ class StrPointsHead(nn.Module):
             num_total_pos_init +
             num_total_neg_init if self.sampling else num_total_pos_init)
 
+        #-----------------------------------------------------------------------
         # target for refinement stage
         center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
@@ -707,7 +793,9 @@ class StrPointsHead(nn.Module):
             num_total_pos_refine +
             num_total_neg_refine if self.sampling else num_total_pos_refine)
 
-        if 'final' in self.cls_types:
+        #-----------------------------------------------------------------------
+        is_process_cor = self.corcls or self.corloc
+        if 'final' in self.cls_types or is_process_cor:
           center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
           bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
@@ -732,13 +820,14 @@ class StrPointsHead(nn.Module):
               num_total_neg_final if self.sampling else num_total_pos_final)
 
 
+        #-----------------------------------------------------------------------
         labels_list = []
         label_weights_list = []
         num_total_samples_cls = {}
         if 'refine' in self.cls_types:
-         num_total_samples_cls['refine'] = num_total_samples_refine
+          num_total_samples_cls['refine'] = num_total_samples_refine
         if 'final' in self.cls_types:
-         num_total_samples_cls['final'] = num_total_samples_finale
+          num_total_samples_cls['final'] = num_total_samples_finale
         for i in range(len(label_weights_list_refine)):
           labels_list_i = {}
           label_weights_list_i = {}
@@ -751,6 +840,7 @@ class StrPointsHead(nn.Module):
           labels_list.append(labels_list_i)
           label_weights_list.append(label_weights_list_i)
 
+        #-----------------------------------------------------------------------
         # compute loss
         losses_cls, losses_pts_init, losses_pts_refine = multi_apply(
             self.loss_single,
@@ -775,6 +865,15 @@ class StrPointsHead(nn.Module):
           loss_dict_all['loss_cls_'+c] = []
           for lc in losses_cls:
             loss_dict_all['loss_cls_'+c].append( lc[c] )
+
+        #-----------------------------------------------------------------------
+        # target for corner
+        if is_process_cor:
+            center_list, valid_flag_list = self.get_points(featmap_sizes,
+                                                          img_metas)
+            losses_cor_cls, losses_cor_reg = self.corner_loss(corner_outs, center_list, labels_list_final, label_weights_list_final, num_total_samples_finale, bbox_gt_list_final, bbox_weights_list_final)
+            loss_dict_all['loss_cor_cls'] = losses_cor_cls
+            loss_dict_all['loss_cor_reg'] = losses_cor_reg
 
         return loss_dict_all
 
@@ -921,6 +1020,22 @@ class StrPointsHead(nn.Module):
     def normalize_istopleft_loss(self, itl_loss):
         itl_loss_nm = 1 - torch.exp(-itl_loss)
         return itl_loss_nm
+
+
+def convert_list_dict_order(f_ls_dict):
+  '''
+  in : [{}]
+  out: {[]}
+  '''
+  num_level = len(f_ls_dict)
+  f_dict_ls = {}
+  for key in f_ls_dict[0].keys():
+    f_dict_ls[key] = []
+  for i in range(num_level):
+    for key in f_ls_dict[i].keys():
+      f_dict_ls[key].append( f_ls_dict[i][key] )
+  return f_dict_ls
+
 
 def show_pred(bbox_pred, bbox_gt, bbox_weights, flag):
   from mmdet.debug_tools import show_lines

@@ -1,4 +1,5 @@
 # Questions
+* Is the max_iou assigner configuration not good, num_total_pos is too large
 * try dcn offset == reppoints location
 * The weights for refine classification and final are shared
 * No ignored points: each gt box is assigned with one pos point, all others are negative
@@ -10,11 +11,7 @@
 * compare performace of feeding images of different resolution
 *
 # Items need to be further researched
-- num_points
-- point_strides
 - point_base_scale
-- image mean is too small    
-- check if fp16 is used
 
 
 # Debug

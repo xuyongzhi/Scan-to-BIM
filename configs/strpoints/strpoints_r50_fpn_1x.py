@@ -72,6 +72,9 @@ model = dict(
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
         transform_method=_transform_method,
         dcn_zero_base=False,
+        corcls=False,
+        corloc=False,
+        loss_cor_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
         )
     )
         #transform_method='minmax'))
@@ -94,7 +97,12 @@ train_cfg = dict(
             obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
-        debug=False))
+        debug=False),
+    corner=dict(
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep),
+        allowed_border=-1,
+        pos_weight=-1,
+        debug=False), )
 test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
@@ -148,7 +156,7 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 5
+  batch_size = 3
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 2
