@@ -257,3 +257,11 @@ def show_img_with_norm(img):
 
   show_points_3d(img3d)
   pass
+
+def show_heatmap(scores):
+  '''
+  scores: [h,w, 1]
+  '''
+  h,w = scores.shape[:2]
+  #img = np.zeros((h,w), dtype=uint8)
+  mmcv.imshow(scores)

@@ -127,10 +127,12 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
       if dcn_zero_base:
         cfg['work_dir'] += '_DcnZb'
-      if cfg['model']['bbox_head']['corcls']:
-        cfg['work_dir'] += '_CorCls'
-      if cfg['model']['bbox_head']['corloc']:
-        cfg['work_dir'] += '_CorLoc'
+      if 'corcls' in cfg['model']['bbox_head']:
+        if cfg['model']['bbox_head']['corcls']:
+          cfg['work_dir'] += '_CorCls'
+      if 'corloc' in cfg['model']['bbox_head']:
+        if cfg['model']['bbox_head']['corloc']:
+          cfg['work_dir'] += '_CorLoc'
       #print(cfg['work_dir'])
       pass
 

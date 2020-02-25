@@ -166,8 +166,8 @@ if TRAIN_NUM == 1:
   batch_size = 1
   lra = 0.05
 
-#test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
-test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
+test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
+#test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,
@@ -213,7 +213,7 @@ work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
-#load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs5_lr10_RA_Normrawstd_DcnZb/best.pth'
+#load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_refine_512_VerD_bs1_lr10_RA_Normrawstd/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
