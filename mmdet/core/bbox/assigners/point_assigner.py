@@ -18,7 +18,7 @@ class PointAssigner(BaseAssigner):
     """
 
     def __init__(self, scale=4, pos_num=3, obj_rep='box_scope'):
-        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
+        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft', 'corner']
         self.scale = scale
         self.pos_num = pos_num
         self.obj_rep = obj_rep
@@ -95,6 +95,12 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
                                                               .clamp(min=1e-6)
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
+        elif self.obj_rep == 'corner':
+          assert gt_bboxes.shape[1] == 2
+          assert lvl_min == lvl_max, "only use one level for corner heat map"
+          gt_bboxes_wh = gt_bboxes * 0 + 2**(lvl_min)*self.scale
+          gt_bboxes = gt_bboxes.repeat(1,2)
+          pass
         else:
           raise NotImplemented
         if CHECK_POINT_ASSIGN:

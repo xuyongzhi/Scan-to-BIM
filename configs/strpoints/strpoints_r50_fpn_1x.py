@@ -99,7 +99,7 @@ train_cfg = dict(
         pos_weight=-1,
         debug=False),
     corner=dict(
-        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep),
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep='corner'),
         allowed_border=-1,
         pos_weight=-1,
         debug=False), )
@@ -200,7 +200,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
-    interval=2,
+    interval=max(TRAIN_NUM//20,1),
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
@@ -213,7 +213,7 @@ work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
-load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs5_lr10_RA_Normrawstd_DcnZb/best.pth'
+#load_from = f'./work_dirs/T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs5_lr10_RA_Normrawstd_DcnZb/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]

@@ -4,7 +4,7 @@ from ..bbox import PseudoSampler, assign_and_sample, build_assigner
 from ..utils import multi_apply
 
 from mmdet import debug_tools
-DEBUG = False
+DEBUG = 0
 
 
 def point_target(proposals_list,
@@ -200,8 +200,9 @@ def unmap(data, count, inds, fill=0):
     return ret
 
 def show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag):
-  from mmdet.debug_tools import show_lines
+  from mmdet.debug_tools import show_lines, show_points
   from configs.common import IMAGE_SIZE
+  import numpy as np
   for (pos_inds, proposals, bbox_gt) in zip(pos_inds_list, all_proposals, gt_bboxes_list):
     proposals = proposals[pos_inds].cpu().data.numpy()
     bbox_gt = bbox_gt.cpu().data.numpy()
@@ -210,7 +211,10 @@ def show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag):
     if proposals.shape[1] == 5:
       points = (proposals[:,0:2] + proposals[:,2:4])/2
       show_lines(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), lines_ref=proposals, name=flag+'_lines.png')
-    show_lines(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), points=points, name=flag+'_centroids.png')
+    if bbox_gt.shape[1] == 5:
+      show_lines(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), points=points, name=flag+'_centroids.png')
+    if bbox_gt.shape[1] == 2:
+      show_points(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), points, name=flag+'_corners.png')
     pass
 
 

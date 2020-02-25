@@ -38,6 +38,18 @@ def imshow_bboxes_ref(img, bboxes0, bboxes1):
     colors = ['red']*n0 + ['green']*n1
     mmcv.imshow_bboxes(img, bboxes, colors)
 
+def show_points(points0, img_size, points1, cor0='red', cor1='green', name=''):
+  img = np.zeros(img_size + (3,), dtype=np.uint8)
+  for i in range(points0.shape[0]):
+    p = points0[i]
+    c = color_val(cor0)
+    cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
+  for i in range(points1.shape[0]):
+    p = points1[i]
+    c = color_val(cor1)
+    cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
+  mmcv.imshow(img)
+
 def show_lines(lines, img_size, points=None, lines_ref=None, name='out.png'):
   img = np.zeros(img_size + (3,), dtype=np.uint8)
   if lines_ref is not None:

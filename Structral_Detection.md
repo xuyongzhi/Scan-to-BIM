@@ -1,11 +1,14 @@
 # Questions
+* base_scale=2 seems not right
 * Is the max_iou assigner configuration not good, num_total_pos is too large
 * try dcn offset == reppoints location
 * The weights for refine classification and final are shared
 * No ignored points: each gt box is assigned with one pos point, all others are negative
 * The direction of normal. Does the positive meaning is learnable. After rotation, is the direction should be updated.    
+* image size = 512, max feature size=128. Is it better to use max feature size=256
 
 # Big ideas
+* use guassion weights for initial stage
 * only use two reppoints and sample the other 7 based on the two
 * compare performance of feeding images and point clouds
 * compare performace of feeding images of different resolution
