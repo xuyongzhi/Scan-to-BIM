@@ -87,8 +87,8 @@ data = dict(
     workers_per_gpu=1,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_train2017.json',
-        img_prefix=data_root + 'train2017/',
+        ann_file=data_root + 'annotations/instances_val2017.json',
+        img_prefix=data_root + 'val_2/',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
@@ -118,7 +118,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')
@@ -130,5 +130,6 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/fcos_r50_caffe_fpn_gn_1x_4gpu'
 load_from = None
+load_from = './checkpoints/fcos_r50_caffe_fpn_gn_1x_4gpu_20190516-9f253a93.pth'
 resume_from = None
 workflow = [('train', 1)]

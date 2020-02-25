@@ -54,8 +54,6 @@ def parse_args():
     parser.add_argument('--bs', type=int, default=None)
     parser.add_argument('--cls', type=str, default=None, help='refine, refine_final')
     parser.add_argument('--dcn_zero_base', type=int, default=None)
-    parser.add_argument('--corcls', type=int, default=None)
-    parser.add_argument('--corloc', type=int, default=None)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -73,8 +71,6 @@ def update_config(cfg, args, split):
     lr = args.lr
     bs = args.bs
     cls_loss = args.cls
-    corcls = args.corcls
-    corloc = args.corloc
     dcn_zero_base = args.dcn_zero_base
     if rotate is not None:
       assert rotate == 1 or rotate == 0
@@ -98,10 +94,6 @@ def update_config(cfg, args, split):
     if dcn_zero_base is not None:
       assert dcn_zero_base == 0 or dcn_zero_base == 1
       cfg['model']['bbox_head']['dcn_zero_base'] = dcn_zero_base == 1
-    if corcls is not None:
-      cfg['model']['bbox_head']['corcls'] = corcls == 1
-    if corloc is not None:
-      cfg['model']['bbox_head']['corloc'] = corloc == 1
 
 
     # update work_dir
@@ -127,12 +119,6 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
       if dcn_zero_base:
         cfg['work_dir'] += '_DcnZb'
-      if 'corcls' in cfg['model']['bbox_head']:
-        if cfg['model']['bbox_head']['corcls']:
-          cfg['work_dir'] += '_CorCls'
-      if 'corloc' in cfg['model']['bbox_head']:
-        if cfg['model']['bbox_head']['corloc']:
-          cfg['work_dir'] += '_CorLoc'
       #print(cfg['work_dir'])
       pass
 

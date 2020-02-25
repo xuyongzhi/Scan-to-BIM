@@ -146,6 +146,7 @@ class FCOSHead(nn.Module):
         labels, bbox_targets = self.fcos_target(all_level_points, gt_bboxes,
                                                 gt_labels)
 
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         num_imgs = cls_scores[0].size(0)
         # flatten cls_scores, bbox_preds and centerness
         flatten_cls_scores = [

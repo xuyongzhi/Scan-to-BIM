@@ -71,11 +71,7 @@ class StrPointsHead(nn.Module):
                  moment_mul=0.01,
                  cls_types=['refine'],
                  dcn_zero_base=False,
-                 corcls = False,
-                 corloc = False,
-                 loss_cor_refine=dict(
-                     type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
-                 corner_hm = True,
+                 corner_hm = False,
                  corner_hm_only = False,
                  ):
         super(StrPointsHead, self).__init__()
@@ -127,9 +123,6 @@ class StrPointsHead(nn.Module):
         dcn_base_offset = np.stack([dcn_base_y, dcn_base_x], axis=1).reshape(
             (-1))
         self.dcn_base_offset = torch.tensor(dcn_base_offset).view(1, -1, 1, 1)
-        self.corcls = corcls
-        self.corloc = corloc
-        self.loss_cor_refine = build_loss( loss_cor_refine )
         self.corner_hm = corner_hm
         self.corner_hm_only = corner_hm_only
         self._init_layers()
@@ -175,83 +168,6 @@ class StrPointsHead(nn.Module):
                                                     self.dcn_pad)
         self.reppoints_pts_refine_out = nn.Conv2d(self.point_feat_channels,
                                                   pts_out_dim, 1, 1, 0)
-
-        # layers for corner classificaiton and localization from line final
-        if self.corcls or self.corloc:
-            self.cor_cls_convs = nn.ModuleList()
-            self.cor_reg_convs = nn.ModuleList()
-            for i in range(self.stacked_convs):
-                chn = self.in_channels if i == 0 else self.feat_channels
-                self.cor_cls_convs.append(
-                    ConvModule(
-                        chn,
-                        self.feat_channels,
-                        3,
-                        stride=1,
-                        padding=1,
-                        conv_cfg=self.conv_cfg,
-                        norm_cfg=self.norm_cfg))
-                self.cor_reg_convs.append(
-                    ConvModule(
-                        chn,
-                        self.feat_channels,
-                        3,
-                        stride=1,
-                        padding=1,
-                        conv_cfg=self.conv_cfg,
-                        norm_cfg=self.norm_cfg))
-            self.corner_cls_conv = DeformConv(self.feat_channels,
-                                                self.point_feat_channels,
-                                                1, 1, 0)
-            self.corner_cls_out = nn.Conv2d(self.point_feat_channels,
-                                              self.cls_out_channels, 1, 1, 0)
-            self.corner_loc_conv = DeformConv(self.feat_channels,
-                                                self.point_feat_channels,
-                                                1, 1, 0)
-            self.corner_loc_out = nn.Conv2d(self.point_feat_channels,
-                                                  2, 1, 1, 0)
-        # layers for corner heat map from backbone
-        if self.corner_hm:
-              self.cor_hm_cls_convs = nn.ModuleList()
-              self.cor_hm_ofs_convs = nn.ModuleList()
-              for i in range(self.stacked_convs):
-                  chn = self.in_channels if i == 0 else self.feat_channels
-                  self.cor_hm_cls_convs.append(
-                      ConvModule(
-                          chn,
-                          self.feat_channels,
-                          3,
-                          stride=1,
-                          padding=1,
-                          conv_cfg=self.conv_cfg,
-                          norm_cfg=self.norm_cfg))
-                  self.cor_hm_ofs_convs.append(
-                      ConvModule(
-                          chn,
-                          self.feat_channels,
-                          3,
-                          stride=1,
-                          padding=1,
-                          conv_cfg=self.conv_cfg,
-                          norm_cfg=self.norm_cfg))
-
-
-              self.reppoints_pts_cor_conv = nn.Conv2d(self.feat_channels,
-                                                      self.point_feat_channels, 3,
-                                                      1, 1)
-              self.reppoints_pts_cor_out = nn.Conv2d(self.point_feat_channels,
-                                                      pts_out_dim, 1, 1, 0)
-              self.cor_hm_cls_dconv = DeformConv(self.feat_channels,
-                                                  self.point_feat_channels,
-                                                  self.dcn_kernel, 1, self.dcn_pad)
-              self.cor_hm_cls_out = nn.Conv2d(self.point_feat_channels,
-                                                self.cls_out_channels, 1, 1, 0)
-              self.cor_hm_ofs_dconv = DeformConv(self.feat_channels,
-                                                  self.point_feat_channels,
-                                                  self.dcn_kernel, 1, self.dcn_pad)
-              self.cor_hm_ofs_out = nn.Conv2d(self.point_feat_channels,
-                                                2, 1, 1, 0)
-
 
 
     def init_weights(self):
@@ -449,11 +365,8 @@ class StrPointsHead(nn.Module):
           cls_out['final'] = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
 
-        is_process_cor = self.corcls or self.corloc
-        if is_process_cor:
-          corner_outs = self.get_corner_cls_reg_from_final(pts_out_refine, x)
-        elif self.corner_hm:
-          corner_outs = self.get_corner_hm(x)
+        if self.corner_hm:
+          corner_outs = self.forward_single_corner(x)
         else:
           corner_outs = None
         # predict cls from the two end_points
@@ -466,79 +379,6 @@ class StrPointsHead(nn.Module):
         #debug_tools.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
         return cls_out, pts_out_init, pts_out_refine, corner_outs
 
-    def get_corner_hm(self, x):
-        if x.shape[2] != 128:
-          # only use the largest level
-          return {}
-        assert self.center_init
-        assert not self.use_grid_points
-        cor_cls_feat = x
-        cor_loc_feat = x
-        for cls_conv in self.cor_hm_cls_convs:
-            cor_cls_feat = cls_conv(cor_cls_feat)
-        for reg_conv in self.cor_hm_ofs_convs:
-            cor_loc_feat = reg_conv(cor_loc_feat)
-        # get corner reppoints
-        pts_out_cor = self.reppoints_pts_cor_out(
-            self.relu(self.reppoints_pts_cor_conv(cor_loc_feat)))
-        points_init = 0
-        pts_out_cor = pts_out_cor + points_init
-        # get corner heat map
-        pts_out_cor_grad_mul = (1 - self.gradient_mul) * pts_out_cor.detach(
-        ) + self.gradient_mul * pts_out_cor
-        if self.dcn_zero_base:
-          dcn_offset = pts_out_cor_grad_mul
-        else:
-          dcn_base_offset = self.dcn_base_offset.type_as(x)
-          dcn_offset = pts_out_cor_grad_mul - dcn_base_offset
-        cor_hm_cls = self.cor_hm_cls_out(
-              self.relu(self.cor_hm_cls_dconv(cor_cls_feat, dcn_offset)))
-        cor_hm_ofs = self.cor_hm_ofs_out(
-            self.relu(self.cor_hm_ofs_dconv(cor_loc_feat, dcn_offset)))
-        corner_outs = {'cor_hm_cls': cor_hm_cls, 'cor_hm_ofs':cor_hm_ofs}
-        return corner_outs
-
-    def get_corner_cls_reg_from_final(self, pts_out_refine, x):
-        '''
-          pts_out_refine: y_first
-          deformable conv offset is also y_first
-        '''
-        assert OBJ_REP == 'lscope_istopleft'
-        cor_cls_feat = x
-        cor_loc_feat = x
-        for cls_conv in self.cor_cls_convs:
-            cor_cls_feat = cls_conv(cor_cls_feat)
-        for reg_conv in self.cor_reg_convs:
-            cor_loc_feat = reg_conv(cor_loc_feat)
-
-        # pts_out_refine is y_first
-        bbox_out_refine_xfirst = self.points2bbox(pts_out_refine)
-        # bbox_out_refine and lines_out_refine0 is x_first,
-        lines_out_refine_xfirst = decode_line_rep_th(bbox_out_refine_xfirst, OBJ_REP)
-        # lines_out_refine is y_first
-        lines_out_refine = lines_out_refine_xfirst[:,[1,0,3,2],:,:]
-
-        lines_out_refine_grad_mul = (1 - self.gradient_mul) * lines_out_refine.detach(
-        ) + self.gradient_mul * lines_out_refine
-        corner0_dcn_offset = lines_out_refine_grad_mul[:,0:2,:,:] # y_first
-        corner1_dcn_offset = lines_out_refine_grad_mul[:,2:4,:,:]
-
-        cor0_cls_out = self.corner_cls_out(
-            self.relu(self.corner_cls_conv(cor_cls_feat, corner0_dcn_offset)))
-        cor1_cls_out = self.corner_cls_out(
-            self.relu(self.corner_cls_conv(cor_cls_feat, corner1_dcn_offset)))
-
-        cor0_refine = self.corner_loc_out(
-            self.relu(self.corner_loc_conv(cor_loc_feat, corner0_dcn_offset)))
-        cor1_refine = self.corner_loc_out(
-            self.relu(self.corner_loc_conv(cor_loc_feat, corner1_dcn_offset)))
-        corner_outs = dict(
-                        corners_from_lines = lines_out_refine_xfirst,
-                        cor0_cls_out = cor0_cls_out,
-                        cor1_cls_out = cor1_cls_out,
-                        cor0_refine = cor0_refine,
-                        cor1_refine = cor1_refine )
-        return corner_outs
 
     def forward(self, feats):
         return multi_apply(self.forward_single, feats)
@@ -739,151 +579,6 @@ class StrPointsHead(nn.Module):
             bbox_list.append(bbox)
         return bbox_list
 
-    def loss_single_corner(self, stride, cor0_scores, cor1_scores, cor_labels, cor_label_weights, corners_gt, cor_preds, cor_refine_weights,  num_total_samples_cor):
-      normalize_term = self.point_base_scale * stride
-      cor0_scores = cor0_scores.permute(0, 2, 3,
-                                        1).reshape(-1, self.cls_out_channels)
-      cor1_scores = cor1_scores.permute(0, 2, 3,
-                                        1).reshape(-1, self.cls_out_channels)
-      cor0_loss_cls = self.loss_cls(
-              cor0_scores,
-              cor_labels.reshape(-1),
-              cor_label_weights.reshape(-1),
-              avg_factor=num_total_samples_cor)
-
-      cor1_loss_cls = self.loss_cls(
-              cor1_scores,
-              cor_labels.reshape(-1),
-              cor_label_weights.reshape(-1),
-              avg_factor=num_total_samples_cor)
-      loss_cor_cls = cor0_loss_cls + cor1_loss_cls
-
-      corners_gt_nm = corners_gt / normalize_term
-      cor_preds_nm = cor_preds / normalize_term
-      cor_refine_weights = cor_refine_weights[:,:,0:4].reshape(-1,4)
-
-      n = cor_preds_nm.shape[0]
-      dif0 = (cor_preds_nm - corners_gt_nm).norm(dim=-1, keepdim=True)
-      dif1 = (cor_preds_nm[:,[2,3, 0,1]] - corners_gt_nm).norm(dim=-1, keepdim=True)
-      is_switch = (dif0 > dif1).to(corners_gt_nm.dtype)
-      corners_gt_nm_ordered = corners_gt_nm * (1-is_switch) + corners_gt_nm[:,[2,3, 0,1]] * is_switch
-
-      loss_cor_reg = self.loss_cor_refine(
-            cor_preds_nm,
-            corners_gt_nm_ordered,
-            cor_refine_weights,
-            avg_factor=num_total_samples_cor)
-      return loss_cor_cls, loss_cor_reg
-
-    def corner_loss(self, corner_outs, center_list, cor_labels_list, cor_label_weights_list, num_total_samples_finale, bbox_gt_list_final, bbox_weights_list_final):
-      '''
-        The target of predicted corners are directly achived from line final
-        targets, instead of comparing pred_corners and gt_corners. We do not
-        encourage a corner to be close to any one, but encourage a corner to
-        be close to the one of coresponding gt line.
-      '''
-      corner_outs = convert_list_dict_order(corner_outs)
-      cor0_scores = corner_outs['cor0_cls_out']
-      cor1_scores = corner_outs['cor1_cls_out']
-
-      corners_gt = [decode_line_rep_th(bg.reshape(-1,bg.shape[-1]), OBJ_REP) \
-                    for bg in bbox_gt_list_final]
-
-      corners_from_lines = corner_outs['corners_from_lines']
-      cor_coordinates0 = self.offset_to_pts(center_list,
-                                          corners_from_lines, is_corner=True)
-      cor_preds = [cc.reshape(-1,4) for cc in cor_coordinates0]
-
-
-      losses_cor_cls, losses_cor_reg = multi_apply(
-                self.loss_single_corner,
-                self.point_strides,
-                cor0_scores,
-                cor1_scores,
-                cor_labels_list,
-                cor_label_weights_list,
-                corners_gt,
-                cor_preds,
-                bbox_weights_list_final,
-                num_total_samples_cor = num_total_samples_finale)
-      return losses_cor_cls, losses_cor_reg
-
-    def loss_single_corner_hm(self, stride, cor_hm_scores, labels, label_weights,
-              cor_hm_ofs, cor_gt_ofs, cor_reg_weights, num_total_samples_cor):
-        cor_hm_scores = cor_hm_scores.permute(0,2,3,1).reshape(-1, self.cls_out_channels)
-        labels = labels.reshape(-1)
-        label_weights = label_weights.reshape(-1)
-        loss_cor_hm_cls = self.loss_cls(
-              cor_hm_scores,
-              labels,
-              label_weights,
-              avg_factor=num_total_samples_cor)
-
-        normalize_term = self.point_base_scale * stride
-        cor_hm_ofs_nm = cor_hm_ofs.permute(0,2,3,1).reshape(-1,2) / normalize_term
-        cor_gt_ofs_nm = cor_gt_ofs.reshape(-1,2) / normalize_term
-        cor_reg_weights = cor_reg_weights.reshape(-1,2)
-        loss_cor_hm_reg = self.loss_cor_refine(
-              cor_hm_ofs_nm,
-              cor_gt_ofs_nm,
-              cor_reg_weights,
-              avg_factor=num_total_samples_cor)
-        return loss_cor_hm_cls, loss_cor_hm_reg
-
-    def corner_heat_map_loss(self, corner_outs, gt_bboxes, gt_labels, img_metas, cfg, gt_bboxes_ignore):
-        gt_corners = [self.get_corners_from_bboxes(gbs) for gbs in gt_bboxes]
-        if gt_bboxes_ignore is None:
-          gt_corners_ignore = None
-        else:
-          gt_corners_ignore = [self.get_corners_from_bboxes(gbs) for gbs in gt_bboxes_ignore]
-        corner_outs = corner_outs[0] # use the largest level only
-        cor_hm_cls = corner_outs['cor_hm_cls']
-        cor_hm_ofs = corner_outs['cor_hm_ofs']
-        featmap_size = cor_hm_cls.size()[-2:]
-        label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
-
-        #-----------------------------------------------------------------------
-        # target for corner heat map
-        center_list, valid_flag_list = self.get_points([featmap_size], img_metas) # []*batch_size
-        candidate_list = center_list
-
-        cls_reg_targets_corner = point_target(
-            candidate_list,
-            valid_flag_list,
-            gt_corners,
-            img_metas,
-            cfg.corner,
-            gt_bboxes_ignore_list=gt_corners_ignore,
-            gt_labels_list=gt_labels,
-            label_channels=label_channels,
-            sampling=self.sampling,
-            flag='corner')
-        (labels_list, label_weights_list, cor_gt_list, candidate_list_neg0,
-         reg_weights_list, num_total_pos_cor, num_total_neg_cor) = cls_reg_targets_corner
-        num_total_samples_cor = (
-            num_total_pos_cor +
-            num_total_neg_cor if self.sampling else num_total_pos_cor)
-
-        cor_gt_ofs_list = [gt - can[:,:2] for can, gt in zip(candidate_list_neg0, cor_gt_list)]
-        torch.nonzero( reg_weights_list[0] )
-
-        losses_corhm_cls, losses_corhm_reg = multi_apply(
-          self.loss_single_corner_hm,
-          self.point_strides[0:1],
-          [cor_hm_cls],
-          labels_list,
-          label_weights_list,
-          [cor_hm_ofs],
-          cor_gt_ofs_list,
-          reg_weights_list,
-          num_total_samples_cor = num_total_samples_cor
-        )
-        losses_cor_hm = {'loss_corhm_cls':losses_corhm_cls,
-                         'loss_corhm_reg':losses_corhm_reg}
-        #if DEBUG:
-        #  pos_ids = torch.nonzero( reg_weights_list[0][0,:,0] ).squeeze()
-        #  gt_ofs_pos = cor_gt_ofs_list[0][0, pos_ids]
-        return losses_cor_hm
 
     def loss(self,
              cls_scores,
@@ -965,8 +660,7 @@ class StrPointsHead(nn.Module):
             num_total_neg_refine if self.sampling else num_total_pos_refine)
 
         #-----------------------------------------------------------------------
-        is_process_cor = self.corcls or self.corloc
-        if 'final' in self.cls_types or is_process_cor:
+        if 'final' in self.cls_types:
           center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
           bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
@@ -1041,13 +735,6 @@ class StrPointsHead(nn.Module):
         # target for corner
         if self.corner_hm:
           loss_dict_all.update(loss_corner_hm)
-        if is_process_cor:
-            assert not self.corner_hm
-            center_list, valid_flag_list = self.get_points(featmap_sizes,
-                                                          img_metas)
-            losses_cor_cls, losses_cor_reg = self.corner_loss(corner_outs, center_list, labels_list_final, label_weights_list_final, num_total_samples_finale, bbox_gt_list_final, bbox_weights_list_final)
-            loss_dict_all['loss_cor_cls'] = losses_cor_cls
-            loss_dict_all['loss_cor_reg'] = losses_cor_reg
 
         return loss_dict_all
 
