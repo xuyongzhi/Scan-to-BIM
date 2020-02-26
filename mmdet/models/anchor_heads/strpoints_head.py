@@ -1017,8 +1017,9 @@ class StrPointsHead(nn.Module):
 
     def get_corners(self, corner_outs, img_metas, cfg):
         corner_outs = corner_outs[0]
-        cor_hm_cls = corner_outs['cor_hm_cls'].detach()
-        cor_hm_ofs = corner_outs['cor_hm_ofs'].detach()
+        cor_hm_cls = corner_outs['cor_scores'].detach()
+        cor_hm_ofs = corner_outs['cor_ofs'].detach()
+        cor_centerness = corner_outs['cor_centerness'].detach()
         featmap_size = cor_hm_cls.size()[-2:]
         points = self.point_generators[0].grid_points(featmap_size, self.point_strides[0])
         corner_result_list = []
@@ -1026,23 +1027,27 @@ class StrPointsHead(nn.Module):
           img_shape = img_metas[img_id]['img_shape']
           scale_factor = img_metas[img_id]['scale_factor']
           corner_heatmap = self.get_corners_single(cor_hm_cls[img_id],
+                                                   cor_centerness[img_id],
                                         cor_hm_ofs[img_id], points,
                                         img_shape, scale_factor, cfg)
           corner_result_list.append(corner_heatmap)
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
         pass
-    def get_corners_single(self, cor_hm_score, cor_hm_ofs, points, img_shape,
+    def get_corners_single(self, cor_hm_score, cor_centerness, cor_hm_ofs, points, img_shape,
                            scale_factor, cfg, rescale=False, nms=False):
       featmap_size = cor_hm_score.shape[1:]
       cor_hm_score = cor_hm_score.permute(1,2,0).reshape(-1, self.cls_out_channels)
+      cor_centerness = cor_centerness.permute(1,2,0).reshape(-1, 1)
       cor_hm_ofs = cor_hm_ofs.permute(1,2,0).reshape(-1, 2)
       if self.use_sigmoid_cls:
-          scores = cor_hm_score.sigmoid()
+          cls_scores = cor_hm_score.sigmoid()
       else:
-          scores = cor_hm_score.softmax(-1)
+          cls_scores = cor_hm_score.softmax(-1)
+      cor_centerness = cor_centerness.clamp(min=0, max=1)
 
       cor_locs = points[:,:2] + cor_hm_ofs
+      scores = cls_scores * cor_centerness
 
       score_threshold = 0.2
       mask = scores[:,0] > score_threshold
@@ -1052,8 +1057,9 @@ class StrPointsHead(nn.Module):
       pos_locs = cor_locs[pos_ids]
 
       from mmdet.debug_tools import show_heatmap
-      hm_scores = scores.reshape( featmap_size )
-      show_heatmap(hm_scores.cpu().data.numpy())
+      show_heatmap(cls_scores.reshape( featmap_size ) )
+      show_heatmap(cor_centerness.reshape( featmap_size ) )
+      show_heatmap(scores.reshape( featmap_size ) )
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 

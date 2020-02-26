@@ -262,6 +262,7 @@ def show_heatmap(scores):
   '''
   scores: [h,w, 1]
   '''
+  scores = scores.cpu().data.numpy()
   h,w = scores.shape[:2]
   #img = np.zeros((h,w), dtype=uint8)
   mmcv.imshow(scores)
