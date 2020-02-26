@@ -264,8 +264,10 @@ def show_heatmap(scores, show_size=None):
   '''
   assert scores.dim() == 2
   img = scores.cpu().data.numpy().astype(np.float32)
+  img = (img*255).astype(np.uint8)
   if show_size is not None:
     img = mmcv.imresize(img, show_size)
   #h,w = scores.shape[:2]
   #img = np.zeros((h,w), dtype=uint8)
   mmcv.imshow(img)
+  mmcv.imwrite(img, './hm.png')

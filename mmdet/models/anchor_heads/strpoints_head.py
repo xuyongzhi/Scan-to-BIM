@@ -658,8 +658,6 @@ class StrPointsHead(nn.Module):
              cfg,
              gt_bboxes_ignore=None):
 
-        debug_tools.show_lines(gt_bboxes[0].cpu().data.numpy(), (512,512))
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         if self.corner_hm:
           loss_corner_hm = self.corner_loss(corner_outs, gt_bboxes,
                                  gt_labels, img_metas,cfg, gt_bboxes_ignore)
@@ -883,7 +881,7 @@ class StrPointsHead(nn.Module):
         '''
         obj_dim = cor_ofs_gt.shape[-1]
 
-        if True:
+        if 0:
           debug_tools.show_heatmap(labels[0].reshape(128,128), (512,512))
           debug_tools.show_heatmap(label_weights[0].reshape(128,128), (512,512))
           debug_tools.show_heatmap(cor_centerness_gt[0].reshape(128,128), (512,512))
