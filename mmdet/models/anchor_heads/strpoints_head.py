@@ -835,14 +835,15 @@ class StrPointsHead(nn.Module):
             label_channels=label_channels,
             sampling=self.sampling,
             flag='corner')
-        (labels_list, label_weights_list, cor_gt_list, candidate_list, cor_reg_weights_list,
+        (labels_list, label_weights_list, cor_gt_list, candidate_list_neg0, cor_reg_weights_list,
          num_total_pos_cor, num_total_neg_cor) = cls_reg_targets_cor
         num_total_samples_cor = (
             num_total_pos_cor +
             num_total_neg_cor if self.sampling else num_total_pos_cor)
 
 
-        cor_ofs_gt_list = [ gt-can[:,:,:2] for gt,can in zip(cor_gt_list, candidate_list) ]
+        cor_ofs_gt_list = [ gt-can[:,:,:2] for gt,can in zip(cor_gt_list, candidate_list_neg0) ]
+        cor_centerness_gt_list = [pospro[:,:,3] for pospro in candidate_list_neg0]
         #-----------------------------------------------------------------------
         # compute loss per level
         losses_cls, losses_centerness, losses_ofs = multi_apply(
@@ -852,6 +853,7 @@ class StrPointsHead(nn.Module):
             [cor_ofs],
             labels_list,
             label_weights_list,
+            cor_centerness_gt_list,
             cor_ofs_gt_list,
             cor_reg_weights_list,
             self.point_strides[0:1],
@@ -865,7 +867,7 @@ class StrPointsHead(nn.Module):
         return loss_dict_all
 
     def loss_single_corner(self, cor_score, cor_centerness, cor_ofs, labels,
-                    label_weights, cor_ofs_gt, cor_reg_weights, stride,
+                    label_weights, cor_centerness_gt, cor_ofs_gt, cor_reg_weights, stride,
                     num_total_samples_cor):
         '''
         fsfs = featmap_size * featmap_size
@@ -876,11 +878,17 @@ class StrPointsHead(nn.Module):
         label_weights: [batch_size, fsfs]
         cor_gt: [batch_size, fsfs, 2]
         cor_reg_weights: [batch_size, fsfs, 2]
-
-        label_weights is in 2D gaussian format.
-        cor_reg_weights is in 0-1 format.
         '''
         obj_dim = cor_ofs_gt.shape[-1]
+
+        if False:
+          debug_tools.show_heatmap(labels[0].reshape(128,128), (512,512))
+          debug_tools.show_heatmap(label_weights[0].reshape(128,128), (512,512))
+          debug_tools.show_heatmap(cor_centerness_gt[0].reshape(128,128), (512,512))
+          debug_tools.show_heatmap(cor_reg_weights[0,:,0].reshape(128,128), (512,512))
+          ofs_img = (cor_ofs_gt.norm(dim=-1) / 10).clamp(max=1)
+          debug_tools.show_heatmap(ofs_img[0].reshape(128,128), (512,512))
+
 
         cor_score = cor_score.permute(0,2,3,1).reshape(-1, self.cls_out_channels)
         cor_centerness = cor_centerness.permute(0,2,3,1).reshape(-1)
@@ -889,6 +897,7 @@ class StrPointsHead(nn.Module):
         labels = labels.reshape(-1)
         label_weights = label_weights.reshape(-1)
         cor_reg_weights = cor_reg_weights.reshape(-1,obj_dim)
+        cor_centerness_gt = cor_centerness_gt.reshape(-1)
 
         loss_cls = self.loss_cls(
             cor_score,
@@ -902,7 +911,7 @@ class StrPointsHead(nn.Module):
         centerness_weights = cor_reg_weights[:,0]
         loss_centerness = self.loss_centerness(
             cor_centerness,
-            gt_centerness,
+            cor_centerness_gt,
             centerness_weights,
             avg_factor=num_total_samples_cor)
 

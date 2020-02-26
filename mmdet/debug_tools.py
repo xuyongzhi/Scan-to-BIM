@@ -258,11 +258,14 @@ def show_img_with_norm(img):
   show_points_3d(img3d)
   pass
 
-def show_heatmap(scores):
+def show_heatmap(scores, show_size=None):
   '''
   scores: [h,w, 1]
   '''
-  scores = scores.cpu().data.numpy()
-  h,w = scores.shape[:2]
+  assert scores.dim() == 2
+  img = scores.cpu().data.numpy().astype(np.float32)
+  if show_size is not None:
+    img = mmcv.imresize(img, show_size)
+  #h,w = scores.shape[:2]
   #img = np.zeros((h,w), dtype=uint8)
-  mmcv.imshow(scores)
+  mmcv.imshow(img)

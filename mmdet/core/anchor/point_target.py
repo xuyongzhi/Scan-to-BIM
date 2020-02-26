@@ -189,7 +189,16 @@ def point_target_single(flat_proposals,
     if cfg['assigner']['obj_rep'] == 'corner':
         assert 'gaussian_weight' in cfg and cfg['gaussian_weight']==True
         assert gt_bboxes.shape[1] == 2
-        label_weights = get_gaussian_weights( gt_bboxes, flat_proposals[:,:2], cfg['assigner']['ref_radius'] )
+        gt_centerness = get_gaussian_weights( gt_bboxes, flat_proposals[:,:2], cfg['assigner']['ref_radius'] )
+        pos_proposals = torch.cat([pos_proposals, gt_centerness.reshape(-1,1)], dim=1)
+        if False:
+          from mmdet.debug_tools import show_heatmap
+          show_heatmap(gt_centerness.reshape(128,128), (512,512))
+          show_heatmap(labels.reshape(128,128), (512,512))
+          show_heatmap(label_weights.reshape(128,128), (512,512))
+          show_heatmap(proposals_weights[:,0].reshape(128,128), (512,512))
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
     return (labels, label_weights, bbox_gt, pos_proposals, proposals_weights,
             pos_inds, neg_inds)
 
