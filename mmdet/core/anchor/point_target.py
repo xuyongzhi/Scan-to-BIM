@@ -96,6 +96,9 @@ def point_target(proposals_list,
       debug_tools.show_multi_ls_shapes([all_bbox_gt], ['all_bbox_gt'], f'{flag} point_target (3)')
       print(f'pos:{num_total_pos}\nneg:{num_total_neg}\ngt:{num_total_gt}')
       show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag)
+      show_weights(all_labels,'all_labels')
+      show_weights(all_label_weights,'all_label_weights')
+      show_weights(all_proposal_weights, 'all_proposal_weights')
       pass
 
       #debug_tools.show_multi_ls_shapes([bbox_gt_list], ['bbox_gt_list'], f'{flag} point_target (4)')
@@ -183,6 +186,10 @@ def point_target_single(flat_proposals,
         proposals_weights = unmap(proposals_weights, num_total_proposals,
                                   inside_flags)
 
+    if cfg['assigner']['obj_rep'] == 'corner':
+        assert 'gaussian_weight' in cfg and cfg['gaussian_weight']==True
+        assert gt_bboxes.shape[1] == 2
+        label_weights = get_gaussian_weights( gt_bboxes, flat_proposals[:,:2], cfg['assigner']['ref_radius'] )
     return (labels, label_weights, bbox_gt, pos_proposals, proposals_weights,
             pos_inds, neg_inds)
 
@@ -198,6 +205,14 @@ def unmap(data, count, inds, fill=0):
         ret = data.new_full(new_size, fill)
         ret[inds, :] = data
     return ret
+
+
+def get_gaussian_weights(gt_corners, prop_corners, ref_radius):
+  from mmdet.core.bbox.geometry import corner_overlaps
+  distances = corner_overlaps(gt_corners, prop_corners, ref_radius)
+  distances = distances.max(dim=0)[0]
+  #show_weights([distances], 'distances')
+  return distances
 
 def show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag):
   from mmdet.debug_tools import show_lines, show_points
@@ -217,5 +232,19 @@ def show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag):
       show_points(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), points, name=flag+'_corners.png')
     pass
 
+def show_weights(weights_list, flag):
+  from mmdet.debug_tools import show_lines, show_points
+  from configs.common import IMAGE_SIZE
+  import numpy as np
+  import mmcv
+  print('\n\n\n')
+  print(flag)
+  for weights in weights_list:
+    if weights.dim() > 1:
+      weights = weights[:,0]
+    s = np.sqrt(weights.shape[0]).astype(np.int32)
+    img = weights.reshape(s,s).cpu().data.numpy().astype(np.float32)
+    mmcv.imshow(img)
+  pass
 
 

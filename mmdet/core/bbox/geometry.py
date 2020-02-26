@@ -141,3 +141,27 @@ def dsiou_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
   ious = aug_ious * iou_w + rel_diss * (1-iou_w)
   #print('t1:{}\nt2:{}'.format((t1-t0)*1000, (t2-t1)*1000))
   return ious
+
+def corner_overlaps(corners1, corners2, ref_radius, norm_method='gaussian'):
+  assert corners1.dim() == corners2.dim() == 2
+  assert corners1.shape[1] == 2
+  assert corners2.shape[1] == 2  # corners2[:,2] is stride
+  abs_diss = corners1.unsqueeze(dim=1) - corners2.unsqueeze(dim=0)
+  abs_diss = abs_diss.norm(dim=-1)
+  if norm_method == 'divide':
+    rel_diss = abs_diss / pow(ref_radius,2)
+    rel_diss = 1 - rel_diss.clamp(max=1)
+  elif norm_method == 'gaussian':
+    ref = pow(ref_radius,2) * 2
+    ref_diss = torch.exp( -abs_diss/ref )
+  #show_overlaps(ref_diss.cpu().data.numpy())
+  return ref_diss
+
+
+def show_overlaps(overlaps):
+  import numpy as np
+  import mmcv
+  overlaps = overlaps.max(axis=0)
+  s = np.sqrt(overlaps.shape[0]).astype(np.int32)
+  overlaps = overlaps.reshape(s,s)
+  mmcv.imshow(overlaps)

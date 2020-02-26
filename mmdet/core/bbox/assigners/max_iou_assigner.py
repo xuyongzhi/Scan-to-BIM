@@ -1,6 +1,7 @@
 import torch
 
-from ..geometry import bbox_overlaps, dilated_bbox_overlaps, dsiou_bbox_overlaps
+from ..geometry import bbox_overlaps, dilated_bbox_overlaps, \
+                          dsiou_bbox_overlaps, corner_overlaps
 from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
@@ -46,7 +47,8 @@ class MaxIoUAssigner(BaseAssigner):
                  ignore_wrt_candidates=True,
                  gpu_assign_thr=-1,
                  overlap_fun='iou',
-                 obj_rep='box_scope'):
+                 obj_rep='box_scope',
+                 ref_radius=None):
         self.pos_iou_thr = pos_iou_thr
         self.neg_iou_thr = neg_iou_thr
         self.min_pos_iou = min_pos_iou
@@ -55,8 +57,11 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
         self.overlap_fun = overlap_fun
-        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
+        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft', 'corner']
+        if obj_rep == 'corner':
+          assert ref_radius is not None
         self.obj_rep = obj_rep
+        self.ref_radius = ref_radius
 
     def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None,
                img_meta=None):
@@ -118,6 +123,9 @@ class MaxIoUAssigner(BaseAssigner):
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 5
             gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+        elif self.obj_rep == 'corner':
+          assert gt_bboxes.shape[1] == 2
+          #gt_bboxes = gt_bboxes.repeat(1,2)
         else:
           raise NotImplemented
 
@@ -129,10 +137,15 @@ class MaxIoUAssigner(BaseAssigner):
           overlaps_fun = dilated_bbox_overlaps
         elif self.overlap_fun == 'dil_iou_dis':
           overlaps_fun = dsiou_bbox_overlaps
+        if self.overlap_fun == 'dis':
+          overlaps_fun = corner_overlaps
         else:
           raise NotImplemented
 
-        overlaps = overlaps_fun(gt_bboxes, bboxes)
+        if self.overlap_fun == 'dis':
+          overlaps = overlaps_fun(gt_bboxes, bboxes[:,:2], self.ref_radius)
+        else:
+          overlaps = overlaps_fun(gt_bboxes, bboxes)
 
         if (self.ignore_iof_thr > 0) and (gt_bboxes_ignore is not None) and (
                 gt_bboxes_ignore.numel() > 0):
@@ -244,6 +257,9 @@ def fix_bboxes_size(bboxes, size=2):
 
 def show_assign_res(bboxes, gt_bboxes, assign_res):
   import mmcv, numpy as np
+  if gt_bboxes.shape[1] == 2:
+    gt_bboxes = corner_as_bboxes(gt_bboxes, 2)
+    bboxes = corner_as_bboxes(bboxes[:,:2], 1)
 
   #bboxes = fix_bboxes_size(bboxes)
 
@@ -280,6 +296,9 @@ def show_assign_res(bboxes, gt_bboxes, assign_res):
     #cv2.destroyAllWindows()
     pass
   pass
+
+def corner_as_bboxes(corners, s):
+  return torch.cat( [corners - s, corners + s], dim=1 )
 
 
 

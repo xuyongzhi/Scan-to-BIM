@@ -95,6 +95,20 @@ train_cfg = dict(
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
+    corner=dict(
+        assigner=dict(
+            type='MaxIoUAssigner',
+            pos_iou_thr=0.6,
+            neg_iou_thr=0.1,
+            min_pos_iou=0,
+            ignore_iof_thr=-1,
+            overlap_fun='dis',
+            ref_radius=3,
+            obj_rep='corner'),
+        allowed_border=-1,
+        pos_weight=-1,
+        gaussian_weight=True,
+        debug=False),
         )
 test_cfg = dict(
     nms_pre=1000,
@@ -155,8 +169,8 @@ if IMAGE_SIZE == 1024:
   batch_size = 2
   lra = 0.004
 
-if TRAIN_NUM == 1:
-  batch_size = 1
+if TRAIN_NUM < 10:
+  batch_size = 3
   lra = 0.05
 
 test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
@@ -210,6 +224,6 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-if  TRAIN_NUM==1:
+if  TRAIN_NUM < 10:
   workflow = [('train', 1)]
 

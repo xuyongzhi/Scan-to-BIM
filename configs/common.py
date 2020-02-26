@@ -22,8 +22,8 @@ INCLUDE_CORNERS = False
 
 #*******************************************************************************
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
-PRINT_POINT_ASSIGNER = 0
-PRINT_IOU_ASSIGNER = 0
+PRINT_POINT_ASSIGNER = 1
+PRINT_IOU_ASSIGNER = 1
 
 CHECK_POINT_ASSIGN = True
 #*******************************************************************************
