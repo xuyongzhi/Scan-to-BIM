@@ -658,6 +658,8 @@ class StrPointsHead(nn.Module):
              cfg,
              gt_bboxes_ignore=None):
 
+        debug_tools.show_lines(gt_bboxes[0].cpu().data.numpy(), (512,512))
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         if self.corner_hm:
           loss_corner_hm = self.corner_loss(corner_outs, gt_bboxes,
                                  gt_labels, img_metas,cfg, gt_bboxes_ignore)
@@ -881,7 +883,7 @@ class StrPointsHead(nn.Module):
         '''
         obj_dim = cor_ofs_gt.shape[-1]
 
-        if False:
+        if True:
           debug_tools.show_heatmap(labels[0].reshape(128,128), (512,512))
           debug_tools.show_heatmap(label_weights[0].reshape(128,128), (512,512))
           debug_tools.show_heatmap(cor_centerness_gt[0].reshape(128,128), (512,512))
@@ -907,13 +909,10 @@ class StrPointsHead(nn.Module):
 
         normalize_term = self.point_base_scale * stride
 
-        gt_centerness = label_weights
-        centerness_weights = cor_reg_weights[:,0]
         loss_centerness = self.loss_centerness(
             cor_centerness,
             cor_centerness_gt,
-            centerness_weights,
-            avg_factor=num_total_samples_cor)
+        )
 
         cor_ofs_nm = cor_ofs / normalize_term
         cor_ofs_gt_nm = cor_ofs_gt.reshape(-1,obj_dim) / normalize_term
@@ -1066,9 +1065,9 @@ class StrPointsHead(nn.Module):
       pos_locs = cor_locs[pos_ids]
 
       from mmdet.debug_tools import show_heatmap
-      show_heatmap(cls_scores.reshape( featmap_size ) )
-      show_heatmap(cor_centerness.reshape( featmap_size ) )
-      show_heatmap(scores.reshape( featmap_size ) )
+      show_heatmap(cls_scores.reshape( featmap_size ), (512,512) )
+      show_heatmap(cor_centerness.reshape( featmap_size), (512,512) )
+      show_heatmap(scores.reshape( featmap_size ), (512,512) )
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 

@@ -77,6 +77,8 @@ def update_config(cfg, args, split):
       if split == 'train':
         assert cfg[f'train_pipeline'][4]['type'] == 'RandomRotate'
         cfg[f'train_pipeline'][4]['rotate_ratio'] *= rotate
+        cfg['data']['train']['pipeline'][4]['rotate_ratio'] *= rotate
+        cfg['data']['val']['pipeline'][4]['rotate_ratio'] *= rotate
       elif split == 'test':
         assert cfg['test_pipeline'][1]['transforms'][2]['type'] == 'RandomRotate'
         cfg['test_pipeline'][1]['transforms'][2]['rotate_ratio'] *= rotate
