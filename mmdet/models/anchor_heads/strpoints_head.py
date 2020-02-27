@@ -862,8 +862,8 @@ class StrPointsHead(nn.Module):
         loss_dict_all = {
             'loss_cor_cls': losses_cls,
             'loss_cor_cen': losses_centerness,
-            'loss_cor_ofs': losses_ofs ,
         }
+        #loss_dict_all['loss_cor_ofs'] = losses_ofs
         return loss_dict_all
 
     def loss_single_corner(self, cor_score, cor_centerness, cor_ofs, labels,
