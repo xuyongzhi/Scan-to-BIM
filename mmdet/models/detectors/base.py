@@ -7,7 +7,7 @@ import torch.nn as nn
 import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-from configs.common import OBJ_DIM, OUT_EXTAR_DIM
+from configs.common import OBJ_DIM, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -140,13 +140,68 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         else:
             return self.forward_test(img, img_meta, **kwargs)
 
+
+    def show_corner_hm(self, data, result, dataset=None, score_thr=0.3):
+        from mmdet.debug_tools import show_heatmap
+        if isinstance(result, tuple):
+            bbox_result, segm_result = result
+        else:
+            bbox_result, segm_result = result, None
+        assert bbox_result[0].shape[1] == 4 # [4: cls, cen, ofs]
+        img_tensor = data['img'][0]
+        img_metas = data['img_meta'][0].data[0]
+        imgs = tensor2imgs(img_tensor, **img_metas[0]['img_norm_cfg'])
+        assert len(imgs) == len(img_metas)
+        if dataset is None:
+            class_names = self.CLASSES
+        elif isinstance(dataset, str):
+            class_names = get_classes(dataset)
+        elif isinstance(dataset, (list, tuple)):
+            class_names = dataset
+        else:
+            raise TypeError(
+                'dataset must be a valid dataset name or a sequence'
+                ' of class names, not {}'.format(type(dataset)))
+
+
+
+        for img, img_meta in zip(imgs, img_metas):
+            h, w, _ = img_meta['img_shape']
+            if img.shape[-1] == 4:
+              img_show = np.repeat(img[:h, :w, 0:1], 3, axis=2)
+            else:
+              img_show = img[:h, :w, :3]
+
+            filename = img_meta['filename']
+            scene_name = os.path.basename(filename).replace('.npy', '')
+            out_dir = './cor_hm_res/'
+            out_file = out_dir + scene_name
+            if not os.path.exists(out_dir):
+              os.makedirs(out_dir)
+
+            #gt_lines = load_gt_lines(img_meta)
+            gt_lines = None
+
+            bboxes = np.vstack(bbox_result)
+            featmap_size = np.sqrt(bboxes.shape[0]).astype(np.int32)
+            bboxes = bboxes.reshape( featmap_size, featmap_size, 4 )
+            ffs = (featmap_size, featmap_size)
+            show_heatmap(bboxes[:,:,0], (h,w), out_file+'_cls.png', lines=gt_lines)
+            show_heatmap(bboxes[:,:,1], (h,w), out_file+'_centerness.png', lines=gt_lines)
+            show_heatmap(bboxes[:,:,0]*bboxes[:,:,1], (h,w), out_file+'_cls_cen.png', lines=gt_lines)
+            pass
+
     def show_result(self, data, result, dataset=None, score_thr=0.3):
+        if OUT_CORNER_HM_ONLY:
+          self.show_corner_hm(data, result, dataset, score_thr)
+          return
+
         if isinstance(result, tuple):
             bbox_result, segm_result = result
         else:
             bbox_result, segm_result = result, None
         if bbox_result[0].shape[0] > 0:
-          assert bbox_result[0].shape[1] == OBJ_DIM + OUT_EXTAR_DIM + 1
+            assert bbox_result[0].shape[1] == OBJ_DIM + OUT_EXTAR_DIM + 1
         else:
           print('no box detected')
           return
@@ -318,4 +373,14 @@ def draw_key_points(img, key_points, bboxes_s, score_thr,
         p = key_points[i][j].astype(np.int32)
         cv2.circle(img, (p[0], p[1]), 2, point_color, thickness=thickness)
 
+def load_gt_lines(img_meta):
+  from beike_data_utils.beike_utils import load_anno_1scene, raw_anno_to_img
+  filename = img_meta['filename']
+  scene_name = os.path.basename(filename).replace('.npy', '.json')
+  processed_dir = os.path.dirname(os.path.dirname(os.path.dirname(filename)))
+  json_dir = os.path.join(processed_dir, 'json')
+  anno = load_anno_1scene(json_dir, scene_name)
+  anno_img = raw_anno_to_img(anno)
+  lines = anno_img['lines']
+  return lines
 

@@ -59,7 +59,7 @@ def show_lines(lines, img_size, points=None, lines_ref=None, name='out.png'):
     colors = ['random']
   show_img_lines(img, lines, points=points, colors=colors, name=name)
 
-def show_img_lines(img, lines, points=None, colors=['random'], name='out.png'):
+def show_img_lines(img, lines, points=None, colors=['random'], name='out.png', only_draw=False):
     lines = lines_to_2points_format(lines)
     img = img.copy()
     for i in range(lines.shape[0]):
@@ -76,9 +76,10 @@ def show_img_lines(img, lines, points=None, colors=['random'], name='out.png'):
         p = points[i]
         c = get_random_color()
         cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
-    mmcv.imshow(img)
-    mmcv.imwrite(img, name)
-    pass
+    if not only_draw:
+      mmcv.imshow(img)
+      mmcv.imwrite(img, name)
+    return img
 
 
 def lines_to_2points_format(lines):
@@ -261,16 +262,26 @@ def show_img_with_norm(img):
   show_points_3d(img3d)
   pass
 
-def show_heatmap(scores, show_size=None):
+def show_heatmap(scores, show_size=None, out_file=None, lines=None):
   '''
   scores: [h,w, 1]
   '''
-  assert scores.dim() == 2
-  img = scores.cpu().data.numpy().astype(np.float32)
+  if isinstance(scores, torch.Tensor):
+    img = scores.cpu().data.numpy().astype(np.float32)
+  else:
+    img = scores.astype(np.float32)
+  assert img.ndim == 2
   img = (img*255).astype(np.uint8)
   if show_size is not None:
     img = mmcv.imresize(img, show_size)
+  img = np.tile(np.expand_dims(img, 2),(1,1,3))
   #h,w = scores.shape[:2]
   #img = np.zeros((h,w), dtype=uint8)
-  mmcv.imshow(img)
-  mmcv.imwrite(img, './hm.png')
+  if lines is not None:
+    img = show_img_lines(img, lines, colors=['random'], only_draw=True)
+  if out_file is None:
+    mmcv.imshow(img)
+  else:
+    mmcv.imwrite(img, out_file)
+    print(out_file)
+

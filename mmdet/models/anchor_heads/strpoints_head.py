@@ -1019,7 +1019,7 @@ class StrPointsHead(nn.Module):
 
         if self.corner_hm:
           cor_heatmap_list = self.get_corners(corner_outs, img_metas, cfg)
-          #result_list = result_list + cor_heatmap_list
+          result_list =  cor_heatmap_list
         return result_list
 
     def get_bboxes_single(self,
@@ -1069,6 +1069,7 @@ class StrPointsHead(nn.Module):
 
             if OUT_EXTAR_DIM > 0:
               # bbox_preds: [bbox_refine, bbox_init, points_refine, points_init]
+              #             [5,           5,        18,             18]
               bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
               bboxes_init[:,:4] = bboxes_init[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
 
@@ -1084,7 +1085,7 @@ class StrPointsHead(nn.Module):
               for kp in range(0, key_points.shape[1], 2):
                 key_points[:,kp] = key_points[:,kp].clamp(min=0, max=img_shape[1])
                 key_points[:,kp+1] = key_points[:,kp+1].clamp(min=0, max=img_shape[0])
-              bboxes = torch.cat([bboxes, bboxes_init, key_points], dim=1)
+              bboxes = torch.cat([bboxes, bboxes_init, key_points], dim=1) # [5,5,36]
               pass
 
             mlvl_bboxes.append(bboxes)
@@ -1097,6 +1098,8 @@ class StrPointsHead(nn.Module):
             padding = mlvl_scores.new_zeros(mlvl_scores.shape[0], 1)
             mlvl_scores = torch.cat([padding, mlvl_scores], dim=1)
         if nms:
+            # mlvl_bboxes: [3256, 46]
+            # det_bboxes: [66, 47]
             det_bboxes, det_labels = multiclass_nms(mlvl_bboxes, mlvl_scores,
                                                     cfg.score_thr, cfg.nms,
                                                     cfg.max_per_img)
@@ -1133,18 +1136,17 @@ class StrPointsHead(nn.Module):
       else:
           cor_cls_score = cor_hm_score.softmax(-1)
       cor_centerness = cor_centerness.clamp(min=0, max=1)
+      cor_cls_cen_ofs = torch.cat([cor_cls_score, cor_centerness, cor_hm_ofs], dim=1)
 
       scores = cor_cls_score * cor_centerness
       if self.use_sigmoid_cls:
           max_scores, labels = scores.max(dim=1)
-          labels += 1
       else:
           max_scores, labels = scores[:, 1:].max(dim=1)
-      score_threshold = cfg['score_thr']
-      background_mask = (max_scores > score_threshold).to(labels.dtype)
-      labels *= background_mask
-
-      cor_cls_cen_ofs = torch.cat([cor_cls_score, cor_centerness, cor_hm_ofs], dim=1)
+      #assert labels.min() > 0 # all the pixels are outputed in heatmap
+      #score_threshold = cfg['score_thr']
+      #background_mask = (max_scores > score_threshold).to(labels.dtype)
+      #labels *= background_mask
 
 
       if 0:
