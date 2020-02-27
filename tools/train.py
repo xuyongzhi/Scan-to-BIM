@@ -129,7 +129,7 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
       if dcn_zero_base:
         cfg['work_dir'] += '_DcnZb'
-      if 'cor_hm' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['cor_hm']:
+      if 'corner_hm' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['corner_hm']:
         cfg['work_dir'] += '_Chm'
         if cfg['model']['bbox_head']['corner_hm_only']:
           cfg['work_dir'] += 'Only'
