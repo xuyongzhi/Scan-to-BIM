@@ -54,6 +54,8 @@ def parse_args():
     parser.add_argument('--bs', type=int, default=None)
     parser.add_argument('--cls', type=str, default=None, help='refine, refine_final')
     parser.add_argument('--dcn_zero_base', type=int, default=None)
+    parser.add_argument('--corhm', type=int, default=None,
+                        help='0: no corner heat map, 1: both corner and line, 2:only corner')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -72,6 +74,7 @@ def update_config(cfg, args, split):
     bs = args.bs
     cls_loss = args.cls
     dcn_zero_base = args.dcn_zero_base
+    corner_hm = args.corhm
     if rotate is not None:
       assert rotate == 1 or rotate == 0
       if split == 'train':
@@ -97,6 +100,11 @@ def update_config(cfg, args, split):
       assert dcn_zero_base == 0 or dcn_zero_base == 1
       cfg['model']['bbox_head']['dcn_zero_base'] = dcn_zero_base == 1
 
+    if corner_hm is not None:
+      assert corner_hm ==0 or corner_hm==1 or corner_hm ==2
+      cfg['model']['bbox_head']['corner_hm'] = corner_hm!=0
+      cfg['model']['bbox_head']['corner_hm_only'] = corner_hm==2
+
 
     # update work_dir
     if split == 'train':
@@ -121,6 +129,11 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
       if dcn_zero_base:
         cfg['work_dir'] += '_DcnZb'
+      if 'cor_hm' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['cor_hm']:
+        cfg['work_dir'] += '_Chm'
+        if cfg['model']['bbox_head']['corner_hm_only']:
+          cfg['work_dir'] += 'Only'
+
       #print(cfg['work_dir'])
       pass
 
