@@ -164,6 +164,7 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
                    line_color='green', text_color='green', thickness=1,
                    font_scale=0.5,show=True, win_name='', wait_time=0,
                    out_file=None, key_points=None, point_color='red'):
+  from configs.common import OBJ_LEGEND
   assert lines.ndim == 2
   assert lines.shape[1] == 6 or lines.shape[1] == 5
   assert labels.ndim == 1
@@ -207,8 +208,10 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
     label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
     label_text = ''
     if len(line) == 6:
-      label_text += '{:.01f}'.format(line[-1]) # score
-      #label_text += '{:.01f}'.format(line[-2]) # rotation
+      if OBJ_LEGEND == 'score':
+        label_text += '{:.01f}'.format(line[-1]) # score
+      else:
+        label_text += '{:.01f}'.format(line[-2]) # rotation
 
     m = ((s+e)/2).astype(np.int32)
     cv2.putText(img, label_text, (m[0]-2, m[1] - 2),

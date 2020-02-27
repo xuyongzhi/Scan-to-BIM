@@ -1,4 +1,5 @@
 # Questions
+* a big issue is that the refine stage cannot remove false positive of the first stage
 * base_scale=2 seems not right
 * Is the max_iou assigner configuration not good, num_total_pos is too large
 * try dcn offset == reppoints location
