@@ -137,7 +137,7 @@ class MaxIoUAssigner(BaseAssigner):
           overlaps_fun = dilated_bbox_overlaps
         elif self.overlap_fun == 'dil_iou_dis':
           overlaps_fun = dsiou_bbox_overlaps
-        if self.overlap_fun == 'dis':
+        elif self.overlap_fun == 'dis':
           overlaps_fun = corner_overlaps
         else:
           raise NotImplemented
