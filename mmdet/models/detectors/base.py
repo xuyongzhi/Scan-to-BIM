@@ -145,7 +145,11 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             bbox_result, segm_result = result
         else:
             bbox_result, segm_result = result, None
-        assert bbox_result[0].shape[1] == OBJ_DIM + OUT_EXTAR_DIM + 1
+        if bbox_result[0].shape[0] > 0:
+          assert bbox_result[0].shape[1] == OBJ_DIM + OUT_EXTAR_DIM + 1
+        else:
+          print('no box detected')
+          return
 
         img_tensor = data['img'][0]
         img_metas = data['img_meta'][0].data[0]
@@ -191,7 +195,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             class_names = tuple([c[0] for c in class_names])
 
 
-            if OUT_EXTAR_DIM > 0:
+            if OUT_EXTAR_DIM > 0 and bboxes.shape[0]>0:
               bboxes_refine = np.concatenate([bboxes[:, 0:OBJ_DIM], bboxes[:,-1:]], axis=1)
               bboxes_init = np.concatenate([bboxes[:, OBJ_DIM:OBJ_DIM*2], bboxes[:,-1:]], axis=1)
               num_points = (OUT_EXTAR_DIM - OBJ_DIM)//2

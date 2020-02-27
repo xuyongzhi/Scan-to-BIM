@@ -1018,56 +1018,9 @@ class StrPointsHead(nn.Module):
             result_list.append(proposals)
 
         if self.corner_hm:
-          self.get_corners(corner_outs, img_metas, cfg)
+          cor_heatmap_list = self.get_corners(corner_outs, img_metas, cfg)
+          #result_list = result_list + cor_heatmap_list
         return result_list
-
-    def get_corners(self, corner_outs, img_metas, cfg):
-        corner_outs = corner_outs[0]
-        cor_hm_cls = corner_outs['cor_scores'].detach()
-        cor_hm_ofs = corner_outs['cor_ofs'].detach()
-        cor_centerness = corner_outs['cor_centerness'].detach()
-        featmap_size = cor_hm_cls.size()[-2:]
-        points = self.point_generators[0].grid_points(featmap_size, self.point_strides[0])
-        corner_result_list = []
-        for img_id in range(len(img_metas)):
-          img_shape = img_metas[img_id]['img_shape']
-          scale_factor = img_metas[img_id]['scale_factor']
-          corner_heatmap = self.get_corners_single(cor_hm_cls[img_id],
-                                                   cor_centerness[img_id],
-                                        cor_hm_ofs[img_id], points,
-                                        img_shape, scale_factor, cfg)
-          corner_result_list.append(corner_heatmap)
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          pass
-        pass
-    def get_corners_single(self, cor_hm_score, cor_centerness, cor_hm_ofs, points, img_shape,
-                           scale_factor, cfg, rescale=False, nms=False):
-      featmap_size = cor_hm_score.shape[1:]
-      cor_hm_score = cor_hm_score.permute(1,2,0).reshape(-1, self.cls_out_channels)
-      cor_centerness = cor_centerness.permute(1,2,0).reshape(-1, 1)
-      cor_hm_ofs = cor_hm_ofs.permute(1,2,0).reshape(-1, 2)
-      if self.use_sigmoid_cls:
-          cls_scores = cor_hm_score.sigmoid()
-      else:
-          cls_scores = cor_hm_score.softmax(-1)
-      cor_centerness = cor_centerness.clamp(min=0, max=1)
-
-      cor_locs = points[:,:2] + cor_hm_ofs
-      scores = cls_scores * cor_centerness
-
-      score_threshold = 0.2
-      mask = scores[:,0] > score_threshold
-      pos_ids = torch.nonzero(mask)
-      pos_scores = scores[pos_ids]
-      pos_ofs = cor_hm_ofs[pos_ids]
-      pos_locs = cor_locs[pos_ids]
-
-      from mmdet.debug_tools import show_heatmap
-      show_heatmap(cls_scores.reshape( featmap_size ), (512,512) )
-      show_heatmap(cor_centerness.reshape( featmap_size), (512,512) )
-      show_heatmap(scores.reshape( featmap_size ), (512,512) )
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
 
     def get_bboxes_single(self,
                           cls_scores,
@@ -1150,6 +1103,60 @@ class StrPointsHead(nn.Module):
             return det_bboxes, det_labels
         else:
             return mlvl_bboxes, mlvl_scores
+
+    def get_corners(self, corner_outs, img_metas, cfg):
+        corner_outs = corner_outs[0]
+        cor_hm_cls = corner_outs['cor_scores'].detach()
+        cor_hm_ofs = corner_outs['cor_ofs'].detach()
+        cor_centerness = corner_outs['cor_centerness'].detach()
+        featmap_size = cor_hm_cls.size()[-2:]
+        points = self.point_generators[0].grid_points(featmap_size, self.point_strides[0])
+        cor_heatmap_list = []
+        for img_id in range(len(img_metas)):
+          img_shape = img_metas[img_id]['img_shape']
+          scale_factor = img_metas[img_id]['scale_factor']
+          labels, cor_cls_cen_ofs = self.get_corners_single(cor_hm_cls[img_id],
+                                                   cor_centerness[img_id],
+                                        cor_hm_ofs[img_id], points,
+                                        img_shape, scale_factor, cfg)
+          cor_heatmap_list.append((labels, cor_cls_cen_ofs ))
+        return cor_heatmap_list
+
+    def get_corners_single(self, cor_hm_score, cor_centerness, cor_hm_ofs, points, img_shape,
+                           scale_factor, cfg, rescale=False, nms=False):
+      featmap_size = cor_hm_score.shape[1:]
+      cor_hm_score = cor_hm_score.permute(1,2,0).reshape(-1, self.cls_out_channels)
+      cor_centerness = cor_centerness.permute(1,2,0).reshape(-1, 1)
+      cor_hm_ofs = cor_hm_ofs.permute(1,2,0).reshape(-1, 2)
+      if self.use_sigmoid_cls:
+          cor_cls_score = cor_hm_score.sigmoid()
+      else:
+          cor_cls_score = cor_hm_score.softmax(-1)
+      cor_centerness = cor_centerness.clamp(min=0, max=1)
+
+      scores = cor_cls_score * cor_centerness
+      if self.use_sigmoid_cls:
+          max_scores, labels = scores.max(dim=1)
+          labels += 1
+      else:
+          max_scores, labels = scores[:, 1:].max(dim=1)
+      score_threshold = cfg['score_thr']
+      background_mask = (max_scores > score_threshold).to(labels.dtype)
+      labels *= background_mask
+
+      cor_cls_cen_ofs = torch.cat([cor_cls_score, cor_centerness, cor_hm_ofs], dim=1)
+
+
+      if 0:
+        from mmdet.debug_tools import show_heatmap
+        show_heatmap(cor_cls_score.reshape( featmap_size ), (512,512) )
+        show_heatmap(cor_centerness.reshape( featmap_size), (512,512) )
+        show_heatmap(scores.reshape( featmap_size ), (512,512) )
+        ofs_img = (cor_hm_ofs.norm(dim=1)/10).clamp(max=1)
+        show_heatmap(ofs_img.reshape( featmap_size ), (512,512) )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+      return cor_cls_cen_ofs, labels
 
     def normalize_istopleft_loss(self, itl_loss):
         itl_loss_nm = 1 - torch.exp(-itl_loss)

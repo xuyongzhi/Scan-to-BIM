@@ -43,7 +43,8 @@ d. Install build requirements and then install mmdetection.
 (We install pycocotools via the github repo instead of pypi because the pypi version is old and not compatible with the latest numpy.)
 
 ```shell
-pip install -r requirements/build.txt
+#pip install -r requirements/build.txt
+conda install -c anaconda pillow=6
 pip install "git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI"
 pip install -v -e .  # or "python setup.py develop"
 ```
