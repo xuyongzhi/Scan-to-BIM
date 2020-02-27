@@ -5,7 +5,7 @@ from ..utils import multi_apply
 
 from mmdet import debug_tools
 DEBUG = 0
-
+SHOW_CENTERNESS = 0
 
 def point_target(proposals_list,
                  valid_flag_list,
@@ -191,7 +191,7 @@ def point_target_single(flat_proposals,
         assert gt_bboxes.shape[1] == 2
         gt_centerness = get_gaussian_weights( gt_bboxes, flat_proposals[:,:2], cfg['assigner']['ref_radius'] )
         pos_proposals = torch.cat([pos_proposals, gt_centerness.reshape(-1,1)], dim=1)
-        if False:
+        if SHOW_CENTERNESS:
           from mmdet.debug_tools import show_heatmap
           show_heatmap(gt_centerness.reshape(128,128), (512,512))
           show_heatmap(labels.reshape(128,128), (512,512))

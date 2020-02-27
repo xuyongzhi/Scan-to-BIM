@@ -428,8 +428,6 @@ class BEIKE:
       print(f'min line size: {min_line_size}')
       #mmcv.imshow_bboxes(img, bboxes)
 
-      #mmcv.imshow(img)
-
       for i in range(lines.shape[0]):
         s, e = lines[i]
         if i != idx_min_size or 1:
@@ -444,7 +442,7 @@ class BEIKE:
         c = corners[i]
         cv2.circle(img, (c[0], c[1]), radius=3, color=colors_corner['wall'],
                    thickness=2)
-      #mmcv.imshow(img)
+      mmcv.imshow(img)
       if WRITE_ANNO_IMG:
         anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
         cv2.imwrite(anno_img_file, img)
@@ -680,7 +678,8 @@ def main(data_path):
 
   beike = BEIKE(ANNO_PATH, topview_path)
 
-  beike.show_scene_anno( lost_gt_scenes[0], True, 0)
+  for s in scenes:
+    beike.show_scene_anno(s, True, 0)
 
 
   #for s in UNALIGNED_SCENES:
