@@ -4,7 +4,11 @@ CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 CP=./work_dirs/T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs3_lr10_RA_Normrawstd_Chm/best.pth
 #CP=./checkpoints/refine_best_20Feb.pth
 
-ipython tools/train.py --  ${CONFIG} --rotate 1 --lr 0.01 --cls refine --corhm 1 --dcn_zero_base 0
-#ipython tools/train.py --  ${CONFIG} --rotate 1 --lr 0.01 --cls refine --corhm 1 --dcn_zero_base 1
+ROTATE=1
+CLS=refine_final
+CORHM=1
+DCN_ZERO_BASE=1
 
-#./tools/dist_train.sh ${CONFIG} 2  --rotate 1 --lr 0.01  --cls refine_final --corhm 1
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
+

@@ -133,6 +133,11 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += '_Chm'
         if cfg['model']['bbox_head']['corner_hm_only']:
           cfg['work_dir'] += 'Only'
+        cor_assigner = cfg['train_cfg']['corner']['assigner']
+        radius = cor_assigner['ref_radius']
+        pos_iou = int(cor_assigner['pos_iou_thr'] * 10)
+        neg_iou = int(cor_assigner['neg_iou_thr'] * 10)
+        cfg['work_dir'] += f'R{radius}P{neg_iou}N{neg_iou}'
 
       #print(cfg['work_dir'])
       pass

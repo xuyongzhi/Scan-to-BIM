@@ -40,15 +40,20 @@ def imshow_bboxes_ref(img, bboxes0, bboxes1):
 
 def show_points(points0, img_size, points1, cor0='red', cor1='green', name=''):
   img = np.zeros(img_size + (3,), dtype=np.uint8)
-  for i in range(points0.shape[0]):
-    p = points0[i]
-    c = color_val(cor0)
-    cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
-  for i in range(points1.shape[0]):
-    p = points1[i]
-    c = color_val(cor1)
-    cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
+  img = draw_points(img, [points0, points1], [cor0, cor1])
   mmcv.imshow(img)
+
+def draw_points(img, points_list, colors_list='red'):
+  if not isinstance(points_list, list):
+    points_list = [points_list]
+  if not isinstance(colors_list, list):
+    colors_list = ['red'] * len(points_list)
+  for k in range(len(points_list)):
+    for i in range(points_list[k].shape[0]):
+      p = points_list[k][i]
+      c = color_val(colors_list[k])
+      cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
+  return img
 
 def show_lines(lines, img_size, points=None, lines_ref=None, name='out.png'):
   img = np.zeros(img_size + (3,), dtype=np.uint8)
@@ -262,7 +267,7 @@ def show_img_with_norm(img):
   show_points_3d(img3d)
   pass
 
-def show_heatmap(scores, show_size=None, out_file=None, lines=None):
+def show_heatmap(scores, show_size=None, out_file=None, gt_lines=None, gt_corners=None):
   '''
   scores: [h,w, 1]
   '''
@@ -277,8 +282,10 @@ def show_heatmap(scores, show_size=None, out_file=None, lines=None):
   img = np.tile(np.expand_dims(img, 2),(1,1,3))
   #h,w = scores.shape[:2]
   #img = np.zeros((h,w), dtype=uint8)
-  if lines is not None:
-    img = show_img_lines(img, lines, colors=['random'], only_draw=True)
+  if gt_lines is not None:
+    img = show_img_lines(img, gt_lines, colors=['random'], only_draw=True)
+  if gt_corners is not None:
+    img = draw_points(img, gt_corners, 'red')
   if out_file is None:
     mmcv.imshow(img)
   else:
