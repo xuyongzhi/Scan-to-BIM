@@ -179,8 +179,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             if not os.path.exists(out_dir):
               os.makedirs(out_dir)
 
-            #gt_lines = load_gt_lines(img_meta)
-            gt_lines = None
+            gt_lines = load_gt_lines(img_meta)
+            #gt_lines = None
 
             bboxes = np.vstack(bbox_result)
             featmap_size = np.sqrt(bboxes.shape[0]).astype(np.int32)
@@ -378,9 +378,9 @@ def load_gt_lines(img_meta):
   filename = img_meta['filename']
   scene_name = os.path.basename(filename).replace('.npy', '.json')
   processed_dir = os.path.dirname(os.path.dirname(os.path.dirname(filename)))
-  json_dir = os.path.join(processed_dir, 'json')
-  anno = load_anno_1scene(json_dir, scene_name)
-  anno_img = raw_anno_to_img(anno)
-  lines = anno_img['lines']
+  json_dir = os.path.join(processed_dir, 'json/')
+  anno_raw = load_anno_1scene(json_dir, scene_name)
+  anno_img = raw_anno_to_img(anno_raw)
+  lines = anno_img['bboxes']
   return lines
 

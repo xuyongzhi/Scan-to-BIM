@@ -59,9 +59,6 @@ class BEIKE:
         self.seperate_room_path = anno_folder.replace('json', 'seperate_room_data/test')
         #self.seperate_room_data_path = anno_folder.replace('json', 'seperate_room_data/test')
         base_path = os.path.dirname( os.path.dirname(anno_folder) )
-        pcl_scopes_file = os.path.join(base_path, 'pcl_scopes.json')
-        with open(pcl_scopes_file, 'r') as f:
-          self.pcl_scopes = json.load(f)
 
         json_files = os.listdir(anno_folder)
         assert len(json_files) > 0
@@ -71,8 +68,6 @@ class BEIKE:
         for jfn in json_files:
           scene_name = jfn.split('.')[0]
           anno_raw = load_anno_1scene(self.anno_folder, jfn)
-          pcl_scope = np.array(self.pcl_scopes[anno_raw['filename'].split('.')[0]] )
-          anno_raw['pcl_scope'] = pcl_scope
           anno_img = raw_anno_to_img(anno_raw)
           filename = jfn.split('.')[0]+'.npy'
           #filename = jfn.split('.')[0]+'.density.png'
@@ -510,6 +505,15 @@ def raw_anno_to_img(anno_raw):
       return anno_img
 
 
+def load_pcl_scope(anno_folder):
+    base_path = os.path.dirname(os.path.dirname(anno_folder))
+    pcl_scopes_file = os.path.join(base_path, 'pcl_scopes.json')
+    with open(pcl_scopes_file, 'r') as f:
+      pcl_scopes = json.load(f)
+    for fid in pcl_scopes.keys():
+      pcl_scopes[fid] = np.array(pcl_scopes[fid])
+    return pcl_scopes
+
 def load_anno_1scene(anno_folder, filename):
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
@@ -599,6 +603,9 @@ def load_anno_1scene(anno_folder, filename):
 
       lines_leng = np.linalg.norm(anno['lines'][:,0] - anno['lines'][:,1], axis=-1)
       anno['line_length_min_mean_max'] = [lines_leng.min(), lines_leng.mean(), lines_leng.max()]
+
+      pcl_scopes_all = load_pcl_scope(anno_folder)
+      anno['pcl_scope'] = pcl_scopes_all[filename.split('.')[0]]
       return anno
 
 
