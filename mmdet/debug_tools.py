@@ -248,9 +248,14 @@ def lines_to_2points_format(lines):
   return lines
 
 def scale_img_touint8(img):
+  #assert img.ndim == 2 or img.ndim == 3,  img.shape
   if img.max() <= 1:
     img = img*255
   img = img.astype(np.uint8)
+  #if img.ndim == 2:
+  #  img = np.expand_dims( img, 2)
+  #if img.shape[2] == 1:
+  #  img = np.tile(img, (1,1,3))
   return img
 
 def show_img_lines(img, lines, points=None, colors=['random'], name=None, only_draw=False):

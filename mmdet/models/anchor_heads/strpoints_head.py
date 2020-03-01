@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from mmcv.cnn import normal_init
+import mmcv
 
 from mmdet.core import (PointGenerator, multi_apply, multiclass_nms,
                         point_target)
@@ -15,6 +16,8 @@ from ..utils import ConvModule, bias_init_with_prob, Scale
 from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
 from beike_data_utils.line_utils import decode_line_rep_th
+
+import torchvision as tcv
 
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY
 
@@ -1019,6 +1022,8 @@ class StrPointsHead(nn.Module):
 
         if self.corner_hm:
           cor_heatmap_list = self.get_corners(corner_outs, img_metas, cfg)
+          #for i in range(len(cor_heatmap_list)):
+          #  result_list[0][0] = self.get_line_corner_cls_ofs(result_list[0][0], cor_heatmap_list[i][0], img_metas[i])
           if OUT_CORNER_HM_ONLY:
             result_list =  cor_heatmap_list
         return result_list
@@ -1070,7 +1075,8 @@ class StrPointsHead(nn.Module):
 
             if OUT_EXTAR_DIM > 0:
               # bbox_preds: [bbox_refine, bbox_init, points_refine, points_init]
-              #             [5,           5,        18,             18]
+              # + score later to be 47:
+              #         46: [5,           5,        18,             18]
               bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
               bboxes_init[:,:4] = bboxes_init[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
 
@@ -1165,6 +1171,52 @@ class StrPointsHead(nn.Module):
         itl_loss_nm = 1 - torch.exp(-itl_loss)
         return itl_loss_nm
 
+    def get_line_corner_cls_ofs(self, line_pred, cor_hm_pred, img_meta):
+      '''
+      line_pred: [n,47]
+               [bbox_refine, bbox_init, points_refine, points_init, score]
+      cor_hm_pred: [m,4]
+      '''
+      assert OBJ_REP == 'lscope_istopleft'
+      bbox_refine = line_pred[:,:5]
+      line_2p_refine_0 = decode_line_rep_th(bbox_refine, OBJ_REP)
+      num_lines = line_2p_refine_0.shape[0]
+      pad_shape = img_meta['pad_shape'][:2]
+      m = cor_hm_pred.shape[0]
+      assert cor_hm_pred.shape[1] == 4
+      featmap_size = int(np.sqrt(m))
+      cor_hm0 = cor_hm_pred.reshape(featmap_size, featmap_size, cor_hm_pred.shape[1])
+      cor_hm1 = torch.nn.functional.interpolate(cor_hm0.permute(2,0,1).unsqueeze(0), size=(512,512), mode='bilinear')
+      cor_hm2 = cor_hm1.squeeze(0).permute(1,2,0)
+
+      line_2p_refine_1 = line_2p_refine_0.reshape(num_lines*2, 2)
+      rr_inds = torch.ceil(line_2p_refine_1).to(torch.int64)
+      ll_inds = torch.floor(line_2p_refine_1).to(torch.int64)
+
+      rr_d = (line_2p_refine_1 - rr_inds.to(torch.float)).norm(dim=1)
+      ll_d = (line_2p_refine_1 - ll_inds.to(torch.float)).norm(dim=1)
+      sum_d = rr_d + ll_d
+      rr_w = 1 - rr_d / sum_d
+      ll_w = 1 - ll_d / sum_d
+
+      rr_cor = cor_hm2[ rr_inds[:,0], rr_inds[:,1] ]
+      ll_cor = cor_hm2[ ll_inds[:,0], ll_inds[:,1] ]
+
+      cor_2p_0 = rr_cor * rr_w.unsqueeze(1) + ll_cor * ll_w.unsqueeze(1)
+      cor_2p_1 = cor_2p_0.reshape(num_lines, 2, 4)
+
+      corner0_score = cor_2p_1[:,0:1,:2].mean(dim=-1)
+      corner1_score = cor_2p_1[:,1:2,:2].mean(dim=-1)
+
+      line_pred_out = torch.cat([line_pred, corner0_score, corner0_score], dim=1)
+      return line_pred_out
+
+      from mmdet.debug_tools import show_lines, show_img_lines
+      #show_img_lines(cor_hm2.cpu().data.numpy()[:,:,0:1], bbox_refine.cpu().data.numpy())
+      #show_lines(bbox_refine.cpu().data.numpy(), pad_shape)
+      #show_lines(line_2p_refine.cpu().data.numpy(), pad_shape)
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
 def gen_corners_from_bboxes(bboxes, labels):
     lines0 = decode_line_rep_th(bboxes, OBJ_REP)

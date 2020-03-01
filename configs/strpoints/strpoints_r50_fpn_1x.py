@@ -176,8 +176,8 @@ if TRAIN_NUM < 10:
   batch_size = 6
   lra = 0.05
 
-test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
-#test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
+#test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
+test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,
@@ -200,7 +200,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 800
+total_epochs = 801
 lr_config = dict(
     policy='step',
     warmup='linear',
