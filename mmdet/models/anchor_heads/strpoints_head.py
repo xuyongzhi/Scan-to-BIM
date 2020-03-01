@@ -16,7 +16,7 @@ from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
 from beike_data_utils.line_utils import decode_line_rep_th
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -1019,7 +1019,8 @@ class StrPointsHead(nn.Module):
 
         if self.corner_hm:
           cor_heatmap_list = self.get_corners(corner_outs, img_metas, cfg)
-          result_list =  cor_heatmap_list
+          if OUT_CORNER_HM_ONLY:
+            result_list =  cor_heatmap_list
         return result_list
 
     def get_bboxes_single(self,

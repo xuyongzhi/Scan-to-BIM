@@ -20,7 +20,7 @@ OUT_EXTAR_DIM = 9*2 * 2 + OBJ_DIM #18  # 0 or 18 or 36
 
 #[4: cls, cen, ofs]
 # [1,1,2]
-OUT_CORNER_HM_ONLY = True
+OUT_CORNER_HM_ONLY = 0
 #*******************************************************************************
 
 CORNER_FLAG = 100
