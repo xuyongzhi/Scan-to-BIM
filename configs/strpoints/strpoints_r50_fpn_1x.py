@@ -141,8 +141,8 @@ train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
-    dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
-    dict(type='RandomRotate', rotate_ratio=0.7, obj_rep=_obj_rep),
+    dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
+    dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
@@ -176,8 +176,8 @@ if TRAIN_NUM < 10:
   batch_size = 6
   lra = 0.05
 
-#test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
-test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
+test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
+#test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,
@@ -200,17 +200,17 @@ data = dict(
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 300
+total_epochs = 500
 lr_config = dict(
     policy='step',
     warmup='linear',
-    warmup_iters=10,
+    warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.6), int(total_epochs*0.8)])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
-    interval=max(TRAIN_NUM//20,1),
+    interval=max(TRAIN_NUM//25,1),
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
