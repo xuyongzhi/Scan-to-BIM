@@ -150,6 +150,7 @@ train_pipeline = [
 ]
 test_pipeline = [
     dict(type='LoadTopviewFromFile'),
+    dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='MultiScaleFlipAug',
         img_scale=(512,512),
@@ -157,7 +158,7 @@ test_pipeline = [
         transforms=[
             dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='RandomRotate', rotate_ratio=0.7, obj_rep=_obj_rep),
+            dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
             dict(type='Pad', size_divisor=32),
             dict(type='ImageToTensor', keys=['img']),
@@ -179,7 +180,7 @@ if TRAIN_NUM < 10:
 test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',

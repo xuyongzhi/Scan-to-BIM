@@ -3,7 +3,7 @@ import numpy as np
 import mmcv
 from .geometric_utils import sin2theta_np
 import cv2
-from mmdet.debug_tools import show_img_with_norm
+from mmdet.debug_tools import show_img_with_norm, show_img_lines
 import torch
 
 def encode_line_rep(lines, obj_rep):
@@ -162,7 +162,8 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
 
 def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   assert img.ndim == 3
-  assert img.shape[2] == 4
+  assert lines.ndim == 2
+  assert lines.shape[1] == 5
 
   img_shape = img.shape[:2]
   if check_by_cross:
@@ -249,8 +250,13 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   new_img[:,:,[1,2]] = np.matmul( new_img[:,:,[1,2]], matrix[:,:2].T )
 
   #show_img_with_norm(img)
- # show_img_with_norm(new_img)
-  return lines_rotated.astype(np.float32), new_img.astype(np.float32)
+  #show_img_with_norm(new_img)
+
+  lines_rotated = lines_rotated.astype(np.float32)
+  new_img = new_img.astype(np.float32)
+  #show_img_lines(img[:,:,:3]*255, lines)
+  #show_img_lines(new_img[:,:,:3], lines_rotated)
+  return  lines_rotated, new_img
 
 
 

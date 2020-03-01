@@ -163,6 +163,10 @@ class CustomDataset(Dataset):
     def prepare_test_img(self, idx):
         img_info = self.img_infos[idx]
         results = dict(img_info=img_info)
+        from configs.common import LOAD_GT_TEST
+        if LOAD_GT_TEST:
+          ann_info = self.get_ann_info(idx)
+          results['ann_info'] = ann_info
         if self.proposals is not None:
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)

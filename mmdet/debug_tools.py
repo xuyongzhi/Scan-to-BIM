@@ -64,45 +64,6 @@ def show_lines(lines, img_size, points=None, lines_ref=None, name='out.png'):
     colors = ['random']
   show_img_lines(img, lines, points=points, colors=colors, name=name)
 
-def show_img_lines(img, lines, points=None, colors=['random'], name='out.png', only_draw=False):
-    lines = lines_to_2points_format(lines)
-    img = img.copy()
-    for i in range(lines.shape[0]):
-        s, e = lines[i]
-        if colors[0] == 'random':
-          c = get_random_color()
-        else:
-          c = color_val(colors[i])
-        cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, 1)
-        #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-        #            (255, 255, 255), 1)
-    if points is not None:
-      for i in range(points.shape[0]):
-        p = points[i]
-        c = get_random_color()
-        cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
-    if not only_draw:
-      mmcv.imshow(img)
-      mmcv.imwrite(img, name)
-    return img
-
-
-def lines_to_2points_format(lines):
-  lines = lines.copy()
-  if lines.ndim == 3:
-    assert lines.shape[1:] == (2,2)
-    return lines
-  assert lines.ndim == 2
-  n = lines.shape[0]
-  if lines.shape[1] == 4:
-    return lines.reshape(n,2,2)
-  assert lines.shape[1] == 5
-  for i in range(lines.shape[0]):
-    istopleft = lines[i,4] >= 0
-    if not istopleft:
-      lines[i,0], lines[i,2] = lines[i,2], lines[i,0]
-  lines = lines[:,:4].reshape(n,2,2)
-  return lines
 
 
 def imshow(img, win_name='', wait_time=0):
@@ -267,6 +228,59 @@ def show_img_with_norm(img):
   show_points_3d(img3d)
   pass
 
+
+#-------------------------------------------------------------------------------
+def lines_to_2points_format(lines):
+  lines = lines.copy()
+  if lines.ndim == 3:
+    assert lines.shape[1:] == (2,2)
+    return lines
+  assert lines.ndim == 2
+  n = lines.shape[0]
+  if lines.shape[1] == 4:
+    return lines.reshape(n,2,2)
+  assert lines.shape[1] == 5
+  for i in range(lines.shape[0]):
+    istopleft = lines[i,4] >= 0
+    if not istopleft:
+      lines[i,0], lines[i,2] = lines[i,2], lines[i,0]
+  lines = lines[:,:4].reshape(n,2,2)
+  return lines
+
+def scale_img_touint8(img):
+  if img.max() <= 1:
+    img = img*255
+  img = img.astype(np.uint8)
+  return img
+
+def show_img_lines(img, lines, points=None, colors=['random'], name=None, only_draw=False):
+    '''
+    img: [h,w, 3]
+    lines: [n,4/5]
+    '''
+    lines = lines_to_2points_format(lines)
+    img = img.copy()
+    img = scale_img_touint8(img)
+    for i in range(lines.shape[0]):
+        s, e = lines[i]
+        if colors[0] == 'random':
+          c = get_random_color()
+        else:
+          c = color_val(colors[i])
+        cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, 1)
+        #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+        #            (255, 255, 255), 1)
+    if points is not None:
+      for i in range(points.shape[0]):
+        p = points[i]
+        c = get_random_color()
+        cv2.circle(img, (p[0], p[1]), 2, c, thickness=1)
+    if not only_draw:
+      mmcv.imshow(img)
+    if name is not None:
+      mmcv.imwrite(img, name)
+    return img
+
 def show_heatmap(scores, show_size=None, out_file=None, gt_lines=None, gt_corners=None):
   '''
   scores: [h,w, 1]
@@ -276,7 +290,7 @@ def show_heatmap(scores, show_size=None, out_file=None, gt_lines=None, gt_corner
   else:
     img = scores.astype(np.float32)
   assert img.ndim == 2
-  img = (img*255).astype(np.uint8)
+  img = scale_img_touint8(img)
   if show_size is not None:
     img = mmcv.imresize(img, show_size)
   img = np.tile(np.expand_dims(img, 2),(1,1,3))

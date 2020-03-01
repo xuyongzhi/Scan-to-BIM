@@ -1,5 +1,5 @@
 import os, glob, random, shutil
-IMAGE_SIZE =  512
+IMAGE_SIZE =  1024
 TOPVIEW = 'TopView_All'
 TOPVIEW = 'TopView_Ver'
 

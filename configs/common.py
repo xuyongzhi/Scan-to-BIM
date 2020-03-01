@@ -32,6 +32,7 @@ PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0
 
 CHECK_POINT_ASSIGN = True
+LOAD_GT_TEST = True
 #*******************************************************************************
 
 OBJ_LEGEND = 'score' # score or rotation

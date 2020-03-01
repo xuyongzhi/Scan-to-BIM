@@ -7,7 +7,7 @@ import torch.nn as nn
 import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-from configs.common import OBJ_DIM, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -142,7 +142,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
 
     def show_corner_hm(self, data, result, dataset=None, score_thr=0.3):
-        from mmdet.debug_tools import show_heatmap
+        from mmdet.debug_tools import show_heatmap, show_img_lines
         if isinstance(result, tuple):
             bbox_result, segm_result = result
         else:
@@ -179,16 +179,19 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             if not os.path.exists(out_dir):
               os.makedirs(out_dir)
 
-            gt_lines = load_gt_lines(img_meta)
+            gt_lines = load_gt_lines(img_meta, img_show)
             #gt_lines = None
 
             bboxes = np.vstack(bbox_result)
             featmap_size = np.sqrt(bboxes.shape[0]).astype(np.int32)
             bboxes = bboxes.reshape( featmap_size, featmap_size, 4 )
             ffs = (featmap_size, featmap_size)
-            show_heatmap(bboxes[:,:,0], (h,w), out_file+'_cls.png', lines=gt_lines)
-            show_heatmap(bboxes[:,:,1], (h,w), out_file+'_centerness.png', lines=gt_lines)
-            show_heatmap(bboxes[:,:,0]*bboxes[:,:,1], (h,w), out_file+'_cls_cen.png', lines=gt_lines)
+            cor_scores = (bboxes[:,:,0] + bboxes[:,:,1])/2
+
+            show_img_lines(img_show, gt_lines, name=out_file+'_gt.png', only_draw=1)
+            show_heatmap(bboxes[:,:,0], (h,w), out_file+'_cls.png', gt_lines=gt_lines)
+            show_heatmap(bboxes[:,:,1], (h,w), out_file+'_centerness.png', gt_lines=gt_lines)
+            show_heatmap(cor_scores, (h,w), out_file+'_cls_cen.png', gt_lines=gt_lines)
             pass
 
     def show_result(self, data, result, dataset=None, score_thr=0.3):
@@ -373,8 +376,11 @@ def draw_key_points(img, key_points, bboxes_s, score_thr,
         p = key_points[i][j].astype(np.int32)
         cv2.circle(img, (p[0], p[1]), 2, point_color, thickness=thickness)
 
-def load_gt_lines(img_meta):
+def load_gt_lines(img_meta, img):
   from beike_data_utils.beike_utils import load_anno_1scene, raw_anno_to_img
+  from beike_data_utils.line_utils import rotate_lines_img
+  from mmdet.debug_tools import show_heatmap, show_img_lines
+
   filename = img_meta['filename']
   scene_name = os.path.basename(filename).replace('.npy', '.json')
   processed_dir = os.path.dirname(os.path.dirname(os.path.dirname(filename)))
@@ -382,5 +388,12 @@ def load_gt_lines(img_meta):
   anno_raw = load_anno_1scene(json_dir, scene_name)
   anno_img = raw_anno_to_img(anno_raw)
   lines = anno_img['bboxes']
-  return lines
+  if 'rotate_angle' in img_meta:
+    rotate_angle = img_meta['rotate_angle']
+    #show_img_lines(img[:,:,:3], lines)
+    lines, _ = rotate_lines_img(lines, img, rotate_angle, OBJ_REP)
+    #show_img_lines(img[:,:,:3], lines)
+    return lines
+  else:
+    return lines
 
