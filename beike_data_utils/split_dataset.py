@@ -1,7 +1,7 @@
 import os, glob, random, shutil
 IMAGE_SIZE =  1024
 TOPVIEW = 'TopView_All'
-TOPVIEW = 'TopView_Ver'
+TOPVIEW = 'TopView_VerD'
 
 ORG_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/{TOPVIEW}/test'
 TRAIN_PATH = f'/DT/BEIKE_Floorplan/processed_{IMAGE_SIZE}/{TOPVIEW}/_train_90'

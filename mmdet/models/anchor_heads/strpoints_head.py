@@ -658,11 +658,6 @@ class StrPointsHead(nn.Module):
              cfg,
              gt_bboxes_ignore=None):
 
-        if self.corner_hm:
-          loss_corner_hm = self.corner_loss(corner_outs, gt_bboxes,
-                                 gt_labels, img_metas,cfg, gt_bboxes_ignore)
-          if self.corner_hm_only:
-            return loss_corner_hm
         #-----------------------------------------------------------------------
 
         featmap_sizes = [featmap.size()[-2:] for featmap in pts_preds_init]
@@ -802,6 +797,11 @@ class StrPointsHead(nn.Module):
         #-----------------------------------------------------------------------
         # target for corner
         if self.corner_hm:
+          loss_corner_hm = self.corner_loss(corner_outs, gt_bboxes,
+                                 gt_labels, img_metas,cfg, gt_bboxes_ignore)
+          if self.corner_hm_only:
+            return loss_corner_hm
+        if self.corner_hm:
           loss_dict_all.update(loss_corner_hm)
 
         return loss_dict_all
@@ -842,8 +842,8 @@ class StrPointsHead(nn.Module):
             num_total_neg_cor if self.sampling else num_total_pos_cor)
 
 
-        cor_ofs_gt_list = [ gt-can[:,:,:2] for gt,can in zip(cor_gt_list, candidate_list_neg0) ]
-        cor_centerness_gt_list = [pospro[:,:,3] for pospro in candidate_list_neg0]
+        cor_ofs_gt_list = [ gt-can[...,:2] for gt,can in zip(cor_gt_list, candidate_list_neg0) ]
+        cor_centerness_gt_list = [pospro[...,3] for pospro in candidate_list_neg0]
         #-----------------------------------------------------------------------
         # compute loss per level
         losses_cls, losses_centerness, losses_ofs = multi_apply(

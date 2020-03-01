@@ -792,8 +792,8 @@ def main(data_path):
 
 if __name__ == '__main__':
   data_path = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
-  main(data_path)
-  #get_scene_pcl_scopes(DATA_PATH)
+  #main(data_path)
+  get_scene_pcl_scopes(data_path)
   #cal_topview_npy_mean_std(data_path, base='TopView_All', normnorm_method='abs')
   #gen_images_from_npy(data_path)
 

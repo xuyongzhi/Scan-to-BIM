@@ -169,8 +169,8 @@ if IMAGE_SIZE == 512:
   batch_size = 6
   lra = 0.01
 if IMAGE_SIZE == 1024:
-  batch_size = 2
-  lra = 0.004
+  batch_size = 1
+  lra = 0.005
 
 if TRAIN_NUM < 10:
   batch_size = 6
@@ -180,7 +180,7 @@ if TRAIN_NUM < 10:
 test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
