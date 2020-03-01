@@ -166,14 +166,14 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 3
+  batch_size = 6
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 2
   lra = 0.004
 
 if TRAIN_NUM < 10:
-  batch_size = 3
+  batch_size = 6
   lra = 0.05
 
 #test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
@@ -200,7 +200,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 600
+total_epochs = 300
 lr_config = dict(
     policy='step',
     warmup='linear',
