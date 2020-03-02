@@ -54,6 +54,7 @@ def nms_dsiou(dets, iou_thr, dis_weight, device_id=None):
         if dets_th.is_cuda:
             inds = nms_dsiou_cuda.nms(dets_th, iou_thr, dis_weight)
         else:
+            raise  NotImplementedError
             inds = nms_cpu.nms(dets_th, iou_thr)
 
     if is_numpy:

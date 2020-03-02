@@ -7,7 +7,7 @@ import torch.nn as nn
 import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -254,20 +254,21 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
 
             if OUT_EXTAR_DIM > 0 and bboxes.shape[0]>0:
-              bboxes_refine = np.concatenate([bboxes[:, 0:OBJ_DIM], bboxes[:,-1:]], axis=1)
-              bboxes_init = np.concatenate([bboxes[:, OBJ_DIM:OBJ_DIM*2], bboxes[:,-1:]], axis=1)
-              num_points = (OUT_EXTAR_DIM - OBJ_DIM)//2
+              bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave = \
+                    parse_bboxes_out(bboxes)
+              bboxes = np.concatenate([bboxes_refine, score_ave], axis=1)
+              bboxes_init = np.concatenate([bboxes_init, score_refine], axis=1)
+              bboxes_refine = np.concatenate([bboxes_refine, score_final], axis=1)
               num_box = bboxes.shape[0]
-              key_points_refine = bboxes[:, OBJ_DIM*2 : OBJ_DIM*2+num_points].reshape(num_box, -1, 2)
-              key_points_init = bboxes[:, OBJ_DIM*2+num_points : OBJ_DIM*2+num_points*2].reshape(num_box, -1, 2)
-              bboxes = bboxes_refine
+              key_points_refine = points_refine.reshape(num_box, -1, 2)
+              key_points_init = points_init.reshape(num_box, -1, 2)
             else:
               key_points_refine = None
 
             filename = img_meta['filename']
             scene_name = os.path.basename(filename).replace('npy', 'png')
             if bboxes.shape[1] == 6:
-              out_dir = './line_det_res/'
+              out_dir = f'./line_det_{OBJ_LEGEND}_res/'
             else:
               out_dir = './box_det_res/'
             out_file = out_dir + scene_name
@@ -278,6 +279,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                     from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
                     #show_fun = show_det_lines_1by1
                     show_fun = show_det_lines
+                    show_p = 1
 
                     show_fun(
                       img_show.copy(),
@@ -288,33 +290,35 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                       line_color='green',
                       thickness=2,
                       show=0,
-                      out_file=out_file.replace('.png','_refine.png'),
+                      out_file=out_file.replace('.png','_final.png'),
                       key_points=None)
-                    show_fun(
-                      img_show.copy(),
-                      bboxes,
-                      labels,
-                      class_names=class_names,
-                      score_thr=score_thr,
-                      line_color='green',
-                      thickness=2,
-                      show=0,
-                      out_file=out_file.replace('.png','_refine_p.png'),
-                      key_points=key_points_refine)
-
-
-                    if OUT_EXTAR_DIM > 0:
+                    if show_p:
                       show_fun(
                         img_show.copy(),
-                        bboxes_init,
+                        bboxes,
                         labels,
                         class_names=class_names,
                         score_thr=score_thr,
                         line_color='green',
                         thickness=2,
                         show=0,
-                        out_file=out_file.replace('.png','_init_p.png'),
-                        key_points=key_points_init)
+                        out_file=out_file.replace('.png','_final_p.png'),
+                        key_points=key_points_refine)
+
+
+                    if OUT_EXTAR_DIM > 0:
+                      if show_p:
+                        show_fun(
+                          img_show.copy(),
+                          bboxes_init,
+                          labels,
+                          class_names=class_names,
+                          score_thr=score_thr,
+                          line_color='green',
+                          thickness=2,
+                          show=0,
+                          out_file=out_file.replace('.png','_init_p.png'),
+                          key_points=key_points_init)
                       show_fun(
                         img_show.copy(),
                         bboxes_init,
@@ -325,6 +329,30 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                         thickness=2,
                         show=0,
                         out_file=out_file.replace('.png','_init.png'),
+                        key_points=None)
+
+                      if show_p:
+                        show_fun(
+                          img_show.copy(),
+                          bboxes_refine,
+                          labels,
+                          class_names=class_names,
+                          score_thr=score_thr,
+                          line_color='green',
+                          thickness=2,
+                          show=0,
+                          out_file=out_file.replace('.png','_refine_p.png'),
+                          key_points=key_points_init)
+                      show_fun(
+                        img_show.copy(),
+                        bboxes_refine,
+                        labels,
+                        class_names=class_names,
+                        score_thr=score_thr,
+                        line_color='green',
+                        thickness=2,
+                        show=0,
+                        out_file=out_file.replace('.png','_refine.png'),
                         key_points=None)
                     continue
 
