@@ -90,6 +90,7 @@ def show_det_lines_1by1(img, lines, labels, class_names=None, score_thr=0,
                    line_color='green', text_color='green', thickness=1,
                    font_scale=0.5,show=True, win_name='', wait_time=0,
                    out_file=None, key_points=None, point_color='red'):
+  img = img.copy()
   if score_thr > 0:
     assert lines.shape[1] == 6
     scores = lines[:,-1]
@@ -130,7 +131,15 @@ def show_det_lines_1by1(img, lines, labels, class_names=None, score_thr=0,
 def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
                    line_color='green', text_color='green', thickness=1,
                    font_scale=0.5,show=True, win_name='', wait_time=0,
-                   out_file=None, key_points=None, point_color='red'):
+                   out_file=None, key_points=None, point_color='red', score_filter=None):
+  '''
+  img: [h,w,3]
+  lines: [n,6]
+  labels: [n]
+  score_filter: [n] or None
+  Use lines[:,-1] as score when score_filter is None, otherwise use score_filter as the score for filtering lines.
+  Always show lines[:,-1] in the image.
+  '''
   from configs.common import OBJ_LEGEND
   assert lines.ndim == 2
   assert lines.shape[1] == 6 or lines.shape[1] == 5
@@ -139,12 +148,14 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
   if key_points is not None:
     assert key_points.shape[0]== lines.shape[0]
 
-  img = imread(img)
+  img = imread(img.copy())
 
   if score_thr > 0:
     assert lines.shape[1] == 6
-    scores = lines[:,-1]
-    inds = lines[:,-1] > score_thr
+    if score_filter is None:
+      inds = lines[:,-1] > score_thr
+    else:
+      inds = score_filter > score_thr
     lines = lines[inds, :]
     labels = labels[inds]
     if key_points is not None:
@@ -266,6 +277,8 @@ def show_img_lines(img, lines, points=None, colors=['random'], name=None, only_d
     lines = lines_to_2points_format(lines)
     img = img.copy()
     img = scale_img_touint8(img)
+    if img.shape[2] == 1:
+      img = np.tile(img, (1,1,3))
     for i in range(lines.shape[0]):
         s, e = lines[i]
         if colors[0] == 'random':
@@ -286,7 +299,7 @@ def show_img_lines(img, lines, points=None, colors=['random'], name=None, only_d
       mmcv.imwrite(img, name)
     return img
 
-def show_heatmap(scores, show_size=None, out_file=None, gt_lines=None, gt_corners=None):
+def show_heatmap(scores, show_size=None, out_file=None, gt_lines=None, gt_corners=None, score_thr=None):
   '''
   scores: [h,w, 1]
   '''
@@ -295,6 +308,10 @@ def show_heatmap(scores, show_size=None, out_file=None, gt_lines=None, gt_corner
   else:
     img = scores.astype(np.float32)
   assert img.ndim == 2
+
+  if score_thr is not None:
+    img = (img > score_thr).astype(np.float32)
+
   img = scale_img_touint8(img)
   if show_size is not None:
     img = mmcv.imresize(img, show_size)

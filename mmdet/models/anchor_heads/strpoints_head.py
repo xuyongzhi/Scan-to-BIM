@@ -19,7 +19,7 @@ from beike_data_utils.line_utils import decode_line_rep_th
 
 import torchvision as tcv
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -1042,8 +1042,10 @@ class StrPointsHead(nn.Module):
 
         if self.corner_hm:
           cor_heatmap_list = self.get_corners(corner_outs, img_metas, cfg)
-          #for i in range(len(cor_heatmap_list)):
-          #  result_list[0][0] = self.get_line_corner_cls_ofs(result_list[0][0], cor_heatmap_list[i][0], img_metas[i])
+          for i in range(len(cor_heatmap_list)):
+            line_pred_with_corner_score = self.get_line_corner_cls_ofs(result_list[0][0], cor_heatmap_list[i][0], img_metas[i])
+            line_label = result_list[0][1]
+            result_list[0] = ( line_pred_with_corner_score, line_label )
           if OUT_CORNER_HM_ONLY:
             result_list =  cor_heatmap_list
         return result_list
@@ -1094,7 +1096,7 @@ class StrPointsHead(nn.Module):
               bboxes = torch.cat([bboxes, bbox_pred[:,4:5]], dim=1)
 
             if OUT_EXTAR_DIM == 43:
-              _bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave = parse_bboxes_out(bbox_pred)
+              _bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave, _, _,_,_,_ = parse_bboxes_out(bbox_pred, 'before_nms')
               #bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
               bboxes_init[:,:4] = bboxes_init[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
 
@@ -1184,10 +1186,10 @@ class StrPointsHead(nn.Module):
       if 0:
         from mmdet.debug_tools import show_heatmap
         show_heatmap(cor_cls_score.reshape( featmap_size ), (512,512) )
-        show_heatmap(cor_centerness.reshape( featmap_size), (512,512) )
-        show_heatmap(scores.reshape( featmap_size ), (512,512) )
-        ofs_img = (cor_hm_ofs.norm(dim=1)/10).clamp(max=1)
-        show_heatmap(ofs_img.reshape( featmap_size ), (512,512) )
+        #show_heatmap(cor_centerness.reshape( featmap_size), (512,512) )
+        #show_heatmap(scores.reshape( featmap_size ), (512,512) )
+        #ofs_img = (cor_hm_ofs.norm(dim=1)/10).clamp(max=1)
+        #show_heatmap(ofs_img.reshape( featmap_size ), (512,512) )
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
       return cor_cls_cen_ofs, labels
@@ -1215,8 +1217,8 @@ class StrPointsHead(nn.Module):
       cor_hm2 = cor_hm1.squeeze(0).permute(1,2,0)
 
       line_2p_refine_1 = line_2p_refine_0.reshape(num_lines*2, 2)
-      rr_inds = torch.ceil(line_2p_refine_1).to(torch.int64)
-      ll_inds = torch.floor(line_2p_refine_1).to(torch.int64)
+      rr_inds = torch.ceil(line_2p_refine_1).to(torch.int64).clamp(min=0, max=pad_shape[0]-1)
+      ll_inds = torch.floor(line_2p_refine_1).to(torch.int64).clamp(min=0, max=pad_shape[0]-1)
 
       rr_d = (line_2p_refine_1 - rr_inds.to(torch.float)).norm(dim=1)
       ll_d = (line_2p_refine_1 - ll_inds.to(torch.float)).norm(dim=1)
@@ -1224,24 +1226,43 @@ class StrPointsHead(nn.Module):
       rr_w = 1 - rr_d / sum_d
       ll_w = 1 - ll_d / sum_d
 
-      rr_cor = cor_hm2[ rr_inds[:,0], rr_inds[:,1] ]
-      ll_cor = cor_hm2[ ll_inds[:,0], ll_inds[:,1] ]
+      # note: the index order in image: y first
+      rr_cor = cor_hm2[ rr_inds[:,1], rr_inds[:,0] ]
+      ll_cor = cor_hm2[ ll_inds[:,1], ll_inds[:,0] ]
 
-      cor_2p_0 = rr_cor * rr_w.unsqueeze(1) + ll_cor * ll_w.unsqueeze(1)
-      cor_2p_1 = cor_2p_0.reshape(num_lines, 2, 4)
+      cor_2p_preds = rr_cor * rr_w.unsqueeze(1) + ll_cor * ll_w.unsqueeze(1)
+      cor_2p_preds = cor_2p_preds.reshape(num_lines, 2, 4)
 
-      corner0_score = cor_2p_1[:,0:1,:2].mean(dim=-1)
-      corner1_score = cor_2p_1[:,1:2,:2].mean(dim=-1)
+      #corner0_score = cor_2p_preds[:,0:1,:2].mean(dim=-1)
+      #corner1_score = cor_2p_preds[:,1:2,:2].mean(dim=-1)
+      #corner_ave_score = (corner0_score + corner1_score)/2
 
-      line_pred_out = torch.cat([line_pred, corner0_score, corner0_score], dim=1)
-      return line_pred_out
+      corner0_score = cor_2p_preds[:,0,0:1]
+      corner1_score = cor_2p_preds[:,1,0:1]
+      corner0_center = cor_2p_preds[:,0,1:2]
+      corner1_center = cor_2p_preds[:,1,1:2]
+      line_preds_out = torch.cat([line_pred, corner0_score, corner1_score, corner0_center, corner1_center], dim=1)
+      line_preds_out = cal_composite_score(line_preds_out)
+      assert line_preds_out.shape[1] == OUT_DIM_FINAL
 
-      from mmdet.debug_tools import show_lines, show_img_lines
-      #show_img_lines(cor_hm2.cpu().data.numpy()[:,:,0:1], bbox_refine.cpu().data.numpy())
-      #show_lines(bbox_refine.cpu().data.numpy(), pad_shape)
-      #show_lines(line_2p_refine.cpu().data.numpy(), pad_shape)
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
+
+      if 0:
+        from mmdet.debug_tools import show_lines, show_img_lines, show_heatmap
+        #show_img_lines(cor_hm2.cpu().data.numpy()[:,:,0:1], bbox_refine.cpu().data.numpy())
+        #show_img_lines(cor_hm2.cpu().data.numpy()[:,:,0:1], line_2p_refine_0.cpu().data.numpy())
+        show_heatmap(cor_hm2.cpu().data.numpy()[:,:,0], (512,512), gt_corners = line_2p_refine_0[:,0:2].cpu().data.numpy())
+        #show_lines(bbox_refine.cpu().data.numpy(), pad_shape)
+        #show_lines(line_2p_refine.cpu().data.numpy(), pad_shape)
+
+      return line_preds_out
+
+def cal_composite_score(line_preds):
+      assert line_preds.shape[1] == OUT_DIM_FINAL - 1
+      bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, _ = parse_bboxes_out(line_preds, 'before_cal_score_composite')
+      corner_score_min = torch.min(corner0_score, corner1_score) * 0.7 + torch.max(corner0_score, corner1_score) * 0.3
+      score_composite = score_refine * 0.4 + score_final * 0.2 + corner_score_min * 0.4
+      line_preds = torch.cat([line_preds, score_composite], dim=1)
+      return line_preds
 
 def gen_corners_from_bboxes(bboxes, labels):
     lines0 = decode_line_rep_th(bboxes, OBJ_REP)

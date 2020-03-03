@@ -15,7 +15,7 @@ import time
 import mmcv
 import glob
 
-from configs.common import OBJ_DIM, OBJ_REP, CORNER_FLAG, INCLUDE_CORNERS, IMAGE_SIZE
+from configs.common import OBJ_DIM, OBJ_REP, IMAGE_SIZE
 from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines
 from mmdet.debug_tools import get_random_color, show_img_with_norm
 np.set_printoptions(precision=3, suppress=True)
@@ -482,16 +482,10 @@ def raw_anno_to_img(anno_raw):
       lines_pt_ordered = encode_line_rep(lines_pt, OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()
-      corners_pt_inbox = corners_as_boxformat(corners_pt)
-      bboxes_line_corner = np.concatenate([lines_pt_ordered, corners_pt_inbox], axis=0)
       labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)
 
-      if INCLUDE_CORNERS:
-        anno_img['bboxes'] = bboxes_line_corner
-        anno_img['labels'] = labels_line_corner
-      else:
-        anno_img['bboxes'] = lines_pt_ordered
-        anno_img['labels'] = anno_raw['line_cat_ids']
+      anno_img['bboxes'] = lines_pt_ordered
+      anno_img['labels'] = anno_raw['line_cat_ids']
 
       anno_img['min_line_size'] = min_line_size
 
@@ -607,23 +601,6 @@ def load_anno_1scene(anno_folder, filename):
       pcl_scopes_all = load_pcl_scope(anno_folder)
       anno['pcl_scope'] = pcl_scopes_all[filename.split('.')[0]]
       return anno
-
-
-def split_line_corner(bboxes, labels):
-  assert bboxes.shape[1] == 5
-  mask = np.abs(np.abs(bboxes[:,-1]) - CORNER_FLAG) < 1e-5
-  lines = bboxes[mask==0]
-  line_labels = labels[mask==0]
-  corners = bboxes[mask]
-  corner_labels = labels[mask]
-  return lines, line_labels, corners, corner_labels
-
-def corners_as_boxformat(corners_pt):
-  n = corners_pt.shape[0]
-  tmp0 = np.zeros((n,1), dtype = corners_pt.dtype) + CORNER_FLAG
-  tmp1 = np.clip(corners_pt.copy() + 0, a_min=0, a_max=IMAGE_SIZE-1)
-  corners_as_box = np.concatenate([corners_pt, tmp1, tmp0], axis=1)
-  return corners_as_box
 
 
 def _UnUsed_gen_images_from_npy(data_path):

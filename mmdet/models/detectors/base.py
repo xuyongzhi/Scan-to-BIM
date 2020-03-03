@@ -7,7 +7,7 @@ import torch.nn as nn
 import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -188,6 +188,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             ffs = (featmap_size, featmap_size)
             cor_scores = (bboxes[:,:,0] + bboxes[:,:,1])/2
 
+            #show_heatmap(bboxes[:,:,0], (h,w), gt_lines=gt_lines, score_thr=0.5)
+
             show_img_lines(img_show, gt_lines, name=out_file+'_gt.png', only_draw=1)
             show_heatmap(bboxes[:,:,0], (h,w), out_file+'_cls.png', gt_lines=gt_lines)
             show_heatmap(bboxes[:,:,1], (h,w), out_file+'_centerness.png', gt_lines=gt_lines)
@@ -204,7 +206,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         else:
             bbox_result, segm_result = result, None
         if bbox_result[0].shape[0] > 0:
-            assert bbox_result[0].shape[1] == OBJ_DIM + OUT_EXTAR_DIM + 1
+            assert bbox_result[0].shape[1] == OUT_DIM_FINAL
         else:
           print('no box detected')
           return
@@ -254,11 +256,21 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
 
             if OUT_EXTAR_DIM > 0 and bboxes.shape[0]>0:
-              bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave = \
-                    parse_bboxes_out(bboxes)
-              bboxes = np.concatenate([bboxes_refine, score_ave], axis=1)
-              bboxes_init = np.concatenate([bboxes_init, score_refine], axis=1)
-              bboxes_refine = np.concatenate([bboxes_refine, score_final], axis=1)
+              bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite = \
+                    parse_bboxes_out(bboxes, 'after_nms')
+
+              #scores_filter = np.squeeze(score_ave)
+              scores_filter = np.squeeze(score_composite)
+
+              bboxes = lines_composite = np.concatenate([bboxes_refine, score_composite], axis=1)
+              lines_ave = np.concatenate([bboxes_refine, score_ave], axis=1)
+
+              lines_init = np.concatenate([bboxes_init, score_refine], axis=1)
+              lines_refine = np.concatenate([bboxes_refine, score_final], axis=1)
+              lines_corner0_score = np.concatenate([bboxes_refine, corner0_score], axis=1)
+              lines_corner1_score = np.concatenate([bboxes_refine, corner1_score], axis=1)
+              lines_corner0_center = np.concatenate([bboxes_refine, corner0_center], axis=1)
+              lines_corner1_center = np.concatenate([bboxes_refine, corner1_center], axis=1)
               num_box = bboxes.shape[0]
               key_points_refine = points_refine.reshape(num_box, -1, 2)
               key_points_init = points_init.reshape(num_box, -1, 2)
@@ -279,81 +291,26 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                     from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
                     #show_fun = show_det_lines_1by1
                     show_fun = show_det_lines
-                    show_p = 1
+                    show_p = 0
 
-                    show_fun(
-                      img_show.copy(),
-                      bboxes,
-                      labels,
-                      class_names=class_names,
-                      score_thr=score_thr,
-                      line_color='green',
-                      thickness=2,
-                      show=0,
-                      out_file=out_file.replace('.png','_final.png'),
-                      key_points=None)
-                    if show_p:
-                      show_fun(
-                        img_show.copy(),
-                        bboxes,
-                        labels,
-                        class_names=class_names,
-                        score_thr=score_thr,
-                        line_color='green',
-                        thickness=2,
-                        show=0,
-                        out_file=out_file.replace('.png','_final_p.png'),
-                        key_points=key_points_refine)
-
-
-                    if OUT_EXTAR_DIM > 0:
-                      if show_p:
-                        show_fun(
-                          img_show.copy(),
-                          bboxes_init,
-                          labels,
-                          class_names=class_names,
-                          score_thr=score_thr,
-                          line_color='green',
-                          thickness=2,
-                          show=0,
-                          out_file=out_file.replace('.png','_init_p.png'),
-                          key_points=key_points_init)
-                      show_fun(
-                        img_show.copy(),
-                        bboxes_init,
-                        labels,
-                        class_names=class_names,
-                        score_thr=score_thr,
-                        line_color='green',
-                        thickness=2,
-                        show=0,
-                        out_file=out_file.replace('.png','_init.png'),
-                        key_points=None)
-
-                      if show_p:
-                        show_fun(
-                          img_show.copy(),
-                          bboxes_refine,
-                          labels,
-                          class_names=class_names,
-                          score_thr=score_thr,
-                          line_color='green',
-                          thickness=2,
-                          show=0,
-                          out_file=out_file.replace('.png','_refine_p.png'),
-                          key_points=key_points_init)
-                      show_fun(
-                        img_show.copy(),
-                        bboxes_refine,
-                        labels,
-                        class_names=class_names,
-                        score_thr=score_thr,
-                        line_color='green',
-                        thickness=2,
-                        show=0,
-                        out_file=out_file.replace('.png','_refine.png'),
-                        key_points=None)
+                    lines_list = [lines_composite, lines_ave, lines_init, lines_refine, lines_corner0_score, lines_corner1_score, lines_corner0_center, lines_corner1_center]
+                    names_list = ['lines_composite.png', 'ave.png', 'init.png', 'refine.png', 'corner0_cls.png', 'corner1_cls.png', 'corner0_cen.png', 'corner1_cen.png']
+                    for i in range(len(lines_list)):
+                        bboxes_ = lines_list[i]
+                        name_  = names_list[i]
+                        print(name_)
+                        out_file_i = out_file.replace('.png', '_'+name_)
+                        show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='green',thickness=2, show=0,
+                                out_file=out_file_i, key_points=None, score_filter=scores_filter)
+                        if show_p:
+                          if  name_ == 'init.png':
+                            key_points = key_points_init
+                          else:
+                            key_points = key_points_refine
+                          show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='green',thickness=2, show=0,
+                                  out_file=out_file.replace('.png', '_p_'+name_), key_points=key_point, score_filter=scores_filters)
+                        if OUT_EXTAR_DIM == 0 or OBJ_LEGEND == 'rotation':
+                          break
                     continue
 
             bboxes_s = bboxes.copy()

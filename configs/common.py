@@ -22,21 +22,27 @@ OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
 POINTS_NUM = 9
 POINTS_DIM = POINTS_NUM * 2 * 2
 OUT_EXTAR_DIM = POINTS_DIM + 2 + OBJ_DIM # 43
+CORNER_DIM = 4
+OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + 1 + CORNER_DIM + 1 # 1 for ave_score
+
+#OUT_SCORE_TYPE = ['Line_Ave', 'Corner_Ave', 'Corner_0', 'Corner_1'][1]
+
+
 # see OUT_ORDER in strpoints_head.py/get_bboxes  L1029
 OUT_ORDER = {'bbox_refine':[0,0+5], 'bbox_init':[5,5+5],
              'points_refine':[10,10+18], 'points_init':[28,28+18],
              'score_refine':[46,46+1], 'score_final':[47,47+1],
-             'score_ave': [48,48+1]}
+             'score_line_ave': [48,48+1],
+             'corner0_score':[49,49+1],'corner1_score':[50,50+1],
+             'corner0_center':[51,51+1],'corner1_center':[52,52+1],
+             'score_composite': [53,53+1],
+             }
 #[4: cls, cen, ofs]
 # [1,1,2]
 OUT_CORNER_HM_ONLY = 0
 LINE_CLS_WEIGHTS = {'refine':0.7, 'final':0.3}
 #*******************************************************************************
 
-CORNER_FLAG = 100
-INCLUDE_CORNERS = False
-
-#*******************************************************************************
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
 PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0
@@ -49,22 +55,28 @@ OBJ_LEGEND = 'score' # score or rotation
 #OBJ_LEGEND = 'rotation'
 #*******************************************************************************
 
-def parse_bboxes_out(bboxes_out):
+def parse_bboxes_out(bboxes_out, flag):
+  assert flag in ['before_nms', 'after_nms', 'before_cal_score_composite']
   if isinstance(bboxes_out, torch.Tensor):
     assert bboxes_out.dim() == 2
   else:
     assert bboxes_out.ndim == 2
+  if flag == 'before_nms':
+    assert bboxes_out.shape[1] == OUT_DIM_FINAL - 1 - CORNER_DIM - 1
+  elif flag == 'before_cal_score_composite':
+    assert bboxes_out.shape[1] == OUT_DIM_FINAL -1
+  elif flag == 'after_nms':
+    assert bboxes_out.shape[1] == OUT_DIM_FINAL
   c = bboxes_out.shape[1]
-  assert c == OUT_EXTAR_DIM + OBJ_DIM + 1 or c == OUT_EXTAR_DIM + OBJ_DIM
   outs = {}
   for key in OUT_ORDER:
     s, e = OUT_ORDER[key]
-    if key == 'score_ave' and  c == OUT_EXTAR_DIM + OBJ_DIM:
+    if bboxes_out.shape[1] < e:
       outs[key] = None
     else:
       outs[key] = bboxes_out[:, s:e]
-  bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave =  \
+  bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite =  \
           outs['bbox_refine'], outs['bbox_init'], outs['points_refine'], \
           outs['points_init'], outs['score_refine'], outs['score_final'],\
-          outs['score_ave']
-  return bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave
+          outs['score_line_ave'], outs['corner0_score'], outs['corner1_score'], outs['corner0_center'], outs['corner1_center'], outs['score_composite']
+  return bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite
