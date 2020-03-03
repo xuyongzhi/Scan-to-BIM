@@ -4,19 +4,24 @@ import numpy as np
 import torch
 import torch.nn as nn
 from mmcv.cnn import normal_init
+import mmcv
 
 from mmdet.core import (PointGenerator, multi_apply, multiclass_nms,
                         point_target)
 from mmdet.ops import DeformConv
 from ..builder import build_loss
 from ..registry import HEADS
-from ..utils import ConvModule, bias_init_with_prob
+from ..utils import ConvModule, bias_init_with_prob, Scale
 
 from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
+from beike_data_utils.line_utils import decode_line_rep_th
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM
-LINE_CONSTRAIN_LOSS = False
+import torchvision as tcv
+
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL
+
+LINE_CONSTRAIN_LOSS = True
 DEBUG = False
 
 @HEADS.register_module
@@ -67,7 +72,9 @@ class RepPointsHead(nn.Module):
                  center_init=True,
                  transform_method='moment',
                  moment_mul=0.01,
-                 cls_types=['refine']):
+                 cls_types=['refine', 'final'],
+                 dcn_zero_base=False,
+                 ):
         super(RepPointsHead, self).__init__()
         self.in_channels = in_channels
         self.num_classes = num_classes
@@ -105,6 +112,7 @@ class RepPointsHead(nn.Module):
         # we use deformable conv to extract points features
         self.dcn_kernel = int(np.sqrt(num_points))
         self.dcn_pad = int((self.dcn_kernel - 1) / 2)
+        self.dcn_zero_base = dcn_zero_base
         assert self.dcn_kernel * self.dcn_kernel == num_points, \
             "The points number should be a square number."
         assert self.dcn_kernel % 2 == 1, \
@@ -159,16 +167,6 @@ class RepPointsHead(nn.Module):
                                                     self.dcn_pad)
         self.reppoints_pts_refine_out = nn.Conv2d(self.point_feat_channels,
                                                   pts_out_dim, 1, 1, 0)
-
-        self.corner0_cls_conv = DeformConv(self.feat_channels,
-                                             self.point_feat_channels,
-                                             1, 1, 0)
-        self.corner1_cls_conv = DeformConv(self.feat_channels,
-                                             self.point_feat_channels,
-                                             1, 1, 0)
-        self.corners_cls_out = nn.Conv2d(self.point_feat_channels,
-                                           self.cls_out_channels, 1, 1, 0)
-
     def init_weights(self):
         for m in self.cls_convs:
             normal_init(m.conv, std=0.01)
@@ -181,6 +179,8 @@ class RepPointsHead(nn.Module):
         normal_init(self.reppoints_pts_init_out, std=0.01)
         normal_init(self.reppoints_pts_refine_conv, std=0.01)
         normal_init(self.reppoints_pts_refine_out, std=0.01)
+
+
 
     def points2bbox(self, pts, y_first=True, out_line_constrain=False):
         """
@@ -307,7 +307,7 @@ class RepPointsHead(nn.Module):
         ], 1)
         return grid_yx, regressed_bbox
 
-    def forward_single(self, x):
+    def forward_single(self, x, stride):
         dcn_base_offset = self.dcn_base_offset.type_as(x)
         # If we use center_init, the initial reppoints is from center points.
         # If we use bounding bbox representation, the initial reppoints is
@@ -336,7 +336,10 @@ class RepPointsHead(nn.Module):
         # refine and classify reppoints
         pts_out_init_grad_mul = (1 - self.gradient_mul) * pts_out_init.detach(
         ) + self.gradient_mul * pts_out_init
-        dcn_offset = pts_out_init_grad_mul - dcn_base_offset
+        if self.dcn_zero_base:
+          dcn_offset = pts_out_init_grad_mul
+        else:
+          dcn_offset = pts_out_init_grad_mul - dcn_base_offset
         cls_out = {}
         if 'refine' in self.cls_types:
           cls_out['refine'] = self.reppoints_cls_out(
@@ -354,10 +357,13 @@ class RepPointsHead(nn.Module):
         if 'final' in self.cls_types:
           pts_out_refine_grad_mul = (1 - self.gradient_mul) * pts_out_refine.detach(
           ) + self.gradient_mul * pts_out_refine
-          dcn_offset_refine = pts_out_refine_grad_mul - dcn_base_offset
+          if self.dcn_zero_base:
+            dcn_offset_refine = pts_out_refine_grad_mul
+          else:
+            dcn_offset_refine = pts_out_refine_grad_mul - dcn_base_offset
           cls_out['final'] = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
-        # predict cls from the two end_points
+
 
         #debug_tools.show_shapes(x, 'RepPointsHead input')
         #debug_tools.show_shapes(cls_feat, 'RepPointsHead cls_feat')
@@ -368,7 +374,7 @@ class RepPointsHead(nn.Module):
         return cls_out, pts_out_init, pts_out_refine
 
     def forward(self, feats):
-        return multi_apply(self.forward_single, feats)
+        return multi_apply(self.forward_single, feats, self.point_strides)
 
     def get_points(self, featmap_sizes, img_metas):
         """Get points according to feature map sizes.
@@ -426,18 +432,23 @@ class RepPointsHead(nn.Module):
             bbox_list.append(bbox)
         return bbox_list
 
-    def offset_to_pts(self, center_list, pred_list):
+    def offset_to_pts(self, center_list, pred_list, is_corner=False):
         """Change from point offset to point coordinate.
+        Both center_list and pred_list should be  x_first
         """
+        if is_corner:
+          np = 2
+        else:
+          np = self.num_points
         pts_list = []
         for i_lvl in range(len(self.point_strides)):
             pts_lvl = []
             for i_img in range(len(center_list)):
                 pts_center = center_list[i_img][i_lvl][:, :2].repeat(
-                    1, self.num_points)
+                    1, np)
                 pts_shift = pred_list[i_lvl][i_img]
                 yx_pts_shift = pts_shift.permute(1, 2, 0).view(
-                    -1, 2 * self.num_points)
+                    -1, np*2)
                 y_pts_shift = yx_pts_shift[..., 0::2]
                 x_pts_shift = yx_pts_shift[..., 1::2]
                 xy_pts_shift = torch.stack([x_pts_shift, y_pts_shift], -1)
@@ -447,6 +458,7 @@ class RepPointsHead(nn.Module):
             pts_lvl = torch.stack(pts_lvl, 0)
             pts_list.append(pts_lvl)
         return pts_list
+
 
     def loss_single(self, cls_score, pts_pred_init, pts_pred_refine, labels,
                     label_weights, bbox_gt_init, bbox_weights_init,
@@ -560,6 +572,7 @@ class RepPointsHead(nn.Module):
             bbox_list.append(bbox)
         return bbox_list
 
+
     def loss(self,
              cls_scores,
              pts_preds_init,
@@ -569,10 +582,14 @@ class RepPointsHead(nn.Module):
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
+
+        #-----------------------------------------------------------------------
+
         featmap_sizes = [featmap.size()[-2:] for featmap in pts_preds_init]
         assert len(featmap_sizes) == len(self.point_generators)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
 
+        #-----------------------------------------------------------------------
         # target for initial stage
         center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
@@ -580,7 +597,7 @@ class RepPointsHead(nn.Module):
                                                        pts_preds_init)
         if cfg.init.assigner['type'] == 'PointAssigner':
             # Assign target for center list
-            candidate_list = center_list
+            candidate_list = center_list # [ []*num_level ]*batch_size
         else:
             # transform center list to bbox list and
             #   assign target for bbox list
@@ -603,6 +620,7 @@ class RepPointsHead(nn.Module):
             num_total_pos_init +
             num_total_neg_init if self.sampling else num_total_pos_init)
 
+        #-----------------------------------------------------------------------
         # target for refinement stage
         center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
@@ -629,38 +647,40 @@ class RepPointsHead(nn.Module):
             num_total_pos_refine +
             num_total_neg_refine if self.sampling else num_total_pos_refine)
 
+        #-----------------------------------------------------------------------
         if 'final' in self.cls_types:
-            center_list, valid_flag_list = self.get_points(featmap_sizes,
-                                                        img_metas)
-            bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
-            #debug_tools.show_shapes(pts_preds_refine, 'RepPointsHead refine')
-            #debug_tools.show_shapes(bbox_list_refineres, 'RepPointsHead refine bbox')
-            cls_reg_targets_final = point_target(
-                bbox_list_refineres,
-                valid_flag_list,
-                gt_bboxes,
-                img_metas,
-                cfg.refine,
-                gt_bboxes_ignore_list=gt_bboxes_ignore,
-                gt_labels_list=gt_labels,
-                label_channels=label_channels,
-                sampling=self.sampling,
-                flag='final')
-            (labels_list_final, label_weights_list_final, bbox_gt_list_final,
-            candidate_list_final, bbox_weights_list_final, num_total_pos_final,
-            num_total_neg_final) = cls_reg_targets_final
-            num_total_samples_finale = (
-                num_total_pos_final +
-                num_total_neg_final if self.sampling else num_total_pos_final)
+          center_list, valid_flag_list = self.get_points(featmap_sizes,
+                                                       img_metas)
+          bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
+          #debug_tools.show_shapes(pts_preds_refine, 'RepPointsHead refine')
+          #debug_tools.show_shapes(bbox_list_refineres, 'RepPointsHead refine bbox')
+          cls_reg_targets_final = point_target(
+              bbox_list_refineres,
+              valid_flag_list,
+              gt_bboxes,
+              img_metas,
+              cfg.refine,
+              gt_bboxes_ignore_list=gt_bboxes_ignore,
+              gt_labels_list=gt_labels,
+              label_channels=label_channels,
+              sampling=self.sampling,
+              flag='final')
+          (labels_list_final, label_weights_list_final, bbox_gt_list_final,
+          candidate_list_final, bbox_weights_list_final, num_total_pos_final,
+          num_total_neg_final) = cls_reg_targets_final
+          num_total_samples_finale = (
+              num_total_pos_final +
+              num_total_neg_final if self.sampling else num_total_pos_final)
 
 
+        #-----------------------------------------------------------------------
         labels_list = []
         label_weights_list = []
         num_total_samples_cls = {}
         if 'refine' in self.cls_types:
-         num_total_samples_cls['refine'] = num_total_samples_refine
+          num_total_samples_cls['refine'] = num_total_samples_refine
         if 'final' in self.cls_types:
-         num_total_samples_cls['final'] = num_total_samples_finale
+          num_total_samples_cls['final'] = num_total_samples_finale
         for i in range(len(label_weights_list_refine)):
           labels_list_i = {}
           label_weights_list_i = {}
@@ -673,7 +693,8 @@ class RepPointsHead(nn.Module):
           labels_list.append(labels_list_i)
           label_weights_list.append(label_weights_list_i)
 
-        # compute loss
+        #-----------------------------------------------------------------------
+        # compute loss per level
         losses_cls, losses_pts_init, losses_pts_refine = multi_apply(
             self.loss_single,
             cls_scores,
@@ -701,11 +722,27 @@ class RepPointsHead(nn.Module):
         return loss_dict_all
 
     def cal_test_score(self, cls_scores):
+      assert 'refine' in cls_scores[0].keys()
+      with_final = 'final' in cls_scores[0].keys()
       ave_cls_scores = []
+      cls_scores_refine_final = []
       for i in range( len(cls_scores) ):
-        tmp = list(cls_scores[i].values())
-        ave_cls_scores.append( sum(tmp) / len(tmp) )
-      return ave_cls_scores
+        s_refine = cls_scores[i]['refine']
+        if with_final:
+          s_final = cls_scores[i]['final']
+          s = s_refine * LINE_CLS_WEIGHTS['refine']  + s_final * LINE_CLS_WEIGHTS['final']
+
+          sff = torch.cat([cls_scores[i]['refine'], cls_scores[i]['final']], dim=1)
+          cls_scores_refine_final.append(sff)
+        else:
+          s = s_refine
+          cls_scores_refine_final.append(s.repeat(1,2,1,1))
+
+        ave_cls_scores.append(s)
+
+        #tmp = list(cls_scores[i].values())
+        #ave_cls_scores.append( sum(tmp) / len(tmp) )
+      return ave_cls_scores, cls_scores_refine_final
 
     def get_bboxes(self,
                    cls_scores,
@@ -716,7 +753,7 @@ class RepPointsHead(nn.Module):
                    rescale=False,
                    nms=True):
         assert len(cls_scores) == len(pts_preds_refine)
-        cls_scores = self.cal_test_score(cls_scores)
+        cls_scores, cls_scores_refine_final = self.cal_test_score(cls_scores)
         bbox_preds_refine = [
             self.points2bbox(pts_pred_refine)
             for pts_pred_refine in pts_preds_refine
@@ -729,7 +766,10 @@ class RepPointsHead(nn.Module):
                 self.points2bbox(pts_pred_init)
                 for pts_pred_init in pts_preds_init
             ]
-            init_refine = torch.cat([bbox_preds_refine[i], bbox_preds_init[i], pts_preds_refine[i], pts_preds_init[i]], dim=1)
+            # OUT_ORDER
+            init_refine = torch.cat([bbox_preds_refine[i], bbox_preds_init[i],
+                                     pts_preds_refine[i], pts_preds_init[i],
+                                     cls_scores_refine_final[i], ], dim=1)
             assert bbox_preds_refine[i].shape[1] == OBJ_DIM
             assert init_refine.shape[1] == OBJ_DIM + OUT_EXTAR_DIM
             bbox_preds_refine[i] = init_refine
@@ -750,10 +790,12 @@ class RepPointsHead(nn.Module):
             ]
             img_shape = img_metas[img_id]['img_shape']
             scale_factor = img_metas[img_id]['scale_factor']
-            proposals = self.get_bboxes_single(cls_score_list, bbox_pred_list,
+            proposals = self.get_bboxes_single(cls_score_list,
+                                               bbox_pred_list,
                                                mlvl_points, img_shape,
                                                scale_factor, cfg, rescale, nms)
             result_list.append(proposals)
+
         return result_list
 
     def get_bboxes_single(self,
@@ -802,23 +844,30 @@ class RepPointsHead(nn.Module):
               bboxes = torch.cat([bboxes, bbox_pred[:,4:5]], dim=1)
 
             if OUT_EXTAR_DIM > 0:
-              # bbox_preds: [bbox_refine, bbox_init, points_refine, points_init]
-              bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
+              assert OUT_EXTAR_DIM == 200
+              _bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave, _, _,_,_,_ = parse_bboxes_out(bbox_pred, 'before_nms')
+              #bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
               bboxes_init[:,:4] = bboxes_init[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
 
-              POINTS_DIM = OUT_EXTAR_DIM - OBJ_DIM
-              assert POINTS_DIM % 2 == 0
               bbox_pos_center = points[:, :2].repeat(1, POINTS_DIM//2)
               bn = bboxes.shape[0]
               # key_points store in y-first, but box in x-first.
               # change key-points to x-first
-              key_points = bbox_pred[:,-POINTS_DIM:].\
-                            reshape(bn,-1,2)[:,:,[1,0]].reshape(bn,-1)
+              key_points = torch.cat([points_refine, points_init], dim=1)
+              key_points = key_points.reshape(bn,-1,2)[:,:,[1,0]].reshape(bn,-1)
+
               key_points = key_points * self.point_strides[i_lvl] + bbox_pos_center
               for kp in range(0, key_points.shape[1], 2):
                 key_points[:,kp] = key_points[:,kp].clamp(min=0, max=img_shape[1])
                 key_points[:,kp+1] = key_points[:,kp+1].clamp(min=0, max=img_shape[0])
-              bboxes = torch.cat([bboxes, bboxes_init, key_points], dim=1)
+
+              if self.use_sigmoid_cls:
+                  score_refine = score_refine.sigmoid()
+                  score_final = score_final.sigmoid()
+              else:
+                  score_refine = score_refine.softmax(-1)
+                  score_final = score_final.softmax(-1)
+              bboxes = torch.cat([bboxes, bboxes_init, key_points, score_refine, score_final], dim=1) # [5,5,36]
               pass
 
             mlvl_bboxes.append(bboxes)
@@ -831,6 +880,9 @@ class RepPointsHead(nn.Module):
             padding = mlvl_scores.new_zeros(mlvl_scores.shape[0], 1)
             mlvl_scores = torch.cat([padding, mlvl_scores], dim=1)
         if nms:
+            # mlvl_scores: [3256, 2]
+            # mlvl_bboxes: [3256, 46]
+            # det_bboxes: [66, 47]
             det_bboxes, det_labels = multiclass_nms(mlvl_bboxes, mlvl_scores,
                                                     cfg.score_thr, cfg.nms,
                                                     cfg.max_per_img)
@@ -841,6 +893,46 @@ class RepPointsHead(nn.Module):
     def normalize_istopleft_loss(self, itl_loss):
         itl_loss_nm = 1 - torch.exp(-itl_loss)
         return itl_loss_nm
+
+def cal_composite_score(line_preds):
+      assert line_preds.shape[1] == OUT_DIM_FINAL - 1
+      bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, _ = parse_bboxes_out(line_preds, 'before_cal_score_composite')
+      corner_score_min = torch.min(corner0_score, corner1_score) * 0.7 + torch.max(corner0_score, corner1_score) * 0.3
+      score_composite = score_refine * 0.4 + score_final * 0.2 + corner_score_min * 0.4
+      line_preds = torch.cat([line_preds, score_composite], dim=1)
+      return line_preds
+
+def gen_corners_from_bboxes(bboxes, labels):
+    lines0 = decode_line_rep_th(bboxes, OBJ_REP)
+    labels_1 = labels.reshape(-1,1).to(bboxes.dtype)
+    lines1 = torch.cat([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], dim=1)
+    lines1 = lines1.reshape(-1,3)
+    lines_uq = torch.unique(lines1, sorted=False, dim=0)
+    lines_out = lines_uq[:,:2]
+    labels_out = lines_uq[:,2].to(labels.dtype)
+
+    if 0:
+      n0 = bboxes.shape[0]
+      n1 = lines_out.shape[0]
+      print(f'{n0} -> {n1}')
+      from mmdet.debug_tools import show_lines
+      show_lines(bboxes.cpu().data.numpy(), (512,512), points=lines_out)
+    return lines_out, labels_out
+
+def convert_list_dict_order(f_ls_dict):
+  '''
+  in : [{}]
+  out: {[]}
+  '''
+  num_level = len(f_ls_dict)
+  f_dict_ls = {}
+  for key in f_ls_dict[0].keys():
+    f_dict_ls[key] = []
+  for i in range(num_level):
+    for key in f_ls_dict[i].keys():
+      f_dict_ls[key].append( f_ls_dict[i][key] )
+  return f_dict_ls
+
 
 def show_pred(bbox_pred, bbox_gt, bbox_weights, flag):
   from mmdet.debug_tools import show_lines

@@ -72,7 +72,7 @@ class StrPointsHead(nn.Module):
                  center_init=True,
                  transform_method='moment',
                  moment_mul=0.01,
-                 cls_types=['refine'],
+                 cls_types=['refine', 'final'],
                  dcn_zero_base=False,
                  corner_hm = True,
                  corner_hm_only = True,
@@ -1095,7 +1095,8 @@ class StrPointsHead(nn.Module):
             if OBJ_DIM == 5:
               bboxes = torch.cat([bboxes, bbox_pred[:,4:5]], dim=1)
 
-            if OUT_EXTAR_DIM == 43:
+            if OUT_EXTAR_DIM > 0:
+              assert OUT_EXTAR_DIM == 43
               _bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave, _, _,_,_,_ = parse_bboxes_out(bbox_pred, 'before_nms')
               #bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
               bboxes_init[:,:4] = bboxes_init[:,:4] * self.point_strides[i_lvl] + bbox_pos_center

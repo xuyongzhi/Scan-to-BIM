@@ -1,4 +1,4 @@
-
+export CUDA_LAUNCH_BLOCKING=1
 CONFIG=configs/reppoints/d_reppoints_moment_r50_fpn_2x.py
 CONFIG=configs/reppoints/d2_reppoints_moment_r50_fpn_2x.py
 
@@ -7,6 +7,6 @@ CHECKPOINT=${wdir}/best.pth
 CHECKPOINT=./checkpoints/reppoints_moment_r50_fpn_2x.pth
 
 
-ipython tools/test.py --  $CONFIG  $CHECKPOINT --show 
+ipython tools/test.py --  $CONFIG  $CHECKPOINT  --eval bbox  --out ./res/reppoints_moment_r50_fpn_2x.pickle
 #python tools/test.py  $CONFIG  $CHECKPOINT --out ./res/reppoints_moment_r50_fpn_2x.pickle  --eval bbox 
 

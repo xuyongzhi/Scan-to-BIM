@@ -9,24 +9,27 @@ DATA = 'beike'
 
 if DATA == 'beike':
   OBJ_REP = 'lscope_istopleft'
+  NUM_CLASS = 1
 if DATA == 'coco':
   OBJ_REP = 'box_scope'
+  NUM_CLASS = 80
 
 
 #*******************************************************************************
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
-# 47: [bbox_refine, bbox_init, points_refine, points_init, score]
-# ref: get_bboxes_single in strpoints_head.py
-# [5,           5,        18,             18, 1]
 POINTS_NUM = 9
 POINTS_DIM = POINTS_NUM * 2 * 2
-OUT_EXTAR_DIM = POINTS_DIM + 2 + OBJ_DIM # 43
+OUT_EXTAR_DIM = POINTS_DIM + OBJ_DIM + 2 # see OUT_ORDER
+OUT_EXTAR_DIM = 0
 CORNER_DIM = 4
 AVE_LINE_SCORE = 1
 COMPOSITE_SCORE = 1
 # 5+43+1+4+1 = 54
-OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + AVE_LINE_SCORE + CORNER_DIM + COMPOSITE_SCORE
+if DATA == 'beike':
+  OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + AVE_LINE_SCORE + CORNER_DIM + COMPOSITE_SCORE
+if DATA == 'coco':
+  OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + COMPOSITE_SCORE
 
 #OUT_SCORE_TYPE = ['Line_Ave', 'Corner_Ave', 'Corner_0', 'Corner_1'][1]
 
