@@ -88,7 +88,7 @@ train_cfg = dict(
     refine=dict(
         assigner=dict(
             type='MaxIoUAssigner',
-            pos_iou_thr=0.5,
+            pos_iou_thr=0.7,
             neg_iou_thr=0.4,
             min_pos_iou=0,
             ignore_iof_thr=-1,
@@ -200,7 +200,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 800
+total_epochs = 1000
 lr_config = dict(
     policy='step',
     warmup='linear',

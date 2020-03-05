@@ -816,7 +816,7 @@ class StrPointsHead(nn.Module):
         cor_scores = corner_outs['cor_scores']
         cor_centerness = corner_outs['cor_centerness']
         cor_ofs = corner_outs['cor_ofs']
-        gt_corners_lab = [gen_corners_from_lines_th(gb, gl) for gb,gl in zip(gt_bboxes, gt_labels)]
+        gt_corners_lab = [gen_corners_from_lines_th(gb, gl, OBJ_REP) for gb,gl in zip(gt_bboxes, gt_labels)]
         gt_corners = [d[0] for d in gt_corners_lab]
         gt_labels = [d[1] for d in gt_corners_lab]
         if gt_bboxes_ignore is None:

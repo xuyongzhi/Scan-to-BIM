@@ -59,8 +59,9 @@ def point_target(proposals_list,
     if gt_labels_list is None:
         gt_labels_list = [None for _ in range(num_imgs)]
 
-    if DEBUG:
+    if DEBUG and flag=='refine':
       debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], f'{flag} point_target (2)')
+      pass
 
     (all_labels, all_label_weights, all_bbox_gt, all_proposals,
      all_proposal_weights, pos_inds_list, neg_inds_list) = multi_apply(
@@ -92,13 +93,13 @@ def point_target(proposals_list,
     proposal_weights_list = images_to_levels(all_proposal_weights,
                                              num_level_proposals)
 
-    if DEBUG:
+    if DEBUG and flag=='refine':
       debug_tools.show_multi_ls_shapes([all_bbox_gt], ['all_bbox_gt'], f'{flag} point_target (3)')
       print(f'pos:{num_total_pos}\nneg:{num_total_neg}\ngt:{num_total_gt}')
       show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag)
-      show_weights(all_labels,'all_labels')
-      show_weights(all_label_weights,'all_label_weights')
-      show_weights(all_proposal_weights, 'all_proposal_weights')
+      #for labels_, flag in zip([labels_list, label_weights_list, proposal_weights_list],
+      #                        ['labels_list', 'label_weights_list', 'proposal_weights_list']):
+      #  show_weights(labels_,flag)
       pass
 
       #debug_tools.show_multi_ls_shapes([bbox_gt_list], ['bbox_gt_list'], f'{flag} point_target (4)')
@@ -252,7 +253,11 @@ def show_weights(weights_list, flag):
     if weights.dim() > 1:
       weights = weights[:,0]
     s = np.sqrt(weights.shape[0]).astype(np.int32)
-    img = weights.reshape(s,s).cpu().data.numpy().astype(np.float32)
+    try:
+      img = weights.reshape(s,s).cpu().data.numpy().astype(np.float32)
+    except:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
     mmcv.imshow(img)
   pass
 
