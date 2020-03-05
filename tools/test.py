@@ -13,7 +13,8 @@ import torch.distributed as dist
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 
-from mmdet.core import coco_eval, results2json, wrap_fp16_model, save_res_bk, eval_bk
+from mmdet.core import coco_eval, results2json, wrap_fp16_model
+from beike_data_utils.graph_eval_utils import save_res_bk, eval_bk
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
 from tools.train import update_config

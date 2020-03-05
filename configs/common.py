@@ -16,7 +16,8 @@ if DATA == 'coco':
   OBJ_REP = 'box_scope'
   NUM_CLASS = 80
 
-
+#*******************************************************************************
+OPT_GRAPH_COR_DIS_THR = 6
 #*******************************************************************************
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
@@ -50,7 +51,6 @@ OUT_ORDER = {'bbox_refine':[0,0+5], 'bbox_init':[5,5+5],
 OUT_CORNER_HM_ONLY = 0
 LINE_CLS_WEIGHTS = {'refine':0.7, 'final':0.3}
 #*******************************************************************************
-
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
 PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0

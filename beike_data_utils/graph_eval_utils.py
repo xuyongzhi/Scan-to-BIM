@@ -1,16 +1,23 @@
 import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from mmdet.debug_tools import show_img_lines
-from configs.common import clean_bboxes_out, OBJ_REP
-from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
+from configs.common import clean_bboxes_out, OBJ_REP, IMAGE_SIZE, OPT_GRAPH_COR_DIS_THR
+from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine, optimize_graph
 from mmdet.debug_tools import _show_lines_ls_points_ls
 from collections import defaultdict
 import os
 import numpy as np
 
 class EvalParameter():
+  imgage_size = 512
+  assert imgage_size == IMAGE_SIZE
   score_threshold  = 0.5
-  corner_dis_threshold = 3
+  corner_dis_threshold = 10
+  opt_graph_cor_dis_thr = OPT_GRAPH_COR_DIS_THR
+
+  def __str__(self):
+    s = int(self.score_threshold*10)
+    return f'Eval parameters:\nimage size:{self.imgage_size}\nGraph optimization corner distance threshold:{self.opt_graph_cor_dis_thr}\nPositive score threshold:{s}\nPositive corner distance threshold:{self.corner_dis_threshold}\n\n'
 
 def save_res_bk(dataset, data_loader, results, out_file):
     num_imgs = len(results)
@@ -39,12 +46,6 @@ def save_res_bk(dataset, data_loader, results, out_file):
       print(f'\nsave: {out_file}')
     return results_datas
 
-def filter_low_score_det(det_lines, score_threshold=0.5):
-  assert det_lines.shape[1] == 6
-  mask = det_lines[:,-1] > score_threshold
-  det_lines_ = det_lines[mask]
-  return det_lines_
-
 def eval_bk(results_datas, dataset, out_file, evalPara=EvalParameter()):
     all_cor_nums_gt_pos_tp = defaultdict(list)
     all_line_nums_gt_pos_tp = defaultdict(list)
@@ -67,11 +68,17 @@ def eval_bk(results_datas, dataset, out_file, evalPara=EvalParameter()):
             det_lines = detections[label]['det_lines']
             #show_img_lines(img[:,:,0], det_lines[:,:5])
             det_lines = filter_low_score_det(det_lines, evalPara.score_threshold)
+
+            labels_i = np.ones(det_lines.shape[0])*label
+            scores_i = det_lines[:,-1]
+            det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, OBJ_REP, opt_graph_cor_dis_thr=evalPara.opt_graph_cor_dis_thr)
+            det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
+
             #show_img_lines(img[:,:,0], det_lines[:,:5])
             det_category_id = detections[label]['category_id']
             if det_category_id != 1:
               raise NotImplementedError
-            cor_nums_gt_pos_tp, line_nums_gt_pos_tp = eval_1img_1cls(det_lines, gt_lines, evalPara)
+            cor_nums_gt_pos_tp, line_nums_gt_pos_tp = eval_1img_1cls(det_lines_merged, gt_lines, evalPara)
             all_cor_nums_gt_pos_tp[label].append(cor_nums_gt_pos_tp)
             all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
             pass
@@ -86,7 +93,7 @@ def eval_bk(results_datas, dataset, out_file, evalPara=EvalParameter()):
       corner_recall_precision[label + 1] = [cor[2]/cor[0], cor[2]/cor[1]]
       line_recall_precision[label + 1] = [line[2]/line[0], line[2]/line[1]]
 
-    eval_res_str = get_eval_res_str(corner_recall_precision, line_recall_precision, dataset)
+    eval_res_str = get_eval_res_str(corner_recall_precision, line_recall_precision, dataset, evalPara)
     path = os.path.dirname(out_file)
     eval_path = os.path.join(path, 'eval_res.txt')
     with open(eval_path, 'w') as f:
@@ -94,8 +101,14 @@ def eval_bk(results_datas, dataset, out_file, evalPara=EvalParameter()):
     print(eval_res_str)
     return eval_res_str
 
-def get_eval_res_str(corner_recall_precision, line_recall_precision, dataset):
-  eval_str = ''
+def filter_low_score_det(det_lines, score_threshold=0.5):
+  assert det_lines.shape[1] == 6
+  mask = det_lines[:,-1] > score_threshold
+  det_lines_ = det_lines[mask]
+  return det_lines_
+
+def get_eval_res_str(corner_recall_precision, line_recall_precision, dataset, evalPara):
+  eval_str = str(evalPara)
   catid_2_cat = dataset.beike._catid_2_cat
   for label in corner_recall_precision:
     cat = catid_2_cat[label]
@@ -113,8 +126,9 @@ def apply_mask_on_ids(ids, mask):
 def eval_1img_1cls(det_lines, gt_lines, evalPara):
   num_gt = gt_lines.shape[0]
 
-  gt_corners, _, gt_corIds_per_line = gen_corners_from_lines_np(gt_lines, None, OBJ_REP)
-  det_corners, cor_scores, det_cor_ids_per_line = gen_corners_from_lines_np(det_lines[:,:5], det_lines[:,-1:], OBJ_REP)
+  det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:5],\
+                                        None, OBJ_REP)
+  gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, OBJ_REP)
 
   cor_nums_gt_pos_tp, cor_detIds_per_gt = eval_corners(gt_corners, det_corners, evalPara.corner_dis_threshold)
 
@@ -142,11 +156,16 @@ def eval_1img_1cls(det_lines, gt_lines, evalPara):
   num_ture_pos_line = (line_detIds_per_gt>=0).sum()
   line_nums_gt_pos_tp = [gt_lines.shape[0], det_lines.shape[0], num_ture_pos_line]
 
-  #debug_line_eval(det_lines, gt_lines, line_detIds_per_gt)
-  #debug_corner_eval(det_lines, gt_lines, det_corners, gt_corners, cor_detIds_per_gt)
+  if 0:
+    cor_recall = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[0]
+    cor_precision = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[1]
+    print(f'\ncor_nums_gt_pos_tp: {cor_nums_gt_pos_tp}')
+    print(f'\ncor recall: {cor_recall}\ncor precision: {cor_precision}')
+    debug_corner_eval(det_lines, gt_lines, det_corners, gt_corners, cor_detIds_per_gt)
+    #debug_line_eval(det_lines, gt_lines, line_detIds_per_gt)
   return cor_nums_gt_pos_tp, line_nums_gt_pos_tp
 
-def eval_corners(gt_corners, det_corners, corner_dis_threshold=5):
+def eval_corners(gt_corners, det_corners, corner_dis_threshold):
   '''
   gt_corners: [n,2]
   det_corners: [m,2]
@@ -199,9 +218,9 @@ def debug_corner_eval(det_lines, gt_lines, det_corners, gt_corners, cor_detIds_p
   tp_mask = cor_detIds_per_gt >= 0
   #_show_lines_ls_points_ls((512,512), [det_lines[:,:5], gt_lines], line_colors=['green', 'red'])
   print('gt  corners. green: true pos, red: false neg')
-  _show_lines_ls_points_ls((512,512), [gt_lines, det_lines[:,:5]], points_ls=[gt_corners_true, gt_corners_false], line_colors=['white','yellow'], point_colors=['green', 'red'], point_thickness=2)
+  _show_lines_ls_points_ls((512,512), [gt_lines, det_lines[:,:5]], points_ls=[gt_corners_true, gt_corners_false], line_colors=['white','blue'], point_colors=['green', 'red'], point_thickness=2)
   print('det corners. green: true pos, red: false pos')
-  _show_lines_ls_points_ls((512,512), [gt_lines, det_lines[:,:5]], points_ls=[det_corners_pos, det_corners_neg], line_colors=['white','yellow'], point_colors=['green', 'red'], point_thickness=2)
+  _show_lines_ls_points_ls((512,512), [gt_lines, det_lines[:,:5]], points_ls=[det_corners_pos, det_corners_neg], line_colors=['white','blue'], point_colors=['green', 'red'], point_thickness=2)
 
   if obj_wise:
     for i in range(gt_corners.shape[0]):

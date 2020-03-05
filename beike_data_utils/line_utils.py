@@ -5,6 +5,7 @@ from .geometric_utils import sin2theta_np
 import cv2
 from mmdet.debug_tools import show_img_with_norm, _show_lines_ls_points_ls
 import torch
+from configs.common import OPT_GRAPH_COR_DIS_THR
 
 def encode_line_rep(lines, obj_rep):
   '''
@@ -276,41 +277,52 @@ def gen_corners_from_lines_th(lines, labels, obj_rep):
       show_lines(lines.cpu().data.numpy(), (512,512), points=lines_out)
     return lines_out, labels_out
 
-def gen_corners_from_lines_np(lines, labels, obj_rep):
+def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
     '''
     lines: [n,5]
-    labels: [n,1]
+    labels: [n,1/2]: 1 for label only, 2 for label and score
     '''
     lines0 = decode_line_rep(lines, obj_rep)
     if labels is not None:
-      labels_1 = labels.reshape(-1,1)
+      num_line = lines.shape[0]
+      assert labels.shape[0] == num_line
+      labels = labels.reshape(num_line, -1)
+      lc = labels.shape[1]
+
+      labels_1 = labels.reshape(-1,lc)
       lines1 = np.concatenate([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], axis=1)
-      corners1 = lines1.reshape(-1,3)
+      corners1 = lines1.reshape(-1,2+lc)
     else:
       corners1 = lines0.reshape(-1,2)
+    corners1 = round_positions(corners1, 100)
     corners_uq, unique_indices, inds_inverse = np.unique(corners1, axis=0, return_index=True, return_inverse=True)
+    num_cor_uq = corners_uq.shape[0]
     corners = corners_uq[:,:2]
     if labels is not None:
-      labels_out = corners_uq[:,2].astype(labels.dtype)
+      labels_cor = corners_uq[:,2:].astype(labels.dtype)
     else:
-      labels_out = None
+      labels_cor = None
     corIds_per_line = inds_inverse.reshape(-1,2)
 
     lineIds_per_cor = get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, corners.shape[0])
 
-    if 0:
+    if flag=='debug':
+      print('\n\n')
+      print(lines[0:5])
       n0 = lines.shape[0]
       n1 = corners.shape[0]
-      print(f'{n0} -> {n1}')
+      print(f'\n{n0} lines -> {n1} corners')
       _show_lines_ls_points_ls((512,512), [lines], [corners], 'random', 'random')
-      for i in range(corners.shape[0]):
-        lids = lineIds_per_cor[i]
-        _show_lines_ls_points_ls((512,512), [lines, lines[lids].reshape(-1, lines.shape[1])], [corners[i:i+1]], ['white', 'green'], ['red'], point_thickness=2)
-      for i in range(lines.shape[0]):
-        cor_ids = corIds_per_line[i]
-        _show_lines_ls_points_ls((512,512), [lines, lines[i:i+1]], [corners[cor_ids]], ['white', 'green'], ['red'], point_thickness=2)
+      #for i in range(corners.shape[0]):
+      #  lids = lineIds_per_cor[i]
+      #  _show_lines_ls_points_ls((512,512), [lines, lines[lids].reshape(-1, lines.shape[1])], [corners[i:i+1]], ['white', 'green'], ['red'], point_thickness=2)
+      #for i in range(lines.shape[0]):
+      #  cor_ids = corIds_per_line[i]
+      #  _show_lines_ls_points_ls((512,512), [lines, lines[i:i+1]], [corners[cor_ids]], ['white', 'green'], ['red'], point_thickness=2)
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
-    return corners, labels_out, corIds_per_line
+    return corners, labels_cor, corIds_per_line, num_cor_uq
 
 def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
   '''
@@ -330,3 +342,71 @@ def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
   #  lineIds_per_cor[i] = np.array(lineIds_per_cor[i])
   return lineIds_per_cor
 
+def optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr=OPT_GRAPH_COR_DIS_THR):
+  '''
+    lines_in: [n,5]
+  '''
+  num_line = lines_in.shape[0]
+  lab_sco_lines = np.concatenate([labels.reshape(num_line,1), scores.reshape(num_line,1)], axis=1)
+  corners_in, lab_sco_cors, corIds_per_line, num_cor_uq_org = gen_corners_from_lines_np(lines_in, lab_sco_lines, obj_rep)
+  labels_cor = lab_sco_cors[:,0]
+  scores_cor = lab_sco_cors[:,1]
+  corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
+  corners_merged, cor_scores_merged, cor_labels_merged = merge_corners(corners_labs, scores_cor, opt_graph_cor_dis_thr=opt_graph_cor_dis_thr)
+  corners_merged = round_positions(corners_merged, 100)
+  corners_merged_per_line = corners_merged[corIds_per_line]
+  line_labels_merged = cor_labels_merged[corIds_per_line][:,0].astype(np.int32)
+  line_scores_merged = cor_scores_merged[corIds_per_line].mean(axis=1)[:,None]
+
+  lines_merged = encode_line_rep(corners_merged_per_line, obj_rep)
+
+  #lines_merged = lines_merged[0:5]
+  #line_scores_merged = line_scores_merged[0:5]
+  #line_labels_merged = line_labels_merged[0:5]
+
+  if 0:
+    corners_uq, unique_indices, inds_inverse = np.unique(corners_merged, axis=0, return_index=True, return_inverse=True)
+    num_cor_org = corners_in.shape[0]
+    num_cor_merged = corners_uq.shape[0]
+    print(f'\ncorner num: {num_cor_org} -> {num_cor_merged}')
+
+    #_show_lines_ls_points_ls((512,512), [lines_in], [corners_merged], ['white'], 'random')
+    #_show_lines_ls_points_ls((512,512), [lines_in, lines_merged], [], ['white','green'])
+
+    #det_corners, cor_scores, det_cor_ids_per_line, num_cor_uq_merged_check = gen_corners_from_lines_np(lines_merged, line_labels_merged, 'lscope_istopleft', flag='debug')
+    #print(f'num_cor_uq_merged_check: {num_cor_uq_merged_check}')
+
+    check_lines = decode_line_rep(lines_merged, obj_rep)
+    check_corners = check_lines.reshape(-1,2,2)
+    cor_err = corners_merged_per_line - check_corners
+    cor_loc_check = np.abs(cor_err).max() < 1e-3
+    print(f'cor_loc_check: {cor_loc_check}')
+    print(lines_merged[0:5])
+
+  return lines_merged, line_scores_merged, line_labels_merged
+
+def merge_corners(corners_0, scores_0, opt_graph_cor_dis_thr=3):
+  diss = corners_0[None,:,:] - corners_0[:,None,:]
+  diss = np.linalg.norm(diss, axis=2)
+  mask = diss < opt_graph_cor_dis_thr
+  nc = corners_0.shape[0]
+  merging_ids = []
+  corners_1 = []
+  scores_1 = []
+  for i in range(nc):
+    ids_i = np.where(mask[i])[0]
+    merging_ids.append(ids_i)
+    weights = scores_0[ids_i] / scores_0[ids_i].sum()
+    merged_sco = ( scores_0[ids_i] * weights).sum()
+    merged_cor = ( corners_0[ids_i] * weights[:,None]).sum(axis=0)
+    corners_1.append(merged_cor)
+    scores_1.append(merged_sco)
+    pass
+  corners_1 = np.array(corners_1)
+  scores_merged = np.array(scores_1)
+  labels_merged = corners_1[:,2]
+  corners_merged = corners_1[:,:2]
+  return corners_merged, scores_merged, labels_merged
+
+def round_positions(data, scale=100):
+  return np.round(data*scale)/scale

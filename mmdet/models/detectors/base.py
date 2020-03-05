@@ -9,6 +9,7 @@ import os
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
 from beike_data_utils.beike_utils import load_gt_lines_bk
+from beike_data_utils.line_utils import  optimize_graph
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -197,9 +198,129 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             show_heatmap(cor_scores, (h,w), out_file+'_cls_cen.png', gt_lines=gt_lines)
             pass
 
+
+    def show_result_graph(self, data, result, dataset=None, score_thr=0.5):
+        if isinstance(result, tuple):
+            bbox_result, segm_result = result
+        else:
+            bbox_result, segm_result = result, None
+        if bbox_result[0].shape[0] > 0:
+            assert bbox_result[0].shape[1] == OUT_DIM_FINAL
+        else:
+          print('no box detected')
+          return
+
+        img_tensor = data['img'][0]
+        img_metas = data['img_meta'][0].data[0]
+        imgs = tensor2imgs(img_tensor, **img_metas[0]['img_norm_cfg'])
+        assert len(imgs) == len(img_metas)
+
+        if dataset is None:
+            class_names = self.CLASSES
+        elif isinstance(dataset, str):
+            class_names = get_classes(dataset)
+        elif isinstance(dataset, (list, tuple)):
+            class_names = dataset
+        else:
+            raise TypeError(
+                'dataset must be a valid dataset name or a sequence'
+                ' of class names, not {}'.format(type(dataset)))
+
+        for img, img_meta in zip(imgs, img_metas):
+            h, w, _ = img_meta['img_shape']
+            if img.shape[-1] == 4:
+              img_show = np.repeat(img[:h, :w, 0:1], 3, axis=2)
+            else:
+              img_show = img[:h, :w, :3]
+
+            bboxes = np.vstack(bbox_result)
+            # draw bounding boxes
+            labels = [
+                np.full(bbox.shape[0], i, dtype=np.int32)
+                for i, bbox in enumerate(bbox_result)
+            ]
+            labels = np.concatenate(labels)
+
+            img_show = np.clip(img_show+1, a_min=None, a_max=255)
+            class_names = tuple([c[0] for c in class_names])
+
+            scores = bboxes[:,-1]
+            mask = scores >= score_thr
+            bboxes = bboxes[mask]
+            labels = labels[mask]
+
+            if OUT_EXTAR_DIM > 0 and bboxes.shape[0]>0:
+                bboxes_refine, bboxes_init, points_refine, points_init,\
+                  score_refine, score_final, score_ave, corner0_score,\
+                  corner1_score, corner0_center, corner1_center, score_composite = \
+                      parse_bboxes_out(bboxes, 'final')
+
+                lines_graph, score_graph, labels_graph = optimize_graph(bboxes_refine, score_composite, labels, OBJ_REP)
+                lines_graph = np.concatenate([lines_graph, score_graph], axis=1)
+
+                #scores_filter = np.squeeze(score_ave)
+                scores_filter = np.squeeze(score_composite)
+
+                bboxes = lines_composite = np.concatenate([bboxes_refine, score_composite], axis=1)
+                lines_ave = np.concatenate([bboxes_refine, score_ave], axis=1)
+
+                lines_init = np.concatenate([bboxes_init, score_refine], axis=1)
+                lines_refine = np.concatenate([bboxes_refine, score_final], axis=1)
+                lines_corner0_score = np.concatenate([bboxes_refine, corner0_score], axis=1)
+                lines_corner1_score = np.concatenate([bboxes_refine, corner1_score], axis=1)
+                lines_corner0_center = np.concatenate([bboxes_refine, corner0_center], axis=1)
+                lines_corner1_center = np.concatenate([bboxes_refine, corner1_center], axis=1)
+                num_box = bboxes.shape[0]
+                key_points_refine = points_refine.reshape(num_box, -1, 2)
+                key_points_init = points_init.reshape(num_box, -1, 2)
+            else:
+                key_points_init = None
+                key_points_refine = None
+
+            filename = img_meta['filename']
+            scene_name = os.path.basename(filename).replace('.npy', '')
+            out_dir_out = f'./line_det_{OBJ_LEGEND}_res/final/'
+            out_dir_middle = f'./line_det_{OBJ_LEGEND}_res/middle/'
+            if not os.path.exists(out_dir_out):
+              os.makedirs(out_dir_out)
+            if not os.path.exists(out_dir_middle):
+              os.makedirs(out_dir_middle)
+
+            from mmdet.debug_tools import _show_det_lines, show_det_lines_1by1
+            #show_fun = show_det_lines_1by1
+            show_fun = _show_det_lines
+            show_p = 0
+
+            lines_list = [lines_graph, lines_composite, lines_ave, lines_init, lines_refine, lines_corner0_score, lines_corner1_score, lines_corner0_center, lines_corner1_center]
+            names_list = ['graph.png', 'composite.png', 'ave.png', 'init.png', 'refine.png', 'corner0_cls.png', 'corner1_cls.png', 'corner0_cen.png', 'corner1_cen.png']
+            for i in range(len(lines_list)):
+                bboxes_ = lines_list[i]
+                name_  = names_list[i]
+                if name_ in ['graph.png', 'composite.png']:
+                  out_dir = out_dir_out
+                else:
+                  out_dir = out_dir_middle
+                out_file_i = out_dir + scene_name + '_' + name_
+                show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='random',thickness=2, show=0,
+                        out_file=out_file_i, key_points=None, scores=scores_filter)
+                if show_p:
+                  if  name_ == 'init.png':
+                    key_points = key_points_init
+                  else:
+                    key_points = key_points_refine
+                  out_file_i = out_dir + scene_name + '_' + name_ + '_P.png'
+                  show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='green',thickness=2, show=0,
+                          out_file=out_file_i, key_points=key_point, scores=scores)
+                if OUT_EXTAR_DIM == 0 or OBJ_LEGEND == 'rotation':
+                  break
+
     def show_result(self, data, result, dataset=None, score_thr=0.3):
         if OUT_CORNER_HM_ONLY:
           self.show_corner_hm(data, result, dataset, score_thr)
+          return
+
+        if OBJ_REP == 'lscope_istopleft':
+          self.show_result_graph(data, result, dataset, score_thr)
           return
 
         if isinstance(result, tuple):
@@ -254,66 +375,6 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
             img_show = np.clip(img_show+1, a_min=None, a_max=255)
             class_names = tuple([c[0] for c in class_names])
-
-
-            if OUT_EXTAR_DIM > 0 and bboxes.shape[0]>0:
-              bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite = \
-                    parse_bboxes_out(bboxes, 'after_nms')
-
-              #scores_filter = np.squeeze(score_ave)
-              scores_filter = np.squeeze(score_composite)
-
-              bboxes = lines_composite = np.concatenate([bboxes_refine, score_composite], axis=1)
-              lines_ave = np.concatenate([bboxes_refine, score_ave], axis=1)
-
-              lines_init = np.concatenate([bboxes_init, score_refine], axis=1)
-              lines_refine = np.concatenate([bboxes_refine, score_final], axis=1)
-              lines_corner0_score = np.concatenate([bboxes_refine, corner0_score], axis=1)
-              lines_corner1_score = np.concatenate([bboxes_refine, corner1_score], axis=1)
-              lines_corner0_center = np.concatenate([bboxes_refine, corner0_center], axis=1)
-              lines_corner1_center = np.concatenate([bboxes_refine, corner1_center], axis=1)
-              num_box = bboxes.shape[0]
-              key_points_refine = points_refine.reshape(num_box, -1, 2)
-              key_points_init = points_init.reshape(num_box, -1, 2)
-            else:
-              key_points_init = None
-              key_points_refine = None
-
-            filename = img_meta['filename']
-            scene_name = os.path.basename(filename).replace('npy', 'png')
-            if bboxes.shape[1] == 6:
-              out_dir = f'./line_det_{OBJ_LEGEND}_res/'
-            else:
-              out_dir = './box_det_res/'
-            out_file = out_dir + scene_name
-            if not os.path.exists(out_dir):
-              os.makedirs(out_dir)
-
-            if bboxes.shape[1] == 6:
-                    from mmdet.debug_tools import show_det_lines, show_det_lines_1by1
-                    #show_fun = show_det_lines_1by1
-                    show_fun = show_det_lines
-                    show_p = 0
-
-                    lines_list = [lines_composite, lines_ave, lines_init, lines_refine, lines_corner0_score, lines_corner1_score, lines_corner0_center, lines_corner1_center]
-                    names_list = ['lines_composite.png', 'ave.png', 'init.png', 'refine.png', 'corner0_cls.png', 'corner1_cls.png', 'corner0_cen.png', 'corner1_cen.png']
-                    for i in range(len(lines_list)):
-                        bboxes_ = lines_list[i]
-                        name_  = names_list[i]
-                        print(name_)
-                        out_file_i = out_file.replace('.png', '_'+name_)
-                        show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='green',thickness=2, show=0,
-                                out_file=out_file_i, key_points=None, score_filter=scores_filter)
-                        if show_p:
-                          if  name_ == 'init.png':
-                            key_points = key_points_init
-                          else:
-                            key_points = key_points_refine
-                          show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='green',thickness=2, show=0,
-                                  out_file=out_file.replace('.png', '_p_'+name_), key_points=key_point, score_filter=scores_filters)
-                        if OUT_EXTAR_DIM == 0 or OBJ_LEGEND == 'rotation':
-                          break
-                    continue
 
             bboxes_s = bboxes.copy()
             assert bboxes.shape[1] == 5

@@ -26,7 +26,6 @@ def _show_tensor_ls_shapes(tensor_ls, flag='', i='', pre=''):
       _show_tensor_ls_shapes(tensor, flag, i, pre)
 
 
-
 #-------------------------------------------------------------------------------
 def _get_color(color_str):
   assert isinstance( color_str, str), print(color_str)
@@ -59,12 +58,15 @@ def _read_img(img_in):
     img_out = img_out.astype(np.uint8)
   return img_out
 
-def _show_lines_ls_points_ls(img, lines_ls=None, points_ls=None, line_colors='green', point_colors='red', out_file=None, line_thickness=1, point_thickness=1):
+def _show_lines_ls_points_ls(img, lines_ls=None, points_ls=None,
+    line_colors='green', point_colors='red', out_file=None, line_thickness=1,
+    point_thickness=1, only_save=False):
   '''
   img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
   '''
   img = _draw_lines_ls_points_ls(img, lines_ls, points_ls, line_colors, point_colors, out_file, line_thickness, point_thickness)
-  mmcv.imshow(img)
+  if not only_save:
+    mmcv.imshow(img)
 
 def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green', point_colors='red', out_file=None, line_thickness=1, point_thickness=1):
   if lines_ls is not None:
@@ -94,36 +96,91 @@ def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green',
     print(out_file)
   return img
 
-
-def _draw_lines(img, lines, color, line_thickness=1):
+def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color='green'):
     '''
     img: [h,w,3]
-    lines: [n,5]
+    lines: [n,5/6]
     color: 'red'
     '''
+    from configs.common import OBJ_LEGEND
     from beike_data_utils.line_utils import decode_line_rep
+    assert lines.ndim == 2
+    assert lines.shape[1]==5 or lines.shape[1]==6
+    if lines.shape[1] == 6:
+      scores = lines[:,5]
+      lines = lines[:,:5]
+    else:
+      scores = None
+    rotations = lines[:,4]
+    text_color = _get_color(text_color)
+
     lines = decode_line_rep(lines, 'lscope_istopleft').reshape(-1,2,2)
     for i in range(lines.shape[0]):
-        s, e = lines[i]
+        s, e = np.round(lines[i]).astype(np.int32)
         c = _get_color(color)
         cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, thickness=line_thickness)
-        #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-        #            (255, 255, 255), 1)
+
+
+        #label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
+        label_text = ''
+        if OBJ_LEGEND == 'score':
+          if scores is not None:
+            label_text += '{:.01f}'.format(scores[i]) # score
+        else:
+          label_text += '{:.01f}'.format(rotations[i]) # rotation
+        m = ((s+e)/2).astype(np.int32)
+        if label_text != '':
+          cv2.putText(img, label_text, (m[0]-2, m[1] - 2),
+                      cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
     return img
 
 def _draw_points(img, points, color, point_thickness):
+    points = np.round(points).astype(np.int32)
     for i in range(points.shape[0]):
       p = points[i]
       c = _get_color(color)
       cv2.circle(img, (p[0], p[1]), 2, c, thickness=point_thickness)
     return img
+
+def _show_det_lines(img, lines, labels, class_names=None, score_thr=0,
+                   line_color='green', text_color='green', thickness=2,
+                   font_scale=0.5,show=True, win_name='', wait_time=0,
+                   out_file=None, key_points=None, point_color='red', scores=None):
+  '''
+  img: [h,w,3]
+  lines: [n,6]
+  labels: [n]
+  scores: [n] or None
+  Use lines[:,-1] as score when scores is None, otherwise use scores as the score for filtering lines.
+  Always show lines[:,-1] in the image.
+  '''
+  from configs.common import OBJ_LEGEND
+  assert lines.ndim == 2
+  assert lines.shape[1] == 6
+  assert labels.ndim == 1
+  assert labels.shape[0] == lines.shape[0]
+  if key_points is not None:
+    assert key_points.shape[0]== lines.shape[0]
+
+  if score_thr > 0:
+    if scores is None:
+      scores = lines[:,-1]
+    inds = scores > score_thr
+    lines = lines[inds, :]
+    labels = labels[inds]
+    if key_points is not None:
+      key_points = key_points[inds, :]
+  key_points_ls = [key_points] if key_points is not None else None
+  _show_lines_ls_points_ls(img, [lines], key_points_ls, [line_color],
+        [point_color], line_thickness=thickness, out_file=out_file, only_save=True)
+
 #-------------------------------------------------------------------------------
+
 
 
 def imshow_bboxes_random_colors(img, bboxes):
     color_lib = ['red', 'green', 'blue', 'cyan', 'yellow', 'magenta']
     ids = np.randint(len(color_lib))
-
 
 def imshow_bboxes_ref(img, bboxes0, bboxes1):
     bboxes = np.concatenate([bboxes0, bboxes1], 0)
@@ -131,7 +188,6 @@ def imshow_bboxes_ref(img, bboxes0, bboxes1):
     n1 = bboxes1.shape[0]
     colors = ['red']*n0 + ['green']*n1
     mmcv.imshow_bboxes(img, bboxes, colors)
-
 
 def draw_points(img, points_list, colors_list='red'):
   if not isinstance(points_list, list):
@@ -154,8 +210,6 @@ def show_lines(lines, img_size, points=None, lines_ref=None, name='out.png'):
     colors = ['random']
   show_img_lines(img, lines, points=points, colors=colors, name=name)
 
-
-
 def imshow(img, win_name='', wait_time=0):
     """Show an image.
     Args:
@@ -174,7 +228,6 @@ def imshow(img, win_name='', wait_time=0):
                 break
     else:
         ret = cv2.waitKey(wait_time)
-
 
 def show_det_lines_1by1(img, lines, labels, class_names=None, score_thr=0,
                    line_color='green', text_color='green', thickness=1,
@@ -221,13 +274,13 @@ def show_det_lines_1by1(img, lines, labels, class_names=None, score_thr=0,
 def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
                    line_color='green', text_color='green', thickness=1,
                    font_scale=0.5,show=True, win_name='', wait_time=0,
-                   out_file=None, key_points=None, point_color='red', score_filter=None):
+                   out_file=None, key_points=None, point_color='red', scores=None):
   '''
   img: [h,w,3]
   lines: [n,6]
   labels: [n]
-  score_filter: [n] or None
-  Use lines[:,-1] as score when score_filter is None, otherwise use score_filter as the score for filtering lines.
+  scores: [n] or None
+  Use lines[:,-1] as score when scores is None, otherwise use scores as the score for filtering lines.
   Always show lines[:,-1] in the image.
   '''
   from configs.common import OBJ_LEGEND
@@ -242,10 +295,10 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
 
   if score_thr > 0:
     assert lines.shape[1] == 6
-    if score_filter is None:
+    if scores is None:
       inds = lines[:,-1] > score_thr
     else:
-      inds = score_filter > score_thr
+      inds = scores > score_thr
     lines = lines[inds, :]
     labels = labels[inds]
     if key_points is not None:
