@@ -16,8 +16,8 @@ import mmcv
 import glob
 
 from configs.common import OBJ_DIM, OBJ_REP, IMAGE_SIZE
-from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines
-from mmdet.debug_tools import get_random_color, show_img_with_norm
+from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines, gen_corners_from_lines_np
+from mmdet.debug_tools import get_random_color, show_img_with_norm, _show_lines_ls_points_ls
 np.set_printoptions(precision=3, suppress=True)
 
 #LOAD_CLASSES = ['wall', 'window', 'door']
@@ -48,10 +48,10 @@ class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
     _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
-    def __init__(self, anno_folder='data/beike100/json/', topview_path=''):
+    def __init__(self, anno_folder='data/beike100/json/', img_prefix=None):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
-        self.topview_path = topview_path
+        self.img_prefix = img_prefix
         if WRITE_ANNO_IMG:
           self.anno_img_folder = self.anno_folder.replace('json', 'anno_imgs')
           if not os.path.exists(self.anno_img_folder):
@@ -83,6 +83,8 @@ class BEIKE:
 
         self.rm_bad_scenes()
         self.fix_unaligned_scenes()
+        if self.img_prefix is not None:
+          self.rm_anno_withno_data()
 
         n0 = len(self.img_infos)
         if WRITE_ANNO_IMG:
@@ -113,6 +115,19 @@ class BEIKE:
       self.img_infos = [self.img_infos[i] for i in valid_ids]
       n1 = len(self.img_infos)
       print(f'\nload {n0} scenes with {n1} valid\n')
+
+    def rm_anno_withno_data(self):
+      n0 = len(self.img_infos)
+      valid_inds = []
+      valid_files = os.listdir(self.img_prefix)
+      for i, img_info in enumerate(self.img_infos):
+        filename = img_info['filename']
+        if img_info['filename'] in valid_files:
+          valid_inds.append(i)
+      valid_img_infos = [self.img_infos[i] for i in valid_inds]
+      self.img_infos = valid_img_infos
+      n = len(self.img_infos)
+      print(f'\n{n} valid scenes with annotation found in total {n0} in {self.img_prefix}\n')
 
     def show_summary(self, idx):
       img_info = self.img_infos[idx]
@@ -305,21 +320,10 @@ class BEIKE:
       assert True, f'cannot fine scene {scene_name}'
 
     def load_data(self, scene_name):
-      seperate_room_path = self.anno_folder.replace('json', f'{self.topview_path}/test')
-      seperate_room_file = os.path.join(seperate_room_path, scene_name+'.npy')
-      data = np.load(seperate_room_file, allow_pickle=True).tolist()
+      file_name = os.path.join(self.img_prefix, scene_name+'.npy')
+      data = np.load(file_name, allow_pickle=True).tolist()
       img = np.expand_dims(data['topview_image'],axis=2)
-      #lines = data['line_coords']
-      #room_map = data['room_map']
-      #bg_idx = data['bg_idx']
       normal_image = data['topview_mean_normal']
-      #lines = data['lines']
-      #point_dict = data['point_dict']
-
-      #ann = self.load_anno_1scene(scene_name+'.json')
-      #corners = ann['corners']
-
-      #cv2.imwrite(f'./img_{scene_name}.png', img)
       img = np.concatenate([img, normal_image], axis=2)
       return  img
 
@@ -348,16 +352,17 @@ class BEIKE:
       anno = self.img_infos[idx]['ann']
       bboxes = anno['bboxes']
       labels = anno['labels']
-      bboxes, bbox_labels, corners, corner_labels = \
-            split_line_corner(bboxes, labels)
+      corners,_,_ = gen_corners_from_lines_np(bboxes, None, OBJ_REP)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
 
+
       if not with_img:
         img = np.zeros((IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
+        img = (IMAGE_SIZE, IMAGE_SIZE)
       else:
-        img = self.load_data(scene_name)
+        img = self.load_data(scene_name)[:,:,0]
 
 
       if (np.array(lines_transfer) != 0).any():
@@ -368,6 +373,14 @@ class BEIKE:
         bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
                                       OBJ_REP, check_by_cross=False)
 
+      if WRITE_ANNO_IMG:
+        anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
+      else:
+        anno_img_file = None
+      _show_lines_ls_points_ls(img, [bboxes], [corners],
+                               line_colors='random', point_colors='random',
+                               out_file=anno_img_file)
+      return img
       #show_img_with_norm(img)
 
       img_type = 'density'
@@ -404,10 +417,12 @@ class BEIKE:
           thickness = 3
         color = get_random_color()
         cv2.line(img, (s[0], s[1]), (e[0], e[1]), color, thickness=thickness)
-      for i in range(corners.shape[0]):
-        c = corners[i]
-        cv2.circle(img, (c[0], c[1]), radius=3, color=colors_corner['wall'],
-                   thickness=2)
+
+      if corners is not None:
+        for i in range(corners.shape[0]):
+          c = corners[i]
+          cv2.circle(img, (c[0], c[1]), radius=3, color=colors_corner['wall'],
+                    thickness=2)
       mmcv.imshow(img)
       if WRITE_ANNO_IMG:
         anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
@@ -602,6 +617,25 @@ def load_anno_1scene(anno_folder, filename):
       anno['pcl_scope'] = pcl_scopes_all[filename.split('.')[0]]
       return anno
 
+def load_gt_lines_bk(img_meta, img):
+  from mmdet.debug_tools import show_heatmap, show_img_lines
+
+  filename = img_meta['filename']
+  scene_name = os.path.basename(filename).replace('.npy', '.json')
+  processed_dir = os.path.dirname(os.path.dirname(os.path.dirname(filename)))
+  json_dir = os.path.join(processed_dir, 'json/')
+  anno_raw = load_anno_1scene(json_dir, scene_name)
+  anno_img = raw_anno_to_img(anno_raw)
+  lines = anno_img['bboxes']
+  if 'rotate_angle' in img_meta:
+    rotate_angle = img_meta['rotate_angle']
+    #show_img_lines(img[:,:,:3], lines)
+    lines, _ = rotate_lines_img(lines, img, rotate_angle, OBJ_REP)
+    #show_img_lines(img[:,:,:3], lines)
+    return lines
+  else:
+    return lines
+
 
 def _UnUsed_gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')
@@ -748,7 +782,7 @@ def gen_images_from_npy(data_path):
 
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
-  topview_path = 'TopView_All'
+  topview_path = os.path.join(data_path, 'TopView_VerD/test')
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
 
@@ -769,8 +803,8 @@ def main(data_path):
 
 if __name__ == '__main__':
   data_path = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
-  #main(data_path)
-  get_scene_pcl_scopes(data_path)
+  main(data_path)
+  #get_scene_pcl_scopes(data_path)
   #cal_topview_npy_mean_std(data_path, base='TopView_All', normnorm_method='abs')
   #gen_images_from_npy(data_path)
 

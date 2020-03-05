@@ -1,10 +1,12 @@
 import torch
+import numpy as np
+
 #IMAGE_SIZE = 1024
 IMAGE_SIZE = 512
 #TRAIN_NUM=1
 TRAIN_NUM=90
 
-#DATA = 'coco'
+DATA = 'coco'
 DATA = 'beike'
 
 if DATA == 'beike':
@@ -21,7 +23,7 @@ OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
 POINTS_NUM = 9
 POINTS_DIM = POINTS_NUM * 2 * 2
 OUT_EXTAR_DIM = POINTS_DIM + OBJ_DIM + 2 # see OUT_ORDER
-OUT_EXTAR_DIM = 0
+#OUT_EXTAR_DIM = 0
 CORNER_DIM = 4
 AVE_LINE_SCORE = 1
 COMPOSITE_SCORE = 1
@@ -62,7 +64,7 @@ OBJ_LEGEND = 'score' # score or rotation
 #*******************************************************************************
 
 def parse_bboxes_out(bboxes_out, flag):
-  assert flag in ['before_nms', 'after_nms', 'before_cal_score_composite']
+  assert flag in ['before_nms', 'before_cal_score_composite', 'final']
   if isinstance(bboxes_out, torch.Tensor):
     assert bboxes_out.dim() == 2
   else:
@@ -71,7 +73,7 @@ def parse_bboxes_out(bboxes_out, flag):
     assert bboxes_out.shape[1] == OUT_DIM_FINAL - 1 - CORNER_DIM - 1
   elif flag == 'before_cal_score_composite':
     assert bboxes_out.shape[1] == OUT_DIM_FINAL -1
-  elif flag == 'after_nms':
+  elif flag == 'final':
     assert bboxes_out.shape[1] == OUT_DIM_FINAL
   c = bboxes_out.shape[1]
   outs = {}
@@ -86,3 +88,10 @@ def parse_bboxes_out(bboxes_out, flag):
           outs['points_init'], outs['score_refine'], outs['score_final'],\
           outs['score_line_ave'], outs['corner0_score'], outs['corner1_score'], outs['corner0_center'], outs['corner1_center'], outs['score_composite']
   return bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite
+
+def clean_bboxes_out(bboxes_out, flag):
+  bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final,\
+    score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center,\
+    score_composite = parse_bboxes_out(bboxes_out, flag)
+  bboxes_clean = np.concatenate([ bboxes_refine, score_composite ], axis=1 )
+  return bboxes_clean

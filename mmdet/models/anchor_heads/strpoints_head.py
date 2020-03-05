@@ -15,7 +15,7 @@ from ..utils import ConvModule, bias_init_with_prob, Scale
 
 from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
 from mmdet import debug_tools
-from beike_data_utils.line_utils import decode_line_rep_th
+from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lines_th
 
 import torchvision as tcv
 
@@ -816,7 +816,7 @@ class StrPointsHead(nn.Module):
         cor_scores = corner_outs['cor_scores']
         cor_centerness = corner_outs['cor_centerness']
         cor_ofs = corner_outs['cor_ofs']
-        gt_corners_lab = [gen_corners_from_bboxes(gb, gl) for gb,gl in zip(gt_bboxes, gt_labels)]
+        gt_corners_lab = [gen_corners_from_lines_th(gb, gl) for gb,gl in zip(gt_bboxes, gt_labels)]
         gt_corners = [d[0] for d in gt_corners_lab]
         gt_labels = [d[1] for d in gt_corners_lab]
         if gt_bboxes_ignore is None:
@@ -1265,22 +1265,6 @@ def cal_composite_score(line_preds):
       line_preds = torch.cat([line_preds, score_composite], dim=1)
       return line_preds
 
-def gen_corners_from_bboxes(bboxes, labels):
-    lines0 = decode_line_rep_th(bboxes, OBJ_REP)
-    labels_1 = labels.reshape(-1,1).to(bboxes.dtype)
-    lines1 = torch.cat([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], dim=1)
-    lines1 = lines1.reshape(-1,3)
-    lines_uq = torch.unique(lines1, sorted=False, dim=0)
-    lines_out = lines_uq[:,:2]
-    labels_out = lines_uq[:,2].to(labels.dtype)
-
-    if 0:
-      n0 = bboxes.shape[0]
-      n1 = lines_out.shape[0]
-      print(f'{n0} -> {n1}')
-      from mmdet.debug_tools import show_lines
-      show_lines(bboxes.cpu().data.numpy(), (512,512), points=lines_out)
-    return lines_out, labels_out
 
 def convert_list_dict_order(f_ls_dict):
   '''

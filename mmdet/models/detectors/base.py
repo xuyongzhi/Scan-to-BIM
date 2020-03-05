@@ -8,6 +8,7 @@ import os
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
+from beike_data_utils.beike_utils import load_gt_lines_bk
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -179,7 +180,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             if not os.path.exists(out_dir):
               os.makedirs(out_dir)
 
-            gt_lines = load_gt_lines(img_meta, img_show)
+            gt_lines = load_gt_lines_bk(img_meta, img_show)
             #gt_lines = None
 
             bboxes = np.vstack(bbox_result)
@@ -361,25 +362,4 @@ def draw_key_points(img, key_points, bboxes_s, score_thr,
       for j in range(key_points.shape[1]):
         p = key_points[i][j].astype(np.int32)
         cv2.circle(img, (p[0], p[1]), 2, point_color, thickness=thickness)
-
-def load_gt_lines(img_meta, img):
-  from beike_data_utils.beike_utils import load_anno_1scene, raw_anno_to_img
-  from beike_data_utils.line_utils import rotate_lines_img
-  from mmdet.debug_tools import show_heatmap, show_img_lines
-
-  filename = img_meta['filename']
-  scene_name = os.path.basename(filename).replace('.npy', '.json')
-  processed_dir = os.path.dirname(os.path.dirname(os.path.dirname(filename)))
-  json_dir = os.path.join(processed_dir, 'json/')
-  anno_raw = load_anno_1scene(json_dir, scene_name)
-  anno_img = raw_anno_to_img(anno_raw)
-  lines = anno_img['bboxes']
-  if 'rotate_angle' in img_meta:
-    rotate_angle = img_meta['rotate_angle']
-    #show_img_lines(img[:,:,:3], lines)
-    lines, _ = rotate_lines_img(lines, img, rotate_angle, OBJ_REP)
-    #show_img_lines(img[:,:,:3], lines)
-    return lines
-  else:
-    return lines
 

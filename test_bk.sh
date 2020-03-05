@@ -10,6 +10,6 @@ DCN_ZERO_BASE=0
 wdir=T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs5_lr10_RA_Normrawstd_ChmR2P1N1
 CHECKPOINT=work_dirs/${wdir}/best.pth
 
-ipython tools/test.py --  ${CONFIG} $CHECKPOINT --show --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
+ipython tools/test.py --  ${CONFIG} $CHECKPOINT --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --out ./res/bk.pickle --eval bbox
 
 

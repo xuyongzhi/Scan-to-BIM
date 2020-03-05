@@ -13,10 +13,12 @@ import torch.distributed as dist
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 
-from mmdet.core import coco_eval, results2json, wrap_fp16_model
+from mmdet.core import coco_eval, results2json, wrap_fp16_model, save_res_bk, eval_bk
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
 from tools.train import update_config
+
+from configs.common import DATA
 
 
 def single_gpu_test(model, data_loader, show=False):
@@ -268,8 +270,12 @@ def main():
                 coco_eval(result_file, eval_types, dataset.coco)
             else:
                 if not isinstance(outputs[0], dict):
-                    result_files = results2json(dataset, outputs, args.out)
-                    coco_eval(result_files, eval_types, dataset.coco)
+                    if DATA == 'coco':
+                      result_files = results2json(dataset, outputs, args.out)
+                      coco_eval(result_files, eval_types, dataset.coco)
+                    if DATA == 'beike':
+                      results_datas = save_res_bk(dataset, data_loader, outputs, args.out)
+                      eval_bk(results_datas, dataset, args.out)
                 else:
                     for name in outputs[0]:
                         print('\nEvaluating {}'.format(name))

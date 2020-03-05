@@ -3,7 +3,7 @@ import numpy as np
 import mmcv
 from .geometric_utils import sin2theta_np
 import cv2
-from mmdet.debug_tools import show_img_with_norm, show_img_lines
+from mmdet.debug_tools import show_img_with_norm, _show_lines_ls_points_ls
 import torch
 
 def encode_line_rep(lines, obj_rep):
@@ -254,11 +254,79 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
 
   lines_rotated = lines_rotated.astype(np.float32)
   new_img = new_img.astype(np.float32)
-  #show_img_lines(img[:,:,:3]*255, lines)
-  #show_img_lines(new_img[:,:,:3], lines_rotated)
+  #_show_lines_ls_points_ls(img[:,:,:3]*255, lines)
+  #_show_lines_ls_points_ls(new_img[:,:,:3], lines_rotated)
   return  lines_rotated, new_img
 
 
+def gen_corners_from_lines_th(lines, labels, obj_rep):
+    lines0 = decode_line_rep_th(lines, obj_rep)
+    labels_1 = labels.reshape(-1,1).to(lines.dtype)
+    lines1 = torch.cat([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], dim=1)
+    lines1 = lines1.reshape(-1,3)
+    corners_uq = torch.unique(lines1, sorted=False, dim=0)
+    lines_out = corners_uq[:,:2]
+    labels_out = corners_uq[:,2].to(labels.dtype)
 
+    if 0:
+      n0 = lines.shape[0]
+      n1 = lines_out.shape[0]
+      print(f'{n0} -> {n1}')
+      from mmdet.debug_tools import show_lines
+      show_lines(lines.cpu().data.numpy(), (512,512), points=lines_out)
+    return lines_out, labels_out
 
+def gen_corners_from_lines_np(lines, labels, obj_rep):
+    '''
+    lines: [n,5]
+    labels: [n,1]
+    '''
+    lines0 = decode_line_rep(lines, obj_rep)
+    if labels is not None:
+      labels_1 = labels.reshape(-1,1)
+      lines1 = np.concatenate([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], axis=1)
+      corners1 = lines1.reshape(-1,3)
+    else:
+      corners1 = lines0.reshape(-1,2)
+    corners_uq, unique_indices, inds_inverse = np.unique(corners1, axis=0, return_index=True, return_inverse=True)
+    corners = corners_uq[:,:2]
+    if labels is not None:
+      labels_out = corners_uq[:,2].astype(labels.dtype)
+    else:
+      labels_out = None
+    corIds_per_line = inds_inverse.reshape(-1,2)
+
+    lineIds_per_cor = get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, corners.shape[0])
+
+    if 0:
+      n0 = lines.shape[0]
+      n1 = corners.shape[0]
+      print(f'{n0} -> {n1}')
+      _show_lines_ls_points_ls((512,512), [lines], [corners], 'random', 'random')
+      for i in range(corners.shape[0]):
+        lids = lineIds_per_cor[i]
+        _show_lines_ls_points_ls((512,512), [lines, lines[lids].reshape(-1, lines.shape[1])], [corners[i:i+1]], ['white', 'green'], ['red'], point_thickness=2)
+      for i in range(lines.shape[0]):
+        cor_ids = corIds_per_line[i]
+        _show_lines_ls_points_ls((512,512), [lines, lines[i:i+1]], [corners[cor_ids]], ['white', 'green'], ['red'], point_thickness=2)
+
+    return corners, labels_out, corIds_per_line
+
+def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
+  '''
+  corIds_per_line: [num_line, 2]
+  '''
+  num_line = corIds_per_line.shape[0]
+  lineIds_per_cor = [ None ] * num_corner
+  for i in range(num_line):
+    cj0, cj1 = corIds_per_line[i]
+    if lineIds_per_cor[cj0] is None:
+      lineIds_per_cor[cj0] = []
+    if lineIds_per_cor[cj1] is None:
+      lineIds_per_cor[cj1] = []
+    lineIds_per_cor[cj0].append(i)
+    lineIds_per_cor[cj1].append(i)
+  #for i in range(num_corner):
+  #  lineIds_per_cor[i] = np.array(lineIds_per_cor[i])
+  return lineIds_per_cor
 

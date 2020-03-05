@@ -26,6 +26,100 @@ def _show_tensor_ls_shapes(tensor_ls, flag='', i='', pre=''):
       _show_tensor_ls_shapes(tensor, flag, i, pre)
 
 
+
+#-------------------------------------------------------------------------------
+def _get_color(color_str):
+  assert isinstance( color_str, str), print(color_str)
+  if color_str == 'random':
+    c = get_random_color()
+  else:
+    c = color_val(color_str)
+  return c
+
+def _read_img(img_in):
+  '''
+  img_in: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
+  img_out: [h,w,3]
+  '''
+  if isinstance(img_in, tuple):
+    assert len(img_in) == 2
+    img_size = img_in + (3,)
+    img_out = np.zeros(img_size, dtype=np.float32)
+  else:
+    assert isinstance(img_in, np.ndarray)
+    if img_in.ndim == 2:
+      img_in = np.expand_dims(img_in, 2)
+    assert img_in.ndim == 3
+    if img_in.shape[2] == 1:
+      img_in = np.tile(img_in, (1,1,3))
+    img_out = img_in.copy()
+
+    if img_out.max() <= 1:
+      img_out *= 255
+    img_out = img_out.astype(np.uint8)
+  return img_out
+
+def _show_lines_ls_points_ls(img, lines_ls=None, points_ls=None, line_colors='green', point_colors='red', out_file=None, line_thickness=1, point_thickness=1):
+  '''
+  img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
+  '''
+  img = _draw_lines_ls_points_ls(img, lines_ls, points_ls, line_colors, point_colors, out_file, line_thickness, point_thickness)
+  mmcv.imshow(img)
+
+def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green', point_colors='red', out_file=None, line_thickness=1, point_thickness=1):
+  if lines_ls is not None:
+    assert isinstance(lines_ls, list)
+    if lines_ls is not None and isinstance(line_colors, str):
+      line_colors = [line_colors] * len(lines_ls)
+    if not isinstance(line_thickness, list):
+      line_thickness = [line_thickness] * len(lines_ls)
+
+  if points_ls is not None:
+    assert isinstance(points_ls, list)
+    if points_ls is not None and isinstance(point_colors, str):
+      point_colors = [point_colors] * len(points_ls)
+    if not isinstance(point_thickness, list):
+      point_thickness = [point_thickness] * len(points_ls)
+
+  img = _read_img(img)
+  if lines_ls is not None:
+    for i, lines in enumerate(lines_ls):
+      img = _draw_lines(img, lines, line_colors[i], line_thickness[i])
+
+  if points_ls is not None:
+    for i, points in enumerate(points_ls):
+      img = _draw_points(img, points, point_colors[i], point_thickness[i])
+  if out_file is not None:
+    mmcv.imwrite(img, out_file)
+    print(out_file)
+  return img
+
+
+def _draw_lines(img, lines, color, line_thickness=1):
+    '''
+    img: [h,w,3]
+    lines: [n,5]
+    color: 'red'
+    '''
+    from beike_data_utils.line_utils import decode_line_rep
+    lines = decode_line_rep(lines, 'lscope_istopleft').reshape(-1,2,2)
+    for i in range(lines.shape[0]):
+        s, e = lines[i]
+        c = _get_color(color)
+        cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, thickness=line_thickness)
+        #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+        #            (255, 255, 255), 1)
+    return img
+
+def _draw_points(img, points, color, point_thickness):
+    for i in range(points.shape[0]):
+      p = points[i]
+      c = _get_color(color)
+      cv2.circle(img, (p[0], p[1]), 2, c, thickness=point_thickness)
+    return img
+#-------------------------------------------------------------------------------
+
+
 def imshow_bboxes_random_colors(img, bboxes):
     color_lib = ['red', 'green', 'blue', 'cyan', 'yellow', 'magenta']
     ids = np.randint(len(color_lib))
@@ -38,10 +132,6 @@ def imshow_bboxes_ref(img, bboxes0, bboxes1):
     colors = ['red']*n0 + ['green']*n1
     mmcv.imshow_bboxes(img, bboxes, colors)
 
-def show_points(points0, img_size, points1, cor0='red', cor1='green', name=''):
-  img = np.zeros(img_size + (3,), dtype=np.uint8)
-  img = draw_points(img, [points0, points1], [cor0, cor1])
-  mmcv.imshow(img)
 
 def draw_points(img, points_list, colors_list='red'):
   if not isinstance(points_list, list):
@@ -277,6 +367,8 @@ def show_img_lines(img, lines, points=None, colors=['random'], name=None, only_d
     lines = lines_to_2points_format(lines)
     img = img.copy()
     img = scale_img_touint8(img)
+    if img.ndim == 2:
+      img = np.expand_dims(img, 2)
     if img.shape[2] == 1:
       img = np.tile(img, (1,1,3))
     for i in range(lines.shape[0]):
@@ -327,4 +419,11 @@ def show_heatmap(scores, show_size=None, out_file=None, gt_lines=None, gt_corner
   else:
     mmcv.imwrite(img, out_file)
     print(out_file)
+
+def show_points(points0, img_size, points1, cor0='red', cor1='green', name=''):
+  img = np.zeros(img_size + (3,), dtype=np.uint8)
+  img = draw_points(img, [points0, points1], [cor0, cor1])
+  mmcv.imshow(img)
+
+
 
