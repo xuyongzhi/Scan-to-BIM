@@ -17,7 +17,7 @@ if DATA == 'coco':
   NUM_CLASS = 80
 
 #*******************************************************************************
-OPT_GRAPH_COR_DIS_THR = 6
+OPT_GRAPH_COR_DIS_THR = 10
 #*******************************************************************************
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
@@ -63,17 +63,17 @@ OBJ_LEGEND = 'score' # score or rotation
 #OBJ_LEGEND = 'rotation'
 #*******************************************************************************
 
-def parse_bboxes_out(bboxes_out, flag):
-  assert flag in ['before_nms', 'before_cal_score_composite', 'final']
+def parse_bboxes_out(bboxes_out, stage):
+  assert stage in ['before_nms', 'before_cal_score_composite', 'final']
   if isinstance(bboxes_out, torch.Tensor):
     assert bboxes_out.dim() == 2
   else:
     assert bboxes_out.ndim == 2
-  if flag == 'before_nms':
+  if stage == 'before_nms':
     assert bboxes_out.shape[1] == OUT_DIM_FINAL - 1 - CORNER_DIM - 1
-  elif flag == 'before_cal_score_composite':
+  elif stage == 'before_cal_score_composite':
     assert bboxes_out.shape[1] == OUT_DIM_FINAL -1
-  elif flag == 'final':
+  elif stage == 'final':
     assert bboxes_out.shape[1] == OUT_DIM_FINAL
   c = bboxes_out.shape[1]
   outs = {}
@@ -89,9 +89,17 @@ def parse_bboxes_out(bboxes_out, flag):
           outs['score_line_ave'], outs['corner0_score'], outs['corner1_score'], outs['corner0_center'], outs['corner1_center'], outs['score_composite']
   return bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite
 
-def clean_bboxes_out(bboxes_out, flag):
+def clean_bboxes_out(bboxes_out, stage, out_type='composite'):
+  assert out_type in ['score_refine', 'score_final', 'line_ave', 'composite']
   bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final,\
     score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center,\
-    score_composite = parse_bboxes_out(bboxes_out, flag)
-  bboxes_clean = np.concatenate([ bboxes_refine, score_composite ], axis=1 )
+    score_composite = parse_bboxes_out(bboxes_out, stage)
+  if out_type == 'composite':
+    bboxes_clean = np.concatenate([ bboxes_refine, score_composite ], axis=1 )
+  elif out_type == 'line_ave':
+    bboxes_clean = np.concatenate([ bboxes_refine, score_line_ave ], axis=1 )
+  elif out_type == 'score_final':
+    bboxes_clean = np.concatenate([ bboxes_refine, score_final ], axis=1 )
+  elif out_type == 'score_refine':
+    bboxes_clean = np.concatenate([ bboxes_init, score_refine ], axis=1 )
   return bboxes_clean

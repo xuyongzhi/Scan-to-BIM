@@ -128,9 +128,9 @@ def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color=
             label_text += '{:.01f}'.format(scores[i]) # score
         else:
           label_text += '{:.01f}'.format(rotations[i]) # rotation
-        m = ((s+e)/2).astype(np.int32)
+        m = np.round(((s+e)/2)).astype(np.int32)
         if label_text != '':
-          cv2.putText(img, label_text, (m[0]-2, m[1] - 2),
+          cv2.putText(img, label_text, (m[0]-4, m[1] - 4),
                       cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
     return img
 

@@ -21,7 +21,8 @@ class Color(Enum):
     black = (0, 0, 0)
 
 def get_random_color():
-  colors = ['red', 'green', 'blue','cyan','yellow','magenta','white']
+  # except black and white
+  colors = ['red', 'green', 'blue','cyan','yellow','magenta']
   col = random.sample(colors, 1)[0]
   return Color[col].value
 

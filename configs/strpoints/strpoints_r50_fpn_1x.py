@@ -176,8 +176,8 @@ if TRAIN_NUM < 10:
   batch_size = 6
   lra = 0.05
 
-#test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
-test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
+test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
+#test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,

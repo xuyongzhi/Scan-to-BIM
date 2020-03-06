@@ -36,7 +36,7 @@ def angle_with_x(vec_start, scope_id=0, debug=0):
   return angle_from_vecs_to_vece(vec_x, vec_start, scope_id, debug)
 
 
-def sin2theta(vec_start, vec_end):
+def sin2theta(vec_start_0, vec_end_0):
   '''
     vec_start: [n,2/3]
     vec_end: [n,2/3]
@@ -50,19 +50,19 @@ def sin2theta(vec_start, vec_end):
    clock wise is positive
    angle: [n]
   '''
-  assert vec_start.dim() == 2 and  vec_end.dim() == 2
-  assert (vec_start.shape[0] == vec_end.shape[0]) or vec_start.shape[0]==1 or vec_end.shape[0]==1
-  assert vec_start.shape[1] == vec_end.shape[1] # 2 or 3
+  assert vec_start_0.dim() == 2 and  vec_end_0.dim() == 2
+  assert (vec_start_0.shape[0] == vec_end_0.shape[0]) or vec_start_0.shape[0]==1 or vec_end_0.shape[0]==1
+  assert vec_start_0.shape[1] == vec_end_0.shape[1] # 2 or 3
 
-  vec_start = vec_start.float()
-  vec_end = vec_end.float()
+  vec_start_0 = vec_start_0.float()
+  vec_end_0 = vec_end_0.float()
 
-  norm_start = torch.norm(vec_start, dim=1, keepdim=True)
-  norm_end = torch.norm(vec_end, dim=1, keepdim=True)
+  norm_start = torch.norm(vec_start_0, dim=1, keepdim=True)
+  norm_end = torch.norm(vec_end_0, dim=1, keepdim=True)
   #assert norm_start.min() > 1e-4 and norm_end.min() > 1e-4 # return nan
-  vec_start = vec_start / norm_start
-  vec_end = vec_end / norm_end
-  assert not torch.isnan(vec_end).any()
+  vec_start = vec_start_0 / norm_start
+  vec_end = vec_end_0 / norm_end
+  #assert not torch.isnan(vec_end).any()
   if vec_start.dim() == 2:
     tmp = vec_start[:,0:1]*0
     vec_start = torch.cat([vec_start, tmp], 1)
@@ -77,6 +77,9 @@ def sin2theta(vec_start, vec_end):
   # check :angle or pi-angle
   cosa = torch.sum(vec_start * vec_end,dim=1)
   res = 2 * cz * cosa
+
+  # get nan when the norm of vec_end is 0. set as 0 directly
+  res[torch.isnan(res)] = 0
   assert not torch.isnan(res).any()
   return res
 
