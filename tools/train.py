@@ -148,9 +148,9 @@ def update_config(cfg, args, split):
 
       # FPN
       neck = cfg['model']['neck']
-      num_level = len(neck['in_channels'])
+      num_in = len(neck['in_channels'])
       num_outs = neck['num_outs']
-      cfg['work_dir'] += f'_Fpn{n}{m}'
+      cfg['work_dir'] += f'_Fpn{num_in}{num_outs}'
       pass
       #print(cfg['work_dir'])
       pass
