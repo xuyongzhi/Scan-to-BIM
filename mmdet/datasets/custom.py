@@ -181,49 +181,22 @@ def show_results_test(results):
     img = img.data.cpu().numpy()
     img = np.moveaxis(img, 0, -1)
     mmcv.imshow(img[:,:,0:1])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
 
 def show_results_train(results):
-  from beike_data_utils.beike_utils import split_line_corner
-
+  from mmdet.debug_tools import _show_lines_ls_points_ls
   print('\ncustom, after data augmentation',results['img_meta'].data['filename'])
   img = results['img'].data.cpu().numpy()
   img = np.moveaxis(img, 0, -1)
+  img_meta = results['img_meta'].data
+  img_norm_cfg = img_meta['img_norm_cfg']
+  mean = img_norm_cfg['mean']
+  std = img_norm_cfg['std']
+
+  img = img*std + mean
+
   gt_bboxes = results['gt_bboxes'].data.cpu().numpy()
   gt_labels = results['gt_labels'].data.cpu().numpy()
 
-  gt_bboxes, gt_labels, corners, corner_labels = split_line_corner(gt_bboxes, gt_labels)
-
-  if gt_bboxes.shape[1] == 5:
-    istopleft = gt_bboxes[:,4]
-    print(istopleft)
-    gt_bboxes = gt_bboxes[:,:4]
-    n = gt_bboxes.shape[0]
-    for i in range(n):
-      if istopleft[i]<0:
-        gt_bboxes[i] = gt_bboxes[i,[2,1,0,3]]
-    lines = gt_bboxes.reshape(-1,2,2)
-  else:
-    lines = gt_bboxes.reshape(-1,2,2)
-
-  #mmcv.imshow(img[:,:,:3])
-  #mmcv.imshow(img[:,:,3:])
-  #mmcv.imshow_bboxes(img[:,:,:3].copy(), gt_bboxes.astype(np.int32))
-  img_show_n = img[:,:,1:4]
-  img_show_n = np.abs(img_show_n)
-  img_show_d = np.repeat(img[:,:,0:1], 3, axis=2)
-
-  draw_img_lines(img_show_d, lines, corners)
-  draw_img_lines(img_show_n, lines, corners)
-  pass
-
-def draw_img_lines(img, lines, corners):
-  import cv2
-  img = img.copy()
-  for i in range(lines.shape[0]):
-    s, e = lines[i]
-    cv2.line(img, (s[0], s[1]), (e[0], e[1]), (0,0,255), 1)
-  for i in range(corners.shape[0]):
-    c = corners[i]
-    cv2.circle(img, (c[0], c[1]), thickness=1, radius=2, color=(255,0,255))
-  mmcv.imshow(img)
-
+  _show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])

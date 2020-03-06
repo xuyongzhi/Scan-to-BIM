@@ -97,13 +97,8 @@ class BEIKE:
       n0 = len(self.img_infos)
       for i in range(n0):
         sn = self.img_infos[i]['filename'].split('.')[0]
-        if sn in UNALIGNED_SCENES:
-          angle, cx, cy = BAD_SCENE_TRANSFERS_1024[sn]
-          scale = IMAGE_SIZE / 1024.0
-          self.img_infos[i]['ann']['bboxes'] = transfer_lines(
-            self.img_infos[i]['ann']['bboxes'], OBJ_REP,
-            (IMAGE_SIZE, IMAGE_SIZE), angle, (cx*scale, cy*scale))
-          pass
+        self.img_infos[i]['ann']['bboxes'] = fix_1_unaligned_scene(sn, \
+                                self.img_infos[i]['ann']['bboxes'])
 
     def rm_bad_scenes(self):
       valid_ids = []
@@ -352,7 +347,7 @@ class BEIKE:
       anno = self.img_infos[idx]['ann']
       bboxes = anno['bboxes']
       labels = anno['labels']
-      corners,_,_ = gen_corners_from_lines_np(bboxes, None, OBJ_REP)
+      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, OBJ_REP)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
@@ -621,12 +616,13 @@ def load_gt_lines_bk(img_meta, img):
   from mmdet.debug_tools import show_heatmap, show_img_lines
 
   filename = img_meta['filename']
-  scene_name = os.path.basename(filename).replace('.npy', '.json')
+  scene_name = os.path.basename(filename).replace('.npy', '')
   processed_dir = os.path.dirname(os.path.dirname(os.path.dirname(filename)))
   json_dir = os.path.join(processed_dir, 'json/')
-  anno_raw = load_anno_1scene(json_dir, scene_name)
+  anno_raw = load_anno_1scene(json_dir, scene_name+'.json')
   anno_img = raw_anno_to_img(anno_raw)
-  lines = anno_img['bboxes']
+  lines0 = anno_img['bboxes']
+  lines = fix_1_unaligned_scene(scene_name, lines0)
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']
     #show_img_lines(img[:,:,:3], lines)
@@ -635,6 +631,16 @@ def load_gt_lines_bk(img_meta, img):
     return lines
   else:
     return lines
+
+def fix_1_unaligned_scene(scene_name, lines_unaligned):
+    if scene_name in UNALIGNED_SCENES:
+      angle, cx, cy = BAD_SCENE_TRANSFERS_1024[scene_name]
+      scale = IMAGE_SIZE / 1024.0
+      lines_aligned = transfer_lines( lines_unaligned, OBJ_REP,
+        (IMAGE_SIZE, IMAGE_SIZE), angle, (cx*scale, cy*scale))
+    else:
+      lines_aligned = lines_unaligned
+    return lines_aligned
 
 
 def _UnUsed_gen_images_from_npy(data_path):
@@ -785,6 +791,7 @@ def main(data_path):
   topview_path = os.path.join(data_path, 'TopView_VerD/test')
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
+  scenes = UNALIGNED_SCENES
 
   beike = BEIKE(ANNO_PATH, topview_path)
 
