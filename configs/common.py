@@ -1,8 +1,8 @@
 import torch
 import numpy as np
 
-IMAGE_SIZE = 1024
-#IMAGE_SIZE = 512
+#IMAGE_SIZE = 1024
+IMAGE_SIZE = 512
 #TRAIN_NUM=1
 TRAIN_NUM=90
 
