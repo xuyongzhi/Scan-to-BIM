@@ -139,11 +139,18 @@ def update_config(cfg, args, split):
         neg_iou = int(cor_assigner['neg_iou_thr'] * 10)
         cfg['work_dir'] += f'R{radius}P{neg_iou}N{neg_iou}'
 
+      # refine_iou_assigner
       refine_iou_assigner = cfg['train_cfg']['refine']['assigner']
       p = int(refine_iou_assigner['pos_iou_thr']*10)
       n = int(refine_iou_assigner['neg_iou_thr']*10)
       m = int(refine_iou_assigner['min_pos_iou']*10)
       cfg['work_dir'] += f'_Rfiou{p}{n}{m}'
+
+      # FPN
+      neck = cfg['model']['neck']
+      num_level = len(neck['in_channels'])
+      num_outs = neck['num_outs']
+      cfg['work_dir'] += f'_Fpn{n}{m}'
       pass
       #print(cfg['work_dir'])
       pass
