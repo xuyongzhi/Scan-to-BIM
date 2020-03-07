@@ -20,10 +20,10 @@ DCN_ZERO_BASE=0
 ./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
 
 
-CONFIG=configs/strpoints/strpoints_r50_fpn_1x_b4.py
-./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
+CONFIG=configs/strpoints/strpoints_r50_fpn_1x_Fpn34_bs1.py
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x_Fpn6L.py
-./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE
 
 
 ROTATE=0

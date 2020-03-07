@@ -151,6 +151,10 @@ def update_config(cfg, args, split):
       num_in = len(neck['in_channels'])
       num_outs = neck['num_outs']
       cfg['work_dir'] += f'_Fpn{num_in}{num_outs}'
+
+      # point base scale
+      base_scale=cfg['model']['bbox_head']['point_base_scale']
+      cfg['work_dir'] += f'_Pbs{base_scale}'
       pass
       #print(cfg['work_dir'])
       pass
