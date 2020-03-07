@@ -1,3 +1,21 @@
+# RES
+- 1  iou740_Fpn34
+   ```
+        wall    precision:0.798 corner  recall:0.816
+        wall    precision:0.702 line    recall:0.628
+
+        wall    precision:0.927 corner  recall:0.926
+        wall    precision:0.897 line    recall:0.813
+    ```
+- 2 iou743_Fpn45
+    ```
+        wall    precision:0.816 corner  recall:0.816
+        wall    precision:0.745 line    recall:0.614
+
+        wall    precision:0.929 corner  recall:0.93
+        wall    precision:0.901 line    recall:0.818
+    ```
+
 # Questions
 * a big issue is that the refine stage cannot remove false positive of the first stage
 * base_scale=2 seems not right
