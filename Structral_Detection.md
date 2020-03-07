@@ -16,6 +16,7 @@
 *
 # Items need to be further researched
 - point_base_scale
+- When workers_per_gpu=0, rotate test doest not work.
 
 
 # Debug

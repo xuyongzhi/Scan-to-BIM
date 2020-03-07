@@ -180,7 +180,7 @@ if TRAIN_NUM < 10:
 test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',

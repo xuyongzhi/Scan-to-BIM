@@ -138,9 +138,18 @@ class GraphEval():
     return eval_res_str
 
   def get_eval_res_str(self, corner_recall_precision, line_recall_precision, dataset):
+    rotate = False
+    if len(dataset)>0 and 'rotate_angle' in dataset[0]['img_meta'][0].data:
+      angle0 = dataset[0]['img_meta'][0].data['rotate_angle']
+      rotate = abs(angle0) > 0 or rotate
+    if len(dataset)>1 and 'rotate_angle' in dataset[1]['img_meta'][0].data:
+      angle1 = dataset[1]['img_meta'][0].data['rotate_angle']
+      rotate = abs(angle1) > 0 or rotate
+
     eval_str = '\n\n--------------------------------------\n\n' + \
                 str(self) + f'num_img: {self.num_img}\n'
     catid_2_cat = dataset.beike._catid_2_cat
+    eval_str += f'rotate: {rotate}\n'
     for label in corner_recall_precision:
       cat = catid_2_cat[label]
       recall, precision = corner_recall_precision[label]
@@ -221,7 +230,6 @@ class GraphEval():
     nums_gt_pos_tp = [num_gt, num_pos, num_ture_pos]
     return nums_gt_pos_tp, detIds_per_gt_2
 
-
   def debug_line_eval(self, det_lines, gt_lines, line_detIds_per_gt, obj_wise=1):
     pos_line_ids = line_detIds_per_gt[line_detIds_per_gt>=0]
     det_lines_pos = det_lines[pos_line_ids]
@@ -266,25 +274,32 @@ class GraphEval():
     r = int(cor_recall*100)
     p = int(cor_precision*100)
     cat = self._catid_2_cat[det_category_id]
-    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_Detection.png'
+    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet.png'
     img_file = os.path.join(self.eval_dir, img_name)
-
-    print('det corners. green: true pos, red: false pos')
-    _show_lines_ls_points_ls((512,512), [gt_lines, det_lines_pos, det_lines_neg],
+    #print('det corners. green: true pos, red: false pos')
+    _show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [gt_lines, det_lines_pos, det_lines_neg],
                               points_ls=[det_corners_pos, det_corners_neg],
                             line_colors=['white','green', 'red'], line_thickness=[1,2,2],
                             point_colors=['blue', 'yellow'], point_thickness=2,
                             out_file=img_file, only_save=1)
 
-    print('gt  corners. green: true pos, red: false neg')
-    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_Gt.png'
+    #print('gt  corners. green: true pos, red: false neg')
+    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt.png'
     img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls((512,512), [gt_lines_true, gt_lines_false, det_lines],
+    _show_lines_ls_points_ls((IMAGE_SIZE, IMAGE_SIZE), [gt_lines_true, gt_lines_false, det_lines],
                             points_ls=[gt_corners_true, gt_corners_false],
                             line_colors=['green','red', 'white'],
                             line_thickness=[2,2,1],
                             point_colors=['blue', 'yellow'],
                             point_thickness=2, out_file=img_file, only_save=1)
+
+    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_Det.png'
+    img_file = os.path.join(self.eval_dir, img_name)
+    _show_lines_ls_points_ls((IMAGE_SIZE, IMAGE_SIZE), [det_lines], [det_corners],
+                             line_colors='random', point_colors='random',
+                             line_thickness=2, point_thickness=2,
+                             out_file=img_file, only_save=1)
+    pass
 
     if obj_wise:
       for i in range(gt_corners.shape[0]):
@@ -299,7 +314,6 @@ def filter_low_score_det(det_lines, score_threshold=0.5):
   mask = det_lines[:,-1] > score_threshold
   det_lines_ = det_lines[mask]
   return det_lines_
-
 
 def apply_mask_on_ids(ids, mask):
   return (ids + 1) * mask - 1
