@@ -33,7 +33,7 @@ gt_out_pcl = ['vZIjhovtYde9e2qUjMzvz3', 'pMh3-KweDzzp_b_HI11eMA',
 lost_gt_scenes = ['vYlCbx-H_v_uvacuiMq0no']
 #BAD_SCENES = ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y','B9Abt6B78a0j2eRcygHjqC']
 BAD_SCENES = []
-WRITE_ANNO_IMG = 0
+WRITE_ANNO_IMG = 1
 
 BAD_SCENE_TRANSFERS_1024 = {'7w6zvVsOBAQK4h4Bne7caQ': (-44,-208,-153),
                             'IDZkUGse-74FIy2OqM2u_Y': (30,-97,58),
@@ -374,7 +374,8 @@ class BEIKE:
         anno_img_file = None
       _show_lines_ls_points_ls(img, [bboxes], [corners],
                                line_colors='random', point_colors='random',
-                               out_file=anno_img_file)
+                               line_thickness=2, point_thickness=2,
+                               out_file=anno_img_file, only_save=1)
       return img
       #show_img_with_norm(img)
 
@@ -469,7 +470,6 @@ class BEIKE:
 
       if WRITE_ANNO_IMG:
         anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         cv2.imwrite(anno_img_file, img)
         print(anno_img_file)
       #mmcv.imshow(img)
