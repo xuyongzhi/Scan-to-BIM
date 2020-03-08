@@ -66,7 +66,7 @@ class GraphEval():
     self.work_dir = os.path.dirname(out_file)
     s = int(self._score_threshold*10)
     self.par_nice = f'Score{s}_corDis{self._corner_dis_threshold}_optGraph{self._opt_graph_cor_dis_thr}_{self.out_type}'
-    self.eval_dir = os.path.join(self.work_dir, 'DetectionEval_' + self.par_nice + f'_{self.num_img}Imgs')
+    self.eval_dir = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs')
     if not os.path.exists(self.eval_dir):
       os.makedirs(self.eval_dir)
 
@@ -274,22 +274,24 @@ class GraphEval():
     r = int(cor_recall*100)
     p = int(cor_precision*100)
     cat = self._catid_2_cat[det_category_id]
+
+
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet.png'
     img_file = os.path.join(self.eval_dir, img_name)
     #print('det corners. green: true pos, red: false pos')
-    _show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [gt_lines, det_lines_pos, det_lines_neg],
+    _show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [det_lines_pos, det_lines_neg],
                               points_ls=[det_corners_pos, det_corners_neg],
-                            line_colors=['white','green', 'red'], line_thickness=[1,2,2],
+                            line_colors=['green', 'red'], line_thickness=1,
                             point_colors=['blue', 'yellow'], point_thickness=2,
                             out_file=img_file, only_save=1)
 
     #print('gt  corners. green: true pos, red: false neg')
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt.png'
     img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls((IMAGE_SIZE, IMAGE_SIZE), [gt_lines_true, gt_lines_false, det_lines],
+    _show_lines_ls_points_ls((IMAGE_SIZE, IMAGE_SIZE), [gt_lines_true, gt_lines_false],
                             points_ls=[gt_corners_true, gt_corners_false],
-                            line_colors=['green','red', 'white'],
-                            line_thickness=[2,2,1],
+                            line_colors=['green','red'],
+                            line_thickness=1,
                             point_colors=['blue', 'yellow'],
                             point_thickness=2, out_file=img_file, only_save=1)
 
@@ -297,7 +299,7 @@ class GraphEval():
     img_file = os.path.join(self.eval_dir, img_name)
     _show_lines_ls_points_ls((IMAGE_SIZE, IMAGE_SIZE), [det_lines], [det_corners],
                              line_colors='random', point_colors='random',
-                             line_thickness=2, point_thickness=2,
+                             line_thickness=1, point_thickness=2,
                              out_file=img_file, only_save=1)
     pass
 
