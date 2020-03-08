@@ -15,6 +15,7 @@ from mmdet import __version__
 from mmdet.apis import get_root_logger, set_random_seed, train_detector
 from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
+import shutil
 
 
 def parse_args():
@@ -155,7 +156,11 @@ def update_config(cfg, args, split):
       # point base scale
       base_scale=cfg['model']['bbox_head']['point_base_scale']
       cfg['work_dir'] += f'_Pbs{base_scale}'
-      pass
+
+
+      # backup config
+      aim_path = os.path.join(cfg['work_dir'], os.path.basename(cfg.filename))
+      shutil.copy(cfg.filename, aim_path)
       #print(cfg['work_dir'])
       pass
 
