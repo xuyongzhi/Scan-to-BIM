@@ -153,11 +153,11 @@ class GraphEval():
     for label in corner_recall_precision:
       cat = catid_2_cat[label]
       recall, precision = corner_recall_precision[label]
-      eval_str += f'{cat:6}\tprecision:{precision:.3}\tcorner\trecall:{recall:.3}\n'
+      eval_str += f'{cat:6} corner prec-recall: \t{precision:.3} - {recall:.3}\n'
     for label in line_recall_precision:
       cat = catid_2_cat[label]
       recall, precision = line_recall_precision[label]
-      eval_str += f'{cat:6}\tprecision:{precision:.3}\tline  \trecall:{recall:.3}\n'
+      eval_str += f'{cat:6} line prec-recall: \t{precision:.3} - {recall:.3}\n'
     return eval_str
 
   def eval_1img_1cls(self, det_lines, gt_lines, scene_name, det_category_id):

@@ -160,6 +160,8 @@ def update_config(cfg, args, split):
 
       # backup config
       aim_path = os.path.join(cfg['work_dir'], os.path.basename(cfg.filename))
+      if not os.path.exists(cfg['work_dir']):
+        os.makedirs(cfg['work_dir'])
       shutil.copy(cfg.filename, aim_path)
       #print(cfg['work_dir'])
       pass
