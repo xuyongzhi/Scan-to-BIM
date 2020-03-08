@@ -200,3 +200,5 @@ def show_results_train(results):
   gt_labels = results['gt_labels'].data.cpu().numpy()
 
   _show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
+  #_show_lines_ls_points_ls(img[:,:,1:])
+  pass

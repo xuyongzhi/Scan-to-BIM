@@ -194,6 +194,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
             show_img_lines(img_show, gt_lines, name=out_file+'_gt.png', only_draw=1)
             show_heatmap(bboxes[:,:,0], (h,w), out_file+'_cls.png', gt_lines=gt_lines)
+            show_heatmap(bboxes[:,:,0], (h,w), out_file+'_cls_.png')
             show_heatmap(bboxes[:,:,1], (h,w), out_file+'_centerness.png', gt_lines=gt_lines)
             show_heatmap(cor_scores, (h,w), out_file+'_cls_cen.png', gt_lines=gt_lines)
             pass
