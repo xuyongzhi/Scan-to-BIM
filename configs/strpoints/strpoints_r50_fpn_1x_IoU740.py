@@ -38,16 +38,16 @@ model = dict(
         depth=50,
         in_channels=4,
         num_stages=4,
-        out_indices=( 0, 1, 2),
+        out_indices=( 0, 1, 2, 3),
         frozen_stages=-1,
         style='pytorch'),
     neck=dict(
         type='FPN',
-        in_channels=[ 256, 512, 1024],
+        in_channels=[ 256, 512, 1024, 2048],
         out_channels=256,
         start_level=0,
         add_extra_convs=True,
-        num_outs=4,
+        num_outs=5,
         norm_cfg=norm_cfg),
     bbox_head=dict(
         type='StrPointsHead',
@@ -58,7 +58,7 @@ model = dict(
         stacked_convs=3,
         num_points=9,
         gradient_mul=0.1,
-        point_strides=[4, 8, 16, 32],
+        point_strides=[4, 8, 16, 32, 64],
         point_base_scale=2,
         norm_cfg=norm_cfg,
         loss_cls=dict(
@@ -200,13 +200,13 @@ data = dict(
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1010
+total_epochs = 800
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[int(total_epochs*0.5), int(total_epochs*0.7)])
+    step=[int(total_epochs*0.7), int(total_epochs*0.85)])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
