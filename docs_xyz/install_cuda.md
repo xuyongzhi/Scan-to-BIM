@@ -52,6 +52,7 @@ sudo make
 
 ## CUDNN
 ```
+https://developer.nvidia.com/rdp/cudnn-download
 wget 3 debs
 sudo dpkg -i libcudnn7_7.6.5.32-1+cuda10.1_amd64.deb
 sudo dpkg -i libcudnn7-dev_7.6.5.32-1+cuda10.1_amd64.deb
