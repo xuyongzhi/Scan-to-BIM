@@ -64,6 +64,7 @@ def parse_args():
 
 
 def update_config(cfg, args, split):
+    return
     assert split == 'train' or split == 'test'
     if args.config.split('/')[1] != 'strpoints':
       #return

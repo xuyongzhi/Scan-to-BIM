@@ -64,7 +64,7 @@ class CustomDataset(Dataset):
                                               self.proposal_file)
         # load annotations (and proposals)
         self.img_infos = self.load_annotations(self.ann_file)
-        self.rm_anno_withno_data()
+        #self.unused_rm_anno_withno_data()
         if self.proposal_file is not None:
             self.proposals = self.load_proposals(self.proposal_file)
         else:
@@ -101,7 +101,7 @@ class CustomDataset(Dataset):
         results['mask_fields'] = []
         results['seg_fields'] = []
 
-    def rm_anno_withno_data(self):
+    def unused_rm_anno_withno_data(self):
       n0 = len(self.img_infos)
       valid_inds = []
       valid_files = os.listdir(self.img_prefix)

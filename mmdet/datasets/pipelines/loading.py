@@ -6,6 +6,7 @@ import pycocotools.mask as maskUtils
 
 from ..registry import PIPELINES
 
+DEBUG = 1
 
 @PIPELINES.register_module
 class LoadImageFromFile(object):
@@ -202,6 +203,42 @@ class LoadTopviewFromFile(object):
         #print(f'\n\tloading {scene_id}')
 
         #show_results(results)
+        return results
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(to_float32={})'.format(
+            self.to_float32)
+
+
+@PIPELINES.register_module
+class LoadPclFromFile(object):
+    def __init__(self, pre_sample=None, to_float32=False):
+        self.to_float32 = to_float32
+        self.pre_sample = pre_sample
+
+    def __call__(self, results):
+        from utils_data3d.datasets.stanford_pcl_utils import load_ply
+        pcl_file = results['img_info']['filename']
+        positions, colors, _,_ = load_ply(pcl_file)
+        img = np.concatenate([positions, colors], axis=1)
+
+        if self.pre_sample is not None:
+          num_points = img.shape[0]
+          if num_points >= self.pre_sample:
+            sample_ids = np.random.choice(num_points, self.pre_sample, replace=False)
+          else:
+            sample_ids = np.array(list(range(num_points)) + [0]*(self.pre_sample-num_points))
+          img  = img[sample_ids,:]
+
+        if DEBUG:
+          img = img.reshape(512,512,6)
+
+        if self.to_float32:
+            img = img.astype(np.float32)
+        results['filename'] = pcl_file
+        results['img'] = img
+        results['img_shape'] = img.shape
+        results['ori_shape'] = img.shape
         return results
 
     def __repr__(self):

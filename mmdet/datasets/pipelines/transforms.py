@@ -1073,3 +1073,10 @@ class RandomRotate(object):
         return self.__class__.__name__ + '(rotate_ratio={})'.format(
             self.rotate_ratio)
 
+
+@PIPELINES.register_module
+class AugPcl(object):
+    def __call__(self, results):
+      img = results['img']
+      results['pad_shape'] = img.shape
+      return results

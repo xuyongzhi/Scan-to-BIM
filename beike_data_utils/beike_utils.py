@@ -33,7 +33,7 @@ gt_out_pcl = ['vZIjhovtYde9e2qUjMzvz3', 'pMh3-KweDzzp_b_HI11eMA',
 lost_gt_scenes = ['vYlCbx-H_v_uvacuiMq0no']
 #BAD_SCENES = ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y','B9Abt6B78a0j2eRcygHjqC']
 BAD_SCENES = []
-WRITE_ANNO_IMG = 1
+WRITE_ANNO_IMG = 0
 
 BAD_SCENE_TRANSFERS_1024 = {'7w6zvVsOBAQK4h4Bne7caQ': (-44,-208,-153),
                             'IDZkUGse-74FIy2OqM2u_Y': (30,-97,58),
