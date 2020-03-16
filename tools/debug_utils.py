@@ -119,15 +119,15 @@ def _read_img(img_in):
 
 def _show_lines_ls_points_ls(img, lines_ls=None, points_ls=None,
     line_colors='green', point_colors='red', out_file=None, line_thickness=1,
-    point_thickness=1, only_save=False):
+    point_thickness=1, only_save=False, box=False):
   '''
   img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
   '''
-  img = _draw_lines_ls_points_ls(img, lines_ls, points_ls, line_colors, point_colors, out_file, line_thickness, point_thickness)
+  img = _draw_lines_ls_points_ls(img, lines_ls, points_ls, line_colors, point_colors, out_file, line_thickness, point_thickness, box=box)
   if not only_save:
     mmcv.imshow(img)
 
-def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green', point_colors='red', out_file=None, line_thickness=1, point_thickness=1):
+def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green', point_colors='red', out_file=None, line_thickness=1, point_thickness=1, box=False):
   if lines_ls is not None:
     assert isinstance(lines_ls, list)
     if lines_ls is not None and isinstance(line_colors, str):
@@ -145,7 +145,7 @@ def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green',
   img = _read_img(img)
   if lines_ls is not None:
     for i, lines in enumerate(lines_ls):
-      img = _draw_lines(img, lines, line_colors[i], line_thickness[i])
+      img = _draw_lines(img, lines, line_colors[i], line_thickness[i], box=box)
 
   if points_ls is not None:
     for i, points in enumerate(points_ls):
@@ -155,7 +155,7 @@ def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green',
     print(out_file)
   return img
 
-def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color='green'):
+def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color='green', box=False):
     '''
     img: [h,w,3]
     lines: [n,5/6]
@@ -177,7 +177,10 @@ def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color=
     for i in range(lines.shape[0]):
         s, e = np.round(lines[i]).astype(np.int32)
         c = _get_color(color)
-        cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, thickness=line_thickness)
+        if not box:
+          cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, thickness=line_thickness)
+        else:
+          cv2.rectangle(img, (s[0], s[1]), (e[0], e[1]), c, thickness=line_thickness)
 
 
         #label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)

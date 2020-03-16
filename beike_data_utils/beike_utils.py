@@ -268,45 +268,6 @@ class BEIKE:
       #mmcv.imshow_bboxes(img, bboxes)
       return bboxes
 
-    @staticmethod
-    def meter_2_pixel(corners, lines, pcl_scope=None, floor=False, scene=None):
-      '''
-      corners: [n,2]
-      liens: [m,2,2]
-      '''
-      if pcl_scope is None:
-        min_xy = corners.min(axis=0)
-        max_xy = corners.max(axis=0)
-      else:
-        min_xy = pcl_scope[0,0:2]
-        max_xy = pcl_scope[1,0:2]
-
-      max_range = (max_xy - min_xy).max()
-      padding = max_range * 0.05
-      min_xy = (min_xy + max_xy) / 2 - max_range / 2 - padding
-      max_range += padding * 2
-
-      corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
-      lines_pt = ((lines - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
-
-      if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
-            scene_name = scene.split('.')[0]
-            if scene_name not in UNALIGNED_SCENES:
-              print(scene)
-              print(corners_pt.min())
-              print(corners_pt.max())
-              import pdb; pdb.set_trace()  # XXX BREAKPOINT
-              pass
-      corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
-      lines_pt = np.clip(lines_pt, a_min=0, a_max=IMAGE_SIZE-1)
-      if floor:
-        corners_pt = np.floor(corners_pt).astype(np.uint32)
-        lines_pt = np.floor(lines_pt).astype(np.uint32)
-
-      line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
-      line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
-      #assert line_size_pt.min() > 3
-      return corners_pt, lines_pt
 
     def get_scene_index(self, scene_name):
       for i,img_info in enumerate(self.img_infos):
@@ -452,7 +413,7 @@ class BEIKE:
       line_cat_ids = anno['line_cat_ids']
       #print(f'line_cat_ids: {line_cat_ids}')
 
-      corners, lines = BEIKE.meter_2_pixel(corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
+      corners, lines = meter_2_pixel(corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
 
       if img is None:
         img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
@@ -486,9 +447,58 @@ class BEIKE:
       self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
 
 
+def meter_2_pixel(corners, lines, pcl_scope, floor=False, scene=None):
+  '''
+  corners: [n,2]
+  lines: [m,2,2]
+  pcl_scope: [2,3]
+  '''
+  assert lines.shape[1:] == (2,2)
+  assert pcl_scope.shape == (2,3)
+
+  if pcl_scope is None:
+    raise NotImplementedError
+    min_xy = corners.min(axis=0)
+    max_xy = corners.max(axis=0)
+  else:
+    min_xy = pcl_scope[0,0:2]
+    max_xy = pcl_scope[1,0:2]
+
+  max_range = (max_xy - min_xy).max()
+  padding = max_range * 0.05
+  min_xy = (min_xy + max_xy) / 2 - max_range / 2 - padding
+  max_range += padding * 2
+
+  lines_pt = ((lines - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
+  lines_pt = np.clip(lines_pt, a_min=0, a_max=IMAGE_SIZE-1)
+  if floor:
+    lines_pt = np.floor(lines_pt).astype(np.uint32)
+
+  line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
+  line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
+
+  if corners is None:
+    corners_pt = None
+  else:
+    corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
+    if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
+          scene_name = scene.split('.')[0]
+          if scene_name not in UNALIGNED_SCENES:
+            print(scene)
+            print(corners_pt.min())
+            print(corners_pt.max())
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
+    corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
+    if floor:
+      corners_pt = np.floor(corners_pt).astype(np.uint32)
+
+  #assert line_size_pt.min() > 3
+  return corners_pt, lines_pt
+
 def raw_anno_to_img(anno_raw):
       anno_img = {}
-      corners_pt, lines_pt = BEIKE.meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
+      corners_pt, lines_pt = meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = encode_line_rep(lines_pt, OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()

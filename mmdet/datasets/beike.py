@@ -21,14 +21,12 @@ class BeikeDataset(CustomDataset):
         }
         self.img_ids = self.beike.getImgIds()
         img_infos = self.beike.img_infos
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return img_infos
 
 
     def _filter_imgs(self):
         """Filter images too small or without ground truths."""
         valid_inds = list(range(len(self)))
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return valid_inds
 
     def _set_group_flag(self):

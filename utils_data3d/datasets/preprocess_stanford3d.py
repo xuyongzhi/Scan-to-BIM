@@ -14,8 +14,7 @@ import open3d as o3d
 
 STANFORD_3D_IN_PATH = '/cvgl/group/Stanford3dDataset_v1.2/'
 STANFORD_3D_IN_PATH = '/DS/Stanford3D/Stanford3dDataset_v1.2_Aligned_Version/'
-STANFORD_3D_OUT_PATH = '/home/chrischoy/datasets/Stanford3D'
-STANFORD_3D_OUT_PATH = '/DS/Stanford3D/processed_instance'
+STANFORD_3D_OUT_PATH = '/DS/Stanford3D/aligned_processed_instance'
 
 STANFORD_3D_TO_SEGCLOUD_LABEL = {
     4: 0,
@@ -184,12 +183,20 @@ def gen_bboxes():
       for cat in bboxes:
         bboxes[cat] = np.concatenate(bboxes[cat], 0)
 
+
+      # cal pcl scope
+      min_pcl = coords.min(axis=0)
+      min_pcl = np.floor(min_pcl*10)/10
+      max_pcl = coords.max(axis=0)
+      max_pcl = np.ceil(max_pcl*10)/10
+      pcl_scope = np.concatenate([min_pcl, max_pcl], axis=0)
+      bboxes['room'] = pcl_scope[None,:]
+
       np.save(bbox_file, bboxes)
 
       colors = instances.astype(np.int32)
       colors = feats
-      _show_pcd([coords], [colors], [bboxes['wall']])
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      #_show_pcd([coords], [colors], [bboxes['wall']])
       pass
   pass
 
