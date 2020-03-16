@@ -10,7 +10,7 @@ DATA = 'coco'
 DATA = 'stanford3d'
 DATA = 'stanford2d'
 DATA = 'beike2d'
-#DATA = 'beike3d'
+DATA = 'beike3d'
 
 if DATA == 'beike2d' or DATA == 'beike3d':
   OBJ_REP = 'lscope_istopleft'

@@ -212,16 +212,25 @@ class LoadTopviewFromFile(object):
 
 @PIPELINES.register_module
 class LoadPclFromFile(object):
-    def __init__(self, pre_sample=None, to_float32=False):
+    def __init__(self, pre_sample=None, to_float32=False, dataset=None):
+        assert dataset in ['stanford3d', 'beike3d']
+        if dataset == 'stanford3d':
+          from utils_data3d.datasets.stanford_pcl_utils import load_ply
+        if dataset == 'beike3d':
+          from beike_data_utils.beike_utils import load_ply
         self.to_float32 = to_float32
         self.pre_sample = pre_sample
+        self.load_ply = load_ply
 
     def __call__(self, results):
-        from utils_data3d.datasets.stanford_pcl_utils import load_ply
-        pcl_file = results['img_info']['filename']
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        positions, colors, _,_ = load_ply(pcl_file)
-        img = np.concatenate([positions, colors], axis=1)
+        if results['img_prefix'] is not None:
+            filename = osp.join(results['img_prefix'],
+                                results['img_info']['filename'])
+        else:
+            filename = results['img_info']['filename']
+        points = self.load_ply(filename)
+        img = points
+        c = points.shape[1]
 
         if self.pre_sample is not None:
           num_points = img.shape[0]
@@ -232,11 +241,11 @@ class LoadPclFromFile(object):
           img  = img[sample_ids,:]
 
         if DEBUG:
-          img = img.reshape(512,512,6)
+          img = img.reshape(512,512,c)
 
         if self.to_float32:
             img = img.astype(np.float32)
-        results['filename'] = pcl_file
+        results['filename'] = filename
         results['img'] = img
         results['img_shape'] = img.shape
         results['ori_shape'] = img.shape

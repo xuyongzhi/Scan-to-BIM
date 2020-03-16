@@ -43,7 +43,7 @@ elif DATA == 'beike3d' or DATA == 'beike2d':
     in_channels = 4
   else:
     pcl_img =  'ply'
-    in_channels = 6
+    in_channels = 9
   img_prefix_train = data_root + pcl_img
   img_prefix_test = data_root + pcl_img
 
@@ -175,7 +175,7 @@ if DATA == 'beike2d':
   ]
 else:
   train_pipeline = [
-      dict(type='LoadPclFromFile', pre_sample=262144),
+      dict(type='LoadPclFromFile', pre_sample=262144, dataset=DATA),
       dict(type='LoadAnnotations', with_bbox=True),
       dict(type='AugPcl'),
       dict(type='DefaultFormatBundle'),

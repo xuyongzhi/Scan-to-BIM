@@ -700,9 +700,7 @@ def get_scene_pcl_scopes(data_path):
   for pclf in pcl_files:
     pcl_file = os.path.join(ply_path, pclf)
     scene_name = pclf.split('.')[0]
-    with open(pcl_file, 'rb') as f:
-      plydata = PlyData.read(f)
-    points_data = np.array(plydata['vertex'].data.tolist())
+    points_data = load_ply(pcl_file)
     xyz_min = points_data[:,0:3].min(0, keepdims=True)
     xyz_max = points_data[:,0:3].max(0, keepdims=True)
     xyz_min_max = np.concatenate([xyz_min, xyz_max], 0)
@@ -712,6 +710,13 @@ def get_scene_pcl_scopes(data_path):
   with open(pcl_scopes_file, 'w') as f:
     json.dump(pcl_scopes, f)
   print(f'save {pcl_scopes_file}')
+
+def load_ply(pcl_file):
+    with open(pcl_file, 'rb') as f:
+      plydata = PlyData.read(f)
+    points = np.array(plydata['vertex'].data.tolist()).astype(np.float32)
+    assert points.shape[1] == 9
+    return points
 
 def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
   '''
