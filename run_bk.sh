@@ -4,7 +4,7 @@
 #export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/_sfd_pcl_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x.py
 
 
 wkdir=T90_r50_fpn_lscope_istopleft_refine_final_1024_VerD_bs1_lr50_RA_Normrawstd_ChmR2P1N1_Rfiou743_Fpn34_Pbs1

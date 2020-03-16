@@ -16,6 +16,7 @@ class STANFORD_PCL:
     self.anno_folder = anno_folder
     self.img_prefix = img_prefix
     self.load()
+    print(f'\n Area {img_prefix}: load {len(self)} files\n')
     pass
 
   def load(self):
@@ -25,6 +26,9 @@ class STANFORD_PCL:
     n = len(pcl_files)
     self.img_infos = []
     for i in range(n):
+      area_id = int(pcl_files[i].split('Area_')[1][0])
+      if area_id not in self.img_prefix:
+        continue
       anno_3d = load_bboxes(pcl_files[i])
       anno_2d = anno3d_to_anno_topview(anno_3d)
       img_info = dict(filename=anno_2d['filename'],
@@ -98,7 +102,6 @@ def anno3d_to_anno_topview(anno_3d):
   anno_2d['labels'] = bbox_cat_ids
   anno_2d['bboxes'] = bboxes2d_pt
   #_show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [bboxes2d_pt], line_colors='random', box=True)
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   return anno_2d
 
 

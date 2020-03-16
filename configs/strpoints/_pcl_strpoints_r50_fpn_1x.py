@@ -14,7 +14,7 @@ DATAFLAG='A'
 TOPVIEW = 'VerD' # better
 #TOPVIEW = 'All'
 #*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM
+from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
@@ -26,7 +26,28 @@ elif _obj_rep == 'line_scope':
 elif _obj_rep == 'lscope_istopleft':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
+if DATA == 'stanford3d':
+  dataset_type = 'StanfordPclDataset'
+  data_root = f'data/stanford/'
+  img_prefix_train = [1,2,3,4,6]
+  img_prefix_test = [5]
+  ann_file = data_root
+  in_channels = 6
 
+elif DATA == 'beike3d' or DATA == 'beike2d':
+  dataset_type = 'BeikeDataset'
+  data_root = f'data/beike/processed_{IMAGE_SIZE}/'
+  ann_file = data_root + 'json/'
+  if DATA == 'beike2d':
+    pcl_img = f'TopView_{TOPVIEW}'
+    in_channels = 4
+  else:
+    pcl_img =  'ply'
+    in_channels = 6
+  img_prefix_train = data_root + pcl_img
+  img_prefix_test = data_root + pcl_img
+
+#*******************************************************************************
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
@@ -36,7 +57,7 @@ model = dict(
     backbone=dict(
         type='ResNet',
         depth=50,
-        in_channels=6,
+        in_channels=in_channels,
         num_stages=4,
         out_indices=( 0, 1, 2,),
         frozen_stages=-1,
@@ -118,9 +139,11 @@ test_cfg = dict(
     score_thr=0.2,
     nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
     max_per_img=100)
+
 # dataset settings
-dataset_type = 'StanfordPclDataset'
-data_root = f'data/stanford/'
+
+
+
 #img_norm_cfg = dict(
 #    mean=[  0, 0,0,0],
 #    std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
@@ -137,13 +160,28 @@ img_norm_cfg = dict(
 #    mean=[4.753, 11.142, 11.044, 25.969],
 #    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
 
-train_pipeline = [
-    dict(type='LoadPclFromFile', pre_sample=262144),
-    dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='AugPcl'),
-    dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
-]
+
+if DATA == 'beike2d':
+  train_pipeline = [
+      dict(type='LoadTopviewFromFile'),
+      dict(type='LoadAnnotations', with_bbox=True),
+      dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
+      dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
+      dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
+      dict(type='NormalizeTopview', **img_norm_cfg),
+      dict(type='Pad', size_divisor=32),
+      dict(type='DefaultFormatBundle'),
+      dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+  ]
+else:
+  train_pipeline = [
+      dict(type='LoadPclFromFile', pre_sample=262144),
+      dict(type='LoadAnnotations', with_bbox=True),
+      dict(type='AugPcl'),
+      dict(type='DefaultFormatBundle'),
+      dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+  ]
+
 test_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
@@ -178,18 +216,18 @@ data = dict(
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
-        ann_file=data_root,
-        img_prefix=[1,2,3,4,6],
+        ann_file=ann_file,
+        img_prefix=img_prefix_train,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
-        ann_file=data_root,
-        img_prefix=[5],
+        ann_file=ann_file,
+        img_prefix=img_prefix_test,
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
-        ann_file=data_root,
-        img_prefix=test_dir,
+        ann_file=ann_file,
+        img_prefix=img_prefix_test,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)

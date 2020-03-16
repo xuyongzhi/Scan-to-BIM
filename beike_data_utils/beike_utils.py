@@ -48,10 +48,18 @@ class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
     _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
-    def __init__(self, anno_folder='data/beike100/json/', img_prefix=None):
+    def __init__(self, anno_folder='data/beike100/json/', img_prefix=None, test_mode=False):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
+        if test_mode:
+          split_file = os.path.join(img_prefix, 'test.txt')
+        else:
+          split_file = os.path.join(img_prefix, 'train.txt')
+        self.scene_list = np.loadtxt(split_file,str).tolist()
         self.img_prefix = img_prefix
+        self.is_pcl = os.path.basename(self.img_prefix) == 'ply'
+        data_format = '.ply' if self.is_pcl else '.npy'
+
         if WRITE_ANNO_IMG:
           self.anno_img_folder = self.anno_folder.replace('json', 'anno_imgs')
           if not os.path.exists(self.anno_img_folder):
@@ -67,10 +75,11 @@ class BEIKE:
         all_min_line_sizes = []
         for jfn in json_files:
           scene_name = jfn.split('.')[0]
+          if scene_name not in self.scene_list:
+            continue
           anno_raw = load_anno_1scene(self.anno_folder, jfn)
           anno_img = raw_anno_to_img(anno_raw)
-          filename = jfn.split('.')[0]+'.npy'
-          #filename = jfn.split('.')[0]+'.density.png'
+          filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
                       'ann': anno_img,
                       'ann_raw': anno_raw}
@@ -83,8 +92,8 @@ class BEIKE:
 
         self.rm_bad_scenes()
         self.fix_unaligned_scenes()
-        if self.img_prefix is not None:
-          self.rm_anno_withno_data()
+        #if self.img_prefix is not None:
+        #  self.rm_anno_withno_data()
 
         n0 = len(self.img_infos)
         if WRITE_ANNO_IMG:

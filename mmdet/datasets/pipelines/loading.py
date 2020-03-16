@@ -219,6 +219,7 @@ class LoadPclFromFile(object):
     def __call__(self, results):
         from utils_data3d.datasets.stanford_pcl_utils import load_ply
         pcl_file = results['img_info']['filename']
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         positions, colors, _,_ = load_ply(pcl_file)
         img = np.concatenate([positions, colors], axis=1)
 

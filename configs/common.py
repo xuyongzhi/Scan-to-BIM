@@ -9,9 +9,10 @@ TRAIN_NUM=90
 DATA = 'coco'
 DATA = 'stanford3d'
 DATA = 'stanford2d'
-#DATA = 'beike2d'
+DATA = 'beike2d'
+#DATA = 'beike3d'
 
-if DATA == 'beike2d':
+if DATA == 'beike2d' or DATA == 'beike3d':
   OBJ_REP = 'lscope_istopleft'
   NUM_CLASS = 1
 if DATA == 'coco':
@@ -39,7 +40,7 @@ CORNER_DIM = 4
 AVE_LINE_SCORE = 1
 COMPOSITE_SCORE = 1
 # 5+43+1+4+1 = 54
-if DATA == 'beike2d' or DATA == 'stanford2d':
+if DATA == 'beike2d' or DATA == 'stanford2d' or DATA == 'beike3d':
   OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + AVE_LINE_SCORE + CORNER_DIM + COMPOSITE_SCORE
 if DATA == 'coco':
   OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + COMPOSITE_SCORE
