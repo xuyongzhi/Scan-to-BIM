@@ -58,13 +58,37 @@ def build_dataloader(dataset,
         batch_size = num_gpus * imgs_per_gpu
         num_workers = num_gpus * workers_per_gpu
 
-    data_loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        sampler=sampler,
-        num_workers=num_workers,
-        collate_fn=partial(collate, samples_per_gpu=imgs_per_gpu),
-        pin_memory=False,
-        **kwargs)
+    dataset_name = dataset.__class__.__name__
+    if dataset_name in ['StanfordPclDataset']:
+      data_loader = build_pcl_data_loader(dataset, batch_size, sampler, num_workers, imgs_per_gpu, **kwargs)
+    else:
+      data_loader = DataLoader(
+          dataset,
+          batch_size=batch_size,
+          sampler=sampler,
+          num_workers=num_workers,
+          collate_fn=partial(collate, samples_per_gpu=imgs_per_gpu),
+          pin_memory=False,
+          **kwargs)
 
     return data_loader
+
+def build_pcl_data_loader(dataset, batch_size, sampler, num_workers, imgs_per_gpu, **kwargs):
+  import utils_data3d.lib.transforms as t
+  return_transformation = False
+  limit_numpoints = 0
+  if return_transformation:
+    collate_fn = t.cflt_collate_fn_factory(limit_numpoints)
+  else:
+    collate_fn = t.cfl_collate_fn_factory(limit_numpoints)
+
+  data_loader = DataLoader(
+          dataset,
+          batch_size=batch_size,
+          sampler=sampler,
+          num_workers=num_workers,
+          collate_fn=collate_fn,
+          pin_memory=False,
+          **kwargs)
+  return data_loader
+

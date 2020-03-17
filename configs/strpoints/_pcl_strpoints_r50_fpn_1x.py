@@ -26,11 +26,11 @@ elif _obj_rep == 'line_scope':
 elif _obj_rep == 'lscope_istopleft':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
-if DATA == 'stanford3d':
+if DATA == 'stanford_pcl_2d':
   dataset_type = 'StanfordPclDataset'
   data_root = f'data/stanford/'
-  img_prefix_train = [1,2,3,4,6]
-  img_prefix_test = [5]
+  img_prefix_train = 'train'
+  img_prefix_test = 'test'
   ann_file = data_root
   in_channels = 6
 
