@@ -1,10 +1,12 @@
 import torch.nn as nn
+from .mink_vox_common import mink_batch_norm
 
 norm_cfg = {
     # format: layer_type: (abbreviation, module)
     'BN': ('bn', nn.BatchNorm2d),
     'SyncBN': ('bn', nn.SyncBatchNorm),
     'GN': ('gn', nn.GroupNorm),
+    'MinkBN': ('vbn', mink_batch_norm),
     # and potentially 'SN'
 }
 

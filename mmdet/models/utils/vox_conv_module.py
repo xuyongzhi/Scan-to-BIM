@@ -5,16 +5,15 @@ from mmcv.cnn import constant_init, kaiming_init
 
 from .conv_ws import ConvWS2d
 from .norm import build_norm_layer
-from .mink_vox_common import mink_conv
 
 conv_cfg = {
     'Conv': nn.Conv2d,
     'ConvWS': ConvWS2d,
-    'MinkConv': mink_conv,
     # TODO: octave conv
 }
 
-def build_conv_layer(cfg, *args, **kwargs):
+
+def build_voxconv_layer(cfg, *args, **kwargs):
     """ Build convolution layer
 
     Args:
@@ -42,7 +41,7 @@ def build_conv_layer(cfg, *args, **kwargs):
     return layer
 
 
-class ConvModule(nn.Module):
+class VoxConvModule(nn.Module):
     """A conv block that contains conv/norm/activation layers.
 
     Args:
@@ -79,7 +78,7 @@ class ConvModule(nn.Module):
                  activation='relu',
                  inplace=True,
                  order=('conv', 'norm', 'act')):
-        super(ConvModule, self).__init__()
+        super(VoxConvModule, self).__init__()
         assert conv_cfg is None or isinstance(conv_cfg, dict)
         assert norm_cfg is None or isinstance(norm_cfg, dict)
         self.conv_cfg = conv_cfg
@@ -98,10 +97,10 @@ class ConvModule(nn.Module):
         self.with_bias = bias
 
         if self.with_norm and self.with_bias:
-            warnings.warn('ConvModule has norm and bias at the same time')
+            warnings.warn('VoxConvModule has norm and bias at the same time')
 
         # build convolution layer
-        self.conv = build_conv_layer(
+        self.conv = build_voxconv_layer(
             conv_cfg,
             in_channels,
             out_channels,

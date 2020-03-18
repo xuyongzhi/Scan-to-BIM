@@ -81,13 +81,6 @@ class StanfordVoxelizationDatasetBase:
         print(result_str)
       print(f'Average IoU: {np.nanmean(ious)}')
 
-  def _augment_coords_to_feats(self, coords, feats, labels=None):
-    # Center x,y
-    coords_center = coords.mean(0, keepdims=True)
-    coords_center[0, 2] = 0
-    norm_coords = coords - coords_center
-    feats = np.concatenate((feats, norm_coords), 1)
-    return coords, feats, labels
 
 
 class StanfordDataset(StanfordVoxelizationDatasetBase, VoxelizationDataset):
@@ -152,7 +145,6 @@ class StanfordDataset(StanfordVoxelizationDatasetBase, VoxelizationDataset):
     feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
     labels = np.array(data['label'], dtype=np.int32)
     return coords, feats, labels, None
-
 
 
 @DATASETS.register_module
@@ -248,6 +240,8 @@ class StanfordPclDataset(VoxelDatasetBase):
   NUM_LABELS = 14
   IGNORE_LABELS = (10,)  # remove stairs, following SegCloud
 
+  AUGMENT_COORDS_TO_FEATS = True
+  NORMALIZATION = True
 
   def __init__(self, ann_file='data/stanford/', pipeline=None,  img_prefix=None):
     self.data_root = ann_file
@@ -290,6 +284,16 @@ class StanfordPclDataset(VoxelDatasetBase):
       self.img_infos.append(img_info)
     pass
 
+  def _augment_coords_to_feats(self, coords, feats, labels=None):
+    # Center x,y
+    coords_center = coords.mean(0, keepdims=True)
+    coords_center[0, 2] = 0
+    norm_coords = coords - coords_center
+    feats = np.concatenate((feats, norm_coords), 1)
+    return coords, feats, labels
+  def _normalization(self, feats):
+    feats[:,:3] = feats[:,:3] / 255. - 0.5
+    return feats
 
 def anno3d_to_anno_topview(anno_3d):
   from beike_data_utils.beike_utils import meter_2_pixel
@@ -323,6 +327,7 @@ def anno3d_to_anno_topview(anno_3d):
   #_show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [bboxes2d_pt], line_colors='random', box=True)
   return anno_2d
 
+
 def load_bboxes(pcl_file):
   anno = defaultdict(list)
 
@@ -354,6 +359,7 @@ def remove_categories(bboxes, cat_ids, rm_cat_list):
     remain_mask[mask] = False
   return bboxes[remain_mask], cat_ids[remain_mask]
 
+
 def keep_categories(bboxes, cat_ids, kp_cat_list):
   n = bboxes.shape[0]
   remain_mask = np.ones(n) == 0
@@ -362,6 +368,7 @@ def keep_categories(bboxes, cat_ids, kp_cat_list):
     mask = cat_ids == rm_id
     remain_mask[mask] = True
   return bboxes[remain_mask], cat_ids[remain_mask]
+
 
 def test(config):
   """Test point cloud data loader.

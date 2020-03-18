@@ -34,7 +34,7 @@ if DATA == 'stanford_pcl_2d':
   ann_file = data_root
   in_channels = 6
 
-elif DATA == 'beike3d' or DATA == 'beike2d':
+elif DATA == 'beike2d':
   dataset_type = 'BeikeDataset'
   data_root = f'data/beike/processed_{IMAGE_SIZE}/'
   ann_file = data_root + 'json/'
@@ -47,6 +47,11 @@ elif DATA == 'beike3d' or DATA == 'beike2d':
   img_prefix_train = data_root + pcl_img
   img_prefix_test = data_root + pcl_img
 
+if 'pcl' in DATA:
+  backbone_type = 'VoxResNet'
+else:
+  backbone_type = 'ResNet'
+
 #*******************************************************************************
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
@@ -55,7 +60,7 @@ model = dict(
     type='StrPointsDetector',
     pretrained=None,
     backbone=dict(
-        type='ResNet',
+        type=backbone_type,
         depth=50,
         in_channels=in_channels,
         num_stages=4,

@@ -46,8 +46,9 @@ class SingleStageDetector(BaseDetector):
     def extract_feat(self, img):
         """Directly extract features from the backbone+neck
         """
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         x = self.backbone(img)
+        debug_tools._show_sparse_shapes(list(x), 'backbone out')
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         if self.with_neck:
             x = self.neck(x)
         return x
