@@ -7,7 +7,6 @@ IMAGE_SIZE = 512
 TRAIN_NUM=90
 
 DATA = 'coco'
-DATA = 'stanford3d'
 DATA = 'stanford_pcl_2d'
 #DATA = 'beike2d'
 #DATA = 'beike3d'

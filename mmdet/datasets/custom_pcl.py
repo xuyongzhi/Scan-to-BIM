@@ -155,7 +155,6 @@ class StanfordDataset(StanfordVoxelizationDatasetBase, VoxelizationDataset):
 
 
 
-
 @DATASETS.register_module
 class VoxelDatasetBase(VoxelizationDataset):
 
@@ -232,6 +231,7 @@ class DataConfig:
         self.shuffle = False
         self.repeat = False
 
+
 @DATASETS.register_module
 class StanfordPclDataset(VoxelDatasetBase):
   _classes = ['clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -270,22 +270,98 @@ class StanfordPclDataset(VoxelDatasetBase):
     data_paths.sort()
     data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
     self.data_paths = [p.split(self.data_root)[1] for p in data_paths]
-    return
+
     #data_roots = [f.replace('ply', 'npy') for f in pcl_files]
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    n = len(pcl_files)
+    n = len(self.data_paths)
     self.img_infos = []
     for i in range(n):
-      area_id = int(pcl_files[i].split('Area_')[1][0])
-      if area_id not in self.img_prefix:
-        continue
-      anno_3d = load_bboxes(pcl_files[i])
+      ann_file = self.data_paths[i].replace('ply', 'npy')
+      ann_file = os.path.join(self.data_root, ann_file )
+      anno_3d = load_bboxes(ann_file)
       anno_2d = anno3d_to_anno_topview(anno_3d)
-      img_info = dict(filename=anno_2d['filename'],
-                      ann_raw=anno_3d,
-                      ann=anno_2d)
+
+      img_meta = dict(filename = anno_3d['filename'], input_style='pcl')
+
+      img_info = dict(
+        img_meta = img_meta,
+        gt_bboxes = anno_2d['bboxes'],
+        gt_labels = anno_2d['labels']
+      )
       self.img_infos.append(img_info)
     pass
+
+
+def anno3d_to_anno_topview(anno_3d):
+  from beike_data_utils.beike_utils import meter_2_pixel
+  bboxes3d = anno_3d['bboxes_3d']
+  room_scope = bboxes3d[-1].reshape(2,3)
+  bbox_cat_ids = anno_3d['bbox_cat_ids']
+  assert StanfordPclDataset._catid_2_cat[bbox_cat_ids[-1]] == 'room'
+  bboxes2d = bboxes3d[:,[0,1,3,4]].reshape(-1,2,2)
+  _, bboxes2d_pt = meter_2_pixel(None, bboxes2d, room_scope)
+
+  num_box = bboxes3d.shape[0]
+  rotation = np.zeros([num_box,1], dtype=bboxes2d_pt.dtype)
+  bboxes2d_pt = np.concatenate([bboxes2d_pt.reshape(-1,4), rotation], axis=1)
+
+  if 0:
+    _bboxes2d_pt, _bbox_cat_ids = remove_categories(bboxes2d_pt, bbox_cat_ids, ['room'])
+    #_show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [_bboxes2d_pt], line_colors='random', box=True)
+    for cat in StanfordPclDataset._classes:
+      print(cat)
+      _bboxes2d_pt, _bbox_cat_ids = keep_categories(bboxes2d_pt, bbox_cat_ids, [cat])
+      if _bboxes2d_pt.shape[0] == 0:
+        continue
+      _show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [_bboxes2d_pt], line_colors='random', box=True)
+
+  bboxes2d_pt, bbox_cat_ids = keep_categories(bboxes2d_pt, bbox_cat_ids, ['wall'])
+
+  anno_2d = {}
+  anno_2d['filename'] = anno_3d['filename']
+  anno_2d['labels'] = bbox_cat_ids
+  anno_2d['bboxes'] = bboxes2d_pt
+  #_show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [bboxes2d_pt], line_colors='random', box=True)
+  return anno_2d
+
+def load_bboxes(pcl_file):
+  anno = defaultdict(list)
+
+  anno_file = pcl_file.replace('ply', 'npy')
+  bboxes_dict = np.load(anno_file, allow_pickle=True).tolist()
+  bboxes = []
+  bbox_cat_ids = []
+  for cat in bboxes_dict:
+    bboxes.append( bboxes_dict[cat] )
+    num_box = bboxes_dict[cat].shape[0]
+    cat_ids = StanfordPclDataset._category_ids_map[cat] * np.ones([num_box], dtype=np.int64)
+    bbox_cat_ids.append( cat_ids )
+  bboxes = np.concatenate(bboxes, axis=0)
+  bbox_cat_ids = np.concatenate(bbox_cat_ids)
+
+  filename = pcl_file
+  anno['filename'] = filename
+  anno['bboxes_3d'] = bboxes
+  anno['bbox_cat_ids'] = bbox_cat_ids
+  return anno
+
+
+def remove_categories(bboxes, cat_ids, rm_cat_list):
+  n = bboxes.shape[0]
+  remain_mask = np.ones(n) == 1
+  for cat in rm_cat_list:
+    rm_id = StanfordPclDataset._category_ids_map[cat]
+    mask = cat_ids == rm_id
+    remain_mask[mask] = False
+  return bboxes[remain_mask], cat_ids[remain_mask]
+
+def keep_categories(bboxes, cat_ids, kp_cat_list):
+  n = bboxes.shape[0]
+  remain_mask = np.ones(n) == 0
+  for cat in kp_cat_list:
+    rm_id = StanfordPclDataset._category_ids_map[cat]
+    mask = cat_ids == rm_id
+    remain_mask[mask] = True
+  return bboxes[remain_mask], cat_ids[remain_mask]
 
 def test(config):
   """Test point cloud data loader.

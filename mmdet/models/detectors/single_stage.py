@@ -46,6 +46,7 @@ class SingleStageDetector(BaseDetector):
     def extract_feat(self, img):
         """Directly extract features from the backbone+neck
         """
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         x = self.backbone(img)
         if self.with_neck:
             x = self.neck(x)
@@ -66,6 +67,12 @@ class SingleStageDetector(BaseDetector):
                       gt_bboxes,
                       gt_labels,
                       gt_bboxes_ignore=None):
+        '''
+        img: [6, 4, 512, 512]
+        img_metas: [{}]*6
+        gt_bboxes: [ni*5]*6
+        gt_labels: [ni]*6
+        '''
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
         loss_inputs = outs + (gt_bboxes, gt_labels, img_metas, self.train_cfg)
