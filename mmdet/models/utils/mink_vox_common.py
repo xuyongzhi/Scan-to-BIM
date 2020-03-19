@@ -251,6 +251,6 @@ def max_pool(kernel_size,
       kernel_generator=kernel_generator,
       dimension=D)
 
-def mink_max_pool(kernel_size, stride, padding):
+def mink_max_pool(kernel_size, stride, padding=None):
   return max_pool(kernel_size, stride, D=3)
 

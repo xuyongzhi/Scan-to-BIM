@@ -35,7 +35,10 @@
 * compare performace of feeding images of different resolution
 *
 # Items need to be further researched
-- point_base_scale
+- apis/train.py/batch_processor num_samples
+- conv type for MinkConv
+- vox_resnet weight init not implemented
+- group norm for vox_resnet not implemented
 - When workers_per_gpu=0, rotate test doest not work.
 
 

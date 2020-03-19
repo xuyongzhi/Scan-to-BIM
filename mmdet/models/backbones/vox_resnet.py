@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.utils.checkpoint as cp
 from mmcv.cnn import constant_init, kaiming_init
@@ -12,6 +13,7 @@ import MinkowskiEngine as ME
 from ..utils.mink_vox_common import mink_max_pool
 
 from mmdet import debug_tools
+import math
 
 
 class BasicBlock(nn.Module):
@@ -398,7 +400,9 @@ class VoxResNet(nn.Module):
                  gen_attention=None,
                  stage_with_gen_attention=((), (), (), ()),
                  with_cp=False,
-                 zero_init_residual=True):
+                 zero_init_residual=True,
+                 voxel_resolution = [512, 512, 256],
+                 ):
         super(VoxResNet, self).__init__()
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
@@ -430,6 +434,8 @@ class VoxResNet(nn.Module):
         self.stage_blocks = stage_blocks[:num_stages]
         self.inplanes = 64
 
+        self.voxel_resolution = voxel_resolution
+
         self._make_stem_layer(in_channels)
 
         self.res_layers = []
@@ -459,10 +465,47 @@ class VoxResNet(nn.Module):
             self.add_module(layer_name, res_layer)
             self.res_layers.append(layer_name)
 
+
+        # project to BEV
+        self.gen_independent_project()
+
         self._freeze_stages()
 
         self.feat_dim = self.block.expansion * 64 * 2**(
             len(self.stage_blocks) - 1)
+
+    def gen_independent_project(self):
+        self.project_layers = []
+        stride_last_level = 2**(self.out_indices[-1]+2)
+        num_proj_layers = math.ceil(math.log(self.voxel_resolution[-1] // stride_last_level, 4))
+        self.num_proj_layers = num_proj_layers
+        for i in self.out_indices:
+            planes = 64 * 2**(i+2)
+            layers_i = []
+            for j in range(self.out_indices[-1]-i):
+              conv_j = build_conv_layer(
+                  self.conv_cfg,
+                  planes,
+                  planes,
+                  kernel_size=[1,1,3],
+                  stride=[1,1,2],
+                  bias=False)
+              layers_i.append(conv_j)
+            for j in range(num_proj_layers):
+              conv_j = build_conv_layer(
+                  self.conv_cfg,
+                  planes,
+                  planes,
+                  kernel_size=[1,1,5],
+                  stride=[1,1,4],
+                  bias=False)
+              layers_i.append(conv_j)
+
+            max_pool = mink_max_pool(kernel_size=[1,1,10], stride=[1,1,10])
+            layers_i.append(max_pool)
+            project_layer_i = nn.Sequential(*layers_i)
+            self.add_module(f'project_layer_{i}', project_layer_i)
+            self.project_layers.append( project_layer_i )
 
     @property
     def norm1(self):
@@ -480,7 +523,6 @@ class VoxResNet(nn.Module):
         self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, 64, postfix=1)
         self.add_module(self.norm1_name, norm1)
         self.relu = ME.MinkowskiReLU(inplace=True)
-        #self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.maxpool = mink_max_pool(kernel_size=3, stride=2, padding=1)
 
     def _freeze_stages(self):
@@ -523,6 +565,50 @@ class VoxResNet(nn.Module):
         else:
             raise TypeError('pretrained must be a str or None')
 
+    def get_bev(self, sparse3d_feats):
+      bev_sparse_outs = []
+      bev_dense_outs = []
+      bev_strides = []
+
+      # Use the maximum dense size for this batch
+      # max_coords_raw is the maximum coords responding to base voxel size
+      # max_coords is the value of 2**() format for max_coords_raw
+      # use 2**() format because the stride between neighbouring levels of FPN
+      # is 2
+      max_coords_raw = sparse3d_feats[0].coords.max(dim=0)[0][1:3].max()
+      #max_coord = 2 ** math.ceil( math.log(max_coords_raw , 2))
+      max_coord = self.voxel_resolution[0]
+      max_coords = torch.Tensor([max_coord, max_coord, 0]).int()
+      assert max_coords_raw < self.voxel_resolution[0]
+
+
+      for i in range(len(sparse3d_feats)):
+        bev_i = self.project_layers[i](sparse3d_feats[i])
+        bev_sparse_outs.append( bev_i )
+        dense_i, min_coords_i, strides_i = bev_i.dense(min_coords=torch.Tensor([0,0,0]).int(), max_coords=max_coords)
+
+        # check the last coord is not used
+        max_coord_i = bev_i.C[:, 1:3].max()
+        assert max_coord_i <= max_coord - strides_i[0], f"The last coord is used, the out dense cannot be cropped for FPN"
+
+        assert dense_i.size()[-1] == 1
+        dense_i = dense_i.squeeze(dim=-1)
+
+        dense_i = dense_i[:,:, :-1,:-1]
+        bev_dense_outs.append( dense_i )
+        bev_strides.append(strides_i)
+
+      if 0:
+        debug_tools._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
+        print('\n')
+        debug_tools._show_sparse_ls_shapes(bev_sparse_outs, 'backbone sparse bev out')
+        print('\n')
+        debug_tools._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
+        print(bev_strides)
+        print('num_proj_layers', self.num_proj_layers)
+      return bev_dense_outs
+
+
     def forward(self, x):
         #debug_tools.show_shapes(x, 'img')
         x = self.conv1(x)
@@ -536,8 +622,9 @@ class VoxResNet(nn.Module):
             if i in self.out_indices:
                 outs.append(x)
 
-        #debug_tools.show_shapes(outs, 'backbone outs')
-        return tuple(outs)
+        # project sparse 3d out to BEV
+        outs_bev = self.get_bev(outs)
+        return tuple(outs_bev)
 
     def train(self, mode=True):
         super(VoxResNet, self).train(mode)

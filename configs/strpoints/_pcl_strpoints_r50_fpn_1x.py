@@ -205,7 +205,7 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 6
+  batch_size = 2
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 1
@@ -234,6 +234,18 @@ data = dict(
         ann_file=ann_file,
         img_prefix=img_prefix_test,
         pipeline=test_pipeline))
+
+if 'pcl' in DATA:
+  voxel_size = 0.02
+  assert IMAGE_SIZE == 512
+  voxel_resolution = [512, 512, 256]  # [10.24 m, 10.24m, 5.12m]
+
+  data['train']['voxel_size'] = voxel_size
+  data['test']['voxel_size'] = voxel_size
+  data['train']['voxel_resolution'] = voxel_resolution
+  data['test']['voxel_resolution'] = voxel_resolution
+  model['backbone']['voxel_resolution'] = voxel_resolution
+
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))

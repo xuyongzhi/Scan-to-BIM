@@ -8,27 +8,19 @@ from MinkowskiEngine import SparseTensor
 
 from .color import color_val, get_random_color
 
-def show_multi_ls_shapes(in_ls, names_ls, env):
-  for i,ls in enumerate(in_ls):
-    show_shapes(ls, env + ' - ' + names_ls[i])
 
-def show_shapes(tensor_ls, flag=''):
-  print(f'\n{flag}:')
-  _show_tensor_ls_shapes(tensor_ls, i='', pre='')
-  print(f'\n')
-
-def _show_tensor_ls_shapes(tensor_ls, flag='', i='', pre=''):
+def _show_tensor_ls_shapes(tensor_ls, pre='', i=0):
   if isinstance(tensor_ls, torch.Tensor):
     shape = tensor_ls.shape
     print(f'{pre} {i} \t{shape}')
   else:
-    assert isinstance(tensor_ls, list)
+    assert isinstance(tensor_ls, list) or isinstance(tensor_ls, tuple)
     pre += '  '
     for i,tensor in enumerate(tensor_ls):
-      _show_tensor_ls_shapes(tensor, flag, i, pre)
+      _show_tensor_ls_shapes(tensor, pre, i)
 
 
-def _show_sparse_shapes(tensor_ls, pre='', i=0):
+def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
   if isinstance(tensor_ls, SparseTensor):
     tensor = tensor_ls
     coords = tensor.coords
@@ -44,7 +36,7 @@ def _show_sparse_shapes(tensor_ls, pre='', i=0):
     assert isinstance(tensor_ls, list) or isinstance(tensor_ls, tuple)
     pre += '  '
     for i,tensor in enumerate(tensor_ls):
-      _show_sparse_shapes(tensor, pre, i)
+      _show_sparse_ls_shapes(tensor, pre, i)
   pass
 
 

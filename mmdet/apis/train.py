@@ -100,8 +100,13 @@ def batch_processor(model, data, train_mode):
     losses = model(**data)
     loss, log_vars = parse_losses(losses)
 
+    if data['img'].__class__.__name__ == 'DataContainer':
+      num_samples = len(data['img'].data)
+    else:
+      assert data['img'].__class__.__name__ == 'SparseTensor'
+      num_samples = 1
     outputs = dict(
-        loss=loss, log_vars=log_vars, num_samples=len(data['img'].data))
+        loss=loss, log_vars=log_vars, num_samples=num_samples)
 
     return outputs
 
