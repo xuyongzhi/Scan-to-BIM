@@ -579,7 +579,9 @@ class VoxResNet(nn.Module):
       #max_coord = 2 ** math.ceil( math.log(max_coords_raw , 2))
       max_coord = self.voxel_resolution[0]
       max_coords = torch.Tensor([max_coord, max_coord, 0]).int()
-      assert max_coords_raw < self.voxel_resolution[0]
+      if not max_coords_raw < self.voxel_resolution[0]:
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
 
 
       for i in range(len(sparse3d_feats)):

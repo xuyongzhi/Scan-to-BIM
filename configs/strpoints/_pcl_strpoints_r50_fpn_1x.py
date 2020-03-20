@@ -34,18 +34,18 @@ if DATA == 'stanford_pcl_2d':
   ann_file = data_root
   in_channels = 6
 
-elif DATA == 'beike2d':
+if DATA == 'beike2d':
   dataset_type = 'BeikeDataset'
   data_root = f'data/beike/processed_{IMAGE_SIZE}/'
   ann_file = data_root + 'json/'
-  if DATA == 'beike2d':
-    pcl_img = f'TopView_{TOPVIEW}'
-    in_channels = 4
-  else:
-    pcl_img =  'ply'
-    in_channels = 9
-  img_prefix_train = data_root + pcl_img
-  img_prefix_test = data_root + pcl_img
+  img_prefix_train = data_root + f'TopView_{TOPVIEW}'
+  img_prefix_test = data_root + f'TopView_{TOPVIEW}'
+  in_channels = 4
+
+if DATA == 'beike_pcl_2d':
+  dataset_type = 'BeikeDatasetPcl'
+  pcl_img =  'ply'
+  in_channels = 9
 
 if 'pcl' in DATA:
   backbone_type = 'VoxResNet'

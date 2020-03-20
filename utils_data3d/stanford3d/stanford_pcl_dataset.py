@@ -1,5 +1,5 @@
-from .custom_pcl import VoxelDatasetBase
-from .registry import DATASETS
+from mmdet.datasets.custom_pcl import VoxelDatasetBase
+from mmdet.datasets.registry import DATASETS
 from plyfile import PlyData
 import numpy as np
 import glob

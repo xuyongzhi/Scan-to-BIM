@@ -9,18 +9,12 @@ TRAIN_NUM=90
 DATA = 'coco'
 DATA = 'stanford_pcl_2d'
 #DATA = 'beike2d'
-#DATA = 'beike3d'
+#DATA = 'beike_pcl_2d'
 
-if DATA == 'beike2d' or DATA == 'beike3d':
-  OBJ_REP = 'lscope_istopleft'
-  NUM_CLASS = 1
 if DATA == 'coco':
   OBJ_REP = 'box_scope'
   NUM_CLASS = 80
-if DATA == 'stanford3d':
-  OBJ_REP = 'box3d_scope'
-  NUM_CLASS = 1
-if DATA == 'stanford_pcl_2d':
+else:
   OBJ_REP = 'lscope_istopleft'
   NUM_CLASS = 1
 
