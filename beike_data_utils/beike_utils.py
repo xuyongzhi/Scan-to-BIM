@@ -529,7 +529,7 @@ def raw_anno_to_img(anno_raw):
 
 
 def load_pcl_scope(anno_folder):
-    base_path = os.path.dirname(os.path.dirname(anno_folder))
+    base_path = anno_folder.split('json')[0]
     pcl_scopes_file = os.path.join(base_path, 'pcl_scopes.json')
     with open(pcl_scopes_file, 'r') as f:
       pcl_scopes = json.load(f)

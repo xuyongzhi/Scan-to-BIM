@@ -43,8 +43,11 @@ if DATA == 'beike2d':
   in_channels = 4
 
 if DATA == 'beike_pcl_2d':
-  dataset_type = 'BeikeDatasetPcl'
-  pcl_img =  'ply'
+  dataset_type = 'BeikePclDataset'
+  data_root = f'data/beike/processed_{IMAGE_SIZE}/'
+  ann_file = data_root
+  img_prefix_train = 'train'
+  img_prefix_test = 'test'
   in_channels = 9
 
 if 'pcl' in DATA:
@@ -166,7 +169,7 @@ img_norm_cfg = dict(
 #    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
 
 
-if DATA == 'beike2d':
+if 'pcl' not in DATA:
   train_pipeline = [
       dict(type='LoadTopviewFromFile'),
       dict(type='LoadAnnotations', with_bbox=True),
@@ -236,9 +239,13 @@ data = dict(
         pipeline=test_pipeline))
 
 if 'pcl' in DATA:
-  voxel_size = 0.02
+  voxel_size = 0.04
   assert IMAGE_SIZE == 512
-  voxel_resolution = [512, 512, 256]  # [10.24 m, 10.24m, 5.12m]
+  if DATA == 'beike_pcl_2d':
+    max_scene_size = [20.48, 20.48, 7.68]
+  elif DATA == 'stanford_pcl_2d':
+    max_scene_size = [10.24, 10.24, 5.12]
+  voxel_resolution = [int(s/voxel_size) for s in max_scene_size]
 
   data['train']['voxel_size'] = voxel_size
   data['test']['voxel_size'] = voxel_size

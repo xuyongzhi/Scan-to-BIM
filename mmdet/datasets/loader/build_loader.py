@@ -59,7 +59,7 @@ def build_dataloader(dataset,
         num_workers = num_gpus * workers_per_gpu
 
     dataset_name = dataset.__class__.__name__
-    if dataset_name in ['StanfordPclDataset']:
+    if dataset_name in ['StanfordPclDataset', 'BeikePclDataset']:
       data_loader = build_pcl_data_loader(dataset, batch_size, sampler, num_workers, imgs_per_gpu, **kwargs)
     else:
       data_loader = DataLoader(
@@ -75,7 +75,8 @@ def build_dataloader(dataset,
 
 
 def build_pcl_data_loader(dataset, batch_size, sampler, num_workers, imgs_per_gpu, **kwargs):
-  import utils_data3d.lib.transforms as t
+  import dataset_utils.lib.transforms as t
+
   return_transformation = False
   limit_numpoints = 0
   if return_transformation:

@@ -47,7 +47,7 @@ class StanfordPclDataset(VoxelDatasetBase):
     #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
     phase = img_prefix
     self.data_config = DataConfig(phase)
-    self.load()
+    self.load_anno()
     self._set_group_flag()
     print(f'\n Area {img_prefix}: load {len(self)} files for areas {self.area_list}\n')
     VoxelDatasetBase.__init__(self, phase, self.data_paths, self.data_config)
@@ -56,7 +56,7 @@ class StanfordPclDataset(VoxelDatasetBase):
   def _set_group_flag(self):
     self.flag = np.zeros(len(self), dtype=np.uint8)
 
-  def load(self):
+  def load_anno(self):
     data_paths = glob.glob(os.path.join(self.data_root, "*/*.ply"))
     data_paths.sort()
     data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
@@ -82,6 +82,16 @@ class StanfordPclDataset(VoxelDatasetBase):
       )
       self.img_infos.append(img_info)
     pass
+
+  def load_ply(self, index):
+    filepath = self.data_root / self.data_paths[index]
+    plydata = PlyData.read(filepath)
+    data = plydata.elements[0].data
+    coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
+    feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
+    labels = np.array(data['label'], dtype=np.int32)
+    instance = np.array(data['instance'], dtype=np.int32)
+    return coords, feats, labels, None
 
   def _augment_coords_to_feats(self, coords, feats, labels=None):
     # Center x,y

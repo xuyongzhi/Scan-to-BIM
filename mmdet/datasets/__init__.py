@@ -9,11 +9,12 @@ from .voc import VOCDataset
 from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
 from .beike import BeikeDataset
-from utils_data3d.stanford3d.stanford_pcl_dataset import StanfordPclDataset
+from dataset_utils.stanford3d_utils.stanford_pcl_dataset import StanfordPclDataset
+from dataset_utils.beike_utils.beike_pcl_dataset import BeikePclDataset
 
 __all__ = [
     'CustomDataset', 'XMLDataset', 'CocoDataset', 'VOCDataset',
     'CityscapesDataset', 'GroupSampler', 'DistributedGroupSampler',
     'build_dataloader', 'ConcatDataset', 'RepeatDataset', 'WIDERFaceDataset',
-    'DATASETS', 'build_dataset', 'BeikeDataset', 'StanfordPclDataset'
+    'DATASETS', 'build_dataset', 'BeikeDataset', 'StanfordPclDataset', 'BeikePclDataset'
 ]
