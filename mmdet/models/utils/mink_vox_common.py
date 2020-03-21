@@ -153,6 +153,7 @@ def mink_conv(
          bias=False,
          ):
   conv_type=ConvType.HYPERCUBE
+  #conv_type=ConvType.SPATIAL_HYPERCUBE
   D = 3
   return conv(in_planes, out_planes, kernel_size, stride, dilation, bias, conv_type, D)
 

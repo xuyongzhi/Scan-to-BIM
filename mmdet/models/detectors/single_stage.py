@@ -9,6 +9,7 @@ from .base import BaseDetector
 from tools import debug_utils
 import time
 
+RECORD_T = 1
 
 @DETECTORS.register_module
 class SingleStageDetector(BaseDetector):
@@ -58,13 +59,16 @@ class SingleStageDetector(BaseDetector):
     def extract_feat(self, img):
         """Directly extract features from the backbone+neck
         """
-        #t0 = time.time()
+        if RECORD_T:
+          t0 = time.time()
         x = self.backbone(img)
-        #t1 = time.time()
+        if RECORD_T:
+          t1 = time.time()
         if self.with_neck:
             x = self.neck(x)
-        #t2 = time.time()
-        #print(f'backbone: {t1-t0:.3f}\nneck:{t2-t1:.3f}')
+        if RECORD_T:
+          t2 = time.time()
+          print(f'\n\n\tbackbone: {t1-t0:.3f}\tneck:{t2-t1:.3f}')
         return x
 
     def forward_dummy(self, img):
@@ -88,11 +92,20 @@ class SingleStageDetector(BaseDetector):
         gt_bboxes: [ni*5]*6
         gt_labels: [ni]*6
         '''
+        if RECORD_T:
+          t0 = time.time()
         x = self.extract_feat(img)
+        if RECORD_T:
+          t1 = time.time()
         outs = self.bbox_head(x)
+        if RECORD_T:
+          t2 = time.time()
         loss_inputs = outs + (gt_bboxes, gt_labels, img_metas, self.train_cfg)
         losses = self.bbox_head.loss(
             *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
+        if RECORD_T:
+          t3 = time.time()
+          print(f'\textract feat:{t1-t0:.3f} head:{t2-t1:.3f}, loss:{t3-t2:.3f}')
 
         if 0:
           debug_utils._show_sparse_ls_shapes(img, 'single_stage forward_train - img')

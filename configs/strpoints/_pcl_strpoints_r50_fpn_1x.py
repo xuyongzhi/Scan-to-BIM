@@ -59,6 +59,7 @@ else:
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
+bbp = 64
 model = dict(
     type='StrPointsDetector',
     pretrained=None,
@@ -69,10 +70,12 @@ model = dict(
         num_stages=4,
         out_indices=( 0, 1, 2,),
         frozen_stages=-1,
-        style='pytorch'),
+        style='pytorch',
+        basic_planes=bbp,
+        max_planes=1024),
     neck=dict(
         type='FPN',
-        in_channels=[ 256, 512, 1024],
+        in_channels=[ bbp*4, bbp*8, bbp*16],
         out_channels=256,
         start_level=0,
         add_extra_convs=True,
@@ -102,7 +105,7 @@ model = dict(
         transform_method=_transform_method,
         dcn_zero_base=False,
         corner_hm = True,
-        corner_hm_only = True,
+        corner_hm_only = False,
         )
     )
         #transform_method='minmax'))
@@ -239,7 +242,6 @@ data = dict(
 
 if 'pcl' in DATA:
   voxel_size = 0.04
-  assert IMAGE_SIZE == 512
   if DATA == 'beike_pcl_2d':
     max_scene_size = [20.48, 20.48, 7.68]
   elif DATA == 'stanford_pcl_2d':

@@ -10,6 +10,8 @@ from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 
 from tools import debug_utils
+import time
+RECORD_T = 1
 
 
 class BasicBlock(nn.Module):
@@ -396,7 +398,9 @@ class ResNet(nn.Module):
                  gen_attention=None,
                  stage_with_gen_attention=((), (), (), ()),
                  with_cp=False,
-                 zero_init_residual=True):
+                 zero_init_residual=True,
+                 basic_planes=64,
+                 max_planes=2048):
         super(ResNet, self).__init__()
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
@@ -426,7 +430,8 @@ class ResNet(nn.Module):
         self.zero_init_residual = zero_init_residual
         self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
-        self.inplanes = 64
+        self.inplanes = self.basic_planes = basic_planes
+        self.max_planes = max_planes
 
         self._make_stem_layer(in_channels)
 
@@ -436,7 +441,7 @@ class ResNet(nn.Module):
             dilation = dilations[i]
             dcn = self.dcn if self.stage_with_dcn[i] else None
             gcb = self.gcb if self.stage_with_gcb[i] else None
-            planes = 64 * 2**i
+            planes = min( self.basic_planes * 2**i, self.max_planes)
             res_layer = make_res_layer(
                 self.block,
                 self.inplanes,
@@ -459,8 +464,8 @@ class ResNet(nn.Module):
 
         self._freeze_stages()
 
-        self.feat_dim = self.block.expansion * 64 * 2**(
-            len(self.stage_blocks) - 1)
+        p = min( 2**(len(self.stage_blocks) - 1), self.max_planes)
+        self.feat_dim = self.block.expansion * self.basic_planes * p
 
     @property
     def norm1(self):
@@ -470,12 +475,12 @@ class ResNet(nn.Module):
         self.conv1 = build_conv_layer(
             self.conv_cfg,
             in_channels,
-            64,
+            self.basic_planes,
             kernel_size=7,
             stride=2,
             padding=3,
             bias=False)
-        self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, 64, postfix=1)
+        self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, self.basic_planes, postfix=1)
         self.add_module(self.norm1_name, norm1)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -522,16 +527,25 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         #debug_tools.show_shapes(x, 'img')
+        if RECORD_T:
+          t0 = time.time()
         x = self.conv1(x)
+        if RECORD_T:
+          t1 = time.time()
         x = self.norm1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+        if RECORD_T:
+          t2 = time.time()
         outs = []
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
             x = res_layer(x)
             if i in self.out_indices:
                 outs.append(x)
+        if RECORD_T:
+          t3 = time.time()
+          print(f'\tresnet forward. conv1:{t1-t0:.3f} maxpool:{t2-t1:.3f} reslayers:{t3-t2:.3f}')
 
         #debug_tools.show_shapes(outs, 'backbone outs')
         return tuple(outs)

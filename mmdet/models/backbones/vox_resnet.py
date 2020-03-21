@@ -16,8 +16,9 @@ from tools import debug_utils
 import math
 import time
 
+RECORD_T = 1
+
 STEM_KERNEL = 3
-BASIC_PLANE = 64
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -370,7 +371,7 @@ class VoxResNet(nn.Module):
         >>> level_outputs = self.forward(inputs)
         >>> for level_out in level_outputs:
         ...     print(tuple(level_out.shape))
-        (1, BASIC_PLANE, 8, 8)
+        (1, 64, 8, 8)
         (1, 128, 4, 4)
         (1, 256, 2, 2)
         (1, 512, 1, 1)
@@ -405,6 +406,8 @@ class VoxResNet(nn.Module):
                  with_cp=False,
                  zero_init_residual=True,
                  voxel_resolution = [512, 512, 256],
+                 basic_planes = 64,
+                 max_planes = 2048,
                  ):
         super(VoxResNet, self).__init__()
         if depth not in self.arch_settings:
@@ -435,7 +438,8 @@ class VoxResNet(nn.Module):
         self.zero_init_residual = zero_init_residual
         self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
-        self.inplanes = BASIC_PLANE
+        self.inplanes = self.basic_planes = basic_planes
+        self.max_planes = max_planes
 
         self.voxel_resolution = voxel_resolution
 
@@ -447,7 +451,7 @@ class VoxResNet(nn.Module):
             dilation = dilations[i]
             dcn = self.dcn if self.stage_with_dcn[i] else None
             gcb = self.gcb if self.stage_with_gcb[i] else None
-            planes = BASIC_PLANE * 2**i
+            planes = min( self.basic_planes * 2**i, self.max_planes)
             res_layer = make_vox_res_layer(
                 self.block,
                 self.inplanes,
@@ -474,8 +478,9 @@ class VoxResNet(nn.Module):
 
         self._freeze_stages()
 
-        self.feat_dim = self.block.expansion * BASIC_PLANE * 2**(
-            len(self.stage_blocks) - 1)
+
+        p = min( 2**(len(self.stage_blocks) - 1), self.max_planes)
+        self.feat_dim = self.block.expansion * self.basic_planes * p
 
     def gen_independent_project(self):
         self.project_layers = []
@@ -483,7 +488,7 @@ class VoxResNet(nn.Module):
         num_proj_layers = math.ceil(math.log(self.voxel_resolution[-1] // stride_last_level, 4))
         self.num_proj_layers = num_proj_layers
         for i in self.out_indices:
-            planes = BASIC_PLANE * 2**(i+2)
+            planes = self.basic_planes * 2**(i+2)
             layers_i = []
             for j in range(self.out_indices[-1]-i):
               conv_j = build_conv_layer(
@@ -518,15 +523,30 @@ class VoxResNet(nn.Module):
         self.conv1 = build_conv_layer(
             self.conv_cfg,
             in_channels,
-            BASIC_PLANE,
+            self.basic_planes,
             kernel_size=STEM_KERNEL,
             stride=2,
-            padding=3,
+            padding=1,
             bias=False)
-        self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, BASIC_PLANE, postfix=1)
+        self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, self.basic_planes, postfix=1)
         self.add_module(self.norm1_name, norm1)
         self.relu = ME.MinkowskiReLU(inplace=True)
         self.maxpool = mink_max_pool(kernel_size=3, stride=2, padding=1)
+
+        self.twoconvs_before_max = True
+        if self.twoconvs_before_max:
+          self.conv2 = build_conv_layer(
+              self.conv_cfg,
+              self.basic_planes,
+              self.basic_planes,
+              kernel_size=STEM_KERNEL,
+              stride=2,
+              padding=1,
+              bias=False)
+          self.norm2_name, norm2 = build_norm_layer(self.norm_cfg, self.basic_planes, postfix=1)
+          self.add_module(self.norm2_name, norm2)
+          self.norm2 = norm2
+          self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:
@@ -618,14 +638,24 @@ class VoxResNet(nn.Module):
 
     def forward(self, x):
         #debug_tools.show_shapes(x, 'img')
-        t0 = time.time()
+        if RECORD_T:
+          t0 = time.time()
         x = self.conv1(x)
-        t1 = time.time()
         x = self.norm1(x)
         x = self.relu(x)
+        if RECORD_T:
+          t1 = time.time()
+        if self.twoconvs_before_max:
+          x = self.conv2(x)
+          x = self.norm2(x)
+          x = self.relu(x)
+        if RECORD_T:
+          t2 = time.time()
+
         x = self.maxpool(x)
         outs = []
-        t2 = time.time()
+        if RECORD_T:
+          t3 = time.time()
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
             x = res_layer(x)
@@ -634,8 +664,9 @@ class VoxResNet(nn.Module):
 
         # project sparse 3d out to BEV
         outs_bev = self.get_bev(outs)
-        t3 = time.time()
-        print(f'voxresnet forward: {t1-t0:.3f} {t2-t1:.3f} {t3-t2:.3f}')
+        if RECORD_T:
+          t4 = time.time()
+          print(f'\tvoxresnet forward. conv1:{t1-t0:.3f} conv2:{t2-t1:.3f} maxpool:{t3-t2:.3f} reslayers:{t4-t3:.3f}')
         return tuple(outs_bev)
 
     def train(self, mode=True):
