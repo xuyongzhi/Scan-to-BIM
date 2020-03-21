@@ -4,9 +4,9 @@ from scipy import spatial
 
 from .registry import DATASETS
 
-from dataset_utils.lib.utils import read_txt, fast_hist, per_class_iu
-from dataset_utils.lib.dataset import VoxelizationDataset, DatasetPhase, str2datasetphase_type, cache
-import dataset_utils.lib.transforms as t
+from utils_dataset.lib.utils import read_txt, fast_hist, per_class_iu
+from utils_dataset.lib.dataset import VoxelizationDataset, DatasetPhase, str2datasetphase_type, cache
+import utils_dataset.lib.transforms as t
 
 
 @DATASETS.register_module
