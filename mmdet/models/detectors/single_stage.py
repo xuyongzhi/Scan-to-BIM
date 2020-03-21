@@ -7,6 +7,7 @@ from ..registry import DETECTORS
 from .base import BaseDetector
 
 from tools import debug_utils
+import time
 
 
 @DETECTORS.register_module
@@ -33,6 +34,16 @@ class SingleStageDetector(BaseDetector):
         self.test_cfg = test_cfg
         self.init_weights(pretrained=pretrained)
 
+        if 0:
+          print('\n\nneck:')
+          print(self.backbone)
+          print('\n\nneck:')
+          print(self.neck)
+          print('\n\nbbox_head:')
+          print(self.bbox_head)
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+
     def init_weights(self, pretrained=None):
         super(SingleStageDetector, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
@@ -47,9 +58,13 @@ class SingleStageDetector(BaseDetector):
     def extract_feat(self, img):
         """Directly extract features from the backbone+neck
         """
+        #t0 = time.time()
         x = self.backbone(img)
+        #t1 = time.time()
         if self.with_neck:
             x = self.neck(x)
+        #t2 = time.time()
+        #print(f'backbone: {t1-t0:.3f}\nneck:{t2-t1:.3f}')
         return x
 
     def forward_dummy(self, img):

@@ -14,7 +14,10 @@ from ..utils.mink_vox_common import mink_max_pool
 
 from tools import debug_utils
 import math
+import time
 
+STEM_KERNEL = 3
+BASIC_PLANE = 64
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -367,7 +370,7 @@ class VoxResNet(nn.Module):
         >>> level_outputs = self.forward(inputs)
         >>> for level_out in level_outputs:
         ...     print(tuple(level_out.shape))
-        (1, 64, 8, 8)
+        (1, BASIC_PLANE, 8, 8)
         (1, 128, 4, 4)
         (1, 256, 2, 2)
         (1, 512, 1, 1)
@@ -432,7 +435,7 @@ class VoxResNet(nn.Module):
         self.zero_init_residual = zero_init_residual
         self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
-        self.inplanes = 64
+        self.inplanes = BASIC_PLANE
 
         self.voxel_resolution = voxel_resolution
 
@@ -444,7 +447,7 @@ class VoxResNet(nn.Module):
             dilation = dilations[i]
             dcn = self.dcn if self.stage_with_dcn[i] else None
             gcb = self.gcb if self.stage_with_gcb[i] else None
-            planes = 64 * 2**i
+            planes = BASIC_PLANE * 2**i
             res_layer = make_vox_res_layer(
                 self.block,
                 self.inplanes,
@@ -471,7 +474,7 @@ class VoxResNet(nn.Module):
 
         self._freeze_stages()
 
-        self.feat_dim = self.block.expansion * 64 * 2**(
+        self.feat_dim = self.block.expansion * BASIC_PLANE * 2**(
             len(self.stage_blocks) - 1)
 
     def gen_independent_project(self):
@@ -480,7 +483,7 @@ class VoxResNet(nn.Module):
         num_proj_layers = math.ceil(math.log(self.voxel_resolution[-1] // stride_last_level, 4))
         self.num_proj_layers = num_proj_layers
         for i in self.out_indices:
-            planes = 64 * 2**(i+2)
+            planes = BASIC_PLANE * 2**(i+2)
             layers_i = []
             for j in range(self.out_indices[-1]-i):
               conv_j = build_conv_layer(
@@ -515,12 +518,12 @@ class VoxResNet(nn.Module):
         self.conv1 = build_conv_layer(
             self.conv_cfg,
             in_channels,
-            64,
-            kernel_size=7,
+            BASIC_PLANE,
+            kernel_size=STEM_KERNEL,
             stride=2,
             padding=3,
             bias=False)
-        self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, 64, postfix=1)
+        self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, BASIC_PLANE, postfix=1)
         self.add_module(self.norm1_name, norm1)
         self.relu = ME.MinkowskiReLU(inplace=True)
         self.maxpool = mink_max_pool(kernel_size=3, stride=2, padding=1)
@@ -615,11 +618,14 @@ class VoxResNet(nn.Module):
 
     def forward(self, x):
         #debug_tools.show_shapes(x, 'img')
+        t0 = time.time()
         x = self.conv1(x)
+        t1 = time.time()
         x = self.norm1(x)
         x = self.relu(x)
         x = self.maxpool(x)
         outs = []
+        t2 = time.time()
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
             x = res_layer(x)
@@ -628,6 +634,8 @@ class VoxResNet(nn.Module):
 
         # project sparse 3d out to BEV
         outs_bev = self.get_bev(outs)
+        t3 = time.time()
+        print(f'voxresnet forward: {t1-t0:.3f} {t2-t1:.3f} {t3-t2:.3f}')
         return tuple(outs_bev)
 
     def train(self, mode=True):

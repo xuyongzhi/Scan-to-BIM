@@ -208,7 +208,7 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 6
+  batch_size = 4
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 1
@@ -218,7 +218,6 @@ if TRAIN_NUM < 10:
   batch_size = 6
   lra = 0.05
 
-test_dir=[5]
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,

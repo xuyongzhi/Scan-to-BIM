@@ -57,7 +57,7 @@ class AssignResult(object):
             #self.num_ign_inds = self.ign_inds.numel()
 
             self.lost_gt = self.num_pos_inds < self.num_gts
-            if self.lost_gt:
+            if self.lost_gt and False:
               print('\tgt num = {}, pos inds num = {}, lost gt!'\
                 .format(self.num_gts, self.num_pos_inds) +\
                 '\tcore/bbox/assigners/assign_result.py from \t{}'.format(env))
