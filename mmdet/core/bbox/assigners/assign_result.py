@@ -63,7 +63,7 @@ class AssignResult(object):
                 '\tcore/bbox/assigners/assign_result.py from \t{}'.format(env))
               if img_meta is not None:
                 print(img_meta['filename'])
-              print('\n\n')
+              #print('\n\n')
 
     def add_gt_(self, gt_labels):
         self_inds = torch.arange(
