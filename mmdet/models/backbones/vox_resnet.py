@@ -12,7 +12,7 @@ from ..utils import build_conv_layer, build_norm_layer
 import MinkowskiEngine as ME
 from ..utils.mink_vox_common import mink_max_pool
 
-from mmdet import debug_tools
+from tools import debug_utils
 import math
 
 
@@ -608,6 +608,8 @@ class VoxResNet(nn.Module):
         debug_tools._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
         print(bev_strides)
         print('num_proj_layers', self.num_proj_layers)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
       return bev_dense_outs
 
 

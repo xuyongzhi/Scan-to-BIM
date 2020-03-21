@@ -137,6 +137,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
+        if 'input_style' in img_meta[0] and img_meta[0]['input_style'] == 'pcl':
+          img = prepare_sparse_input(img)
         if return_loss:
             return self.forward_train(img, img_meta, **kwargs)
         else:
@@ -415,6 +417,13 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                     out_file=out_file)
 
             pass
+
+def prepare_sparse_input(img):
+  from MinkowskiEngine import SparseTensor
+  coords_batch, feats_batch = img
+  sinput = SparseTensor(feats_batch, coords_batch)
+  return sinput
+
 def draw_key_points(img, key_points, bboxes_s, score_thr,
                     point_color=(0,0,255), thickness=2):
     import cv2

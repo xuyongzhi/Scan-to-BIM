@@ -17,7 +17,7 @@ import glob
 
 from configs.common import OBJ_DIM, OBJ_REP, IMAGE_SIZE
 from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines, gen_corners_from_lines_np
-from mmdet.debug_tools import get_random_color, show_img_with_norm, _show_lines_ls_points_ls
+from tools.debug_utils import get_random_color, show_img_with_norm, _show_lines_ls_points_ls
 np.set_printoptions(precision=3, suppress=True)
 
 #LOAD_CLASSES = ['wall', 'window', 'door']

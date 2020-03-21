@@ -6,7 +6,6 @@ from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 import cv2
-from mmdet import debug_tools
 
 from configs.common import PRINT_IOU_ASSIGNER
 

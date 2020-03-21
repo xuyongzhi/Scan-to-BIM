@@ -1,9 +1,8 @@
 import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
-from mmdet.debug_tools import show_img_lines
+from tools.debug_utils import _show_lines_ls_points_ls
 from configs.common import clean_bboxes_out, OBJ_REP, IMAGE_SIZE, OPT_GRAPH_COR_DIS_THR
 from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine, optimize_graph
-from mmdet.debug_tools import _show_lines_ls_points_ls
 from collections import defaultdict
 import os
 import numpy as np
@@ -96,13 +95,13 @@ class GraphEval():
         scene_name = os.path.splitext(os.path.basename(filename))[0]
 
         gt_lines = load_gt_lines_bk(img_meta, img)
-        #show_img_lines(img[:,:,0], gt_lines)
+        #_show_lines_ls_points_ls(img[:,:,0], gt_lines)
 
         num_labels = len(detections)
         for label in range(num_labels):
             det_lines_raw = detections[label]['det_lines']
             det_lines = clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
-            #show_img_lines(img[:,:,0], det_lines[:,:5])
+            #_show_lines_ls_points_ls(img[:,:,0], det_lines[:,:5])
             det_lines = filter_low_score_det(det_lines, self._score_threshold)
 
             labels_i = np.ones(det_lines.shape[0])*label
@@ -110,7 +109,7 @@ class GraphEval():
             det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
             det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
 
-            #show_img_lines(img[:,:,0], det_lines[:,:5])
+            #_show_lines_ls_points_ls(img[:,:,0], det_lines[:,:5])
             det_category_id = detections[label]['category_id']
             if det_category_id != 1:
               raise NotImplementedError

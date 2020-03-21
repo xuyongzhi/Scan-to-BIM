@@ -3,7 +3,7 @@ import torch
 from ..bbox import PseudoSampler, assign_and_sample, build_assigner
 from ..utils import multi_apply
 
-from mmdet import debug_tools
+from tools import debug_utils
 DEBUG = 0
 SHOW_CENTERNESS = 0
 
@@ -42,7 +42,7 @@ def point_target(proposals_list,
     assert len(proposals_list) == len(valid_flag_list) == num_imgs
 
     #if DEBUG:
-    #  debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], f'{flag} point_target input')
+    #  debug_utils.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], f'{flag} point_target input')
 
     # points number of multi levels
     num_level_proposals = [points.size(0) for points in proposals_list[0]]
@@ -60,7 +60,7 @@ def point_target(proposals_list,
         gt_labels_list = [None for _ in range(num_imgs)]
 
     if DEBUG and flag=='refine':
-      debug_tools.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], f'{flag} point_target (2)')
+      debug_utils.show_multi_ls_shapes([proposals_list, gt_bboxes_list], ['proposals_list','gt_bboxes_list'], f'{flag} point_target (2)')
       pass
 
     (all_labels, all_label_weights, all_bbox_gt, all_proposals,
@@ -94,7 +94,7 @@ def point_target(proposals_list,
                                              num_level_proposals)
 
     if DEBUG and flag=='refine':
-      debug_tools.show_multi_ls_shapes([all_bbox_gt], ['all_bbox_gt'], f'{flag} point_target (3)')
+      debug_utils.show_multi_ls_shapes([all_bbox_gt], ['all_bbox_gt'], f'{flag} point_target (3)')
       print(f'pos:{num_total_pos}\nneg:{num_total_neg}\ngt:{num_total_gt}')
       show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag)
       #for labels_, flag in zip([labels_list, label_weights_list, proposal_weights_list],
@@ -102,7 +102,7 @@ def point_target(proposals_list,
       #  show_weights(labels_,flag)
       pass
 
-      #debug_tools.show_multi_ls_shapes([bbox_gt_list], ['bbox_gt_list'], f'{flag} point_target (4)')
+      #debug_utils.show_multi_ls_shapes([bbox_gt_list], ['bbox_gt_list'], f'{flag} point_target (4)')
 
     return (labels_list, label_weights_list, bbox_gt_list, proposals_list,
             proposal_weights_list, num_total_pos, num_total_neg)
@@ -193,7 +193,7 @@ def point_target_single(flat_proposals,
         gt_centerness = get_gaussian_weights( gt_bboxes, flat_proposals[:,:2], cfg['assigner']['ref_radius'] )
         pos_proposals = torch.cat([pos_proposals, gt_centerness.reshape(-1,1)], dim=1)
         if SHOW_CENTERNESS:
-          from mmdet.debug_tools import show_heatmap
+          from mmdet.debug_utils import show_heatmap
           show_heatmap(gt_centerness.reshape(128,128), (512,512), gt_corners=gt_bboxes)
           show_heatmap(labels.reshape(128,128), (512,512), gt_corners=gt_bboxes)
           show_heatmap(label_weights.reshape(128,128), (512,512), gt_corners=gt_bboxes )
@@ -225,7 +225,7 @@ def get_gaussian_weights(gt_corners, prop_corners, ref_radius):
   return distances
 
 def show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag):
-  from mmdet.debug_tools import show_lines, show_points, _show_lines_ls_points_ls
+  from mmdet.debug_utils import show_lines, show_points, _show_lines_ls_points_ls
   from configs.common import IMAGE_SIZE
   import numpy as np
   for (pos_inds, proposals, bbox_gt) in zip(pos_inds_list, all_proposals, gt_bboxes_list):
@@ -245,7 +245,7 @@ def show_point_targets(pos_inds_list, all_proposals, gt_bboxes_list, flag):
     pass
 
 def show_weights(weights_list, flag):
-  from mmdet.debug_tools import show_lines, show_points
+  from mmdet.debug_utils import show_lines, show_points
   from configs.common import IMAGE_SIZE
   import numpy as np
   import mmcv

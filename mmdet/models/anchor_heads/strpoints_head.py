@@ -14,7 +14,7 @@ from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
 from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
-from mmdet import debug_tools
+from tools import debug_utils
 from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lines_th
 
 import torchvision as tcv
@@ -422,12 +422,12 @@ class StrPointsHead(nn.Module):
           corner_outs = None
         # predict cls from the two end_points
 
-        #debug_tools.show_shapes(x, 'StrPointsHead input')
-        #debug_tools.show_shapes(cls_feat, 'StrPointsHead cls_feat')
-        #debug_tools.show_shapes(pts_feat, 'StrPointsHead pts_feat')
-        #debug_tools.show_shapes(pts_out_init, 'StrPointsHead pts_out_init')
-        #debug_tools.show_shapes(cls_out, 'StrPointsHead cls_out')
-        #debug_tools.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
+        #debug_utils.show_shapes(x, 'StrPointsHead input')
+        #debug_utils.show_shapes(cls_feat, 'StrPointsHead cls_feat')
+        #debug_utils.show_shapes(pts_feat, 'StrPointsHead pts_feat')
+        #debug_utils.show_shapes(pts_out_init, 'StrPointsHead pts_out_init')
+        #debug_utils.show_shapes(cls_out, 'StrPointsHead cls_out')
+        #debug_utils.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
         return cls_out, pts_out_init, pts_out_refine, corner_outs
 
     def forward_single_corner(self, x, scale):
@@ -705,8 +705,8 @@ class StrPointsHead(nn.Module):
         pts_coordinate_preds_refine = self.offset_to_pts(
             center_list, pts_preds_refine)
         bbox_list_initres = self.get_bbox_from_pts(center_list, pts_preds_init)
-        #debug_tools.show_shapes(pts_preds_init, 'StrPointsHead init')
-        #debug_tools.show_shapes(bbox_list_initres, 'StrPointsHead init bbox')
+        #debug_utils.show_shapes(pts_preds_init, 'StrPointsHead init')
+        #debug_utils.show_shapes(bbox_list_initres, 'StrPointsHead init bbox')
         cls_reg_targets_refine = point_target(
             bbox_list_initres,
             valid_flag_list,
@@ -730,8 +730,8 @@ class StrPointsHead(nn.Module):
           center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
           bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
-          #debug_tools.show_shapes(pts_preds_refine, 'StrPointsHead refine')
-          #debug_tools.show_shapes(bbox_list_refineres, 'StrPointsHead refine bbox')
+          #debug_utils.show_shapes(pts_preds_refine, 'StrPointsHead refine')
+          #debug_utils.show_shapes(bbox_list_refineres, 'StrPointsHead refine bbox')
           cls_reg_targets_final = point_target(
               bbox_list_refineres,
               valid_flag_list,
@@ -885,12 +885,12 @@ class StrPointsHead(nn.Module):
         obj_dim = cor_ofs_gt.shape[-1]
 
         if 0:
-          debug_tools.show_heatmap(labels[0].reshape(128,128), (512,512))
-          debug_tools.show_heatmap(label_weights[0].reshape(128,128), (512,512))
-          debug_tools.show_heatmap(cor_centerness_gt[0].reshape(128,128), (512,512))
-          debug_tools.show_heatmap(cor_reg_weights[0,:,0].reshape(128,128), (512,512))
+          debug_utils.show_heatmap(labels[0].reshape(128,128), (512,512))
+          debug_utils.show_heatmap(label_weights[0].reshape(128,128), (512,512))
+          debug_utils.show_heatmap(cor_centerness_gt[0].reshape(128,128), (512,512))
+          debug_utils.show_heatmap(cor_reg_weights[0,:,0].reshape(128,128), (512,512))
           ofs_img = (cor_ofs_gt.norm(dim=-1) / 10).clamp(max=1)
-          debug_tools.show_heatmap(ofs_img[0].reshape(128,128), (512,512))
+          debug_utils.show_heatmap(ofs_img[0].reshape(128,128), (512,512))
 
 
         cor_score = cor_score.permute(0,2,3,1).reshape(-1, self.cls_out_channels)
@@ -1185,7 +1185,7 @@ class StrPointsHead(nn.Module):
 
 
       if 0:
-        from mmdet.debug_tools import show_heatmap
+        from mmdet.debug_utils import show_heatmap
         show_heatmap(cor_cls_score.reshape( featmap_size ), (512,512) )
         #show_heatmap(cor_centerness.reshape( featmap_size), (512,512) )
         #show_heatmap(scores.reshape( featmap_size ), (512,512) )
@@ -1248,7 +1248,7 @@ class StrPointsHead(nn.Module):
 
 
       if 0:
-        from mmdet.debug_tools import show_lines, show_img_lines, show_heatmap
+        from mmdet.debug_utils import show_lines, show_img_lines, show_heatmap
         #show_img_lines(cor_hm2.cpu().data.numpy()[:,:,0:1], bbox_refine.cpu().data.numpy())
         #show_img_lines(cor_hm2.cpu().data.numpy()[:,:,0:1], line_2p_refine_0.cpu().data.numpy())
         show_heatmap(cor_hm2.cpu().data.numpy()[:,:,0], (512,512), gt_corners = line_2p_refine_0[:,0:2].cpu().data.numpy())
@@ -1282,7 +1282,7 @@ def convert_list_dict_order(f_ls_dict):
 
 
 def show_pred(bbox_pred, bbox_gt, bbox_weights, flag):
-  from mmdet.debug_tools import show_lines
+  from tools.debug_utils import show_lines
   from configs.common import IMAGE_SIZE
   inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
   m = bbox_pred.shape[1]

@@ -68,7 +68,7 @@ def build_dataloader(dataset,
           sampler=sampler,
           num_workers=num_workers,
           collate_fn=partial(collate, samples_per_gpu=imgs_per_gpu),
-          pin_memory=False,
+          pin_memory=True,
           **kwargs)
 
     return data_loader
@@ -90,7 +90,7 @@ def build_pcl_data_loader(dataset, batch_size, sampler, num_workers, imgs_per_gp
           sampler=sampler,
           num_workers=num_workers,
           collate_fn=collate_fn,
-          pin_memory=False,
+          pin_memory=True,
           **kwargs)
   return data_loader
 

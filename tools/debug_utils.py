@@ -4,8 +4,41 @@ import numpy as np
 import mmcv
 from mmcv.image import imread, imwrite
 import cv2
+from MinkowskiEngine import SparseTensor
 
 from .color import color_val, get_random_color, label2color
+
+
+
+def _show_tensor_ls_shapes(tensor_ls, pre='', i=0):
+  if isinstance(tensor_ls, torch.Tensor):
+    shape = tensor_ls.shape
+    print(f'{pre} {i} \t{shape}')
+  else:
+    assert isinstance(tensor_ls, list) or isinstance(tensor_ls, tuple)
+    pre += '  '
+    for i,tensor in enumerate(tensor_ls):
+      _show_tensor_ls_shapes(tensor, pre, i)
+
+
+def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
+  if isinstance(tensor_ls, SparseTensor):
+    tensor = tensor_ls
+    coords = tensor.coords
+    feats = tensor.feats
+    c_shape = [*coords.shape]
+    f_shape = [*feats.shape]
+    t_stride = [*tensor.tensor_stride]
+    min_coords = [*coords.min(dim=0)[0].numpy()]
+    max_coords = [*coords.max(dim=0)[0].numpy()]
+    print(f'{pre} {i} \tcoords:{c_shape} \tfeats:{f_shape} \tstride:{t_stride} \tcoords scope: {min_coords} - {max_coords}')
+    pass
+  else:
+    assert isinstance(tensor_ls, list) or isinstance(tensor_ls, tuple)
+    pre += '  '
+    for i,tensor in enumerate(tensor_ls):
+      _show_sparse_ls_shapes(tensor, pre, i)
+  pass
 
 
 #-3d------------------------------------------------------------------------------
@@ -63,26 +96,6 @@ def _make_pcd(points, feats=None):
         labels = feats
         pcd.colors = o3d.utility.Vector3dVector( label2color(labels) / 255)
     return pcd
-
-
-
-def show_multi_ls_shapes(in_ls, names_ls, env):
-  for i,ls in enumerate(in_ls):
-    show_shapes(ls, env + ' - ' + names_ls[i])
-
-def show_shapes(tensor_ls, flag=''):
-  print(f'\n{flag}:')
-  _show_tensor_ls_shapes(tensor_ls, i='', pre='')
-  print(f'\n')
-
-def _show_tensor_ls_shapes(tensor_ls, flag='', i='', pre=''):
-  if isinstance(tensor_ls, torch.Tensor):
-    shape = tensor_ls.shape
-    print(f'{pre} {i} \t{shape}')
-  else:
-    pre += '  '
-    for i,tensor in enumerate(tensor_ls):
-      _show_tensor_ls_shapes(tensor, flag, i, pre)
 
 
 #-2d------------------------------------------------------------------------------

@@ -208,7 +208,7 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 2
+  batch_size = 6
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 1
@@ -221,7 +221,7 @@ if TRAIN_NUM < 10:
 test_dir=[5]
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -264,7 +264,7 @@ lr_config = dict(
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.7), int(total_epochs*0.85)])
-checkpoint_config = dict(interval=20)
+checkpoint_config = dict(interval=2)
 # yapf:disable
 log_config = dict(
     interval=max(TRAIN_NUM//25,1),

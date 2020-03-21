@@ -9,7 +9,7 @@ from mmdet.ops import ContextBlock, DeformConv, ModulatedDeformConv
 from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 
-from mmdet import debug_tools
+from tools import debug_utils
 
 
 class BasicBlock(nn.Module):

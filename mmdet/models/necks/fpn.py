@@ -7,7 +7,7 @@ from ..registry import NECKS
 from ..utils import ConvModule
 
 
-from mmdet import debug_tools
+from tools import debug_utils
 
 @NECKS.register_module
 class FPN(nn.Module):

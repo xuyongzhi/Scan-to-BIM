@@ -103,7 +103,7 @@ def batch_processor(model, data, train_mode):
     if data['img'].__class__.__name__ == 'DataContainer':
       num_samples = len(data['img'].data)
     else:
-      assert data['img'].__class__.__name__ == 'SparseTensor'
+      assert data['img_meta'][0]['input_style'] == 'pcl'
       num_samples = 1
     outputs = dict(
         loss=loss, log_vars=log_vars, num_samples=num_samples)

@@ -3,7 +3,7 @@ import numpy as np
 import mmcv
 from .geometric_utils import sin2theta_np
 import cv2
-from mmdet.debug_tools import show_img_with_norm, _show_lines_ls_points_ls
+from tools.debug_utils import show_img_with_norm, _show_lines_ls_points_ls
 import torch
 from configs.common import OPT_GRAPH_COR_DIS_THR
 
