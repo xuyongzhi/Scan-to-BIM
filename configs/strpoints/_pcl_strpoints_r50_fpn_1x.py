@@ -223,7 +223,7 @@ if TRAIN_NUM < 10:
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,

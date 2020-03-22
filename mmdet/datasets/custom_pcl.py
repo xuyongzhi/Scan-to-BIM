@@ -55,7 +55,7 @@ class VoxelDatasetBase(VoxelizationDataset):
         data_paths,
         data_root=self.data_root,
         prevoxel_transform=prevoxel_transforms,
-        input_transform=input_transform,
+        input_transform=input_transforms,
         target_transform=target_transform,
         ignore_label=config.ignore_label,
         return_transformation=config.return_transformation,

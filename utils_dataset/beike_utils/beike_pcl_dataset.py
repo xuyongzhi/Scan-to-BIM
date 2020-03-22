@@ -21,6 +21,8 @@ class DataConfig:
         self.augment_data = True
         self.shuffle = True
         self.repeat = True
+
+        self.augment_data = False
       else:
         self.augment_data = False
         self.shuffle = False
@@ -138,6 +140,7 @@ class BeikePclDataset(VoxelDatasetBase):
     norm_coords = coords - coords_center
     feats = np.concatenate((feats, norm_coords), 1)
     return coords, feats, labels
+
   def _normalization(self, feats):
     feats[:,:3] = feats[:,:3] / 255. - 0.5
     return feats

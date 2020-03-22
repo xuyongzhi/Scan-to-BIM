@@ -64,7 +64,6 @@ def parse_args():
 
 
 def update_config(cfg, args, split):
-    return
     assert split == 'train' or split == 'test'
     if args.config.split('/')[1] != 'strpoints':
       #return
@@ -77,18 +76,21 @@ def update_config(cfg, args, split):
     cls_loss = args.cls
     dcn_zero_base = args.dcn_zero_base
     corner_hm = args.corhm
-    if rotate is not None:
-      assert rotate == 1 or rotate == 0
-      if split == 'train':
-        assert cfg[f'train_pipeline'][4]['type'] == 'RandomRotate'
-        cfg[f'train_pipeline'][4]['rotate_ratio'] *= rotate
-        cfg['data']['train']['pipeline'][4]['rotate_ratio'] *= rotate
-        cfg['data']['val']['pipeline'][4]['rotate_ratio'] *= rotate
-      elif split == 'test':
-        assert cfg['test_pipeline'][2]['transforms'][2]['type'] == 'RandomRotate'
-        cfg['test_pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
-        cfg['data']['test']['pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
-        pass
+
+    dataset  = cfg['DATA']
+    if 'pcl' not in dataset:
+      if rotate is not None:
+        assert rotate == 1 or rotate == 0
+        if split == 'train':
+          assert cfg[f'train_pipeline'][4]['type'] == 'RandomRotate'
+          cfg[f'train_pipeline'][4]['rotate_ratio'] *= rotate
+          cfg['data']['train']['pipeline'][4]['rotate_ratio'] *= rotate
+          cfg['data']['val']['pipeline'][4]['rotate_ratio'] *= rotate
+        elif split == 'test':
+          assert cfg['test_pipeline'][2]['transforms'][2]['type'] == 'RandomRotate'
+          cfg['test_pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
+          cfg['data']['test']['pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
+          pass
 
 
     if lr is not None:
@@ -122,13 +124,16 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += '_' + cfg['DATA']
       cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
       cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
-      if 'rotate_ratio' in cfg['train_pipeline'][4]:
-        if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
-          cfg['work_dir'] += '_NR'
-        else:
-          cfg['work_dir'] += '_RA'
-      if 'method' in cfg['img_norm_cfg']:
-        cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
+
+      if 'pcl' not in dataset:
+        if 'rotate_ratio' in cfg['train_pipeline'][4]:
+          if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
+            cfg['work_dir'] += '_NR'
+          else:
+            cfg['work_dir'] += '_RA'
+        if 'method' in cfg['img_norm_cfg']:
+          cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
+
       if dcn_zero_base:
         cfg['work_dir'] += '_DcnZb'
       if 'corner_hm' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['corner_hm']:
