@@ -71,6 +71,8 @@ class BeikePclDataset(VoxelDatasetBase):
     assert img_prefix in ['train', 'test']
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     self.scene_list = np.loadtxt(os.path.join(self.data_root, img_prefix+'.txt'), 'str').tolist()
+    if isinstance( self.scene_list, str ):
+      self.scene_list = [self.scene_list]
     #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
     phase = img_prefix
     self.data_config = DataConfig(phase)

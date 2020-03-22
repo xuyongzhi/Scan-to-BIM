@@ -1,7 +1,7 @@
 # xyz
 
 #export CUDA_LAUNCH_BLOCKING=1
-export CUDA_VISIBLE_DEVICES=1
+#export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/_strpoints_r50_fpn_1x.py
 CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x.py

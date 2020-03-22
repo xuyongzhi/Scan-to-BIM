@@ -16,7 +16,7 @@ from tools import debug_utils
 import math
 import time
 
-RECORD_T = 1
+RECORD_T = 0
 
 STEM_KERNEL = 3
 

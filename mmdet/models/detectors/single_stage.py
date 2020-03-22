@@ -9,7 +9,7 @@ from .base import BaseDetector
 from tools import debug_utils
 import time
 
-RECORD_T = 1
+RECORD_T = 0
 
 @DETECTORS.register_module
 class SingleStageDetector(BaseDetector):
