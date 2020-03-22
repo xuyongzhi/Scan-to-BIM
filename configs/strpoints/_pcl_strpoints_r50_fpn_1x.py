@@ -211,15 +211,11 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 1
+  batch_size = 2
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 1
   lra = 0.005
-
-if TRAIN_NUM < 10:
-  batch_size = 6
-  lra = 0.05
 
 data = dict(
     imgs_per_gpu=batch_size,
@@ -265,7 +261,7 @@ lr_config = dict(
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.7), int(total_epochs*0.85)])
-checkpoint_config = dict(interval=2)
+checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
     interval=max(TRAIN_NUM//25,1),
@@ -279,13 +275,8 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
 load_from = None
-#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
-#load_from = f'{work_dir}/best.pth'
-#load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_refine_512_VerD_bs1_lr10_RA_Normrawstd/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
 workflow = [('train', 1)]
-if  TRAIN_NUM < 10:
-  workflow = [('train', 1)]
 
