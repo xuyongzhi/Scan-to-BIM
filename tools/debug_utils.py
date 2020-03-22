@@ -42,48 +42,69 @@ def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
 
 
 #-3d------------------------------------------------------------------------------
-def _show_pcd(points_ls, point_feats=None,
-             bboxes_ls=None, b_colors='random'):
-  assert isinstance(points_ls, list)
-  n = len(points_ls)
-  if point_feats is not None:
-    assert isinstance(point_feats, list)
-  else:
-    point_feats = [None] * n
+def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
+             bboxes_ls=None, b_colors='random', box_oriented=False):
+  show_ls = []
+  if points_ls is not None:
+    assert isinstance(points_ls, list)
+    n = len(points_ls)
+    if point_feats is not None:
+      assert isinstance(point_feats, list)
+    else:
+      point_feats = [None] * n
+    for points, feats in zip(points_ls, point_feats):
+      pcd = _make_pcd(points, feats)
+      show_ls.append(pcd)
+
   if bboxes_ls is not None:
     assert isinstance(bboxes_ls, list)
-
-  show_ls = []
-  for points, feats in zip(points_ls, point_feats):
-    pcd = _make_pcd(points, feats)
-    show_ls.append(pcd)
-
-  if bboxes_ls is not None:
-    for bboxes in bboxes_ls:
-      bboxes_o3d = _make_bboxes_o3d(bboxes)
+    if not isinstance(b_colors, list):
+      b_colors = [b_colors] * len(bboxes_ls)
+    for i,bboxes in enumerate(bboxes_ls):
+      bboxes_o3d = _make_bboxes_o3d(bboxes, box_oriented, b_colors[i])
       show_ls = show_ls + bboxes_o3d
 
-  center = points_ls[0].mean(axis=0)
-  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6, origin=center)
+  if points_ls is not None:
+    center = points_ls[0][:,:3].mean(axis=0)
+  else:
+    center = [0,0,0]
+  center = [0,0,0]
+  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 100, origin=center)
   show_ls.append(mesh_frame)
 
   o3d.visualization.draw_geometries( show_ls )
 
-def _make_bboxes_o3d(bboxes):
+def _make_bboxes_o3d(bboxes, box_oriented, color):
   assert bboxes.ndim==2
-  assert bboxes.shape[1] == 6
+  if box_oriented:
+    assert bboxes.shape[1] == 9
+  else:
+    assert bboxes.shape[1] == 6
   bboxes_ = []
-  for bbox in bboxes:
-    bboxes_.append( _make_bbox_o3d(bbox) )
+  for i,bbox in enumerate(bboxes):
+    bboxes_.append( _make_bbox_o3d(bbox, box_oriented, color) )
   return bboxes_
 
-def _make_bbox_o3d(bbox):
+def _make_bbox_o3d(bbox, box_oriented, color):
   assert bbox.ndim==1
-  assert bbox.shape[0] == 6
-  bbox_ = o3d.geometry.AxisAlignedBoundingBox(bbox[:3], bbox[3:6])
+  if not box_oriented:
+    assert bbox.shape[0] == 6
+    bbox_ = o3d.geometry.AxisAlignedBoundingBox(bbox[:3], bbox[3:6])
+  else:
+    assert bbox.shape[0] == 9
+    center = bbox[:3]
+    extent = bbox[3:6]
+    axis_angle = bbox[6:9]
+    R = o3d.geometry.get_rotation_matrix_from_yxz(axis_angle)
+    bbox_ = o3d.geometry.OrientedBoundingBox( center, R, extent )
+  c = _get_color(color)
+  bbox_.color = c
   return bbox_
 
 def _make_pcd(points, feats=None):
+    if points.shape[1] == 6 and feats is None:
+      feats = points[:,3:6]
+      points = points[:,:3]
     assert points.shape[1] == 3
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
@@ -91,7 +112,9 @@ def _make_pcd(points, feats=None):
       assert feats.shape[0] == points.shape[0]
       feats = feats.reshape(points.shape[0], -1)
       if  feats.shape[1] == 3:
-        pcd.colors = o3d.utility.Vector3dVector(feats / 255)
+        if feats.max() > 1:
+          feats = feats / 255
+        pcd.colors = o3d.utility.Vector3dVector(feats)
       elif feats.shape[1] == 1:
         labels = feats
         pcd.colors = o3d.utility.Vector3dVector( label2color(labels) / 255)

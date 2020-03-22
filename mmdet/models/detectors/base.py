@@ -10,6 +10,7 @@ from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from beike_data_utils.line_utils import  optimize_graph
+from utils_dataset.gen_sparse_input import prepare_sparse_input
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -138,7 +139,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         the outer list indicating test time augmentations.
         """
         if 'input_style' in img_meta[0] and img_meta[0]['input_style'] == 'pcl':
-          img = prepare_sparse_input(img)
+          img = prepare_sparse_input(img, img_meta, **kwargs)
         if return_loss:
             return self.forward_train(img, img_meta, **kwargs)
         else:
@@ -418,11 +419,6 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
             pass
 
-def prepare_sparse_input(img):
-  from MinkowskiEngine import SparseTensor
-  coords_batch, feats_batch = img
-  sinput = SparseTensor(feats_batch, coords_batch)
-  return sinput
 
 def draw_key_points(img, key_points, bboxes_s, score_thr,
                     point_color=(0,0,255), thickness=2):

@@ -107,7 +107,9 @@ class BeikePclDataset(VoxelDatasetBase):
                       input_style='pcl',
                       pad_shape=self.voxel_resolution,
                       pcl_scope = anno_raw['pcl_scope'],
-                      line_length_min_mean_max = anno_raw['line_length_min_mean_max'])
+                      line_length_min_mean_max = anno_raw['line_length_min_mean_max'],
+                      voxel_resolution = self.voxel_resolution,
+                      voxel_size = self.VOXEL_SIZE)
 
       img_info = dict(
         img_meta = img_meta,

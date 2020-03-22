@@ -35,6 +35,9 @@ def angle_with_x(vec_start, scope_id=0, debug=0):
   vec_x[:,1:] = 0
   return angle_from_vecs_to_vece(vec_x, vec_start, scope_id, debug)
 
+def angle_with_x_np(vec_start, scope_id):
+  angle = angle_with_x(torch.from_numpy(vec_start), scope_id)
+  return angle.data.numpy()
 
 def sin2theta(vec_start_0, vec_end_0):
   '''
@@ -154,6 +157,8 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
     raise NotImplementedError
   assert not torch.isnan(angle).any()
   return angle
+
+
 
 class OBJ_DEF():
   @staticmethod

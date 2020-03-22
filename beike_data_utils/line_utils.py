@@ -3,7 +3,7 @@ import numpy as np
 import mmcv
 from .geometric_utils import sin2theta_np
 import cv2
-from tools.debug_utils import show_img_with_norm, _show_lines_ls_points_ls
+from tools.debug_utils import show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls
 import torch
 from configs.common import OPT_GRAPH_COR_DIS_THR
 
@@ -410,3 +410,44 @@ def merge_corners(corners_0, scores_0, opt_graph_cor_dis_thr=3):
 
 def round_positions(data, scale=100):
   return np.round(data*scale)/scale
+
+def lines2d_to_bboxes3d(lines, line_obj_rep):
+  '''
+  lines:  [n,5]
+  bboxes: [n,9] [center, size, angle]
+  '''
+  import open3d as o3d
+  from  beike_data_utils.geometric_utils import angle_with_x_np
+  assert line_obj_rep == 'lscope_istopleft'
+  assert lines.ndim == 2
+  assert lines.shape[1] == 5
+
+  n = lines.shape[0]
+  lines_std = decode_line_rep(lines, line_obj_rep).reshape(n,2,2)
+  center2d = lines_std.mean(axis=1)
+  vec_rotation = lines_std[:,0] - center2d
+  z_angles = -angle_with_x_np(vec_rotation, scope_id=0)
+
+  length = np.linalg.norm( lines_std[:,1] - lines_std[:,0] , axis=1)
+
+  center = np.zeros([lines.shape[0], 3], dtype=lines.dtype)
+  center[:,:2] = center2d
+  extent = np.zeros([lines.shape[0], 3], dtype=lines.dtype)
+  extent[:,0] = length
+  extent[:,1] = 2
+  extent[:,2] = 100
+  angles = np.zeros([lines.shape[0], 3], dtype=lines.dtype)
+  angles[:,2] = z_angles
+
+  bboxes3d = np.concatenate([center, extent, angles], axis=1)
+  #_show_3d_points_bboxes_ls(bboxes_ls = [bboxes3d], box_oriented=True)
+  return bboxes3d
+
+  matrixes = []
+  for a in theta:
+    axis_angle = np.array([0,0,a]).reshape([3,1])
+    matrix = o3d.geometry.get_rotation_matrix_from_yxz(axis_angle)
+    matrixes.append( matrix )
+  matrixes = np.array(matrixes)
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
