@@ -411,7 +411,7 @@ def merge_corners(corners_0, scores_0, opt_graph_cor_dis_thr=3):
 def round_positions(data, scale=100):
   return np.round(data*scale)/scale
 
-def lines2d_to_bboxes3d(lines, line_obj_rep):
+def lines2d_to_bboxes3d(lines, line_obj_rep, height=100, thickness=1):
   '''
   lines:  [n,5]
   bboxes: [n,9] [center, size, angle]
@@ -432,10 +432,11 @@ def lines2d_to_bboxes3d(lines, line_obj_rep):
 
   center = np.zeros([lines.shape[0], 3], dtype=lines.dtype)
   center[:,:2] = center2d
+  center[:,2] = height/2
   extent = np.zeros([lines.shape[0], 3], dtype=lines.dtype)
   extent[:,0] = length
-  extent[:,1] = 2
-  extent[:,2] = 100
+  extent[:,1] = thickness
+  extent[:,2] = height
   angles = np.zeros([lines.shape[0], 3], dtype=lines.dtype)
   angles[:,2] = z_angles
 

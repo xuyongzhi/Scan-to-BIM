@@ -78,7 +78,7 @@ class BEIKE:
           if scene_name not in self.scene_list:
             continue
           anno_raw = load_anno_1scene(self.anno_folder, jfn)
-          anno_img = raw_anno_to_img(anno_raw)
+          anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': IMAGE_SIZE}, )
           filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
                       'ann': anno_img,
@@ -422,7 +422,7 @@ class BEIKE:
       line_cat_ids = anno['line_cat_ids']
       #print(f'line_cat_ids: {line_cat_ids}')
 
-      corners, lines = meter_2_pixel(corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
+      corners, lines = meter_2_pixel('topview', {'img_size': IMAGE_SIZE}, corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
 
       if img is None:
         img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
@@ -456,7 +456,7 @@ class BEIKE:
       self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
 
 
-def meter_2_pixel(corners, lines, pcl_scope, floor=False, scene=None):
+def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
   '''
   corners: [n,2]
   lines: [m,2,2]
@@ -464,22 +464,29 @@ def meter_2_pixel(corners, lines, pcl_scope, floor=False, scene=None):
   '''
   assert lines.shape[1:] == (2,2)
   assert pcl_scope.shape == (2,3)
+  assert anno_style in ['topview', 'voxelization']
+  if anno_style == 'topview':
+    img_size = pixel_config['img_size']
+  elif anno_style == 'voxelization':
+    voxel_size = pixel_config['voxel_size']
 
-  if pcl_scope is None:
-    raise NotImplementedError
-    min_xy = corners.min(axis=0)
-    max_xy = corners.max(axis=0)
-  else:
-    min_xy = pcl_scope[0,0:2]
-    max_xy = pcl_scope[1,0:2]
+  min_xy = pcl_scope[0,:2] * 0
+  max_xy = pcl_scope[1,:2] - pcl_scope[0,:2]
 
-  max_range = (max_xy - min_xy).max()
-  padding = max_range * 0.05
-  min_xy = (min_xy + max_xy) / 2 - max_range / 2 - padding
-  max_range += padding * 2
+  if anno_style == 'topview':
+    # leave a bit gap along the boundaries
+    max_range = (max_xy - min_xy).max()
+    padding = max_range * 0.05
+    min_xy = (min_xy + max_xy) / 2 - max_range / 2 - padding
+    max_range += padding * 2
 
-  lines_pt = ((lines - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
-  lines_pt = np.clip(lines_pt, a_min=0, a_max=IMAGE_SIZE-1)
+    lines_pt = ((lines - min_xy) * img_size / max_range).astype(np.float32)
+    lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
+  if anno_style == 'voxelization':
+    # in voxelization of pcl: coords = floor( position / voxel_size)
+    lines_pt = (lines - min_xy) / voxel_size
+    #lines_pt = np.clip(lines_pt, a_min=0, a_max=None)
+
   if floor:
     lines_pt = np.floor(lines_pt).astype(np.uint32)
 
@@ -489,14 +496,17 @@ def meter_2_pixel(corners, lines, pcl_scope, floor=False, scene=None):
   if corners is None:
     corners_pt = None
   else:
-    corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
+    if anno_style == 'topview':
+      corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
+    if anno_style == 'voxelization':
+      corners_pt = (corners - min_xy) / voxel_size
+
     if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
           scene_name = scene.split('.')[0]
           if scene_name not in UNALIGNED_SCENES:
             print(scene)
             print(corners_pt.min())
             print(corners_pt.max())
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
     corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
     if floor:
@@ -505,9 +515,73 @@ def meter_2_pixel(corners, lines, pcl_scope, floor=False, scene=None):
   #assert line_size_pt.min() > 3
   return corners_pt, lines_pt
 
-def raw_anno_to_img(anno_raw):
+def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
+  '''
+  corners: [n,2]
+  lines: [m,2,2]
+  pcl_scope: [2,3]
+  '''
+  assert lines.shape[1:] == (2,2)
+  assert pcl_scope.shape == (2,3)
+  assert anno_style in ['topview', 'voxelization']
+  if anno_style == 'topview':
+    img_size = pixel_config['img_size']
+  elif anno_style == 'voxelization':
+    voxel_size = pixel_config['voxel_size']
+
+  if pcl_scope is None:
+    raise NotImplementedError
+    min_xy = corners.min(axis=0)
+    max_xy = corners.max(axis=0)
+  else:
+    min_xy = pcl_scope[0,0:2]
+    max_xy = pcl_scope[1,0:2]
+
+
+  if anno_style == 'topview':
+    # leave a bit gap along the boundaries
+    max_range = (max_xy - min_xy).max()
+    padding = max_range * 0.05
+    min_xy = (min_xy + max_xy) / 2 - max_range / 2 - padding
+    max_range += padding * 2
+
+    lines_pt = ((lines - min_xy) * img_size / max_range).astype(np.float32)
+    lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
+  if anno_style == 'voxelization':
+    lines_pt = (lines - min_xy - voxel_size / 2) / voxel_size
+    lines_pt = np.clip(lines_pt, a_min=0, a_max=None)
+
+  if floor:
+    lines_pt = np.floor(lines_pt).astype(np.uint32)
+
+  line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
+  line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
+
+  if corners is None:
+    corners_pt = None
+  else:
+    if anno_style == 'topview':
+      corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
+    if anno_style == 'voxelization':
+      corners_pt = (corners - min_xy) / voxel_size
+    if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
+          scene_name = scene.split('.')[0]
+          if scene_name not in UNALIGNED_SCENES:
+            print(scene)
+            print(corners_pt.min())
+            print(corners_pt.max())
+            pass
+    corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
+    if floor:
+      corners_pt = np.floor(corners_pt).astype(np.uint32)
+
+  #assert line_size_pt.min() > 3
+  return corners_pt, lines_pt
+
+def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       anno_img = {}
-      corners_pt, lines_pt = meter_2_pixel(anno_raw['corners'], anno_raw['lines'], pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
+      corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
+                                           pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = encode_line_rep(lines_pt, OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()
@@ -524,7 +598,7 @@ def raw_anno_to_img(anno_raw):
       anno_img['seg_map'] = None
       bboxes = anno_img['bboxes'][:,:4]
       assert bboxes.max() < IMAGE_SIZE
-      assert bboxes.min() >= 0
+      #assert bboxes.min() >= 0
       return anno_img
 
 
@@ -535,6 +609,11 @@ def load_pcl_scope(anno_folder):
       pcl_scopes = json.load(f)
     for fid in pcl_scopes.keys():
       pcl_scopes[fid] = np.array(pcl_scopes[fid])
+      # augment the scope a bit
+
+      #offset_aug = 0.1
+      #pcl_scopes[fid][0] = np.floor(pcl_scopes[fid][0] * 10)/10 - offset_aug
+      #pcl_scopes[fid][1] = np.ceil(pcl_scopes[fid][1] * 10)/10 + offset_aug
     return pcl_scopes
 
 def load_anno_1scene(anno_folder, filename):
@@ -629,6 +708,14 @@ def load_anno_1scene(anno_folder, filename):
 
       pcl_scopes_all = load_pcl_scope(anno_folder)
       anno['pcl_scope'] = pcl_scopes_all[filename.split('.')[0]]
+
+      # normalize zero
+      pcl_scope = anno['pcl_scope']
+      anno['corners'] = anno['corners'] - pcl_scope[0:1,:2:]
+      anno['lines'] = anno['lines'] - pcl_scope[0:1,None,:2:]
+      assert anno['corners'].min() > -0.1 and anno['corners'].min() < 0.2
+      assert anno['lines'].min() > -0.1 and anno['lines'].min() < 0.2
+      assert all(anno['lines'].max(axis=0).max(axis=0) <  pcl_scope[1,:2] - pcl_scope[0,:2]) + 0.1
       return anno
 
 def load_gt_lines_bk(img_meta, img):

@@ -5,6 +5,7 @@ import numpy as np
 import glob
 import os
 from collections import defaultdict
+from tools.debug_utils import _show_3d_points_bboxes_ls
 
 class DataConfig:
     return_transformation=False
@@ -47,7 +48,7 @@ class BeikePclDataset(VoxelDatasetBase):
   NUM_LABELS = len(CLASSES)
   IGNORE_LABELS = None
 
-  CLIP_BOUND = 4  # [-N, N]
+  CLIP_BOUND = None
   TEST_CLIP_BOUND = None
 
   # Augmentation arguments
@@ -69,6 +70,12 @@ class BeikePclDataset(VoxelDatasetBase):
     self.VOXEL_SIZE = voxel_size
     self.voxel_resolution = voxel_resolution
     assert img_prefix in ['train', 'test']
+
+    bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
+    clip_bound = ((-bdx, bdx), (-bdy, bdy), (-bdz, bdz))
+    self.CLIP_BOUND = clip_bound
+
+
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     self.scene_list = np.loadtxt(os.path.join(self.data_root, img_prefix+'.txt'), 'str').tolist()
     if isinstance( self.scene_list, str ):
@@ -100,9 +107,11 @@ class BeikePclDataset(VoxelDatasetBase):
 
     n = len(self.data_paths)
     self.img_infos = []
+    self.anno_raws = []
     for i in range(n):
       anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i])
-      anno_2d = raw_anno_to_img(anno_raw)
+      self.anno_raws.append(anno_raw)
+      anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
       img_meta = dict(filename = anno_raw['filename'],
                       input_style='pcl',
                       pad_shape=self.voxel_resolution,
@@ -133,8 +142,20 @@ class BeikePclDataset(VoxelDatasetBase):
     plydata = PlyData.read(filepath)
     points = np.array(plydata['vertex'].data.tolist()).astype(np.float32)
     assert points.shape[1] == 9
+
+    pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
+    points[:,:3] = points[:,:3] - pcl_scope[0:1]
+    assert points[:,:3].min() >= 0
+
     coords = points[:,:3]
     feats = points[:,3:9]
+
+    if 0:
+      gt_bboxes = self.img_infos[index]['gt_bboxes'] * self.VOXEL_SIZE
+      from configs.common import OBJ_REP
+      from beike_data_utils.line_utils import lines2d_to_bboxes3d
+      bboxes3d = lines2d_to_bboxes3d(gt_bboxes, OBJ_REP, height=2.5, thickness=0.1)
+      _show_3d_points_bboxes_ls([coords], [feats[:,:3]], [bboxes3d], b_colors = 'red', box_oriented=True)
     return coords, feats, None, None
 
   def _augment_coords_to_feats(self, coords, feats, labels=None):

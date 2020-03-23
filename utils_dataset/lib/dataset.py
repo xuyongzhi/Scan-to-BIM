@@ -15,6 +15,7 @@ from plyfile import PlyData
 from . import transforms as t
 from .dataloader import InfSampler
 from .voxelizer import Voxelizer
+from tools.debug_utils import _show_3d_points_bboxes_ls
 
 
 class DatasetPhase(Enum):
@@ -276,9 +277,12 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if self.prevoxel_transform is not None:
       coords, feats, labels = self.prevoxel_transform(coords, feats, labels)
 
+    #_show_3d_points_bboxes_ls([coords])
+    #coords_raw = coords.copy()
     coords, feats, labels, transformation = self.voxelizer.voxelize(
         coords, feats, labels, center=center)
 
+    #_show_3d_points_bboxes_ls([coords])
     # map labels not used for evaluation to ignore_label
     if self.input_transform is not None:
       coords, feats, labels = self.input_transform(coords, feats, labels)

@@ -69,8 +69,8 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
   else:
     center = [0,0,0]
   center = [0,0,0]
-  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 100, origin=center)
-  show_ls.append(mesh_frame)
+  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 1, origin=center)
+  #show_ls.append(mesh_frame)
 
   o3d.visualization.draw_geometries( show_ls )
 
