@@ -526,13 +526,12 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
       corners_pt = (corners - min_xy) / voxel_size
 
     if not( corners_pt.min() > -PCL_LINE_BOUND_PIXEL and corners_pt.max() < IMAGE_SIZE+PCL_LINE_BOUND_PIXEL ):
-          scene_name = scene.split('.')[0]
-          if scene_name not in UNALIGNED_SCENES:
-            print('meter_2_pixel corner scope error', scene)
-            print(corners_pt.min())
-            print(corners_pt.max())
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
-            pass
+        scene_name = scene.split('.')[0]
+        print('meter_2_pixel corner scope error', scene)
+        print(corners_pt.min())
+        print(corners_pt.max())
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
     corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
@@ -746,6 +745,8 @@ def load_anno_1scene(anno_folder, filename):
       scene_name = filename.split('.json')[0]
 
       anno['lines'] = fix_1_unaligned_scene(scene_name, anno['lines'], scene_size, 'std_2p')
+      tmp = np.repeat( anno['corners'][:,None,:], 2, axis=1 )
+      anno['corners'] = fix_1_unaligned_scene(scene_name, tmp, scene_size, 'std_2p')[:,0,:]
 
       if 0:
         if not( anno['corners'].min() > -PCL_LINE_BOUND_METER and anno['corners'].min() < 1 ):

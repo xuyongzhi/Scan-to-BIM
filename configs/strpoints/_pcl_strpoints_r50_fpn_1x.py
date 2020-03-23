@@ -211,7 +211,7 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 2
+  batch_size = 5
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 1
