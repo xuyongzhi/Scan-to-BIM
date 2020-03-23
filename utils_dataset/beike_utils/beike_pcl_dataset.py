@@ -7,6 +7,8 @@ import os
 from collections import defaultdict
 from tools.debug_utils import _show_3d_points_bboxes_ls
 
+DEBUG_INPUT = 0
+
 class DataConfig:
     return_transformation=False
     data_aug_color_trans_ratio=0.05
@@ -78,6 +80,12 @@ class BeikePclDataset(VoxelDatasetBase):
 
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     self.scene_list = np.loadtxt(os.path.join(self.data_root, img_prefix+'.txt'), 'str').tolist()
+
+    #self.scene_list = ['wcSLwyAKZafnozTPsaQMyv']
+
+    if not isinstance(self.scene_list, list):
+      self.scene_list = [self.scene_list]
+    self.scene_list = sorted(self.scene_list)
     if isinstance( self.scene_list, str ):
       self.scene_list = [self.scene_list]
     #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
@@ -99,10 +107,11 @@ class BeikePclDataset(VoxelDatasetBase):
     '''
     from beike_data_utils.beike_utils import load_anno_1scene, raw_anno_to_img
 
-    data_paths = glob.glob(os.path.join(self.data_root, "ply/*.ply"))
-    data_paths.sort()
-    data_paths = [p for p in data_paths if os.path.basename(p).split('.')[0]  in self.scene_list]
-    self.data_paths = [p.split(self.data_root)[1] for p in data_paths]
+    dpaths = [f'ply/{s}.ply' for s in self.scene_list]
+    self.data_paths = []
+    for p in dpaths:
+      if os.path.exists( os.path.join(self.data_root,p) ):
+        self.data_paths.append( p )
     self.ann_files = [s+'.json' for s in self.scene_list]
 
     n = len(self.data_paths)
@@ -145,17 +154,21 @@ class BeikePclDataset(VoxelDatasetBase):
 
     pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
     points[:,:3] = points[:,:3] - pcl_scope[0:1]
-    assert points[:,:3].min() >= 0
+    if not abs(points[:,:3].min()) < 0.1:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
     coords = points[:,:3]
     feats = points[:,3:9]
 
-    if 0:
+    if DEBUG_INPUT:
       gt_bboxes = self.img_infos[index]['gt_bboxes'] * self.VOXEL_SIZE
       from configs.common import OBJ_REP
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
       bboxes3d = lines2d_to_bboxes3d(gt_bboxes, OBJ_REP, height=2.5, thickness=0.1)
+      print(filepath)
       _show_3d_points_bboxes_ls([coords], [feats[:,:3]], [bboxes3d], b_colors = 'red', box_oriented=True)
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
     return coords, feats, None, None
 
   def _augment_coords_to_feats(self, coords, feats, labels=None):

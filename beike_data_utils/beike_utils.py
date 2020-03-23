@@ -20,35 +20,53 @@ from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, trans
 from tools.debug_utils import get_random_color, show_img_with_norm, _show_lines_ls_points_ls
 np.set_printoptions(precision=3, suppress=True)
 
+
+PCL_LINE_BOUND_METER = 1
+PCL_LINE_BOUND_PIXEL = PCL_LINE_BOUND_METER / 0.04
+
 #LOAD_CLASSES = ['wall', 'window', 'door']
 LOAD_CLASSES = ['wall']
 
 DEBUG = True
-UNALIGNED_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y',
-                    'B9Abt6B78a0j2eRcygHjqC', 'Akkq4Ch_48pVUAum3ooSnK',
-                    'w2BaBfwjX0iN2cMjvpUNfa', 'yY5OzetjnLred7G8oOzZr1',
-                    'wIGxjDDGkPk3udZW4vo-ic', ]
+#UNALIGNED_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y',
+#                    'B9Abt6B78a0j2eRcygHjqC', 'Akkq4Ch_48pVUAum3ooSnK',
+#                    'w2BaBfwjX0iN2cMjvpUNfa', 'yY5OzetjnLred7G8oOzZr1',
+#                    'wIGxjDDGkPk3udZW4vo-ic', 'vZIjhovtYde9e2qUjMzvz3']
 gt_out_pcl = ['vZIjhovtYde9e2qUjMzvz3', 'pMh3-KweDzzp_b_HI11eMA',
               'vYlCbx-H_v_uvacuiMq0no']
 lost_gt_scenes = ['vYlCbx-H_v_uvacuiMq0no']
 #BAD_SCENES = ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y','B9Abt6B78a0j2eRcygHjqC']
 BAD_SCENES = []
-WRITE_ANNO_IMG = 0
+WRITE_ANNO_IMG = 1
 
-BAD_SCENE_TRANSFERS_1024 = {'7w6zvVsOBAQK4h4Bne7caQ': (-44,-208,-153),
-                            'IDZkUGse-74FIy2OqM2u_Y': (30,-97,58),
-                            'B9Abt6B78a0j2eRcygHjqC': (44,-52,93),
-                            'Akkq4Ch_48pVUAum3ooSnK': (2,9,0),
-                            'w2BaBfwjX0iN2cMjvpUNfa': (2,10,3),
-                            'yY5OzetjnLred7G8oOzZr1': (-2,-7,0),
-                            'wIGxjDDGkPk3udZW4vo-ic': (-1,7,5),
-                            'vZIjhovtYde9e2qUjMzvz3': (-1, 5, 0)}
+#BAD_SCENE_TRANSFERS_1024 = {'7w6zvVsOBAQK4h4Bne7caQ': (-44,-208,-153),
+#                            'IDZkUGse-74FIy2OqM2u_Y': (30,-97,58),
+#                            'B9Abt6B78a0j2eRcygHjqC': (44,-52,93),
+#                            'Akkq4Ch_48pVUAum3ooSnK': (2,9,0),
+#                            'w2BaBfwjX0iN2cMjvpUNfa': (2,10,3),
+#                            'yY5OzetjnLred7G8oOzZr1': (-2,-7,0),
+#                            'wIGxjDDGkPk3udZW4vo-ic': (-1,7,5),
+#                            'vZIjhovtYde9e2qUjMzvz3': (-1, 5, 0)}
+#
+
+BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159 - 0.5),
+                            'IDZkUGse-74FIy2OqM2u_Y': (30, -0.788 - 0.45, 0.681 + 0.08),
+                            'B9Abt6B78a0j2eRcygHjqC': (44, -0.521 + 0.1, 0.928 + 0.1),
+                            'Akkq4Ch_48pVUAum3ooSnK': (2.5, 0.108, 0.000),
+                            'w2BaBfwjX0iN2cMjvpUNfa': (2, 0.110, 0.028+0.05),
+                            'yY5OzetjnLred7G8oOzZr1': (-2, -0.108, 0.000),
+                            'wIGxjDDGkPk3udZW4vo-ic': (-1, 0.074, 0.048),
+                            'vZIjhovtYde9e2qUjMzvz3': (-1, 0.078, 0.000),
+                            'wcSLwyAKZafnozTPsaQMyv': (-1,-0.1,-0.05),
+                            }
+
 
 class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
     _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
-    def __init__(self, anno_folder='data/beike100/json/', img_prefix=None, test_mode=False):
+    def __init__(self, anno_folder='data/beike/processed_512/json/',
+                 img_prefix='data/beike/processed_512/TopView_VerD', test_mode=False):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
         if test_mode:
@@ -56,6 +74,10 @@ class BEIKE:
         else:
           split_file = os.path.join(img_prefix, 'train.txt')
         self.scene_list = np.loadtxt(split_file,str).tolist()
+
+        #self.scene_list = [*BAD_SCENE_TRANSFERS_1024.keys()]
+        #self.scene_list = ['wcSLwyAKZafnozTPsaQMyv']
+
         self.img_prefix = img_prefix
         self.is_pcl = os.path.basename(self.img_prefix) == 'ply'
         data_format = '.ply' if self.is_pcl else '.npy'
@@ -91,7 +113,7 @@ class BEIKE:
         print(f'min line size: {self.all_min_line_sizes.min()}')
 
         self.rm_bad_scenes()
-        self.fix_unaligned_scenes()
+        #self.fix_unaligned_scenes()
         #if self.img_prefix is not None:
         #  self.rm_anno_withno_data()
 
@@ -102,12 +124,12 @@ class BEIKE:
             self.show_anno_img(i, with_img=1)
 
 
-    def fix_unaligned_scenes(self):
+    def unused_fix_unaligned_scenes(self):
       n0 = len(self.img_infos)
       for i in range(n0):
         sn = self.img_infos[i]['filename'].split('.')[0]
         self.img_infos[i]['ann']['bboxes'] = fix_1_unaligned_scene(sn, \
-                                self.img_infos[i]['ann']['bboxes'])
+                                self.img_infos[i]['ann']['bboxes'], IMAGE_SIZE)
 
     def rm_bad_scenes(self):
       valid_ids = []
@@ -328,6 +350,7 @@ class BEIKE:
         img = (IMAGE_SIZE, IMAGE_SIZE)
       else:
         img = self.load_data(scene_name)[:,:,0]
+        img = img *10
 
 
       if (np.array(lines_transfer) != 0).any():
@@ -344,7 +367,7 @@ class BEIKE:
         anno_img_file = None
       _show_lines_ls_points_ls(img, [bboxes], [corners],
                                line_colors='random', point_colors='random',
-                               line_thickness=2, point_thickness=2,
+                               line_thickness=1, point_thickness=1,
                                out_file=anno_img_file, only_save=1)
       return img
       #show_img_with_norm(img)
@@ -422,7 +445,7 @@ class BEIKE:
       line_cat_ids = anno['line_cat_ids']
       #print(f'line_cat_ids: {line_cat_ids}')
 
-      corners, lines = meter_2_pixel('topview', {'img_size': IMAGE_SIZE}, corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
+      corners, lines, _ = meter_2_pixel('topview', {'img_size': IMAGE_SIZE}, corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
 
       if img is None:
         img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
@@ -484,6 +507,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
   if anno_style == 'voxelization':
     # in voxelization of pcl: coords = floor( position / voxel_size)
+    img_size = max_xy / voxel_size
     lines_pt = (lines - min_xy) / voxel_size
     #lines_pt = np.clip(lines_pt, a_min=0, a_max=None)
 
@@ -501,19 +525,20 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     if anno_style == 'voxelization':
       corners_pt = (corners - min_xy) / voxel_size
 
-    if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
+    if not( corners_pt.min() > -PCL_LINE_BOUND_PIXEL and corners_pt.max() < IMAGE_SIZE+PCL_LINE_BOUND_PIXEL ):
           scene_name = scene.split('.')[0]
           if scene_name not in UNALIGNED_SCENES:
-            print(scene)
+            print('meter_2_pixel corner scope error', scene)
             print(corners_pt.min())
             print(corners_pt.max())
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
     corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
 
   #assert line_size_pt.min() > 3
-  return corners_pt, lines_pt
+  return corners_pt, lines_pt, img_size
 
 def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
   '''
@@ -580,7 +605,7 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
 
 def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       anno_img = {}
-      corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
+      corners_pt, lines_pt, img_size = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
                                            pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = encode_line_rep(lines_pt, OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
@@ -589,6 +614,7 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
 
       anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
+      anno_img['raw_img_size'] = img_size
 
       anno_img['min_line_size'] = min_line_size
 
@@ -713,18 +739,27 @@ def load_anno_1scene(anno_folder, filename):
       pcl_scope = anno['pcl_scope']
       anno['corners'] = anno['corners'] - pcl_scope[0:1,:2:]
       anno['lines'] = anno['lines'] - pcl_scope[0:1,None,:2:]
-      if not( anno['corners'].min() > -0.1 and anno['corners'].min() < 0.2 ):
-        print(anno['corners'].min())
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        pass
-      if not (anno['lines'].min() > -0.1 and anno['lines'].min() < 0.2):
-        print(  anno['lines'].min() )
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        pass
-      if not (all(anno['lines'].max(axis=0).max(axis=0) <  pcl_scope[1,:2] - pcl_scope[0,:2]) + 0.1):
-        print(  anno['lines'].max(axis=0).max(axis=0) )
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        pass
+
+      # fix unaligned
+      scene_size =  anno['pcl_scope'][1,:2] -  anno['pcl_scope'][0,:2]
+      scene_size = scene_size[[1,0]]
+      scene_name = filename.split('.json')[0]
+
+      anno['lines'] = fix_1_unaligned_scene(scene_name, anno['lines'], scene_size, 'std_2p')
+
+      if 0:
+        if not( anno['corners'].min() > -PCL_LINE_BOUND_METER and anno['corners'].min() < 1 ):
+          print(anno['corners'].min())
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+        if not (anno['lines'].min() > -PCL_LINE_BOUND_METER and anno['lines'].min() < 1):
+          print(  anno['lines'].min() )
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+        if not (all(anno['lines'].max(axis=0).max(axis=0) <  pcl_scope[1,:2] - pcl_scope[0,:2]) + 0.1):
+          print(  anno['lines'].max(axis=0).max(axis=0) )
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
       return anno
 
 def load_gt_lines_bk(img_meta, img):
@@ -737,7 +772,8 @@ def load_gt_lines_bk(img_meta, img):
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json')
   anno_img = raw_anno_to_img(anno_raw)
   lines0 = anno_img['bboxes']
-  lines = fix_1_unaligned_scene(scene_name, lines0)
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  lines = fix_1_unaligned_scene(scene_name, lines0, IMAGE_SIZE, OBJ_REP)
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']
     #show_img_lines(img[:,:,:3], lines)
@@ -747,12 +783,23 @@ def load_gt_lines_bk(img_meta, img):
   else:
     return lines
 
-def fix_1_unaligned_scene(scene_name, lines_unaligned):
-    if scene_name in UNALIGNED_SCENES:
-      angle, cx, cy = BAD_SCENE_TRANSFERS_1024[scene_name]
-      scale = IMAGE_SIZE / 1024.0
-      lines_aligned = transfer_lines( lines_unaligned, OBJ_REP,
-        (IMAGE_SIZE, IMAGE_SIZE), angle, (cx*scale, cy*scale))
+def fix_1_unaligned_scene(scene_name, lines_unaligned, image_size, line_obj_rep):
+    '''
+    lines_unaligned: [n,5]
+    '''
+    if scene_name in BAD_SCENE_TRANSFERS_PCL:
+      #angle, cx, cy = BAD_SCENE_TRANSFERS_1024[scene_name]
+      #if not isinstance(image_size, np.ndarray):
+      #  image_size = np.array([image_size, image_size])
+      #scale = image_size / 1024.0
+      #cx = cx * scale[0]
+      #cy = cy * scale[1]
+      #print(scene_name, f'\t({angle}, {cx:.3f}, {cy:.3f})')
+
+      angle, cx, cy = BAD_SCENE_TRANSFERS_PCL[scene_name]
+      lines_aligned = transfer_lines( lines_unaligned, line_obj_rep,
+        image_size, angle, (cx, cy) )
+      pass
     else:
       lines_aligned = lines_unaligned
     return lines_aligned
@@ -908,15 +955,14 @@ def gen_images_from_npy(data_path):
 
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
-  topview_path = os.path.join(data_path, 'TopView_VerD/test')
+  topview_path = os.path.join(data_path, 'TopView_VerD')
 
   scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
-  scenes = UNALIGNED_SCENES
 
   beike = BEIKE(ANNO_PATH, topview_path)
 
-  for s in scenes:
-    beike.show_scene_anno(s, True, 0)
+  #for s in scenes:
+  #  beike.show_scene_anno(s, True, 0)
 
 
   #for s in UNALIGNED_SCENES:

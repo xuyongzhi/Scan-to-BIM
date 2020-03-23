@@ -40,6 +40,7 @@
 - vox_resnet weight init not implemented
 - group norm for vox_resnet not implemented
 - When workers_per_gpu=0, rotate test doest not work.
+- There are some bad annotations, such as fully occuled, circule walls    
 
 
 # Debug

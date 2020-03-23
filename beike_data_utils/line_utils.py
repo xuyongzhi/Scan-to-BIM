@@ -17,7 +17,7 @@ def encode_line_rep(lines, obj_rep):
 
   Used in mmdet/datasets/pipelines/transforms.py /RandomLineFlip/line_flip
   '''
-  assert obj_rep in ['close_to_zero', 'box_scope', 'line_scope', 'lscope_istopleft']
+  assert obj_rep in ['std_2p' ,'close_to_zero', 'box_scope', 'line_scope', 'lscope_istopleft']
   if lines.ndim == 2:
     assert lines.shape[1] == 4
     lines = lines.copy().reshape(-1,2,2)
@@ -26,7 +26,9 @@ def encode_line_rep(lines, obj_rep):
     assert lines.shape[1] == 2
     assert lines.shape[2] == 2
 
-  if obj_rep == 'close_to_zero':
+  if obj_rep == 'std_2p':
+    lines_out = lines
+  elif obj_rep == 'close_to_zero':
       # the point with smaller x^2 + y^2 is the first one
       flag = np.linalg.norm(lines, axis=-1)
       swap = (flag[:,1] - flag[:,0]) < 0
@@ -71,19 +73,23 @@ def decode_line_rep(lines, obj_rep):
   The input lines are in representation of obj_rep.
   The outout is standard lines in two end-points.
   '''
-  assert obj_rep in ['close_to_zero', 'box_scope', 'line_scope',\
+  assert obj_rep in ['std_2p','close_to_zero', 'box_scope', 'line_scope',\
                      'lscope_istopleft']
-  assert lines.ndim == 2
   if lines.shape[0] == 0:
     return lines
-  if obj_rep == 'lscope_istopleft':
+  if obj_rep == 'std_2p':
+    assert lines.ndim == 3
+    assert lines.shape[1:] == (2,2)
+    std_lines = lines
+  elif obj_rep == 'lscope_istopleft':
+    assert lines.ndim == 2
     assert lines.shape[1] == 5
     istopleft = (lines[:,4:5] >= 0).astype(lines.dtype)
-    end_pts = lines[:,:4] * istopleft +  lines[:,[0,3,2,1]] * (1-istopleft)
+    std_lines = lines[:,:4] * istopleft +  lines[:,[0,3,2,1]] * (1-istopleft)
   else:
     raise NotImplemented
   pass
-  return end_pts
+  return std_lines
 
 def decode_line_rep_th(lines, obj_rep):
   '''
@@ -141,13 +147,14 @@ def add_cross_in_lines(lines, img_shape):
 
 def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   '''
+  lines: [n,5]
   angle: clock-wise is positive
   '''
   scale = 1
   h, w = img_shape
-  assert h%2 == 0
-  assert w%2 == 0
-  center = ((w - 1) * 0.5, (h - 1) * 0.5 )
+  #assert h%2 == 0
+  #assert w%2 == 0
+  center = ((w - 0) * 0.5, (h - 0) * 0.5 )
   matrix = cv2.getRotationMatrix2D(center, -angle, scale)
   n = lines.shape[0]
 

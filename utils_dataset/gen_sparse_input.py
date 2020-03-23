@@ -20,20 +20,18 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None):
     lines2d = gt_bboxes[0].cpu().data.numpy()
     from beike_data_utils.line_utils import lines2d_to_bboxes3d
     from configs.common import OBJ_REP
-    bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=60, thickness=1)
-
-    #bboxes3d = bboxes3d_pixel * voxel_size
-    #bboxes3d[:,6:9] = bboxes3d_pixel[:,6:9]
+    bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=80, thickness=1)
 
     min_points = points.min(axis=0)
     max_points = points.max(axis=0)
     min_lines = lines2d[:,:4].min(axis=0)
     max_lines = lines2d[:,:4].max(axis=0)
+    print(img_meta[0]['filename'])
     print(f'points scope: {min_points} - {max_points}')
     print(f'lines scope: {min_lines} - {max_lines}')
 
     _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
                 b_colors = 'red', box_oriented=True)
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
   return sinput
 
