@@ -192,6 +192,7 @@ def parse_args():
     parser.add_argument('--bs', type=int, default=None)
     parser.add_argument('--cls', type=str, default=None)
     parser.add_argument('--dcn_zero_base', type=int, default=None)
+    parser.add_argument('--base_plane', type=int, default=64)
     parser.add_argument('--corhm', type=int, default=None,
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
     args = parser.parse_args()

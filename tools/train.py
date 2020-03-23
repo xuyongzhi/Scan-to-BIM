@@ -55,6 +55,7 @@ def parse_args():
     parser.add_argument('--bs', type=int, default=None)
     parser.add_argument('--cls', type=str, default=None, help='refine, refine_final')
     parser.add_argument('--dcn_zero_base', type=int, default=None)
+    parser.add_argument('--base_plane', type=int, default=64)
     parser.add_argument('--corhm', type=int, default=None,
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
     args = parser.parse_args()
@@ -76,6 +77,7 @@ def update_config(cfg, args, split):
     cls_loss = args.cls
     dcn_zero_base = args.dcn_zero_base
     corner_hm = args.corhm
+    base_plane = args.base_plane
 
     dataset  = cfg['DATA']
     if 'pcl' not in dataset:
@@ -92,6 +94,11 @@ def update_config(cfg, args, split):
           cfg['data']['test']['pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
           pass
 
+
+    bbp = cfg['model']['backbone']['basic_planes']
+    cfg['model']['backbone']['basic_planes'] = base_plane
+    ccc = [c/bbp for c in cfg['model']['neck']['in_channels']]
+    cfg['model']['neck']['in_channels'] = [int(c * base_plane) for c in ccc]
 
     if lr is not None:
       cfg['optimizer']['lr'] = lr
@@ -162,6 +169,8 @@ def update_config(cfg, args, split):
       # point base scale
       base_scale=cfg['model']['bbox_head']['point_base_scale']
       cfg['work_dir'] += f'_Pbs{base_scale}'
+
+      cfg['work_dir'] += f'_Bp{base_plane}'
 
 
       # backup config

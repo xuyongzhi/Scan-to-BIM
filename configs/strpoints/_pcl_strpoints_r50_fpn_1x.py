@@ -254,14 +254,14 @@ if 'pcl' in DATA:
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 800
+total_epochs = 600
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.7), int(total_epochs*0.85)])
-checkpoint_config = dict(interval=20)
+checkpoint_config = dict(interval=10)
 # yapf:disable
 log_config = dict(
     interval=max(TRAIN_NUM//25,1),
