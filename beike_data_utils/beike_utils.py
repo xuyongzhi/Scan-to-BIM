@@ -713,9 +713,18 @@ def load_anno_1scene(anno_folder, filename):
       pcl_scope = anno['pcl_scope']
       anno['corners'] = anno['corners'] - pcl_scope[0:1,:2:]
       anno['lines'] = anno['lines'] - pcl_scope[0:1,None,:2:]
-      assert anno['corners'].min() > -0.1 and anno['corners'].min() < 0.2
-      assert anno['lines'].min() > -0.1 and anno['lines'].min() < 0.2
-      assert all(anno['lines'].max(axis=0).max(axis=0) <  pcl_scope[1,:2] - pcl_scope[0,:2]) + 0.1
+      if not( anno['corners'].min() > -0.1 and anno['corners'].min() < 0.2 ):
+        print(anno['corners'].min())
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+      if not (anno['lines'].min() > -0.1 and anno['lines'].min() < 0.2):
+        print(  anno['lines'].min() )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+      if not (all(anno['lines'].max(axis=0).max(axis=0) <  pcl_scope[1,:2] - pcl_scope[0,:2]) + 0.1):
+        print(  anno['lines'].max(axis=0).max(axis=0) )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
       return anno
 
 def load_gt_lines_bk(img_meta, img):
