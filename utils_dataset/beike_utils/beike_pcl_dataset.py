@@ -66,9 +66,12 @@ class BeikePclDataset(VoxelDatasetBase):
                ann_file='data/beike/processed_512/',
                pipeline=None,
                img_prefix='train',
+               test_mode=False,
                voxel_size=0.05,
                voxel_resolution=[512,512,256]):
     self.data_root = ann_file
+    self.test_mode = test_mode
+    print(test_mode)
     self.VOXEL_SIZE = voxel_size
     self.voxel_resolution = voxel_resolution
     assert img_prefix in ['train', 'test']
@@ -127,13 +130,15 @@ class BeikePclDataset(VoxelDatasetBase):
                       pcl_scope = anno_raw['pcl_scope'],
                       line_length_min_mean_max = anno_raw['line_length_min_mean_max'],
                       voxel_resolution = self.voxel_resolution,
-                      voxel_size = self.VOXEL_SIZE)
+                      voxel_size = self.VOXEL_SIZE,
+                      img_shape = self.voxel_resolution[:2]+[3,],
+                      scale_factor = 1)
 
       img_info = dict(
-        img_meta = img_meta,
-        gt_bboxes = anno_2d['bboxes'],
-        gt_labels = anno_2d['labels']
-      )
+        img_meta = img_meta,)
+      if not self.test_mode:
+        img_infos['gt_bboxes'] = anno_2d['bboxes'],
+        img_infos['gt_labels'] = anno_2d['labels']
       self.img_infos.append(img_info)
 
     pcl_scopes = np.array([x['img_meta']['pcl_scope'] for x in self.img_infos])

@@ -173,45 +173,46 @@ img_norm_cfg = dict(
 
 
 if 'pcl' not in DATA:
-  train_pipeline = [
-      dict(type='LoadTopviewFromFile'),
-      dict(type='LoadAnnotations', with_bbox=True),
-      dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
-      dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
-      dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
-      dict(type='NormalizeTopview', **img_norm_cfg),
-      dict(type='Pad', size_divisor=32),
-      dict(type='DefaultFormatBundle'),
-      dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
-  ]
+    train_pipeline = [
+        dict(type='LoadTopviewFromFile'),
+        dict(type='LoadAnnotations', with_bbox=True),
+        dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
+        dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
+        dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
+        dict(type='NormalizeTopview', **img_norm_cfg),
+        dict(type='Pad', size_divisor=32),
+        dict(type='DefaultFormatBundle'),
+        dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+    ]
+    test_pipeline = [
+        dict(type='LoadTopviewFromFile'),
+        dict(type='LoadAnnotations', with_bbox=True),
+        dict(
+            type='MultiScaleFlipAug',
+            img_scale=(512,512),
+            flip=False,
+            transforms=[
+                dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
+                dict(type='RandomLineFlip', obj_rep=_obj_rep),
+                dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
+                dict(type='NormalizeTopview', **img_norm_cfg),
+                dict(type='Pad', size_divisor=32),
+                dict(type='ImageToTensor', keys=['img']),
+                dict(type='Collect', keys=['img']),
+            ])
+    ]
 else:
-  train_pipeline = [
-      dict(type='LoadPclFromFile', pre_sample=262144, dataset=DATA),
-      dict(type='LoadAnnotations', with_bbox=True),
-      dict(type='AugPcl'),
-      dict(type='DefaultFormatBundle'),
-      dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
-  ]
+    train_pipeline = [
+        dict(type='LoadPclFromFile', pre_sample=262144, dataset=DATA),
+        dict(type='LoadAnnotations', with_bbox=True),
+        dict(type='AugPcl'),
+        dict(type='DefaultFormatBundle'),
+        dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+    ]
+    test_pipeline = train_pipeline
 
-test_pipeline = [
-    dict(type='LoadTopviewFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True),
-    dict(
-        type='MultiScaleFlipAug',
-        img_scale=(512,512),
-        flip=False,
-        transforms=[
-            dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
-            dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
-            dict(type='NormalizeTopview', **img_norm_cfg),
-            dict(type='Pad', size_divisor=32),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img']),
-        ])
-]
 if IMAGE_SIZE == 512:
-  batch_size = 5
+  batch_size = 4
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 1
@@ -219,7 +220,7 @@ if IMAGE_SIZE == 1024:
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=3,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -254,7 +255,7 @@ if 'pcl' in DATA:
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 600
+total_epochs = 610
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -264,7 +265,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=10)
 # yapf:disable
 log_config = dict(
-    interval=max(TRAIN_NUM//25,1),
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
@@ -278,5 +279,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-workflow = [('train', 1)]
+#workflow = [('train', 1)]
 

@@ -5,6 +5,7 @@ import numpy as np
 import pycocotools.mask as maskUtils
 import torch.nn as nn
 import os
+import torch
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
@@ -120,8 +121,9 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 'num of augmentations ({}) != num of image meta ({})'.format(
                     len(imgs), len(img_metas)))
         # TODO: remove the restriction of imgs_per_gpu == 1 when prepared
-        imgs_per_gpu = imgs[0].size(0)
-        assert imgs_per_gpu == 1
+        if isinstance(imgs[0], torch.Tensor):
+          imgs_per_gpu = imgs[0].size(0)
+          assert imgs_per_gpu == 1
 
         if num_augs == 1:
             return self.simple_test(imgs[0], img_metas[0], **kwargs)
@@ -140,6 +142,9 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         """
         if 'input_style' in img_meta[0] and img_meta[0]['input_style'] == 'pcl':
           img = prepare_sparse_input(img, img_meta, **kwargs)
+          if not return_loss:
+            img = [img]
+            img_meta = [img_meta]
         if return_loss:
             return self.forward_train(img, img_meta, **kwargs)
         else:
@@ -214,9 +219,16 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
           print('no box detected')
           return
 
-        img_tensor = data['img'][0]
-        img_metas = data['img_meta'][0].data[0]
-        imgs = tensor2imgs(img_tensor, **img_metas[0]['img_norm_cfg'])
+        is_pcl_input = isinstance(data['img_meta'][0], dict)
+        if is_pcl_input:
+          img_metas = data['img_meta']
+          pcls = [data['img'][0][:,1:]]
+          img_shape = img_metas[0]['img_shape']
+          imgs = [np.zeros(img_shape, dtype=np.int8)]
+        else:
+          img_metas = data['img_meta'][0].data[0]
+          img_tensor = data['img'][0]
+          imgs = tensor2imgs(img_tensor, **img_metas[0]['img_norm_cfg'])
         assert len(imgs) == len(img_metas)
 
         if dataset is None:
@@ -290,10 +302,10 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             if not os.path.exists(out_dir_middle):
               os.makedirs(out_dir_middle)
 
-            from mmdet.debug_tools import _show_det_lines, show_det_lines_1by1
+            from tools.debug_utils import _show_det_lines, show_det_lines_1by1
             #show_fun = show_det_lines_1by1
             show_fun = _show_det_lines
-            show_p = 0
+            show_points = 0
 
             lines_list = [lines_graph, lines_composite, lines_ave, lines_init, lines_refine, lines_corner0_score, lines_corner1_score, lines_corner0_center, lines_corner1_center]
             names_list = ['graph.png', 'composite.png', 'ave.png', 'init.png', 'refine.png', 'corner0_cls.png', 'corner1_cls.png', 'corner0_cen.png', 'corner1_cen.png']
@@ -307,7 +319,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 out_file_i = out_dir + scene_name + '_' + name_
                 show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='random',thickness=2, show=0,
                         out_file=out_file_i, key_points=None, scores=scores_filter)
-                if show_p:
+                if show_points:
                   if  name_ == 'init.png':
                     key_points = key_points_init
                   else:

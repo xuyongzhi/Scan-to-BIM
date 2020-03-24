@@ -35,7 +35,10 @@ def single_gpu_test(model, data_loader, show=False):
         if show:
             model.module.show_result(data, result)
 
-        batch_size = data['img'][0].size(0)
+        if  'input_style' in data['img_meta'][0] and data['img_meta'][0]['input_style'] == 'pcl':
+          batch_size = data['img'][0][:,0].max()+1
+        else:
+          batch_size = data['img'][0].size(0)
         for _ in range(batch_size):
             prog_bar.update()
     return results

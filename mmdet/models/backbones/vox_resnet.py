@@ -11,6 +11,7 @@ from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 import MinkowskiEngine as ME
 from ..utils.mink_vox_common import mink_max_pool
+from MinkowskiEngine import SparseTensor
 
 from tools import debug_utils
 import math
@@ -638,6 +639,7 @@ class VoxResNet(nn.Module):
 
     def forward(self, x):
         #debug_tools.show_shapes(x, 'img')
+
         if RECORD_T:
           t0 = time.time()
         x = self.conv1(x)

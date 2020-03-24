@@ -3,7 +3,7 @@ import numpy as np
 
 from tools.debug_utils import _show_3d_points_bboxes_ls
 
-def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None):
+def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
   coords_batch, feats_batch = img
   sinput = SparseTensor(feats_batch, coords_batch)
 

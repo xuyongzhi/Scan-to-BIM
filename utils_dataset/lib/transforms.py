@@ -273,13 +273,16 @@ class cfl_collate_fn_factory:
     coords_batch, feats_batch = ME.utils.sparse_collate(coords_batch, feats_batch)
     feats_batch = feats_batch.float()
 
-    gt_bboxes = [torch.from_numpy( m['gt_bboxes'] ) for m in img_infos]
-    gt_labels = [torch.from_numpy( m['gt_labels'] ) for m in img_infos]
     img_metas = [ m['img_meta'] for m in img_infos]
 
     data = dict(img = (coords_batch, feats_batch),
-                img_meta = img_metas, gt_bboxes = gt_bboxes, gt_labels = gt_labels,
+                img_meta = img_metas,
                 )
+    if 'gt_bboxes' in img_infos[0]:
+      gt_bboxes = [torch.from_numpy( m['gt_bboxes'] ) for m in img_infos]
+      gt_labels = [torch.from_numpy( m['gt_labels'] ) for m in img_infos]
+      data['gt_bboxes'] = gt_bboxes
+      data['gt_labels'] = gt_labels
     return data
     #return coords_batch, feats_batch.float(), p_labels_batch
 

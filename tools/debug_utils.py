@@ -188,7 +188,7 @@ def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green',
       img = _draw_points(img, points, point_colors[i], point_thickness[i])
   if out_file is not None:
     mmcv.imwrite(img, out_file)
-    print(out_file)
+    print('\n',out_file)
   return img
 
 def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color='green', box=False):
