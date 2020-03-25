@@ -17,7 +17,7 @@ CORHM=0
 DCN_ZERO_BASE=0
 BASE_PLANE=32
 AUTO_SCALE_VS=1
-BS=6
+BS=5
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --auto_scale_vs $AUTO_SCALE_VS  --bs $BS
 #--resume $CP 
