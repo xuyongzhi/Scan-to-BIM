@@ -27,11 +27,11 @@ class ChromaticTranslation(object):
     """
     self.trans_range_ratio = trans_range_ratio
 
-  def __call__(self, coords, feats, labels):
+  def __call__(self, coords, feats, labels, gt_bboxes=None, img_meta=None):
     if random.random() < 0.95:
       tr = (np.random.rand(1, 3) - 0.5) * 255 * 2 * self.trans_range_ratio
       feats[:, :3] = np.clip(tr + feats[:, :3], 0, 255)
-    return coords, feats, labels
+    return coords, feats, labels, gt_bboxes, img_meta
 
 
 class ChromaticAutoContrast(object):
@@ -40,7 +40,7 @@ class ChromaticAutoContrast(object):
     self.randomize_blend_factor = randomize_blend_factor
     self.blend_factor = blend_factor
 
-  def __call__(self, coords, feats, labels):
+  def __call__(self, coords, feats, labels, gt_bboxes=None, img_meta=None):
     if random.random() < 0.2:
       # mean = np.mean(feats, 0, keepdims=True)
       # std = np.std(feats, 0, keepdims=True)
@@ -55,8 +55,8 @@ class ChromaticAutoContrast(object):
       contrast_feats = (feats[:, :3] - lo) * scale
 
       blend_factor = random.random() if self.randomize_blend_factor else self.blend_factor
-      feats[:, :3] = (1 - blend_factor) * feats + blend_factor * contrast_feats
-    return coords, feats, labels
+      feats[:, :3] = (1 - blend_factor) * feats[:,:3] + blend_factor * contrast_feats
+    return coords, feats, labels, gt_bboxes, img_meta
 
 
 class ChromaticJitter(object):
@@ -64,12 +64,12 @@ class ChromaticJitter(object):
   def __init__(self, std=0.01):
     self.std = std
 
-  def __call__(self, coords, feats, labels):
+  def __call__(self, coords, feats, labels, gt_bboxes=None, img_meta=None):
     if random.random() < 0.95:
       noise = np.random.randn(feats.shape[0], 3)
       noise *= self.std * 255
       feats[:, :3] = np.clip(noise + feats[:, :3], 0, 255)
-    return coords, feats, labels
+    return coords, feats, labels, gt_bboxes, img_meta
 
 
 class HueSaturationTranslation(object):
@@ -148,12 +148,14 @@ class RandomDropout(object):
     self.dropout_ratio = dropout_ratio
     self.dropout_application_ratio = dropout_application_ratio
 
-  def __call__(self, coords, feats, labels):
+  def __call__(self, coords, feats, labels, gt_bboxes=None, img_meta=None):
     if random.random() < self.dropout_ratio:
       N = len(coords)
       inds = np.random.choice(N, int(N * (1 - self.dropout_ratio)), replace=False)
-      return coords[inds], feats[inds], labels[inds]
-    return coords, feats, labels
+      if img_meta is not None:
+        img_meta['data_aug']['dropout_ratio'] = (self.dropout_ratio, True)
+      return coords[inds], feats[inds], labels[inds], gt_bboxes, img_meta
+    return coords, feats, labels, gt_bboxes, img_meta
 
 
 class RandomHorizontalFlip(object):
@@ -168,14 +170,27 @@ class RandomHorizontalFlip(object):
     # Use the rest of axes for flipping.
     self.horz_axes = set(range(self.D)) - set([self.upright_axis])
 
-  def __call__(self, coords, feats, labels):
+  def __call__(self, coords, feats, labels, gt_bboxes=None, img_meta=None):
     if random.random() < 0.95:
+      if img_meta is not None:
+        img_meta['data_aug']['flip'] = {'x':-1, 'y':-1}
       for curr_ax in self.horz_axes:
         if random.random() < 0.5:
           coord_max = np.max(coords[:, curr_ax])
           coords[:, curr_ax] = coord_max - coords[:, curr_ax]
-    return coords, feats, labels
 
+          if img_meta is not None:
+            line_flip_scope_itl(gt_bboxes, curr_ax, coord_max)
+            img_meta['data_aug']['flip'][ ['x','y'][curr_ax] ] = coord_max
+    return coords, feats, labels, gt_bboxes, img_meta
+
+def line_flip_scope_itl(lines0, curr_ax, coord_max):
+  assert lines0.shape[1] == 5
+  assert curr_ax==0 or curr_ax==1
+  tmp = coord_max - lines0[:, curr_ax]
+  lines0[:, curr_ax] = coord_max - lines0[:, curr_ax + 2]
+  lines0[:, curr_ax + 2] = tmp
+  lines0[:,4] = -lines0[:,4]
 
 class ElasticDistortion:
 

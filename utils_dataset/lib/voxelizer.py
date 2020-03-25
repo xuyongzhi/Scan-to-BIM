@@ -19,7 +19,9 @@ class Voxelizer:
                scale_augmentation_bound=None,
                rotation_augmentation_bound=None,
                translation_augmentation_ratio_bound=None,
-               ignore_label=255):
+               ignore_label=255,
+               voxel_resolution=None,
+               always_scale_to_full_resolution=None):
     """
     Args:
       voxel_size: side length of a voxel
@@ -34,6 +36,8 @@ class Voxelizer:
     self.voxel_size = voxel_size
     self.clip_bound = clip_bound
     self.ignore_label = ignore_label
+    self.voxel_resolution = voxel_resolution
+    self.always_scale_to_full_resolution = always_scale_to_full_resolution
 
     # Augmentation
     self.use_augmentation = use_augmentation
@@ -49,6 +53,7 @@ class Voxelizer:
     # Transform pointcloud coordinate to voxel coordinate.
     # 1. Random rotation
     rot_mat = np.eye(3)
+    rot_angles = []
     if self.use_augmentation and self.rotation_augmentation_bound is not None:
       if isinstance(self.rotation_augmentation_bound, collections.Iterable):
         rot_mats = []
@@ -59,6 +64,7 @@ class Voxelizer:
           if rot_bound is not None:
             theta = np.random.uniform(*rot_bound)
           rot_mats.append(M(axis, theta))
+          rot_angles.append(theta)
         # Use random order
         np.random.shuffle(rot_mats)
         rot_mat = rot_mats[0] @ rot_mats[1] @ rot_mats[2]
@@ -71,7 +77,7 @@ class Voxelizer:
       scale *= np.random.uniform(*self.scale_augmentation_bound)
     np.fill_diagonal(voxelization_matrix[:3, :3], scale)
     # Get final transformation matrix.
-    return voxelization_matrix, rotation_matrix
+    return voxelization_matrix, rotation_matrix, rot_angles
 
   def clip(self, coords, center=None, trans_aug_ratio=None):
     bound_min = np.min(coords, 0).astype(float)
@@ -120,13 +126,14 @@ class Voxelizer:
           labels = labels[clip_inds]
 
     # Get rotation and scale
-    M_v, M_r = self.get_transformation_matrix()
+    M_v, M_r, angles_rot = self.get_transformation_matrix()
     # Apply transformations
     rigid_transformation = M_v
     if self.use_augmentation:
       rigid_transformation = M_r @ rigid_transformation
 
     homo_coords = np.hstack((coords, np.ones((coords.shape[0], 1), dtype=coords.dtype)))
+    rigid_transformation, scale_rate = self.auto_scale_inside_voxel_resolution(homo_coords, rigid_transformation)
     coords_aug = np.floor(homo_coords @ rigid_transformation.T[:, :3])
 
     # Align all coordinates to the origin.
@@ -144,7 +151,27 @@ class Voxelizer:
       coords_aug, feats = ME.utils.sparse_quantize(
           coords_aug, feats)
 
-    return coords_aug, feats, labels, rigid_transformation.flatten()
+    return coords_aug, feats, labels, rigid_transformation, angles_rot, scale_rate
+
+  def auto_scale_inside_voxel_resolution(self, homo_coords, rigid_transformation):
+    '''
+    When the voxel resolution needs to be contained in a scope.
+    The pcl scope could be out of the resolution because of rotation.
+    assign a scale after the rotation.
+    '''
+    assert self.voxel_resolution is not None
+    coords_aug = homo_coords @ rigid_transformation.T[:, :3]
+    min_coords = coords_aug.min(0)
+    max_coords = coords_aug.max(0)
+    scope_coords = max_coords - min_coords
+    scale_rates = (np.array(self.voxel_resolution[:2])-1) / scope_coords[:2]
+    scale_rate = scale_rates.min()
+    #print(f'scale_rates:{scale_rates}')
+    if scale_rate > 1 and not self.always_scale_to_full_resolution:
+      return rigid_transformation, 1
+    else:
+      rigid_transformation[:3,:3] *= scale_rate
+      return rigid_transformation, scale_rate
 
   def voxelize_temporal(self,
                         coords_t,
@@ -161,7 +188,7 @@ class Voxelizer:
 
     # ######################### Data Augmentation #############################
     # Get rotation and scale
-    M_v, M_r = self.get_transformation_matrix()
+    M_v, M_r, angles_rot = self.get_transformation_matrix()
     # Apply transformations
     rigid_transformation = M_v
     if self.use_augmentation:

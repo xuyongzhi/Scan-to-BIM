@@ -10,7 +10,7 @@ from tools.debug_utils import _show_3d_points_bboxes_ls
 DEBUG_INPUT = 0
 
 class DataConfig:
-    return_transformation=False
+    return_transformation=True
     data_aug_color_trans_ratio=0.05
     data_aug_color_jitter_std=0.005
     ignore_label=255
@@ -24,8 +24,6 @@ class DataConfig:
         self.augment_data = True
         self.shuffle = True
         self.repeat = True
-
-        self.augment_data = False
       else:
         self.augment_data = False
         self.shuffle = False
@@ -55,31 +53,34 @@ class BeikePclDataset(VoxelDatasetBase):
 
   # Augmentation arguments
   ROTATION_AUGMENTATION_BOUND = \
-      ((-np.pi / 32, np.pi / 32), (-np.pi / 32, np.pi / 32), (-np.pi, np.pi))
-  TRANSLATION_AUGMENTATION_RATIO_BOUND = ((-0.2, 0.2), (-0.2, 0.2), (-0.05, 0.05))
+      ((-np.pi * 0, np.pi *0), (-np.pi * 0, np.pi * 0), (-np.pi, np.pi))
+  TRANSLATION_AUGMENTATION_RATIO_BOUND = ((-0.1, 0.1), (-0.1, 0.1), (-0.05*0, 0.05*0))
+  ELASTIC_DISTORT_PARAMS = None
 
   AUGMENT_COORDS_TO_FEATS = True
   NUM_IN_CHANNEL = 9
   NORMALIZATION = True
+  USE_NORMAL = True
 
   def __init__(self,
                ann_file='data/beike/processed_512/',
-               pipeline=None,
                img_prefix='train',
                test_mode=False,
                voxel_size=0.05,
-               voxel_resolution=[512,512,256]):
+               voxel_resolution=[512,512,192],
+               auto_scale_vs = True,
+               pipeline=None,):
     self.data_root = ann_file
     self.test_mode = test_mode
     print(test_mode)
     self.VOXEL_SIZE = voxel_size
     self.voxel_resolution = voxel_resolution
+    self.always_scale_to_full_resolution = auto_scale_vs
     assert img_prefix in ['train', 'test']
 
     bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
     clip_bound = ((-bdx, bdx), (-bdy, bdy), (-bdz, bdz))
     self.CLIP_BOUND = clip_bound
-
 
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     self.scene_list = np.loadtxt(os.path.join(self.data_root, img_prefix+'.txt'), 'str').tolist()
@@ -132,12 +133,14 @@ class BeikePclDataset(VoxelDatasetBase):
                       voxel_resolution = self.voxel_resolution,
                       voxel_size = self.VOXEL_SIZE,
                       img_shape = self.voxel_resolution[:2]+[3,],
-                      scale_factor = 1)
+                      scale_factor = 1,
+                      data_aug={})
 
       img_info = dict(
         img_meta = img_meta,)
       if not self.test_mode:
         img_info['gt_bboxes'] = anno_2d['bboxes']
+        img_info['gt_bboxes_raw'] = anno_2d['bboxes']
         img_info['gt_labels'] = anno_2d['labels']
       self.img_infos.append(img_info)
 
@@ -162,7 +165,11 @@ class BeikePclDataset(VoxelDatasetBase):
     assert abs(points[:,:3].min()) < 0.1
 
     coords = points[:,:3]
-    feats = points[:,3:9]
+    if self.USE_NORMAL:
+      feats = points[:,3:9]
+    else:
+      feats = points[:,3:6]
+    point_labels = np.zeros([feats.shape[0]], dtype=np.int32)
 
     if DEBUG_INPUT:
       gt_bboxes = self.img_infos[index]['gt_bboxes'] * self.VOXEL_SIZE
@@ -172,7 +179,7 @@ class BeikePclDataset(VoxelDatasetBase):
       print(filepath)
       _show_3d_points_bboxes_ls([coords], [feats[:,:3]], [bboxes3d], b_colors = 'red', box_oriented=True)
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    return coords, feats, None, None
+    return coords, feats, point_labels, None
 
   def _augment_coords_to_feats(self, coords, feats, labels=None):
     # Center x,y

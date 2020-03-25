@@ -599,27 +599,28 @@ class VoxResNet(nn.Module):
       # max_coords is the value of 2**() format for max_coords_raw
       # use 2**() format because the stride between neighbouring levels of FPN
       # is 2
-      max_coords_raw = sparse3d_feats[0].coords.max(dim=0)[0][1:3].max()
-      #max_coord = 2 ** math.ceil( math.log(max_coords_raw , 2))
-      max_coord = self.voxel_resolution[0]
-      max_coords = torch.Tensor([max_coord, max_coord, 0]).int()
-      if not max_coords_raw < self.voxel_resolution[0]:
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        pass
+      check_coord = 1
+      if check_coord:
+        max_coords_raw = sparse3d_feats[0].coords.max(dim=0)[0][1:3]
+        min_coords_raw = sparse3d_feats[0].coords.min(dim=0)[0][1:3]
+        coords_scope = max(max_coords_raw - min_coords_raw)
+        if not coords_scope < self.voxel_resolution[0]:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          raise ValueError
 
 
+      vs = self.voxel_resolution[0]
+      img_size = torch.Tensor([vs, vs, 0]).int()
       for i in range(len(sparse3d_feats)):
         bev_i = self.project_layers[i](sparse3d_feats[i])
         bev_sparse_outs.append( bev_i )
-        dense_i, min_coords_i, strides_i = bev_i.dense(min_coords=torch.Tensor([0,0,0]).int(), max_coords=max_coords)
-
+        dense_i, min_coords_i, strides_i = bev_i.dense(min_coords=torch.Tensor([0,0,0]).int(), max_coords=img_size)
         # check the last coord is not used
         max_coord_i = bev_i.C[:, 1:3].max()
-        assert max_coord_i <= max_coord - strides_i[0], f"The last coord is used, the out dense cannot be cropped for FPN"
+        assert max_coord_i <= vs - strides_i[0], f"max_coord={max_coord_i} The last coord is used, the out dense cannot be cropped for FPN"
 
         assert dense_i.size()[-1] == 1
         dense_i = dense_i.squeeze(dim=-1)
-
         dense_i = dense_i[:,:, :-1,:-1]
         bev_dense_outs.append( dense_i )
         bev_strides.append(strides_i)

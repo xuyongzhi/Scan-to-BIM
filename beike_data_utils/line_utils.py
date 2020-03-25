@@ -145,6 +145,21 @@ def add_cross_in_lines(lines, img_shape):
   return lines
 
 
+def m_transform_lines(lines, matrix, obj_rep):
+  '''
+  lines:  [n,5]
+  matrix: [4,4]
+  '''
+  assert matrix.shape == (4,4)
+  n = lines.shape[0]
+  lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
+
+  ones = np.ones([n,2,2], dtype=lines.dtype)
+  tmp = np.concatenate([lines_2endpts, ones], axis=2).reshape([n*2, 4])
+  lines_2pts_r = (tmp @ matrix.T)[:,:2].reshape([n,2,2])
+  lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
+  return lines_rotated
+
 def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   '''
   lines: [n,5]

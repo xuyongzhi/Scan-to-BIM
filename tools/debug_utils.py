@@ -8,7 +8,7 @@ from MinkowskiEngine import SparseTensor
 
 from .color import color_val, get_random_color, label2color
 
-
+ADD_FRAME = 1
 
 def _show_tensor_ls_shapes(tensor_ls, pre='', i=0):
   if isinstance(tensor_ls, torch.Tensor):
@@ -69,8 +69,9 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
   else:
     center = [0,0,0]
   center = [0,0,0]
-  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 1, origin=center)
-  #show_ls.append(mesh_frame)
+  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 100, origin=center)
+  if ADD_FRAME:
+    show_ls.append(mesh_frame)
 
   o3d.visualization.draw_geometries( show_ls )
 

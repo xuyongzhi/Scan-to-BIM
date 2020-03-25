@@ -31,6 +31,7 @@ class VoxelDatasetBase(VoxelizationDataset):
     else:
       prevoxel_transforms = None
 
+
     input_transforms = []
     if input_transform is not None:
       input_transforms += input_transform

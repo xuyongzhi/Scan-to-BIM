@@ -234,7 +234,9 @@ class VoxelizationDataset(VoxelizationDatasetBase):
         scale_augmentation_bound=self.SCALE_AUGMENTATION_BOUND,
         rotation_augmentation_bound=self.ROTATION_AUGMENTATION_BOUND,
         translation_augmentation_ratio_bound=self.TRANSLATION_AUGMENTATION_RATIO_BOUND,
-        ignore_label=ignore_label)
+        ignore_label=ignore_label,
+        voxel_resolution = self.voxel_resolution,
+        always_scale_to_full_resolution = self.always_scale_to_full_resolution)
 
     # map labels not evaluated to ignore_label
     label_map = {}
@@ -264,6 +266,12 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     return mat[:, :3], mat[:, 3:-1], mat[:, -1]
 
   def __getitem__(self, index):
+    from beike_data_utils.line_utils import m_transform_lines
+    from configs.common import OBJ_REP
+
+    gt_bboxes = self.img_infos[index]['gt_bboxes_raw']
+    img_meta = self.img_infos[index]['img_meta']
+
     coords, feats, labels, center = self.load_ply(index)
     # Downsample the pointcloud with finer voxel size before transformation for memory and speed
     if self.PREVOXELIZATION_VOXEL_SIZE is not None:
@@ -279,13 +287,22 @@ class VoxelizationDataset(VoxelizationDatasetBase):
 
     #_show_3d_points_bboxes_ls([coords])
     #coords_raw = coords.copy()
-    coords, feats, labels, transformation = self.voxelizer.voxelize(
+    coords, feats, labels, transformation, rotate_angles, scale_rate = self.voxelizer.voxelize(
         coords, feats, labels, center=center)
+
+    un_voxelization_matrix = np.eye(4)
+    np.fill_diagonal(un_voxelization_matrix[:3, :3], self.VOXEL_SIZE)
+    line_transformation = transformation @ un_voxelization_matrix
+    img_meta['data_aug']['transformation'] = transformation
+    img_meta['data_aug']['rotate_angles'] = rotate_angles
+    img_meta['data_aug']['scale_rate'] = scale_rate
+    gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, OBJ_REP)
 
     #_show_3d_points_bboxes_ls([coords])
     # map labels not used for evaluation to ignore_label
     if self.input_transform is not None:
-      coords, feats, labels = self.input_transform(coords, feats, labels)
+      coords, feats, labels, gt_bboxes, img_meta = self.input_transform(
+            coords, feats, labels, gt_bboxes, img_meta)
     if self.target_transform is not None:
       coords, feats, labels = self.target_transform(coords, feats, labels)
     if self.IGNORE_LABELS is not None:
@@ -298,9 +315,13 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if self.NORMALIZATION:
       feats = self._normalization(feats)
 
+    self.img_infos[index]['gt_bboxes'] = gt_bboxes
+    self.img_infos[index]['img_meta'] = img_meta
+    #print(img_meta['data_aug'])
+
     return_args = [coords, feats, labels, self.img_infos[index]]
-    if self.return_transformation:
-      return_args.append(transformation.astype(np.float32))
+    #if self.return_transformation:
+    #  return_args.append(transformation.astype(np.float32))
 
     return tuple(return_args)
 

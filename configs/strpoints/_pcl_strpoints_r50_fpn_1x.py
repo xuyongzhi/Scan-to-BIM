@@ -221,7 +221,7 @@ if IMAGE_SIZE == 1024:
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -245,12 +245,18 @@ if 'pcl' in DATA:
   elif DATA == 'stanford_pcl_2d':
     max_scene_size = [10.24, 10.24, 5.12]
   voxel_resolution = [int(s/voxel_size) for s in max_scene_size]
+  auto_scale_vs = True
+
+  model['backbone']['voxel_resolution'] = voxel_resolution
 
   data['train']['voxel_size'] = voxel_size
-  data['test']['voxel_size'] = voxel_size
   data['train']['voxel_resolution'] = voxel_resolution
+  data['train']['auto_scale_vs'] = auto_scale_vs
+
+  data['test']['voxel_size'] = voxel_size
   data['test']['voxel_resolution'] = voxel_resolution
-  model['backbone']['voxel_resolution'] = voxel_resolution
+  data['test']['auto_scale_vs'] = auto_scale_vs
+
 
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
@@ -275,10 +281,9 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
+work_dir = f'./work_dirs/R50_fpn'
 load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-#workflow = [('train', 1)]
 

@@ -58,6 +58,8 @@ def parse_args():
     parser.add_argument('--base_plane', type=int, default=64)
     parser.add_argument('--corhm', type=int, default=None,
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
+    parser.add_argument('--auto_scale_vs', type=int, default=None,
+                        help='0 or 1: auto scale the point cloud to full voxel resolution')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -77,6 +79,7 @@ def update_config(cfg, args, split):
     cls_loss = args.cls
     dcn_zero_base = args.dcn_zero_base
     corner_hm = args.corhm
+    auto_scale_vs = args.auto_scale_vs
     base_plane = args.base_plane
 
     dataset  = cfg['DATA']
@@ -94,6 +97,10 @@ def update_config(cfg, args, split):
           cfg['data']['test']['pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
           pass
 
+
+    if 'pcl' in dataset:
+      if auto_scale_vs is not None:
+        cfg['data'][split]['auto_scale_vs'] = auto_scale_vs
 
     bbp = cfg['model']['backbone']['basic_planes']
     cfg['model']['backbone']['basic_planes'] = base_plane
@@ -119,67 +126,70 @@ def update_config(cfg, args, split):
 
     # update work_dir
     if split == 'train':
-      if '_obj_rep' in cfg:
-        cfg['work_dir'] += '_' + cfg['_obj_rep']
-      if 'cls_types' in cfg['model']['bbox_head']:
-        cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
-      if 'IMAGE_SIZE' in cfg:
-        cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
-      if 'TOPVIEW' in cfg:
-        cfg['work_dir'] += '_' + cfg['TOPVIEW']
-      if 'DATA' in cfg:
-        cfg['work_dir'] += '_' + cfg['DATA']
-      cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
-      cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
+        if '_obj_rep' in cfg:
+          cfg['work_dir'] += '_' + cfg['_obj_rep']
+        if 'cls_types' in cfg['model']['bbox_head']:
+          cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
+        if 'IMAGE_SIZE' in cfg:
+          cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
+        if 'TOPVIEW' in cfg:
+          cfg['work_dir'] += '_' + cfg['TOPVIEW']
+        if 'DATA' in cfg:
+          cfg['work_dir'] += '_' + cfg['DATA']
+        cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
+        cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
 
-      if 'pcl' not in dataset:
-        if 'rotate_ratio' in cfg['train_pipeline'][4]:
-          if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
-            cfg['work_dir'] += '_NR'
-          else:
-            cfg['work_dir'] += '_RA'
-        if 'method' in cfg['img_norm_cfg']:
-          cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
+        if 'pcl' not in dataset:
+          if 'rotate_ratio' in cfg['train_pipeline'][4]:
+            if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
+              cfg['work_dir'] += '_NR'
+            else:
+              cfg['work_dir'] += '_RA'
+          if 'method' in cfg['img_norm_cfg']:
+            cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
 
-      if dcn_zero_base:
-        cfg['work_dir'] += '_DcnZb'
-      if 'corner_hm' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['corner_hm']:
-        cfg['work_dir'] += '_Chm'
-        if cfg['model']['bbox_head']['corner_hm_only']:
-          cfg['work_dir'] += 'Only'
-        cor_assigner = cfg['train_cfg']['corner']['assigner']
-        radius = cor_assigner['ref_radius']
-        pos_iou = int(cor_assigner['pos_iou_thr'] * 10)
-        neg_iou = int(cor_assigner['neg_iou_thr'] * 10)
-        cfg['work_dir'] += f'R{radius}P{neg_iou}N{neg_iou}'
+        if dcn_zero_base:
+          cfg['work_dir'] += '_DcnZb'
+        if 'corner_hm' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['corner_hm']:
+          cfg['work_dir'] += '_Chm'
+          if cfg['model']['bbox_head']['corner_hm_only']:
+            cfg['work_dir'] += 'Only'
+          cor_assigner = cfg['train_cfg']['corner']['assigner']
+          radius = cor_assigner['ref_radius']
+          pos_iou = int(cor_assigner['pos_iou_thr'] * 10)
+          neg_iou = int(cor_assigner['neg_iou_thr'] * 10)
+          cfg['work_dir'] += f'R{radius}P{neg_iou}N{neg_iou}'
 
-      # refine_iou_assigner
-      refine_iou_assigner = cfg['train_cfg']['refine']['assigner']
-      p = int(refine_iou_assigner['pos_iou_thr']*10)
-      n = int(refine_iou_assigner['neg_iou_thr']*10)
-      m = int(refine_iou_assigner['min_pos_iou']*10)
-      cfg['work_dir'] += f'_Rfiou{p}{n}{m}'
+        # refine_iou_assigner
+        refine_iou_assigner = cfg['train_cfg']['refine']['assigner']
+        p = int(refine_iou_assigner['pos_iou_thr']*10)
+        n = int(refine_iou_assigner['neg_iou_thr']*10)
+        m = int(refine_iou_assigner['min_pos_iou']*10)
+        cfg['work_dir'] += f'_Rfiou{p}{n}{m}'
 
-      # FPN
-      neck = cfg['model']['neck']
-      num_in = len(neck['in_channels'])
-      num_outs = neck['num_outs']
-      cfg['work_dir'] += f'_Fpn{num_in}{num_outs}'
+        # FPN
+        neck = cfg['model']['neck']
+        num_in = len(neck['in_channels'])
+        num_outs = neck['num_outs']
+        cfg['work_dir'] += f'_Fpn{num_in}{num_outs}'
 
-      # point base scale
-      base_scale=cfg['model']['bbox_head']['point_base_scale']
-      cfg['work_dir'] += f'_Pbs{base_scale}'
+        # point base scale
+        base_scale=cfg['model']['bbox_head']['point_base_scale']
+        cfg['work_dir'] += f'_Pbs{base_scale}'
 
-      cfg['work_dir'] += f'_Bp{base_plane}'
+        cfg['work_dir'] += f'_Bp{base_plane}'
 
+        if 'pcl' in dataset:
+          if cfg['data']['train']['auto_scale_vs']:
+            cfg['work_dir'] += f'_Asv'
 
-      # backup config
-      aim_path = os.path.join(cfg['work_dir'], os.path.basename(cfg.filename))
-      if not os.path.exists(cfg['work_dir']):
-        os.makedirs(cfg['work_dir'])
-      shutil.copy(cfg.filename, aim_path)
-      #print(cfg['work_dir'])
-      pass
+        # backup config
+        aim_path = os.path.join(cfg['work_dir'], os.path.basename(cfg.filename))
+        if not os.path.exists(cfg['work_dir']):
+          os.makedirs(cfg['work_dir'])
+        shutil.copy(cfg.filename, aim_path)
+        #print(cfg['work_dir'])
+        pass
 
 
 def main():
