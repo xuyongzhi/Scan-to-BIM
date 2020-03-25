@@ -35,6 +35,7 @@
 * compare performace of feeding images of different resolution
 *
 # Items need to be further researched
+- voxel_resolution = [512,512] is not fully used. 
 - apis/train.py/batch_processor num_samples
 - conv type for MinkConv
 - vox_resnet weight init not implemented

@@ -260,7 +260,9 @@ def _show_det_lines(img, lines, labels, class_names=None, score_thr=0,
   if key_points is not None:
     assert key_points.shape[0]== lines.shape[0]
 
+
   if score_thr > 0:
+    scores = scores.reshape(-1)
     if scores is None:
       scores = lines[:,-1]
     inds = scores > score_thr

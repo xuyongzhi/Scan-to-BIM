@@ -257,7 +257,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             ]
             labels = np.concatenate(labels)
 
-            img_show = np.clip(img_show+1, a_min=None, a_max=255)
+            img_show = np.clip(img_show, a_min=None, a_max=255)
             class_names = tuple([c[0] for c in class_names])
 
             scores = bboxes[:,-1]
@@ -265,7 +265,11 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             bboxes = bboxes[mask]
             labels = labels[mask]
 
-            if OUT_EXTAR_DIM > 0 and bboxes.shape[0]>0:
+            if bboxes.shape[0] == 0:
+              continue
+
+
+            if OUT_EXTAR_DIM > 0:
                 bboxes_refine, bboxes_init, points_refine, points_init,\
                   score_refine, score_final, score_ave, corner0_score,\
                   corner1_score, corner0_center, corner1_center, score_composite = \
@@ -293,7 +297,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 key_points_init = None
                 key_points_refine = None
 
-            filename = img_meta['filename']
+            filename = img_meta['filename'].split('.')[0]
             scene_name = os.path.basename(filename).replace('.npy', '')
             out_dir_out = f'./line_det_{OBJ_LEGEND}_res/final/'
             out_dir_middle = f'./line_det_{OBJ_LEGEND}_res/middle/'
@@ -317,8 +321,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 else:
                   out_dir = out_dir_middle
                 out_file_i = out_dir + scene_name + '_' + name_
-                show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='random',thickness=2, show=0,
-                        out_file=out_file_i, key_points=None, scores=scores_filter)
+                show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='random',thickness=1, show=0,
+                          out_file=out_file_i, key_points=None, scores=scores_filter)
                 if show_points:
                   if  name_ == 'init.png':
                     key_points = key_points_init

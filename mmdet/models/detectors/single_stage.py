@@ -10,6 +10,7 @@ from tools import debug_utils
 import time
 
 RECORD_T = 0
+SHOW_TRAIN_RES = 0
 
 @DETECTORS.register_module
 class SingleStageDetector(BaseDetector):
@@ -119,6 +120,21 @@ class SingleStageDetector(BaseDetector):
                   debug_utils._show_tensor_ls_shapes([outs[i][j][key]], f'single_stage forward_train - outs {i},{j},{key}')
               else:
                 assert outs[i][j] is None
+
+        if SHOW_TRAIN_RES:
+          _gt_bboxes = [g.cpu().data.numpy() for g in gt_bboxes][0:1]
+          rescale = False
+          bbox_inputs = outs + (img_metas, self.test_cfg, rescale)
+          bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
+          det_bboxes, det_labels = bbox_list[0]
+          _det_bboxes0 = det_bboxes.cpu().data.numpy()
+          from configs.common import clean_bboxes_out
+          _det_bboxes1 = clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
+          _det_bboxes = [_det_bboxes1]
+
+          debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
+          debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
+          debug_utils._show_lines_ls_points_ls((512,512), [_gt_bboxes[0], _det_bboxes[0]], line_colors=['red','green'])
         return losses
 
     def simple_test(self, img, img_meta, rescale=False):

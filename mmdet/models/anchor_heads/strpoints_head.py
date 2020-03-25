@@ -1257,6 +1257,7 @@ class StrPointsHead(nn.Module):
 
       return line_preds_out
 
+
 def cal_composite_score(line_preds):
       assert line_preds.shape[1] == OUT_DIM_FINAL - 1
       bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, _ = parse_bboxes_out(line_preds, 'before_cal_score_composite')

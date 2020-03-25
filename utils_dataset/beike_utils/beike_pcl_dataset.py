@@ -137,8 +137,8 @@ class BeikePclDataset(VoxelDatasetBase):
       img_info = dict(
         img_meta = img_meta,)
       if not self.test_mode:
-        img_infos['gt_bboxes'] = anno_2d['bboxes'],
-        img_infos['gt_labels'] = anno_2d['labels']
+        img_info['gt_bboxes'] = anno_2d['bboxes']
+        img_info['gt_labels'] = anno_2d['labels']
       self.img_infos.append(img_info)
 
     pcl_scopes = np.array([x['img_meta']['pcl_scope'] for x in self.img_infos])
