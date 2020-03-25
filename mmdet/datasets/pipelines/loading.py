@@ -210,52 +210,6 @@ class LoadTopviewFromFile(object):
             self.to_float32)
 
 
-@PIPELINES.register_module
-class LoadPclFromFile(object):
-    def __init__(self, pre_sample=None, to_float32=False, dataset=None):
-        assert dataset in ['stanford3d', 'beike3d']
-        if dataset == 'stanford3d':
-          from utils_data3d.datasets.stanford_pcl_utils import load_ply
-        if dataset == 'beike3d':
-          from beike_data_utils.beike_utils import load_ply
-        self.to_float32 = to_float32
-        self.pre_sample = pre_sample
-        self.load_ply = load_ply
-
-    def __call__(self, results):
-        if results['img_prefix'] is not None:
-            filename = osp.join(results['img_prefix'],
-                                results['img_info']['filename'])
-        else:
-            filename = results['img_info']['filename']
-        points = self.load_ply(filename)
-        img = points
-        c = points.shape[1]
-
-        if self.pre_sample is not None:
-          num_points = img.shape[0]
-          if num_points >= self.pre_sample:
-            sample_ids = np.random.choice(num_points, self.pre_sample, replace=False)
-          else:
-            sample_ids = np.array(list(range(num_points)) + [0]*(self.pre_sample-num_points))
-          img  = img[sample_ids,:]
-
-        if DEBUG:
-          img = img.reshape(512,512,c)
-
-        if self.to_float32:
-            img = img.astype(np.float32)
-        results['filename'] = filename
-        results['img'] = img
-        results['img_shape'] = img.shape
-        results['ori_shape'] = img.shape
-        return results
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(to_float32={})'.format(
-            self.to_float32)
-
-
 def show_results(results):
   print('\nLoad2ImagesFromFile, before data augmentation', results['img_info']['filename'])
   img = results['img'][:,:,0:3]

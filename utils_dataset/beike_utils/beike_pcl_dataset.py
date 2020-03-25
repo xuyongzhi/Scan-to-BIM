@@ -159,9 +159,7 @@ class BeikePclDataset(VoxelDatasetBase):
 
     pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
     points[:,:3] = points[:,:3] - pcl_scope[0:1]
-    if not abs(points[:,:3].min()) < 0.1:
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
+    assert abs(points[:,:3].min()) < 0.1
 
     coords = points[:,:3]
     feats = points[:,3:9]

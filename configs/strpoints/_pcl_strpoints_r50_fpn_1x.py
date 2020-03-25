@@ -202,13 +202,14 @@ if 'pcl' not in DATA:
             ])
     ]
 else:
-    train_pipeline = [
-        dict(type='LoadPclFromFile', pre_sample=262144, dataset=DATA),
-        dict(type='LoadAnnotations', with_bbox=True),
-        dict(type='AugPcl'),
-        dict(type='DefaultFormatBundle'),
-        dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
-    ]
+    #train_pipeline = [
+    #    dict(type='LoadPclFromFile', pre_sample=262144, dataset=DATA),
+    #    dict(type='LoadAnnotations', with_bbox=True),
+    #    dict(type='AugPcl'),
+    #    dict(type='DefaultFormatBundle'),
+    #    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+    #]
+    train_pipeline = None
     test_pipeline = train_pipeline
 
 if IMAGE_SIZE == 512:
