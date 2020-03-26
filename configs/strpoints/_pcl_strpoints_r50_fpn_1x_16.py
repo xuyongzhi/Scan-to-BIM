@@ -10,7 +10,7 @@
   transform_method
 '''
 
-voxel_size = [0.04, 0.08, 0.16][1]
+voxel_size = [0.04, 0.08, 0.16][2]
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 _obj_rep = OBJ_REP

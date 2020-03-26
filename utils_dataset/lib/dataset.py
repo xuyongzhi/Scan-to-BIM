@@ -185,7 +185,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
   and voxelizes the pointcloud with sufficient data augmentation.
   """
   # Voxelization arguments
-  VOXEL_SIZE = 0.05  # 5cm
+  VOXEL_SIZE = None  # 5cm
 
   # Coordinate Augmentation Arguments: Unlike feature augmentation, coordinate
   # augmentation has to be done before voxelization

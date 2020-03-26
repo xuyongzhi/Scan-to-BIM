@@ -164,9 +164,10 @@ class Voxelizer:
     min_coords = coords_aug.min(0)
     max_coords = coords_aug.max(0)
     scope_coords = max_coords - min_coords
-    scale_rates = (np.array(self.voxel_resolution[:2])-1) / scope_coords[:2]
+    #scale_rates = (np.array(self.voxel_resolution[:2])-1) / scope_coords[:2] # xy
+    scale_rates = (np.array(self.voxel_resolution)-1) / scope_coords # xyz
     scale_rate = scale_rates.min()
-    #print(f'scale_rates:{scale_rates}')
+    #print(f'scale_rates:{scale_rates}, min={scale_rate}')
     if scale_rate > 1 and not self.always_scale_to_full_resolution:
       return rigid_transformation, 1
     else:

@@ -66,13 +66,13 @@ class BeikePclDataset(VoxelDatasetBase):
                ann_file='data/beike/processed_512/',
                img_prefix='train',
                test_mode=False,
-               voxel_size=0.05,
-               voxel_resolution=[512,512,192],
-               auto_scale_vs = True,
+               voxel_size=None,
+               voxel_resolution=[None, None, None],
+               auto_scale_vs = None,
                pipeline=None,):
+    assert voxel_size is not None
     self.data_root = ann_file
     self.test_mode = test_mode
-    print(test_mode)
     self.VOXEL_SIZE = voxel_size
     self.voxel_resolution = voxel_resolution
     self.always_scale_to_full_resolution = auto_scale_vs

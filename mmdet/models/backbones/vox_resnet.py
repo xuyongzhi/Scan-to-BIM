@@ -12,14 +12,14 @@ from ..utils import build_conv_layer, build_norm_layer
 import MinkowskiEngine as ME
 from ..utils.mink_vox_common import mink_max_pool
 from MinkowskiEngine import SparseTensor
+import numpy as np
 
 from tools import debug_utils
 import math
 import time
 
 RECORD_T = 0
-
-STEM_KERNEL = 3
+SHOW_NET = 0
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -406,11 +406,14 @@ class VoxResNet(nn.Module):
                  stage_with_gen_attention=((), (), (), ()),
                  with_cp=False,
                  zero_init_residual=True,
-                 voxel_resolution = [512, 512, 256],
+                 voxel_resolution = None,
                  basic_planes = 64,
-                 max_planes = 2048,
+                 max_planes = 1024,
+                 aim_fpn_out_size=128,
                  ):
         super(VoxResNet, self).__init__()
+        assert voxel_resolution is not None
+
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
         self.depth = depth
@@ -442,7 +445,8 @@ class VoxResNet(nn.Module):
         self.inplanes = self.basic_planes = basic_planes
         self.max_planes = max_planes
 
-        self.voxel_resolution = voxel_resolution
+        self.voxel_resolution = np.array(voxel_resolution)
+        self.aim_fpn_out_size = aim_fpn_out_size
 
         self._make_stem_layer(in_channels)
 
@@ -474,19 +478,51 @@ class VoxResNet(nn.Module):
             self.res_layers.append(layer_name)
 
 
+        # the strides of out layers
+        self.out_strides = []
+        assert math.fmod(self.voxel_resolution[0], self.aim_fpn_out_size) == 0
+        base_stride = self.voxel_resolution[0] // self.aim_fpn_out_size
+        assert base_stride >= 1
+        for i in self.out_indices:
+          xy_stride = 2**(i+0) * base_stride
+          z_stride = 2**(i+3)
+          self.out_strides.append(np.array([xy_stride, xy_stride, z_stride]))
+
         # project to BEV
-        self.gen_independent_project()
+        self.gen_dense_project()
 
         self._freeze_stages()
-
 
         p = min( 2**(len(self.stage_blocks) - 1), self.max_planes)
         self.feat_dim = self.block.expansion * self.basic_planes * p
 
+    def gen_dense_project(self):
+        self.project_layers = []
+        vsz = self.voxel_resolution[-1]
+        for i in self.out_indices:
+            planes = self.basic_planes * 2**(i+2)
+            kernel_z = math.ceil(vsz / self.out_strides[i][-1])
+            conv_i = build_conv_layer(
+                {'type':'Conv3d'},
+                planes,
+                planes,
+                kernel_size=[1,1,kernel_z],
+                stride=[1,1,kernel_z],
+                bias=False)
+
+            #max_pool = mink_max_pool(kernel_size=[1,1,2], stride=[1,1,2])
+            #project_layer_i = nn.Sequential(conv_i, max_pool)
+            project_layer_i = conv_i
+            self.add_module(f'project_layer_{i}', project_layer_i)
+            self.project_layers.append( project_layer_i )
+        pass
+
     def gen_independent_project(self):
         self.project_layers = []
-        stride_last_level = 2**(self.out_indices[-1]+2)
-        num_proj_layers = math.ceil(math.log(self.voxel_resolution[-1] // stride_last_level, 4))
+        stride_last_level = self.out_strides[-1][-1]
+        kernel_proj = 2
+        stride_proj = 2
+        num_proj_layers = math.ceil(math.log(self.voxel_resolution[-1] / stride_last_level, stride_proj))
         self.num_proj_layers = num_proj_layers
         for i in self.out_indices:
             planes = self.basic_planes * 2**(i+2)
@@ -505,49 +541,81 @@ class VoxResNet(nn.Module):
                   self.conv_cfg,
                   planes,
                   planes,
-                  kernel_size=[1,1,5],
-                  stride=[1,1,4],
+                  kernel_size=[1,1,kernel_proj],
+                  stride=[1,1,stride_proj],
                   bias=False)
               layers_i.append(conv_j)
 
-            max_pool = mink_max_pool(kernel_size=[1,1,10], stride=[1,1,10])
+            max_pool = mink_max_pool(kernel_size=[1,1,2], stride=[1,1,2])
             layers_i.append(max_pool)
             project_layer_i = nn.Sequential(*layers_i)
             self.add_module(f'project_layer_{i}', project_layer_i)
             self.project_layers.append( project_layer_i )
+        pass
+
+    def gen_independent_project__(self):
+        self.project_layers = []
+        vsz = self.voxel_resolution[-1]
+        for i in self.out_indices:
+            planes = self.basic_planes * 2**(i+2)
+            kernel_z = math.ceil(vsz / self.out_strides[i][-1]) + 1
+            conv_i = build_conv_layer(
+                self.conv_cfg,
+                planes,
+                planes,
+                kernel_size=[1,1,kernel_z],
+                stride=[1,1,kernel_z],
+                bias=False)
+
+            max_pool = mink_max_pool(kernel_size=[1,1,2], stride=[1,1,2])
+            #project_layer_i = nn.Sequential(conv_i, max_pool)
+            project_layer_i = conv_i
+            self.add_module(f'project_layer_{i}', project_layer_i)
+            self.project_layers.append( project_layer_i )
+        pass
 
     @property
     def norm1(self):
         return getattr(self, self.norm1_name)
 
     def _make_stem_layer(self, in_channels):
-        self.conv1 = build_conv_layer(
-            self.conv_cfg,
-            in_channels,
-            self.basic_planes,
-            kernel_size=STEM_KERNEL,
-            stride=2,
-            padding=1,
-            bias=False)
-        self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, self.basic_planes, postfix=1)
-        self.add_module(self.norm1_name, norm1)
-        self.relu = ME.MinkowskiReLU(inplace=True)
-        self.maxpool = mink_max_pool(kernel_size=3, stride=2, padding=1)
+        self.conv1s = []
+        if self.voxel_resolution[0] == 4 * self.aim_fpn_out_size:
+          kernels = [(3,3,3), (3,3,3), (1,1,3)]
+          strides = [(2,2,2), (2,2,2), (1,1,2)]
+        elif self.voxel_resolution[0] == 2 * self.aim_fpn_out_size:
+          kernels = [(3,3,3), (1,1,3), (1,1,3)]
+          strides = [(2,2,2), (1,1,2), (1,1,2)]
+        elif self.voxel_resolution[0] == self.aim_fpn_out_size:
+          kernels = [(3,3,3), (1,1,3), (1,1,3)]
+          strides = [(1,1,2), (1,1,2), (1,1,2)]
+        else:
+          raise ValueError
 
-        self.twoconvs_before_max = True
-        if self.twoconvs_before_max:
-          self.conv2 = build_conv_layer(
+        num_layers = len(kernels)
+        in_channels_i = in_channels
+
+        self.conv1s = []
+        self.norm1s = []
+        for i in range(num_layers):
+          conv1_i = build_conv_layer(
               self.conv_cfg,
+              in_channels_i,
               self.basic_planes,
-              self.basic_planes,
-              kernel_size=STEM_KERNEL,
-              stride=2,
+              kernel_size=kernels[i],
+              stride=strides[i],
               padding=1,
               bias=False)
-          self.norm2_name, norm2 = build_norm_layer(self.norm_cfg, self.basic_planes, postfix=1)
-          self.add_module(self.norm2_name, norm2)
-          self.norm2 = norm2
-          self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
+          in_channels_i = self.basic_planes
+          norm1_name, norm1 = build_norm_layer(self.norm_cfg, self.basic_planes, postfix=i+1)
+          self.add_module(f'conv1_{i}', conv1_i)
+          self.add_module(norm1_name, norm1)
+
+          self.conv1s.append(conv1_i)
+          self.norm1s.append(norm1)
+
+        self.relu = ME.MinkowskiReLU(inplace=True)
+        self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:
@@ -559,6 +627,7 @@ class VoxResNet(nn.Module):
         for i in range(1, self.frozen_stages + 1):
             m = getattr(self, 'layer{}'.format(i))
             m.eval()
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             for param in m.parameters():
                 param.requires_grad = False
 
@@ -603,17 +672,25 @@ class VoxResNet(nn.Module):
       if check_coord:
         max_coords_raw = sparse3d_feats[0].coords.max(dim=0)[0][1:3]
         min_coords_raw = sparse3d_feats[0].coords.min(dim=0)[0][1:3]
-        coords_scope = max(max_coords_raw - min_coords_raw)
-        if not coords_scope < self.voxel_resolution[0]:
+        coords_scope = max_coords_raw - min_coords_raw
+        if not coords_scope.max() < self.voxel_resolution[0]:
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           raise ValueError
-
 
       vs = self.voxel_resolution[0]
       img_size = torch.Tensor([vs, vs, 0]).int()
       for i in range(len(sparse3d_feats)):
+        assert sparse3d_feats[i].tensor_stride == self.out_strides[i].tolist()
+
         bev_i = self.project_layers[i](sparse3d_feats[i])
         bev_sparse_outs.append( bev_i )
+
+        mask_proj_fail = bev_i.C[:,-1]  != 0
+        proj_fail_num = mask_proj_fail.int().sum()
+        if proj_fail_num >0:
+          print(f'proj fail num: {proj_fail_num} / {mask_proj_fail.numel()}')
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         dense_i, min_coords_i, strides_i = bev_i.dense(min_coords=torch.Tensor([0,0,0]).int(), max_coords=img_size)
         # check the last coord is not used
         max_coord_i = bev_i.C[:, 1:3].max()
@@ -625,51 +702,127 @@ class VoxResNet(nn.Module):
         bev_dense_outs.append( dense_i )
         bev_strides.append(strides_i)
 
-      if 0:
-        debug_tools._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
+      if 1:
+        debug_utils._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
         print('\n')
-        debug_tools._show_sparse_ls_shapes(bev_sparse_outs, 'backbone sparse bev out')
+        debug_utils._show_sparse_ls_shapes(bev_sparse_outs, 'backbone sparse bev out')
         print('\n')
-        debug_tools._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
+        debug_utils._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
         print(bev_strides)
-        print('num_proj_layers', self.num_proj_layers)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+      return bev_dense_outs
+
+    def get_bev_dense(self, sparse3d_feats):
+      bev_sparse_outs = []
+      bev_dense_outs = []
+      bev_strides = []
+
+      # Use the maximum dense size for this batch
+      # max_coords_raw is the maximum coords responding to base voxel size
+      # max_coords is the value of 2**() format for max_coords_raw
+      # use 2**() format because the stride between neighbouring levels of FPN
+      # is 2
+      check_coord = 1
+      if check_coord:
+        max_coords_raw = sparse3d_feats[0].coords.max(dim=0)[0][1:3]
+        min_coords_raw = sparse3d_feats[0].coords.min(dim=0)[0][1:3]
+        coords_scope = max_coords_raw - min_coords_raw
+        if not coords_scope.max() < self.voxel_resolution[0]:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          raise ValueError
+
+      vs = self.voxel_resolution[0]
+      img_size = torch.Tensor([vs, vs, 0]).int()
+      for i in range(len(sparse3d_feats)):
+          assert sparse3d_feats[i].tensor_stride == self.out_strides[i].tolist()
+          sparse_i = sparse3d_feats[i]
+          minc = torch.Tensor([0,0,0]).int()
+          maxc = torch.Tensor(self.voxel_resolution - self.out_strides[i]).int()
+
+          check_coord_scope = False
+          if check_coord_scope:
+            out_mask = (sparse_i.C[:,1:] >= maxc).int()
+            out_inds = torch.nonzero(out_mask.sum(axis=1)).squeeze()
+            out_num_xy = out_mask[:,:2].sum()
+            out_num_z = out_mask[:,2].sum()
+            # the out voxels may come from conv kernel > 1. It is fine to
+            # abondon them
+            out_rate_xy = 1.0 * out_num_xy / sparse_i.C.shape[0]
+            out_rate_z = 1.0 * out_num_z / sparse_i.C.shape[0]
+            print(f'\n\t\tout_rate: {out_rate_xy}, {out_rate_z}\n')
+            pass
+
+          dense_i, min_coords_i, strides_i = sparse_i.dense(min_coords=minc, max_coords=maxc)
+          dense_i = self.project_layers[i](dense_i)
+          assert dense_i.size()[-1] == 1
+          dense_i = dense_i.squeeze(dim=-1)
+          bev_dense_outs.append( dense_i )
+          bev_strides.append(strides_i)
+
+      if 0:
+        debug_utils._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
+        print('\n')
+        debug_utils._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
+        print(bev_strides)
         pass
       return bev_dense_outs
 
 
     def forward(self, x):
-        #debug_tools.show_shapes(x, 'img')
+        #debug_utils.show_shapes(x, 'img')
 
         if RECORD_T:
+          ts = []
+          ts.append(time.time())
           t0 = time.time()
-        x = self.conv1(x)
-        x = self.norm1(x)
-        x = self.relu(x)
-        if RECORD_T:
-          t1 = time.time()
-        if self.twoconvs_before_max:
-          x = self.conv2(x)
-          x = self.norm2(x)
-          x = self.relu(x)
-        if RECORD_T:
-          t2 = time.time()
+          print('\n\n')
+        if SHOW_NET:
+          debug_utils._show_sparse_ls_shapes([x], 'res in')
 
-        x = self.maxpool(x)
+        for i in range(len(self.conv1s)):
+          x = self.conv1s[i](x)
+          x = self.norm1s[i](x)
+          x = self.relu(x)
+
+          if RECORD_T:
+            ts.append(time.time())
+            t1 = time.time()
+            #print(self.conv1s[i])
+            print(f'conv1 {i}: {ts[-1]-ts[-2]:.3f}')
+          if SHOW_NET:
+            debug_utils._show_sparse_ls_shapes([x], f'conv1 {i}')
+
+        #x = self.maxpool(x)
         outs = []
+
         if RECORD_T:
-          t3 = time.time()
+          ts.append(time.time())
+          print(f'max: {ts[-1]-ts[-2]:.3f}')
+        if SHOW_NET:
+          debug_utils._show_sparse_ls_shapes([x], 'max')
+
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
             x = res_layer(x)
             if i in self.out_indices:
                 outs.append(x)
 
+            if RECORD_T:
+              ts.append(time.time())
+              print(f'res {i}: {ts[-1]-ts[-2]:.3f}')
+            if SHOW_NET:
+              debug_utils._show_sparse_ls_shapes([x], f'res {i}')
+
         # project sparse 3d out to BEV
-        outs_bev = self.get_bev(outs)
+        outs_bev = self.get_bev_dense(outs)
+
+        if SHOW_NET:
+          debug_utils._show_tensor_ls_shapes(outs_bev, 'bev')
         if RECORD_T:
-          t4 = time.time()
-          print(f'\tvoxresnet forward. conv1:{t1-t0:.3f} conv2:{t2-t1:.3f} maxpool:{t3-t2:.3f} reslayers:{t4-t3:.3f}')
+          ts.append(time.time())
+          print(f'bev: {ts[-1]-ts[-2]:.3f}')
+          print(f'conv1: {t1-t0:.3f}')
+          pass
         return tuple(outs_bev)
 
     def train(self, mode=True):

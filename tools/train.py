@@ -99,8 +99,9 @@ def update_config(cfg, args, split):
 
 
     if 'pcl' in dataset:
-      if auto_scale_vs is not None:
-        cfg['data'][split]['auto_scale_vs'] = auto_scale_vs
+      for sp in ['train', 'val', 'test']:
+        if auto_scale_vs is not None:
+          cfg['data'][sp]['auto_scale_vs'] = auto_scale_vs
 
     bbp = cfg['model']['backbone']['basic_planes']
     cfg['model']['backbone']['basic_planes'] = base_plane
@@ -126,20 +127,20 @@ def update_config(cfg, args, split):
 
     # update work_dir
     if split == 'train':
-        if '_obj_rep' in cfg:
-          cfg['work_dir'] += '_' + cfg['_obj_rep']
+        #if '_obj_rep' in cfg:
+        #  cfg['work_dir'] += '_' + cfg['_obj_rep']
         if 'cls_types' in cfg['model']['bbox_head']:
           cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
-        if 'IMAGE_SIZE' in cfg:
-          cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
-        if 'TOPVIEW' in cfg:
-          cfg['work_dir'] += '_' + cfg['TOPVIEW']
         if 'DATA' in cfg:
           cfg['work_dir'] += '_' + cfg['DATA']
         cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
         cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
 
         if 'pcl' not in dataset:
+          if 'IMAGE_SIZE' in cfg:
+            cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
+          if 'TOPVIEW' in cfg:
+            cfg['work_dir'] += '_' + cfg['TOPVIEW']
           if 'rotate_ratio' in cfg['train_pipeline'][4]:
             if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
               cfg['work_dir'] += '_NR'
@@ -180,6 +181,8 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += f'_Bp{base_plane}'
 
         if 'pcl' in dataset:
+          vsz = int(100 * cfg['data'][split]['voxel_size'])
+          cfg['work_dir'] += f'_Vsz{vsz}'
           if cfg['data']['train']['auto_scale_vs']:
             cfg['work_dir'] += f'_Asv'
 

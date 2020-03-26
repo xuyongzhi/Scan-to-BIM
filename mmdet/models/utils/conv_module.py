@@ -9,6 +9,7 @@ from .mink_vox_common import mink_conv
 
 conv_cfg = {
     'Conv': nn.Conv2d,
+    'Conv3d': nn.Conv3d,
     'ConvWS': ConvWS2d,
     'MinkConv': mink_conv,
     # TODO: octave conv
