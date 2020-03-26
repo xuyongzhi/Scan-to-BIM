@@ -17,15 +17,15 @@ class DataConfig:
     limit_numpoints=0
     elastic_distortion = False
 
-    def __init__(self, phase):
+    def __init__(self, phase, augment_data):
       assert phase in ['train', 'test']
       self.phase = phase
       if phase == 'train':
-        self.augment_data = True
+        self.augment_data = augment_data
         self.shuffle = True
         self.repeat = True
       else:
-        self.augment_data = False
+        self.augment_data = augment_data
         self.shuffle = False
         self.repeat = False
 
@@ -69,6 +69,7 @@ class BeikePclDataset(VoxelDatasetBase):
                voxel_size=None,
                voxel_resolution=[None, None, None],
                auto_scale_vs = None,
+               augment_data = None,
                pipeline=None,):
     assert voxel_size is not None
     self.data_root = ann_file
@@ -94,7 +95,7 @@ class BeikePclDataset(VoxelDatasetBase):
       self.scene_list = [self.scene_list]
     #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
     phase = img_prefix
-    self.data_config = DataConfig(phase)
+    self.data_config = DataConfig(phase, augment_data)
     self.load_anno()
     self._set_group_flag()
     print(f'\n {img_prefix}: load {len(self)} files\n')

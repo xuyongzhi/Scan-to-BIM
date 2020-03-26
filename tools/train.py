@@ -97,9 +97,9 @@ def update_config(cfg, args, split):
           cfg['data']['test']['pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
           pass
 
-
     if 'pcl' in dataset:
       for sp in ['train', 'val', 'test']:
+        cfg['data'][sp]['augment_data'] = rotate
         if auto_scale_vs is not None:
           cfg['data'][sp]['auto_scale_vs'] = auto_scale_vs
 
@@ -135,6 +135,11 @@ def update_config(cfg, args, split):
           cfg['work_dir'] += '_' + cfg['DATA']
         cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
         cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
+
+
+        if 'pcl' in dataset:
+          if rotate:
+            cfg['work_dir'] += '_Daug'
 
         if 'pcl' not in dataset:
           if 'IMAGE_SIZE' in cfg:

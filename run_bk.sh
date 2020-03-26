@@ -1,18 +1,17 @@
 # xyz
 
-export CUDA_LAUNCH_BLOCKING=1
-export CUDA_VISIBLE_DEVICES=1
+#export CUDA_LAUNCH_BLOCKING=1
+#export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x_16.py
+CONFIG=configs/strpoints/pcl_strpoints_r50_fpn_1x.py
 
 
 wkdir=T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_beike_pcl_2d_bs4_lr10_ChmR2P1N1_Rfiou743_Fpn35_Pbs1_Bp32
 #wkdir=T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_beike2d_bs4_lr10_RA_Normrawstd_ChmR2P1N1_Rfiou743_Fpn35_Pbs1_Bp64
 CP=./work_dirs/${wkdir}/best.pth
 
-ROTATE=1
+ROTATE=0
 CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0

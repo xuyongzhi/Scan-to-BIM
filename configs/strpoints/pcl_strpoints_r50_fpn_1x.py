@@ -10,7 +10,7 @@
   transform_method
 '''
 
-voxel_size = [0.04, 0.08, 0.16][2]
+voxel_size = [0.04, 0.08, 0.16][1]
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 _obj_rep = OBJ_REP
@@ -167,7 +167,7 @@ img_norm_cfg = dict(
 train_pipeline = None
 test_pipeline = train_pipeline
 
-batch_size = {0.04:4, 0.08:6, 0.16:8}[voxel_size]
+batch_size = {0.04:4, 0.08:5, 0.16:6}[voxel_size]
 lra = 0.01
 
 data = dict(
@@ -177,16 +177,19 @@ data = dict(
         type=dataset_type,
         ann_file=ann_file,
         img_prefix=img_prefix_train,
+        augment_data=True,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
+        augment_data=True,
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
+        augment_data=False,
         pipeline=test_pipeline))
 
 
