@@ -47,10 +47,10 @@ backbone_type = 'VoxResNet'
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
-point_strides_all = { 0.04: [4, 8, 16, 32, 64],
-                      0.08: [2, 4, 8,  16, 32,],
-                      0.16: [1, 2, 4,  8,  16,],  }
-
+point_strides_all = { 0.04: [4, 8, 16, 32, ],
+                      0.08: [2, 4, 8,  16, ],
+                      0.16: [1, 2, 4,  8,  ],  }
+stem_stride_all = {0.04: 4, 0.08: 2, 0.16: 1}
 bbp = 32
 model = dict(
     type='StrPointsDetector',
@@ -71,7 +71,7 @@ model = dict(
         out_channels=256,
         start_level=0,
         add_extra_convs=True,
-        num_outs=5,
+        num_outs=4,
         norm_cfg=norm_cfg),
     bbox_head=dict(
         type='StrPointsHead',
@@ -172,7 +172,7 @@ lra = 0.01
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=3,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -201,7 +201,7 @@ elif DATA == 'stanford_pcl_2d':
 
 voxel_resolution = [round(s/voxel_size) for s in max_scene_size]
 auto_scale_vs = True
-model['backbone']['voxel_resolution'] = voxel_resolution
+model['backbone']['stem_stride'] = stem_stride_all[voxel_size]
 for split in ['train', 'test', 'val']:
   data[split]['voxel_size'] = voxel_size
   data[split]['voxel_resolution'] = voxel_resolution
@@ -235,4 +235,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+workflow = [('train', 1)]
 

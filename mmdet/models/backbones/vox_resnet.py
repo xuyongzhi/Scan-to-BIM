@@ -406,13 +406,11 @@ class VoxResNet(nn.Module):
                  stage_with_gen_attention=((), (), (), ()),
                  with_cp=False,
                  zero_init_residual=True,
-                 voxel_resolution = None,
+                 stem_stride = 4,
                  basic_planes = 64,
                  max_planes = 1024,
-                 aim_fpn_out_size=128,
                  ):
         super(VoxResNet, self).__init__()
-        assert voxel_resolution is not None
 
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
@@ -445,8 +443,7 @@ class VoxResNet(nn.Module):
         self.inplanes = self.basic_planes = basic_planes
         self.max_planes = max_planes
 
-        self.voxel_resolution = np.array(voxel_resolution)
-        self.aim_fpn_out_size = aim_fpn_out_size
+        self.stem_stride = stem_stride
 
         self._make_stem_layer(in_channels)
 
@@ -480,21 +477,43 @@ class VoxResNet(nn.Module):
 
         # the strides of out layers
         self.out_strides = []
-        assert math.fmod(self.voxel_resolution[0], self.aim_fpn_out_size) == 0
-        base_stride = self.voxel_resolution[0] // self.aim_fpn_out_size
-        assert base_stride >= 1
         for i in self.out_indices:
-          xy_stride = 2**(i+0) * base_stride
+          xy_stride = 2**(i+0) * self.stem_stride
           z_stride = 2**(i+3)
           self.out_strides.append(np.array([xy_stride, xy_stride, z_stride]))
 
         # project to BEV
-        self.gen_dense_project()
+        self.gen_dense_project_dynamic()
 
         self._freeze_stages()
 
         p = min( 2**(len(self.stage_blocks) - 1), self.max_planes)
         self.feat_dim = self.block.expansion * self.basic_planes * p
+
+    def gen_dense_project_dynamic(self):
+        self.full_z_dim_for_conv_base = 12
+        self.full_z_dims_for_conv = []
+        self.project_layers = []
+        for i in self.out_indices:
+            self.full_z_dims_for_conv.append(self.full_z_dim_for_conv_base // 2**(self.out_indices[i] - self.out_indices[0]))
+            planes = self.basic_planes * 2**(i+2)
+            kernel_z = self.full_z_dims_for_conv[i]
+            num_layers_i = 1
+            layers_i = []
+            for j in range(num_layers_i):
+              conv_j = build_conv_layer(
+                  {'type':'Conv3d'},
+                  planes,
+                  planes,
+                  kernel_size=[1,1,kernel_z],
+                  stride=[1,1,kernel_z],
+                  bias=False)
+              layers_i.append(conv_j)
+
+            project_layer_i = nn.Sequential(*layers_i)
+            self.add_module(f'project_layer_{i}', project_layer_i)
+            self.project_layers.append( project_layer_i )
+        pass
 
     def gen_dense_project(self):
         self.project_layers = []
@@ -580,13 +599,13 @@ class VoxResNet(nn.Module):
 
     def _make_stem_layer(self, in_channels):
         self.conv1s = []
-        if self.voxel_resolution[0] == 4 * self.aim_fpn_out_size:
+        if self.stem_stride == 4:
           kernels = [(3,3,3), (3,3,3), (1,1,3)]
           strides = [(2,2,2), (2,2,2), (1,1,2)]
-        elif self.voxel_resolution[0] == 2 * self.aim_fpn_out_size:
+        elif self.stem_stride == 2:
           kernels = [(3,3,3), (1,1,3), (1,1,3)]
           strides = [(2,2,2), (1,1,2), (1,1,2)]
-        elif self.voxel_resolution[0] == self.aim_fpn_out_size:
+        elif self.stem_stride == 1:
           kernels = [(3,3,3), (1,1,3), (1,1,3)]
           strides = [(1,1,2), (1,1,2), (1,1,2)]
         else:
@@ -767,6 +786,44 @@ class VoxResNet(nn.Module):
         pass
       return bev_dense_outs
 
+    def get_bev_dense_dynamic(self, sparse3d_feats):
+      bev_sparse_outs = []
+      bev_dense_outs = []
+      bev_strides = []
+
+      z_dims = []
+      num_levels = len(sparse3d_feats)
+      for i in range(num_levels):
+          assert sparse3d_feats[i].tensor_stride == self.out_strides[i].tolist()
+          sparse_i = sparse3d_feats[i]
+          dense_i, min_coords_i, strides_i = sparse_i.dense()
+          z_dim = dense_i.shape[-1]
+          z_dims.append(z_dim)
+          z_pad_dim = self.full_z_dims_for_conv[i]-z_dim
+          dense_i = nn.functional.pad(dense_i, (0,z_pad_dim), "constant", 0)
+          dense_i = self.project_layers[i](dense_i)
+          dense_i = dense_i.max(dim=-1)[0]
+          bev_dense_outs.append( dense_i )
+          bev_strides.append(strides_i)
+
+      # pad the shape  of outs to be 2 times between neighbouring levels,
+      # to input into fpn
+      base_size = np.array([*bev_dense_outs[-1].shape[2:]])
+      for i in range(0,num_levels-1):
+        size_i = base_size * 2**(num_levels-1-i)
+        cur_size_i = np.array([*bev_dense_outs[i].shape[2:]])
+        psx, psy = size_i - cur_size_i
+        bev_dense_outs[i] = nn.functional.pad(bev_dense_outs[i], (0, psy, 0, psx), "constant", 0)
+
+      if 0:
+        print(f'z_dims: {z_dims}')
+        #debug_utils._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
+        #print('\n')
+        debug_utils._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
+        #print(bev_strides)
+        pass
+      return bev_dense_outs
+
 
     def forward(self, x):
         #debug_utils.show_shapes(x, 'img')
@@ -814,7 +871,7 @@ class VoxResNet(nn.Module):
               debug_utils._show_sparse_ls_shapes([x], f'res {i}')
 
         # project sparse 3d out to BEV
-        outs_bev = self.get_bev_dense(outs)
+        outs_bev = self.get_bev_dense_dynamic(outs)
 
         if SHOW_NET:
           debug_utils._show_tensor_ls_shapes(outs_bev, 'bev')

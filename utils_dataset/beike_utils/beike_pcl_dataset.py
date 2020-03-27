@@ -81,9 +81,12 @@ class BeikePclDataset(VoxelDatasetBase):
     self.always_scale_to_full_resolution = auto_scale_vs
     assert img_prefix in ['train', 'test']
 
-    bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
-    clip_bound = ((-bdx, bdx), (-bdy, bdy), (-bdz, bdz))
-    self.CLIP_BOUND = clip_bound
+    if voxel_resolution is not None:
+      bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
+      clip_bound = ((-bdx, bdx), (-bdy, bdy), (-bdz, bdz))
+      self.CLIP_BOUND = clip_bound
+    else:
+      self.CLIP_BOUND = None
 
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     self.scene_list = np.loadtxt(os.path.join(self.data_root, img_prefix+'.txt'), 'str').tolist()

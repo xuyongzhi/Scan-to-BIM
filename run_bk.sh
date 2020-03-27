@@ -5,7 +5,6 @@ export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/_strpoints_r50_fpn_1x.py
 CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/pcl_strpoints_r50_fpn_1x.py
 
 
 wkdir=R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_Rfiou743_Fpn35_Pbs1_Bp32_Vsz8
@@ -20,7 +19,8 @@ BASE_PLANE=32
 AUTO_SCALE_VS=0
 BS=2
 
-ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --auto_scale_vs $AUTO_SCALE_VS --resume $CP 
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --auto_scale_vs $AUTO_SCALE_VS 
+#--resume $CP 
 
 #./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE --auto_scale_vs $AUTO_SCALE_VS  
 

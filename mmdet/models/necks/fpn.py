@@ -141,6 +141,16 @@ class FPN(nn.Module):
                     else:
                         outs.append(self.fpn_convs[i](outs[-1]))
 
-        #debug_tools.show_shapes(inputs, 'fpn inputs')
-        #debug_tools.show_shapes(outs, 'fpn outs')
+        #debug_utils._show_tensor_ls_shapes(outs, 'fpn outs')
+        for i in range(len(outs)):
+          oshape = outs[i].shape
+          pad_sx = max(0, 3 - oshape[-2])
+          pad_sy = max(0, 3 - oshape[-1])
+          #print(f'pad: {pad_sx} {pad_sy}')
+          if pad_sx > 0 or pad_sy > 0:
+            outs[i] = F.pad(outs[i], (0, pad_sy, 0, pad_sx), "constant", 0)
+
+        #debug_utils._show_tensor_ls_shapes(inputs, 'fpn inputs')
+        #debug_utils._show_tensor_ls_shapes(laterals, 'fpn laterals')
+        #debug_utils._show_tensor_ls_shapes(outs, 'fpn outs')
         return tuple(outs)
