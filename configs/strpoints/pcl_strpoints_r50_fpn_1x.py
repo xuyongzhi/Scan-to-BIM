@@ -172,7 +172,7 @@ lra = 0.01
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=3,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -235,4 +235,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+#workflow = [('train', 1)]
 

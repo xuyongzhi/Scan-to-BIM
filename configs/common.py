@@ -32,11 +32,16 @@ OUT_EXTAR_DIM = POINTS_DIM + OBJ_DIM + SCORE_REFINE_DIM + SCORE_FINAL_DIM # see 
 CORNER_DIM = 4
 AVE_LINE_SCORE = 1
 COMPOSITE_SCORE = 1
-# 5+43+1+4+1 = 54
+IS_OUT_CORNER = 0
+CORNER_DIM = CORNER_DIM * IS_OUT_CORNER
+COMPOSITE_SCORE = COMPOSITE_SCORE * IS_OUT_CORNER
+# IS_OUT_CORNER=1: 5+43+1+4+1 = 54
+# IS_OUT_CORNER=0: 5+43+1+1 = 50
 if DATA == 'coco':
-  OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + COMPOSITE_SCORE
+  OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + 1
 else:
-  OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + AVE_LINE_SCORE + CORNER_DIM + COMPOSITE_SCORE
+  OUT_DIM_BOX_INDEPENDENT_FINAL = OBJ_DIM + OUT_EXTAR_DIM + AVE_LINE_SCORE # 48
+  OUT_DIM_FINAL = OUT_DIM_BOX_INDEPENDENT_FINAL + CORNER_DIM + COMPOSITE_SCORE
 
 #OUT_SCORE_TYPE = ['Line_Ave', 'Corner_Ave', 'Corner_0', 'Corner_1'][1]
 
@@ -74,7 +79,7 @@ def parse_bboxes_out(bboxes_out, stage):
   else:
     assert bboxes_out.ndim == 2
   if stage == 'before_nms':
-    assert bboxes_out.shape[1] == OUT_DIM_FINAL - 1 - CORNER_DIM - 1
+    assert bboxes_out.shape[1] == OUT_DIM_FINAL - 1 - CORNER_DIM - COMPOSITE_SCORE
   elif stage == 'before_cal_score_composite':
     assert bboxes_out.shape[1] == OUT_DIM_FINAL -1
   elif stage == 'final':
@@ -87,11 +92,18 @@ def parse_bboxes_out(bboxes_out, stage):
       outs[key] = None
     else:
       outs[key] = bboxes_out[:, s:e]
-  bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite =  \
+  bboxes_refine, bboxes_init, points_refine, points_init, score_refine, \
+      score_final, score_line_ave, corner0_score, corner1_score, \
+      corner0_center, corner1_center, score_composite =  \
           outs['bbox_refine'], outs['bbox_init'], outs['points_refine'], \
           outs['points_init'], outs['score_refine'], outs['score_final'],\
-          outs['score_line_ave'], outs['corner0_score'], outs['corner1_score'], outs['corner0_center'], outs['corner1_center'], outs['score_composite']
-  return bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, score_composite
+          outs['score_line_ave'], outs['corner0_score'], outs['corner1_score'],\
+          outs['corner0_center'], outs['corner1_center'], outs['score_composite']
+  if score_composite is None:
+    score_composite = score_line_ave
+  return bboxes_refine, bboxes_init, points_refine, points_init, score_refine,\
+    score_final, score_line_ave, corner0_score, corner1_score, corner0_center,\
+    corner1_center, score_composite
 
 def clean_bboxes_out(bboxes_out, stage, out_type='composite'):
   assert out_type in ['score_refine', 'score_final', 'line_ave', 'composite']

@@ -269,7 +269,11 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     from beike_data_utils.line_utils import m_transform_lines
     from configs.common import OBJ_REP
 
-    gt_bboxes = self.img_infos[index]['gt_bboxes_raw']
+    is_include_gt_bboxes = 'gt_bboxes_raw' in self.img_infos[index]
+    if is_include_gt_bboxes:
+      gt_bboxes = self.img_infos[index]['gt_bboxes_raw']
+    else:
+      gt_bboxes = None
     img_meta = self.img_infos[index]['img_meta']
 
     coords, feats, labels, center = self.load_ply(index)
@@ -296,13 +300,14 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     img_meta['data_aug']['transformation'] = transformation
     img_meta['data_aug']['rotate_angles'] = rotate_angles
     img_meta['data_aug']['scale_rate'] = scale_rate
-    gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, OBJ_REP)
+    if is_include_gt_bboxes:
+      gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, OBJ_REP)
 
     #_show_3d_points_bboxes_ls([coords])
     # map labels not used for evaluation to ignore_label
     if self.input_transform is not None:
       coords, feats, labels, gt_bboxes, img_meta = self.input_transform(
-            coords, feats, labels, gt_bboxes, img_meta)
+              coords, feats, labels, gt_bboxes=gt_bboxes, img_meta=img_meta)
     if self.target_transform is not None:
       coords, feats, labels = self.target_transform(coords, feats, labels)
     if self.IGNORE_LABELS is not None:
@@ -315,7 +320,8 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if self.NORMALIZATION:
       feats = self._normalization(feats)
 
-    self.img_infos[index]['gt_bboxes'] = gt_bboxes
+    if is_include_gt_bboxes:
+      self.img_infos[index]['gt_bboxes'] = gt_bboxes
     self.img_infos[index]['img_meta'] = img_meta
     #print(img_meta['data_aug'])
 

@@ -19,7 +19,7 @@ from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lin
 
 import torchvision as tcv
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -1120,6 +1120,7 @@ class StrPointsHead(nn.Module):
                   score_refine = score_refine.softmax(-1)
                   score_final = score_final.softmax(-1)
               bboxes = torch.cat([bboxes, bboxes_init, key_points, score_refine, score_final], dim=1) # [5,5,36]
+              assert bboxes.shape[1] == OUT_DIM_BOX_INDEPENDENT_FINAL - 1
               pass
 
             mlvl_bboxes.append(bboxes)
@@ -1138,6 +1139,7 @@ class StrPointsHead(nn.Module):
             det_bboxes, det_labels = multiclass_nms(mlvl_bboxes, mlvl_scores,
                                                     cfg.score_thr, cfg.nms,
                                                     cfg.max_per_img)
+            assert det_bboxes.shape[1] == OUT_DIM_BOX_INDEPENDENT_FINAL
             return det_bboxes, det_labels
         else:
             return mlvl_bboxes, mlvl_scores

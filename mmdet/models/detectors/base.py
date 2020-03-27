@@ -286,10 +286,12 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
                 lines_init = np.concatenate([bboxes_init, score_refine], axis=1)
                 lines_refine = np.concatenate([bboxes_refine, score_final], axis=1)
-                lines_corner0_score = np.concatenate([bboxes_refine, corner0_score], axis=1)
-                lines_corner1_score = np.concatenate([bboxes_refine, corner1_score], axis=1)
-                lines_corner0_center = np.concatenate([bboxes_refine, corner0_center], axis=1)
-                lines_corner1_center = np.concatenate([bboxes_refine, corner1_center], axis=1)
+                is_with_corner =  corner0_score is not None
+                if is_with_corner:
+                  lines_corner0_score = np.concatenate([bboxes_refine, corner0_score], axis=1)
+                  lines_corner1_score = np.concatenate([bboxes_refine, corner1_score], axis=1)
+                  lines_corner0_center = np.concatenate([bboxes_refine, corner0_center], axis=1)
+                  lines_corner1_center = np.concatenate([bboxes_refine, corner1_center], axis=1)
                 num_box = bboxes.shape[0]
                 key_points_refine = points_refine.reshape(num_box, -1, 2)
                 key_points_init = points_init.reshape(num_box, -1, 2)
@@ -311,8 +313,11 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             show_fun = _show_det_lines
             show_points = 0
 
-            lines_list = [lines_graph, lines_composite, lines_ave, lines_init, lines_refine, lines_corner0_score, lines_corner1_score, lines_corner0_center, lines_corner1_center]
-            names_list = ['graph.png', 'composite.png', 'ave.png', 'init.png', 'refine.png', 'corner0_cls.png', 'corner1_cls.png', 'corner0_cen.png', 'corner1_cen.png']
+            lines_list = [lines_graph, lines_composite, lines_ave, lines_init, lines_refine, ]
+            names_list = ['graph.png', 'composite.png', 'ave.png', 'init.png', 'refine.png', ]
+            if is_with_corner:
+              lines_list  += [lines_corner0_score, lines_corner1_score, lines_corner0_center, lines_corner1_center]
+              names_list  += ['corner0_cls.png', 'corner1_cls.png', 'corner0_cen.png', 'corner1_cen.png']
             for i in range(len(lines_list)):
                 bboxes_ = lines_list[i]
                 name_  = names_list[i]
