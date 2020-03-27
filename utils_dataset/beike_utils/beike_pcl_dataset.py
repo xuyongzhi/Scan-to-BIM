@@ -42,6 +42,8 @@ class BeikePclDataset(VoxelDatasetBase):
       del _category_ids_map[cat]
       del _catid_2_cat[i]
 
+  cat_ids = list(_category_ids_map.values())
+
   CLIP_SIZE = None
   LOCFEAT_IDX = 2
   ROTATION_AXIS = 'z'
@@ -139,7 +141,8 @@ class BeikePclDataset(VoxelDatasetBase):
 
       img_info = dict(
         img_meta = img_meta,)
-      if not self.test_mode:
+      #if not self.test_mode:
+      if True:
         img_info['gt_bboxes'] = anno_2d['bboxes']
         img_info['gt_bboxes_raw'] = anno_2d['bboxes']
         img_info['gt_labels'] = anno_2d['labels']

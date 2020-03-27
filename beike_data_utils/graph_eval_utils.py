@@ -12,16 +12,28 @@ def save_res_graph(dataset, data_loader, results, out_file):
     assert len(data_loader) == num_imgs
     results_datas = []
     for i_img, data in enumerate(data_loader):
+        is_pcl = 'input_style' in data['img_meta'][0] and data['img_meta'][0]['input_style'] == 'pcl'
+        if not is_pcl:
+          img_i = data['img'][0][0].permute(1,2,0).cpu().data.numpy()
+          img_meta_i = data['img_meta'][0].data[0][0]
+        else:
+          img_meta_i = data['img_meta'][0]
+          img_shape = img_meta_i['img_shape']
+          img_i = np.zeros(img_shape, dtype=np.int8)
         res_data = dict(  img_id = i_img,
-                          img=data['img'][0][0].permute(1,2,0).cpu().data.numpy(),
-                          img_meta=data['img_meta'][0].data[0][0],
+                          img=img_i,
+                          img_meta=img_meta_i,
                         )
-        img_id = dataset.img_ids[i_img]
-        assert img_id == i_img
+        #img_id = dataset.img_ids[i_img]
+        #assert img_id == i_img
         result = results[i_img]
+        det_result = result['det_bboxes']
+        res_data['gt_bboxes'] = [ b.cpu().data.numpy() for b in result['gt_bboxes']]
+        res_data['gt_labels'] = [ b.cpu().data.numpy() for b in result['gt_labels']]
+
         detections_all_labels = []
-        for label in range(len(result)):
-          det_lines_multi_stages = result[label]
+        for label in range(len(det_result)):
+          det_lines_multi_stages = det_result[label]
           det_lines = det_lines_multi_stages
           #det_lines = clean_bboxes_out(det_lines_multi_stages, 'final')
           category_id = dataset.cat_ids[label]
@@ -33,6 +45,8 @@ def save_res_graph(dataset, data_loader, results, out_file):
     with open(out_file, 'wb') as f:
       pickle.dump(results_datas, f)
       print(f'\nsave: {out_file}')
+
+    eval_graph(results_datas, dataset, out_file)
     return results_datas
 
 def eval_graph(results_datas, dataset, out_file):
@@ -81,21 +95,29 @@ class GraphEval():
     all_line_nums_gt_pos_tp = defaultdict(list)
     corner_recall_precision = defaultdict(list)
     line_recall_precision = defaultdict(list)
-    self._catid_2_cat = dataset.beike._catid_2_cat
+    self._catid_2_cat = dataset._catid_2_cat
 
     for i_img, res_data in enumerate(results_datas):
         detections = res_data['detections']
         img = res_data['img']
         img_meta = res_data['img_meta']
-        img_mean = img_meta['img_norm_cfg']['mean']
-        img_std = img_meta['img_norm_cfg']['std']
-        img = img * img_std + img_mean
+        is_pcl = 'input_style' in img_meta and img_meta['input_style'] == 'pcl'
+        if not is_pcl:
+          img_mean = img_meta['img_norm_cfg']['mean']
+          img_std = img_meta['img_norm_cfg']['std']
+          img = img * img_std + img_mean
 
         filename =  img_meta['filename']
         scene_name = os.path.splitext(os.path.basename(filename))[0]
 
-        gt_lines = load_gt_lines_bk(img_meta, img)
-        #_show_lines_ls_points_ls(img[:,:,0], gt_lines)
+        #if not is_pcl:
+        #  gt_lines = load_gt_lines_bk(img_meta, img)
+        #else:
+        #  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        #  pass
+
+        gt_lines = results_datas[i_img]['gt_bboxes'][0]
+        #_show_lines_ls_points_ls(img[:,:,0], [gt_lines])
 
         num_labels = len(detections)
         for label in range(num_labels):
@@ -138,16 +160,24 @@ class GraphEval():
 
   def get_eval_res_str(self, corner_recall_precision, line_recall_precision, dataset):
     rotate = False
-    if len(dataset)>0 and 'rotate_angle' in dataset[0]['img_meta'][0].data:
-      angle0 = dataset[0]['img_meta'][0].data['rotate_angle']
-      rotate = abs(angle0) > 0 or rotate
-    if len(dataset)>1 and 'rotate_angle' in dataset[1]['img_meta'][0].data:
-      angle1 = dataset[1]['img_meta'][0].data['rotate_angle']
-      rotate = abs(angle1) > 0 or rotate
+    dset_name = dataset.__class__.__name__
+    if dset_name == 'BeikePclDataset':
+      img_meta = dataset[0][3]['img_meta']
+      data_aug = img_meta['data_aug']
+      rotate_angles = data_aug['rotate_angles']
+      rotate = rotate_angles if len(rotate_angles)>0 else False
+      pass
+    else:
+      if len(dataset)>0 and 'rotate_angle' in dataset[0]['img_meta'][0].data:
+        angle0 = dataset[0]['img_meta'][0].data['rotate_angle']
+        rotate = abs(angle0) > 0 or rotate
+      if len(dataset)>1 and 'rotate_angle' in dataset[1]['img_meta'][0].data:
+        angle1 = dataset[1]['img_meta'][0].data['rotate_angle']
+        rotate = abs(angle1) > 0 or rotate
 
     eval_str = '\n\n--------------------------------------\n\n' + \
                 str(self) + f'num_img: {self.num_img}\n'
-    catid_2_cat = dataset.beike._catid_2_cat
+    catid_2_cat = dataset._catid_2_cat
     eval_str += f'rotate: {rotate}\n'
     for label in corner_recall_precision:
       cat = catid_2_cat[label]

@@ -137,7 +137,7 @@ class SingleStageDetector(BaseDetector):
           debug_utils._show_lines_ls_points_ls((512,512), [_gt_bboxes[0], _det_bboxes[0]], line_colors=['red','green'])
         return losses
 
-    def simple_test(self, img, img_meta, rescale=False):
+    def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
         x = self.extract_feat(img)
         outs = self.bbox_head(x)
         bbox_inputs = outs + (img_meta, self.test_cfg, rescale)
@@ -150,7 +150,9 @@ class SingleStageDetector(BaseDetector):
         #debug_utils.show_shapes(img, 'single_stage simple_test img')
         #debug_utils.show_shapes(x, 'single_stage simple_test x')
         #debug_utils.show_shapes(outs, 'single_stage simple_test outs')
-        return bbox_results[0]
+        #return bbox_results[0]
+        results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels)
+        return results
 
     def aug_test(self, imgs, img_metas, rescale=False):
         raise NotImplementedError

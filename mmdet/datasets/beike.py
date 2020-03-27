@@ -19,6 +19,7 @@ class BeikeDataset(CustomDataset):
             cat_id: i + 1
             for i, cat_id in enumerate(self.cat_ids)
         }
+        self._catid_2_cat = self.beike._catid_2_cat
         self.img_ids = self.beike.getImgIds()
         img_infos = self.beike.img_infos
         return img_infos

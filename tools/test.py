@@ -276,21 +276,21 @@ def main():
                 result_file = args.out
                 coco_eval(result_file, eval_types, dataset.coco)
             else:
-                if not isinstance(outputs[0], dict):
-                    if DATA == 'coco':
-                      result_files = results2json(dataset, outputs, args.out)
-                      coco_eval(result_files, eval_types, dataset.coco)
-                    if DATA == 'beike':
+                if DATA != 'coco':
                       results_datas = save_res_graph(dataset, data_loader, outputs, args.out)
-                      eval_graph(results_datas, dataset, args.out)
+                      #eval_graph(results_datas, dataset, args.out)
                 else:
-                    for name in outputs[0]:
-                        print('\nEvaluating {}'.format(name))
-                        outputs_ = [out[name] for out in outputs]
-                        result_file = args.out + '.{}'.format(name)
-                        result_files = results2json(dataset, outputs_,
-                                                    result_file)
+                  if not isinstance(outputs[0], dict):
+                        result_files = results2json(dataset, outputs, args.out)
                         coco_eval(result_files, eval_types, dataset.coco)
+                  else:
+                      for name in outputs[0]:
+                          print('\nEvaluating {}'.format(name))
+                          outputs_ = [out[name] for out in outputs]
+                          result_file = args.out + '.{}'.format(name)
+                          result_files = results2json(dataset, outputs_,
+                                                      result_file)
+                          coco_eval(result_files, eval_types, dataset.coco)
 
     # Save predictions in the COCO json format
     if args.json_out and rank == 0:
