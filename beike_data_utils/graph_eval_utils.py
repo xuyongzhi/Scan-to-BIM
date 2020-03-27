@@ -55,8 +55,7 @@ def eval_graph(results_datas, dataset, out_file):
 
 
 class GraphEval():
-  _imgage_size = 512
-  #assert imgage_size == IMAGE_SIZE
+  _eval_img_size = 512
   _all_out_types = [ 'composite', 'line_ave', 'score_refine' ]
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
@@ -67,7 +66,7 @@ class GraphEval():
 
   def __str__(self):
     s = self._score_threshold
-    par_str =  f'Eval parameters:\nimage size:{self._imgage_size}\n'
+    par_str =  f'Eval parameters:\nimage size:{self._img_size}\n'
     par_str += f'Out type:{self.out_type}\n'
     par_str += f'Graph optimization corner distance threshold:{self._opt_graph_cor_dis_thr}\n'
     par_str += f'Positive score threshold:{s}\n'
@@ -97,6 +96,13 @@ class GraphEval():
     line_recall_precision = defaultdict(list)
     self._catid_2_cat = dataset._catid_2_cat
 
+    self.is_pcl = 'input_style' in results_datas[0]['img_meta'] and results_datas[0]['img_meta']['input_style'] == 'pcl'
+    if self.is_pcl:
+      self._img_size = tuple(results_datas[0]['img_meta']['img_shape'])
+    else:
+      self._img_size = (IMAGE_SIZE, IMAGE_SIZE, 3)
+    self.scale_ratio = self._eval_img_size / self._img_size[0]
+
     for i_img, res_data in enumerate(results_datas):
         detections = res_data['detections']
         img = res_data['img']
@@ -116,18 +122,20 @@ class GraphEval():
         #  import pdb; pdb.set_trace()  # XXX BREAKPOINT
         #  pass
 
-        gt_lines = results_datas[i_img]['gt_bboxes'][0]
+        gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
+        gt_lines[:,:4] *= self.scale_ratio
         #_show_lines_ls_points_ls(img[:,:,0], [gt_lines])
 
         num_labels = len(detections)
         for label in range(num_labels):
-            det_lines_raw = detections[label]['det_lines']
+            det_lines_raw = detections[label]['det_lines'].copy()
             det_lines = clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
             #_show_lines_ls_points_ls(img[:,:,0], det_lines[:,:5])
             det_lines = filter_low_score_det(det_lines, self._score_threshold)
 
             labels_i = np.ones(det_lines.shape[0])*label
             scores_i = det_lines[:,-1]
+            det_lines[:,:4] *= self.scale_ratio
             det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
             det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
 
@@ -308,7 +316,8 @@ class GraphEval():
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet.png'
     img_file = os.path.join(self.eval_dir, img_name)
     #print('det corners. green: true pos, red: false pos')
-    _show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [det_lines_pos, det_lines_neg],
+    img_size = (self._eval_img_size, self._eval_img_size)
+    _show_lines_ls_points_ls(img_size, [det_lines_pos, det_lines_neg],
                               points_ls=[det_corners_pos, det_corners_neg],
                             line_colors=['green', 'red'], line_thickness=1,
                             point_colors=['blue', 'yellow'], point_thickness=2,
@@ -317,7 +326,7 @@ class GraphEval():
     #print('gt  corners. green: true pos, red: false neg')
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt.png'
     img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls((IMAGE_SIZE, IMAGE_SIZE), [gt_lines_true, gt_lines_false],
+    _show_lines_ls_points_ls(img_size, [gt_lines_true, gt_lines_false],
                             points_ls=[gt_corners_true, gt_corners_false],
                             line_colors=['green','red'],
                             line_thickness=1,
@@ -326,7 +335,7 @@ class GraphEval():
 
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_Det.png'
     img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls((IMAGE_SIZE, IMAGE_SIZE), [det_lines], [det_corners],
+    _show_lines_ls_points_ls(img_size, [det_lines], [det_corners],
                              line_colors='random', point_colors='random',
                              line_thickness=1, point_thickness=2,
                              out_file=img_file, only_save=1)
