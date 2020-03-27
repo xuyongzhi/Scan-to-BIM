@@ -307,7 +307,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     # map labels not used for evaluation to ignore_label
     if self.input_transform is not None:
       coords, feats, labels, gt_bboxes, img_meta = self.input_transform(
-              coords, feats, labels, gt_bboxes=gt_bboxes, img_meta=img_meta)
+              coords, feats, labels, gt_bboxes, img_meta)
     if self.target_transform is not None:
       coords, feats, labels = self.target_transform(coords, feats, labels)
     if self.IGNORE_LABELS is not None:

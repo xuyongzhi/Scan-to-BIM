@@ -11,17 +11,17 @@ wkdir=R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_Rfiou743_Fpn35_Pbs1_Bp32_Vsz8
 #wkdir=R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_Rfiou743_Fpn35_Pbs1_Bp32_Vsz8_Asv
 CP=./work_dirs/${wkdir}/best.pth
 
-ROTATE=0
+ROTATE=1
 CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0
 BASE_PLANE=32
 BS=5
 
-ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE
+#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE
 #--resume $CP 
 
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE
+./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE
 
 
 ROTATE=0

@@ -36,13 +36,19 @@ class VoxelDatasetBase(VoxelizationDataset):
     if input_transform is not None:
       input_transforms += input_transform
 
+    #if config.augment_data:
+    #  input_transforms += [
+    #      t.RandomDropout(0.2),
+    #      t.RandomHorizontalFlip(self.ROTATION_AXIS, self.IS_TEMPORAL),
+    #      t.ChromaticAutoContrast(),
+    #      t.ChromaticTranslation(config.data_aug_color_trans_ratio),
+    #      t.ChromaticJitter(config.data_aug_color_jitter_std),
+    #      # t.HueSaturationTranslation(config.data_aug_hue_max, config.data_aug_saturation_max),
+    #  ]
+
     if config.augment_data:
       input_transforms += [
-          t.RandomDropout(0.2),
           t.RandomHorizontalFlip(self.ROTATION_AXIS, self.IS_TEMPORAL),
-          t.ChromaticAutoContrast(),
-          t.ChromaticTranslation(config.data_aug_color_trans_ratio),
-          t.ChromaticJitter(config.data_aug_color_jitter_std),
           # t.HueSaturationTranslation(config.data_aug_hue_max, config.data_aug_saturation_max),
       ]
 
