@@ -236,7 +236,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
         translation_augmentation_ratio_bound=self.TRANSLATION_AUGMENTATION_RATIO_BOUND,
         ignore_label=ignore_label,
         voxel_resolution = self.voxel_resolution,
-        always_scale_to_full_resolution = self.always_scale_to_full_resolution)
+        auto_scale_to_full_resolution = self.auto_scale_to_full_resolution)
 
     # map labels not evaluated to ignore_label
     label_map = {}

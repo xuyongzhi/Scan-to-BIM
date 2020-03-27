@@ -10,7 +10,7 @@
   transform_method
 '''
 
-voxel_size = [0.04, 0.08, 0.16][1]
+voxel_size = [0.04, 0.08, 0.16][0]
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 _obj_rep = OBJ_REP
@@ -167,12 +167,12 @@ img_norm_cfg = dict(
 train_pipeline = None
 test_pipeline = train_pipeline
 
-batch_size = {0.04:4, 0.08:5, 0.16:6}[voxel_size]
+batch_size = {0.04:5, 0.08:6, 0.16:7}[voxel_size]
 lra = 0.01
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -199,8 +199,8 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_scene_size = [10.24, 10.24, 5.12]
 
-voxel_resolution = [round(s/voxel_size) for s in max_scene_size]
-auto_scale_vs = True
+voxel_resolution = [512,512,256]
+auto_scale_vs = False
 model['backbone']['stem_stride'] = stem_stride_all[voxel_size]
 for split in ['train', 'test', 'val']:
   data[split]['voxel_size'] = voxel_size
@@ -235,5 +235,4 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-workflow = [('train', 1)]
 

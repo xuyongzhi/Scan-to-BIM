@@ -78,10 +78,10 @@ class BeikePclDataset(VoxelDatasetBase):
     self.test_mode = test_mode
     self.VOXEL_SIZE = voxel_size
     self.voxel_resolution = voxel_resolution
-    self.always_scale_to_full_resolution = auto_scale_vs
+    self.auto_scale_to_full_resolution = auto_scale_vs
     assert img_prefix in ['train', 'test']
 
-    if voxel_resolution is not None:
+    if voxel_resolution[0] is not None:
       bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
       clip_bound = ((-bdx, bdx), (-bdy, bdy), (-bdz, bdz))
       self.CLIP_BOUND = clip_bound

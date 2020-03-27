@@ -21,7 +21,7 @@ class Voxelizer:
                translation_augmentation_ratio_bound=None,
                ignore_label=255,
                voxel_resolution=None,
-               always_scale_to_full_resolution=None):
+               auto_scale_to_full_resolution=None):
     """
     Args:
       voxel_size: side length of a voxel
@@ -37,7 +37,7 @@ class Voxelizer:
     self.clip_bound = clip_bound
     self.ignore_label = ignore_label
     self.voxel_resolution = voxel_resolution
-    self.always_scale_to_full_resolution = always_scale_to_full_resolution
+    self.auto_scale_to_full_resolution = auto_scale_to_full_resolution
 
     # Augmentation
     self.use_augmentation = use_augmentation
@@ -133,7 +133,10 @@ class Voxelizer:
       rigid_transformation = M_r @ rigid_transformation
 
     homo_coords = np.hstack((coords, np.ones((coords.shape[0], 1), dtype=coords.dtype)))
-    rigid_transformation, scale_rate = self.auto_scale_inside_voxel_resolution(homo_coords, rigid_transformation)
+    if self.auto_scale_to_full_resolution:
+      rigid_transformation, scale_rate = self.auto_scale_inside_voxel_resolution(homo_coords, rigid_transformation)
+    else:
+      scale_rate = None
     coords_aug = np.floor(homo_coords @ rigid_transformation.T[:, :3])
 
     # Align all coordinates to the origin.
@@ -168,11 +171,8 @@ class Voxelizer:
     scale_rates = (np.array(self.voxel_resolution)-1) / scope_coords # xyz
     scale_rate = scale_rates.min()
     #print(f'scale_rates:{scale_rates}, min={scale_rate}')
-    if scale_rate > 1 and not self.always_scale_to_full_resolution:
-      return rigid_transformation, 1
-    else:
-      rigid_transformation[:3,:3] *= scale_rate
-      return rigid_transformation, scale_rate
+    rigid_transformation[:3,:3] *= scale_rate
+    return rigid_transformation, scale_rate
 
   def voxelize_temporal(self,
                         coords_t,
