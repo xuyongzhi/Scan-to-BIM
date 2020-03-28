@@ -11,7 +11,7 @@ CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x.py
 wkdir=R50_fpn_refine_final_beike_pcl_2d_bs6_lr10_Rfiou743_Fpn34_Pbs1_Bp32_Vsz8
 CP=./work_dirs/${wkdir}/best.pth
 
-ROTATE=1
+ROTATE=0
 CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0

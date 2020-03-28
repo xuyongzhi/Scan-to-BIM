@@ -441,7 +441,8 @@ class VoxResNet(nn.Module):
         self.zero_init_residual = zero_init_residual
         self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
-        self.inplanes = self.basic_planes = basic_planes
+        self.basic_planes = basic_planes
+        self.inplanes = basic_planes * 2
         self.max_planes = max_planes
 
         self.voxel_size = voxel_size
@@ -498,8 +499,6 @@ class VoxResNet(nn.Module):
     def _make_bev_project_layer(self):
         self.bev_layers = []
         z_dim_base = int( math.ceil( self.full_height / self.voxel_size / 8))
-        bev_kernels = [5,3]
-        bev_strides = [5,3]
 
         for i in self.out_indices:
           bev_layer_i = []
@@ -554,6 +553,8 @@ class VoxResNet(nn.Module):
         else:
           raise ValueError
 
+        out_planes = [self.basic_planes, self.basic_planes*2, self.basic_planes*2]
+
         num_layers = len(kernels)
         in_channels_i = in_channels
 
@@ -563,13 +564,13 @@ class VoxResNet(nn.Module):
           conv1_i = build_conv_layer(
               self.conv_cfg,
               in_channels_i,
-              self.basic_planes,
+              out_planes[i],
               kernel_size=kernels[i],
               stride=strides[i],
               padding=1,
               bias=False)
-          in_channels_i = self.basic_planes
-          norm1_name, norm1 = build_norm_layer(self.norm_cfg, self.basic_planes, postfix=i+1)
+          in_channels_i = out_planes[i]
+          norm1_name, norm1 = build_norm_layer(self.norm_cfg, in_channels_i, postfix=i+1)
           self.add_module(f'conv1_{i}', conv1_i)
           self.add_module(norm1_name, norm1)
 
