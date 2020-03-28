@@ -200,6 +200,7 @@ elif DATA == 'stanford_pcl_2d':
   max_scene_size = [10.24, 10.24, 5.12]
 
 voxel_resolution = [512,512,256]
+voxel_resolution = None
 auto_scale_vs = False
 model['backbone']['stem_stride'] = stem_stride_all[voxel_size]
 for split in ['train', 'test', 'val']:

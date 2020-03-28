@@ -66,7 +66,11 @@ class GraphEval():
 
   def __str__(self):
     s = self._score_threshold
-    par_str =  f'Eval parameters:\nimage size:{self._img_size}\n'
+    par_str =  f'Eval parameters: eval img size = {self._eval_img_size}\n'
+    if self.is_pcl:
+      par_str += f'input: pcl'
+    else:
+      par_str += f'input: image'
     par_str += f'Out type:{self.out_type}\n'
     par_str += f'Graph optimization corner distance threshold:{self._opt_graph_cor_dis_thr}\n'
     par_str += f'Positive score threshold:{s}\n'
@@ -97,11 +101,6 @@ class GraphEval():
     self._catid_2_cat = dataset._catid_2_cat
 
     self.is_pcl = 'input_style' in results_datas[0]['img_meta'] and results_datas[0]['img_meta']['input_style'] == 'pcl'
-    if self.is_pcl:
-      self._img_size = tuple(results_datas[0]['img_meta']['img_shape'])
-    else:
-      self._img_size = (IMAGE_SIZE, IMAGE_SIZE, 3)
-    self.scale_ratio = self._eval_img_size / self._img_size[0]
 
     for i_img, res_data in enumerate(results_datas):
         detections = res_data['detections']
@@ -123,8 +122,12 @@ class GraphEval():
         #  pass
 
         gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
-        gt_lines[:,:4] *= self.scale_ratio
-        #_show_lines_ls_points_ls(img[:,:,0], [gt_lines])
+
+        gt_size = gt_lines[:,:4].max() - gt_lines[:,:4].min()
+        self.eval_scale_ratio = (self._eval_img_size-4) / gt_size
+        self.eval_scale_ratio = max(self.eval_scale_ratio, 2)
+        self.eval_tranlation = -gt_lines[:,:4].min() + 2
+        gt_lines[:,:4] = gt_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
 
         num_labels = len(detections)
         for label in range(num_labels):
@@ -135,7 +138,7 @@ class GraphEval():
 
             labels_i = np.ones(det_lines.shape[0])*label
             scores_i = det_lines[:,-1]
-            det_lines[:,:4] *= self.scale_ratio
+            det_lines[:,:4] = det_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
             det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
             det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
 
