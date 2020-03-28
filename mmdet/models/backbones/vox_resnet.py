@@ -682,7 +682,7 @@ class VoxResNet(nn.Module):
           if SHOW_NET:
             debug_utils._show_sparse_ls_shapes([x], f'conv1 {i}')
 
-        #x = self.maxpool(x)
+        x = self.maxpool(x)
         outs = []
 
         if RECORD_T:
