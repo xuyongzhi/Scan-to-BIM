@@ -96,6 +96,7 @@ class SingleStageDetector(BaseDetector):
         if RECORD_T:
           t0 = time.time()
         x = self.extract_feat(img)
+        #debug_utils._show_tensor_ls_shapes(x, 'single_stage forward_train - features')
         if RECORD_T:
           t1 = time.time()
         outs = self.bbox_head(x)

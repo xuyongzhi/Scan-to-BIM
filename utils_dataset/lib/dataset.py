@@ -325,6 +325,9 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     self.img_infos[index]['img_meta'] = img_meta
     #print(img_meta['data_aug'])
 
+    img_shape = tuple(coords.max(axis=0).tolist())
+    self.img_infos[index]['img_meta']['img_shape'] = img_shape
+    self.img_infos[index]['img_meta']['pad_shape'] = img_shape
     return_args = [coords, feats, labels, self.img_infos[index]]
     #if self.return_transformation:
     #  return_args.append(transformation.astype(np.float32))

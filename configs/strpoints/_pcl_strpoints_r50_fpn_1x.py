@@ -50,7 +50,6 @@ norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 point_strides_all = { 0.04: [4, 8, 16, 32, ],
                       0.08: [2, 4, 8,  16, ],
                       0.16: [1, 2, 4,  8,  ],  }
-stem_stride_all = {0.04: 4, 0.08: 2, 0.16: 1}
 bbp = 32
 model = dict(
     type='StrPointsDetector',
@@ -195,14 +194,14 @@ data = dict(
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
-  max_scene_size = [20.48, 20.48, 10.24]
+  max_scene_size = [20.48, 20.48, 7.68]
 elif DATA == 'stanford_pcl_2d':
   max_scene_size = [10.24, 10.24, 5.12]
 
-voxel_resolution = [512,512,256]
-voxel_resolution = None
+voxel_resolution = [None]*3
 auto_scale_vs = False
-model['backbone']['stem_stride'] = stem_stride_all[voxel_size]
+model['backbone']['voxel_size'] = voxel_size
+model['backbone']['full_height'] = max_scene_size[-1]
 for split in ['train', 'test', 'val']:
   data[split]['voxel_size'] = voxel_size
   data[split]['voxel_resolution'] = voxel_resolution

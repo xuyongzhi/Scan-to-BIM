@@ -406,9 +406,10 @@ class VoxResNet(nn.Module):
                  stage_with_gen_attention=((), (), (), ()),
                  with_cp=False,
                  zero_init_residual=True,
-                 stem_stride = 4,
                  basic_planes = 64,
                  max_planes = 1024,
+                 voxel_size = 0.04,
+                 full_height  = 10.24,
                  ):
         super(VoxResNet, self).__init__()
 
@@ -443,7 +444,10 @@ class VoxResNet(nn.Module):
         self.inplanes = self.basic_planes = basic_planes
         self.max_planes = max_planes
 
-        self.stem_stride = stem_stride
+        self.voxel_size = voxel_size
+        self.full_height = full_height
+        stem_strides = {0.04:4, 0.08:2, 0.16:1}
+        self.stem_stride = stem_strides[self.voxel_size]
 
         self._make_stem_layer(in_channels)
 
@@ -483,114 +487,49 @@ class VoxResNet(nn.Module):
           self.out_strides.append(np.array([xy_stride, xy_stride, z_stride]))
 
         # project to BEV
-        self.gen_dense_project_dynamic()
+        self._make_bev_project_layer()
 
         self._freeze_stages()
 
         p = min( 2**(len(self.stage_blocks) - 1), self.max_planes)
         self.feat_dim = self.block.expansion * self.basic_planes * p
 
-    def gen_dense_project_dynamic(self):
-        self.full_z_dim_for_conv_base = 12
-        self.full_z_dims_for_conv = []
-        self.project_layers = []
+
+    def _make_bev_project_layer(self):
+        self.bev_layers = []
+        z_dim_base = int( math.ceil( self.full_height / self.voxel_size / 8))
+        bev_kernels = [5,3]
+        bev_strides = [5,3]
+
         for i in self.out_indices:
-            self.full_z_dims_for_conv.append(self.full_z_dim_for_conv_base // 2**(self.out_indices[i] - self.out_indices[0]))
-            planes = self.basic_planes * 2**(i+2)
-            kernel_z = self.full_z_dims_for_conv[i]
-            num_layers_i = 1
-            layers_i = []
-            for j in range(num_layers_i):
-              conv_j = build_conv_layer(
-                  {'type':'Conv3d'},
-                  planes,
-                  planes,
-                  kernel_size=[1,1,kernel_z],
-                  stride=[1,1,kernel_z],
-                  bias=False)
-              layers_i.append(conv_j)
-
-            project_layer_i = nn.Sequential(*layers_i)
-            self.add_module(f'project_layer_{i}', project_layer_i)
-            self.project_layers.append( project_layer_i )
-        pass
-
-    def gen_dense_project(self):
-        self.project_layers = []
-        vsz = self.voxel_resolution[-1]
-        for i in self.out_indices:
-            planes = self.basic_planes * 2**(i+2)
-            kernel_z = math.ceil(vsz / self.out_strides[i][-1])
-            conv_i = build_conv_layer(
-                {'type':'Conv3d'},
-                planes,
-                planes,
-                kernel_size=[1,1,kernel_z],
-                stride=[1,1,kernel_z],
-                bias=False)
-
-            #max_pool = mink_max_pool(kernel_size=[1,1,2], stride=[1,1,2])
-            #project_layer_i = nn.Sequential(conv_i, max_pool)
-            project_layer_i = conv_i
-            self.add_module(f'project_layer_{i}', project_layer_i)
-            self.project_layers.append( project_layer_i )
-        pass
-
-    def gen_independent_project(self):
-        self.project_layers = []
-        stride_last_level = self.out_strides[-1][-1]
-        kernel_proj = 2
-        stride_proj = 2
-        num_proj_layers = math.ceil(math.log(self.voxel_resolution[-1] / stride_last_level, stride_proj))
-        self.num_proj_layers = num_proj_layers
-        for i in self.out_indices:
-            planes = self.basic_planes * 2**(i+2)
-            layers_i = []
-            for j in range(self.out_indices[-1]-i):
-              conv_j = build_conv_layer(
-                  self.conv_cfg,
-                  planes,
-                  planes,
-                  kernel_size=[1,1,3],
-                  stride=[1,1,2],
-                  bias=False)
-              layers_i.append(conv_j)
-            for j in range(num_proj_layers):
-              conv_j = build_conv_layer(
-                  self.conv_cfg,
-                  planes,
-                  planes,
-                  kernel_size=[1,1,kernel_proj],
-                  stride=[1,1,stride_proj],
-                  bias=False)
-              layers_i.append(conv_j)
-
-            max_pool = mink_max_pool(kernel_size=[1,1,2], stride=[1,1,2])
-            layers_i.append(max_pool)
-            project_layer_i = nn.Sequential(*layers_i)
-            self.add_module(f'project_layer_{i}', project_layer_i)
-            self.project_layers.append( project_layer_i )
-        pass
-
-    def gen_independent_project__(self):
-        self.project_layers = []
-        vsz = self.voxel_resolution[-1]
-        for i in self.out_indices:
-            planes = self.basic_planes * 2**(i+2)
-            kernel_z = math.ceil(vsz / self.out_strides[i][-1]) + 1
-            conv_i = build_conv_layer(
+          bev_layer_i = []
+          planes = self.basic_planes * 2**(i+2)
+          z_dim_i = z_dim_base / 2**(i)
+          if z_dim_i <= 7:
+            kernels_i = [z_dim_i]
+            strides_i = [z_dim_i]
+          else:
+            kernel_i = int(math.ceil(math.sqrt(z_dim_i)))
+            kernels_i = [kernel_i] * 2
+            strides_i = [kernel_i] * 2
+          num_layers = len(kernels_i)
+          for j in range(num_layers):
+            bev_conv_i = build_conv_layer(
                 self.conv_cfg,
                 planes,
                 planes,
-                kernel_size=[1,1,kernel_z],
-                stride=[1,1,kernel_z],
+                kernel_size=(1,1,kernels_i[j]),
+                stride=(1,1,strides_i[j]),
+                padding=0,
                 bias=False)
+            bev_norm_name_i, bev_norm_i = build_norm_layer(self.norm_cfg, planes, postfix=j)
+            bev_layer_i.append(bev_conv_i)
+            bev_layer_i.append(bev_norm_i)
+            bev_layer_i.append(self.relu)
+          bev_layer_i = nn.Sequential(*bev_layer_i)
+          self.add_module(f'bev_layer_{i}', bev_layer_i)
+          self.bev_layers.append(bev_layer_i)
 
-            max_pool = mink_max_pool(kernel_size=[1,1,2], stride=[1,1,2])
-            #project_layer_i = nn.Sequential(conv_i, max_pool)
-            project_layer_i = conv_i
-            self.add_module(f'project_layer_{i}', project_layer_i)
-            self.project_layers.append( project_layer_i )
         pass
 
     @property
@@ -600,14 +539,18 @@ class VoxResNet(nn.Module):
     def _make_stem_layer(self, in_channels):
         self.conv1s = []
         if self.stem_stride == 4:
+          # voxel size = 0.04
           kernels = [(3,3,3), (3,3,3), (1,1,3)]
           strides = [(2,2,2), (2,2,2), (1,1,2)]
+          self.z_full_dim = 24
         elif self.stem_stride == 2:
-          kernels = [(3,3,3), (1,1,3), (1,1,3)]
+          kernels = [(3,3,3), (3,3,3), (1,1,3)]
           strides = [(2,2,2), (1,1,2), (1,1,2)]
+          self.z_full_dim = 12
         elif self.stem_stride == 1:
-          kernels = [(3,3,3), (1,1,3), (1,1,3)]
+          kernels = [(3,3,3), (3,3,3), (1,1,3)]
           strides = [(1,1,2), (1,1,2), (1,1,2)]
+          self.z_full_dim = 6
         else:
           raise ValueError
 
@@ -677,115 +620,6 @@ class VoxResNet(nn.Module):
         else:
             raise TypeError('pretrained must be a str or None')
 
-    def get_bev(self, sparse3d_feats):
-      bev_sparse_outs = []
-      bev_dense_outs = []
-      bev_strides = []
-
-      # Use the maximum dense size for this batch
-      # max_coords_raw is the maximum coords responding to base voxel size
-      # max_coords is the value of 2**() format for max_coords_raw
-      # use 2**() format because the stride between neighbouring levels of FPN
-      # is 2
-      check_coord = 1
-      if check_coord:
-        max_coords_raw = sparse3d_feats[0].coords.max(dim=0)[0][1:3]
-        min_coords_raw = sparse3d_feats[0].coords.min(dim=0)[0][1:3]
-        coords_scope = max_coords_raw - min_coords_raw
-        if not coords_scope.max() < self.voxel_resolution[0]:
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          raise ValueError
-
-      vs = self.voxel_resolution[0]
-      img_size = torch.Tensor([vs, vs, 0]).int()
-      for i in range(len(sparse3d_feats)):
-        assert sparse3d_feats[i].tensor_stride == self.out_strides[i].tolist()
-
-        bev_i = self.project_layers[i](sparse3d_feats[i])
-        bev_sparse_outs.append( bev_i )
-
-        mask_proj_fail = bev_i.C[:,-1]  != 0
-        proj_fail_num = mask_proj_fail.int().sum()
-        if proj_fail_num >0:
-          print(f'proj fail num: {proj_fail_num} / {mask_proj_fail.numel()}')
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          pass
-        dense_i, min_coords_i, strides_i = bev_i.dense(min_coords=torch.Tensor([0,0,0]).int(), max_coords=img_size)
-        # check the last coord is not used
-        max_coord_i = bev_i.C[:, 1:3].max()
-        assert max_coord_i <= vs - strides_i[0], f"max_coord={max_coord_i} The last coord is used, the out dense cannot be cropped for FPN"
-
-        assert dense_i.size()[-1] == 1
-        dense_i = dense_i.squeeze(dim=-1)
-        dense_i = dense_i[:,:, :-1,:-1]
-        bev_dense_outs.append( dense_i )
-        bev_strides.append(strides_i)
-
-      if 1:
-        debug_utils._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
-        print('\n')
-        debug_utils._show_sparse_ls_shapes(bev_sparse_outs, 'backbone sparse bev out')
-        print('\n')
-        debug_utils._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
-        print(bev_strides)
-        pass
-      return bev_dense_outs
-
-    def get_bev_dense(self, sparse3d_feats):
-      bev_sparse_outs = []
-      bev_dense_outs = []
-      bev_strides = []
-
-      # Use the maximum dense size for this batch
-      # max_coords_raw is the maximum coords responding to base voxel size
-      # max_coords is the value of 2**() format for max_coords_raw
-      # use 2**() format because the stride between neighbouring levels of FPN
-      # is 2
-      check_coord = 1
-      if check_coord:
-        max_coords_raw = sparse3d_feats[0].coords.max(dim=0)[0][1:3]
-        min_coords_raw = sparse3d_feats[0].coords.min(dim=0)[0][1:3]
-        coords_scope = max_coords_raw - min_coords_raw
-        if not coords_scope.max() < self.voxel_resolution[0]:
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          raise ValueError
-
-      vs = self.voxel_resolution[0]
-      img_size = torch.Tensor([vs, vs, 0]).int()
-      for i in range(len(sparse3d_feats)):
-          assert sparse3d_feats[i].tensor_stride == self.out_strides[i].tolist()
-          sparse_i = sparse3d_feats[i]
-          minc = torch.Tensor([0,0,0]).int()
-          maxc = torch.Tensor(self.voxel_resolution - self.out_strides[i]).int()
-
-          check_coord_scope = False
-          if check_coord_scope:
-            out_mask = (sparse_i.C[:,1:] >= maxc).int()
-            out_inds = torch.nonzero(out_mask.sum(axis=1)).squeeze()
-            out_num_xy = out_mask[:,:2].sum()
-            out_num_z = out_mask[:,2].sum()
-            # the out voxels may come from conv kernel > 1. It is fine to
-            # abondon them
-            out_rate_xy = 1.0 * out_num_xy / sparse_i.C.shape[0]
-            out_rate_z = 1.0 * out_num_z / sparse_i.C.shape[0]
-            print(f'\n\t\tout_rate: {out_rate_xy}, {out_rate_z}\n')
-            pass
-
-          dense_i, min_coords_i, strides_i = sparse_i.dense(min_coords=minc, max_coords=maxc)
-          dense_i = self.project_layers[i](dense_i)
-          assert dense_i.size()[-1] == 1
-          dense_i = dense_i.squeeze(dim=-1)
-          bev_dense_outs.append( dense_i )
-          bev_strides.append(strides_i)
-
-      if 0:
-        debug_utils._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
-        print('\n')
-        debug_utils._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
-        print(bev_strides)
-        pass
-      return bev_dense_outs
-
     def get_bev_dense_dynamic(self, sparse3d_feats):
       bev_sparse_outs = []
       bev_dense_outs = []
@@ -796,12 +630,9 @@ class VoxResNet(nn.Module):
       for i in range(num_levels):
           assert sparse3d_feats[i].tensor_stride == self.out_strides[i].tolist()
           sparse_i = sparse3d_feats[i]
+          sparse_i = self.bev_layers[i](sparse_i)
           dense_i, min_coords_i, strides_i = sparse_i.dense()
-          z_dim = dense_i.shape[-1]
-          z_dims.append(z_dim)
-          z_pad_dim = self.full_z_dims_for_conv[i]-z_dim
-          dense_i = nn.functional.pad(dense_i, (0,z_pad_dim), "constant", 0)
-          dense_i = self.project_layers[i](dense_i)
+          z_dims.append(dense_i.shape[-1])
           dense_i = dense_i.max(dim=-1)[0]
           bev_dense_outs.append( dense_i )
           bev_strides.append(strides_i)
@@ -817,10 +648,11 @@ class VoxResNet(nn.Module):
 
       if 0:
         print(f'z_dims: {z_dims}')
-        #debug_utils._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
-        #print('\n')
+        debug_utils._show_sparse_ls_shapes(sparse3d_feats,  'backbone sparse 3d  out')
+        print('\n')
         debug_utils._show_tensor_ls_shapes(bev_dense_outs,  'backbone dense  bev out')
-        #print(bev_strides)
+        print(bev_strides)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
       return bev_dense_outs
 
