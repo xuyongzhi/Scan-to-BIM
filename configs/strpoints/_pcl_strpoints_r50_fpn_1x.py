@@ -11,7 +11,15 @@
 '''
 import math
 
-voxel_size = [0.04, 0.08, 0.16][0]
+voxel_size = [0.04, 0.08][0]
+
+#stem_strides = {0.04:4, 0.08:2, 0.16:1}
+#batch_size = {0.04:5, 0.08:7}[voxel_size]
+
+stem_strides = {0.04:2, 0.08:1, 0.16:1}
+batch_size = {0.04:2, 0.08:2}[voxel_size]
+
+stem_stride = stem_strides[voxel_size]
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 _obj_rep = OBJ_REP
@@ -48,7 +56,7 @@ backbone_type = 'VoxResNet'
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
-point_strides_all = { 0.04: [4, 8, 16, 32, ],
+point_strides_all = { 0.04: [2, 4, 8, 16,  ],
                       0.08: [2, 4, 8,  16, ],
                       0.16: [1, 2, 4,  8,  ],  }
 bbp = 32
@@ -167,7 +175,6 @@ img_norm_cfg = dict(
 train_pipeline = None
 test_pipeline = train_pipeline
 
-batch_size = {0.04:5, 0.08:6, 0.16:7}[voxel_size]
 lra = 0.01
 
 data = dict(
@@ -202,6 +209,7 @@ elif DATA == 'stanford_pcl_2d':
 voxel_resolution = [None]*3
 auto_scale_vs = False
 model['backbone']['voxel_size'] = voxel_size
+model['backbone']['stem_stride'] = stem_stride
 model['backbone']['full_height'] = max_scene_size[-1]
 for split in ['train', 'test', 'val']:
   data[split]['voxel_size'] = voxel_size

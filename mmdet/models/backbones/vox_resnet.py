@@ -410,6 +410,7 @@ class VoxResNet(nn.Module):
                  max_planes = 1024,
                  voxel_size = 0.04,
                  full_height  = 10.24,
+                 stem_stride = None,
                  ):
         super(VoxResNet, self).__init__()
 
@@ -447,8 +448,7 @@ class VoxResNet(nn.Module):
 
         self.voxel_size = voxel_size
         self.full_height = full_height
-        stem_strides = {0.04:4, 0.08:2, 0.16:1}
-        self.stem_stride = stem_strides[self.voxel_size]
+        self.stem_stride = stem_stride
 
         self._make_stem_layer(in_channels)
 

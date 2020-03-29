@@ -187,7 +187,8 @@ def update_config(cfg, args, split):
 
         if 'pcl' in dataset:
           vsz = int(100 * cfg['data'][split]['voxel_size'])
-          cfg['work_dir'] += f'_Vsz{vsz}'
+          stem_stride = cfg['model']['backbone']['stem_stride']
+          cfg['work_dir'] += f'_Vsz{vsz}Stem{stem_stride}'
           if cfg['data']['train']['auto_scale_vs']:
             cfg['work_dir'] += f'_Asv'
 
