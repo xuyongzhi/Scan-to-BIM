@@ -638,6 +638,14 @@ class VoxResNet(nn.Module):
           bev_dense_outs.append( dense_i )
           bev_strides.append(strides_i)
 
+      # For pcl, the orders of shape and index values are same.
+      # For image, they are different.
+      # image size = [10,5], indice_x is in 0:5, indice_y is in 0:10
+      # To make the feature coordinate representing gt_line location, the dense
+      # image has to be permuted.
+      for i in  range(num_levels):
+        bev_dense_outs[i] = bev_dense_outs[i].permute(0,1,3,2)
+
       # pad the shape  of outs to be 2 times between neighbouring levels,
       # to input into fpn
       base_size = np.array([*bev_dense_outs[-1].shape[2:]])

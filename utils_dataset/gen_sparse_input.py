@@ -12,7 +12,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   sinput = SparseTensor(feats_batch, coords_batch)
 
   if 0:
-    batch_size = coords_batch[:,0].max()
+    batch_size = coords_batch[:,0].max()+1
     for i in range(batch_size):
       batch_mask = coords_batch[:,0] == i
       points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
@@ -30,8 +30,8 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       min_points = points.min(axis=0)
       max_points = points.max(axis=0)
-      min_lines = lines2d[:,:4].min(axis=0)
-      max_lines = lines2d[:,:4].max(axis=0)
+      min_lines = lines2d[:,:4].reshape(-1,2).min(axis=0)
+      max_lines = lines2d[:,:4].reshape(-1,2).max(axis=0)
 
       data_aug = img_meta_0['data_aug']
       print(img_meta[i]['filename'])
@@ -39,6 +39,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       print(f'lines scope: {min_lines} - {max_lines}')
       print(f'data aug:\n {data_aug}\n')
 
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True)
       pass

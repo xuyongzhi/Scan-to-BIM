@@ -124,9 +124,9 @@ class GraphEval():
         gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
 
         gt_size = gt_lines[:,:4].max() - gt_lines[:,:4].min()
-        self.eval_scale_ratio = (self._eval_img_size-4) / gt_size
-        self.eval_scale_ratio = max(self.eval_scale_ratio, 2)
-        self.eval_tranlation = -gt_lines[:,:4].min() + 2
+        self.eval_scale_ratio = (self._eval_img_size-5) / gt_size
+        self.eval_scale_ratio = min(self.eval_scale_ratio, 2)
+        self.eval_tranlation = -(gt_lines[:,:4]*self.eval_scale_ratio).min() + 2
         gt_lines[:,:4] = gt_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
 
         num_labels = len(detections)

@@ -483,9 +483,13 @@ class StrPointsHead(nn.Module):
             for i in range(num_levels):
                 point_stride = self.point_strides[i]
                 feat_h, feat_w = featmap_sizes[i]
-                h, w, _ = img_meta['pad_shape']
-                valid_feat_h = min(int(np.ceil(h / point_stride)), feat_h)
-                valid_feat_w = min(int(np.ceil(w / point_stride)), feat_w)
+                is_pcl = 'input_style' in img_meta and img_meta['input_style']=='pcl'
+                if is_pcl:
+                  valid_feat_h, valid_feat_w = feat_h, feat_w
+                else:
+                  h, w, _ = img_meta['pad_shape']
+                  valid_feat_h = min(int(np.ceil(h / point_stride)), feat_h)
+                  valid_feat_w = min(int(np.ceil(w / point_stride)), feat_w)
                 flags = self.point_generators[i].valid_flags(
                     (feat_h, feat_w), (valid_feat_h, valid_feat_w))
                 multi_level_flags.append(flags)
@@ -660,13 +664,10 @@ class StrPointsHead(nn.Module):
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
-
         #-----------------------------------------------------------------------
-
         featmap_sizes = [featmap.size()[-2:] for featmap in pts_preds_init]
         assert len(featmap_sizes) == len(self.point_generators)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
-
         #-----------------------------------------------------------------------
         # target for initial stage
         center_list, valid_flag_list = self.get_points(featmap_sizes,

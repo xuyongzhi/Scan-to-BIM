@@ -70,6 +70,7 @@ class BeikePclDataset(VoxelDatasetBase):
                test_mode=False,
                voxel_size=None,
                voxel_resolution=[None, None, None],
+               voxel_zero_offset=0,
                auto_scale_vs = None,
                augment_data = None,
                pipeline=None,):
@@ -78,6 +79,7 @@ class BeikePclDataset(VoxelDatasetBase):
     self.test_mode = test_mode
     self.VOXEL_SIZE = voxel_size
     self.voxel_resolution = voxel_resolution
+    self.voxel_zero_offset = voxel_zero_offset
     self.auto_scale_to_full_resolution = auto_scale_vs
     assert img_prefix in ['train', 'test']
 
@@ -128,7 +130,7 @@ class BeikePclDataset(VoxelDatasetBase):
     self.img_infos = []
     self.anno_raws = []
     for i in range(n):
-      anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i])
+      anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE)
       self.anno_raws.append(anno_raw)
       anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
       #img_shape = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0])[:2] / self.VOXEL_SIZE
@@ -136,8 +138,6 @@ class BeikePclDataset(VoxelDatasetBase):
       img_shape = None # update after data aug
       img_meta = dict(filename = anno_raw['filename'],
                       input_style='pcl',
-                      img_shape = img_shape,
-                      pad_shape = img_shape,
                       pcl_scope = anno_raw['pcl_scope'],
                       line_length_min_mean_max = anno_raw['line_length_min_mean_max'],
                       voxel_resolution = self.voxel_resolution,
@@ -149,8 +149,9 @@ class BeikePclDataset(VoxelDatasetBase):
         img_meta = img_meta,)
       #if not self.test_mode:
       if True:
-        img_info['gt_bboxes'] = anno_2d['bboxes']
-        img_info['gt_bboxes_raw'] = anno_2d['bboxes']
+        gt_bboxes = anno_2d['bboxes']
+        img_info['gt_bboxes'] = gt_bboxes
+        img_info['gt_bboxes_raw'] =  gt_bboxes
         img_info['gt_labels'] = anno_2d['labels']
       self.img_infos.append(img_info)
 

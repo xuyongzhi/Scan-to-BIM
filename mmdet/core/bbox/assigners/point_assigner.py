@@ -91,6 +91,7 @@ class PointAssigner(BaseAssigner):
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 5
             gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+          gt_bboxes_raw = gt_bboxes.clone()
           gt_bboxes = gt_bboxes[:,:4]
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
                                                               .clamp(min=1e-6)
@@ -184,5 +185,22 @@ class PointAssigner(BaseAssigner):
         if PRINT_POINT_ASSIGNER:
           assign_res.dg_add_pos_dist(pos_dist)
           print('\tPointAssigner\t' + str(assign_res))
+
+        if (not assign_res.num_pos_inds == num_gts) or DEBUG:
+          from  tools.debug_utils import _show_lines_ls_points_ls
+          print(img_meta['filename'])
+          pos_inds = torch.nonzero(assigned_gt_inds).squeeze()
+          pos_gt_inds = assigned_gt_inds[pos_inds].cpu().data.numpy() - 1
+          neg_gt_inds = [i for i in range(num_gts) if i not in pos_gt_inds]
+          gt_bboxes_raw = gt_bboxes_raw.cpu().data.numpy()
+          missed_gt_bboxes = gt_bboxes_raw[neg_gt_inds]
+
+          pos_points = points[pos_inds].cpu().data.numpy()
+          _show_lines_ls_points_ls((512,512,), [gt_bboxes_raw, missed_gt_bboxes], [pos_points], line_colors=['red', 'green'])
+          for i in range(len(pos_inds)):
+            pos_gt_i = gt_bboxes_raw[pos_gt_inds[i]].reshape(-1,5)
+            _show_lines_ls_points_ls((512,512,), [gt_bboxes_raw, pos_gt_i], [pos_points[i:i+1]], line_colors=['red', 'green'])
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          print('Not all gt get positive candidate in point assigner')
 
         return assign_res

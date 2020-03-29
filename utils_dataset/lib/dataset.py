@@ -17,6 +17,7 @@ from .dataloader import InfSampler
 from .voxelizer import Voxelizer
 from tools.debug_utils import _show_3d_points_bboxes_ls
 
+DEBUG = 0
 
 class DatasetPhase(Enum):
   Train = 0
@@ -325,9 +326,10 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     self.img_infos[index]['img_meta'] = img_meta
     #print(img_meta['data_aug'])
 
-    img_shape = tuple((coords.max(axis=0)+1).tolist())
-    self.img_infos[index]['img_meta']['img_shape'] = img_shape
-    self.img_infos[index]['img_meta']['pad_shape'] = img_shape
+    assert (coords.min(axis=0)==0).all()
+    #img_shape = tuple(coords.max(axis=0).tolist())
+    #self.img_infos[index]['img_meta']['img_shape'] = img_shape
+    #self.img_infos[index]['img_meta']['pad_shape'] = img_shape
     return_args = [coords, feats, labels, self.img_infos[index]]
     #if self.return_transformation:
     #  return_args.append(transformation.astype(np.float32))

@@ -19,7 +19,6 @@
 | Rfiou743_Fpn45_Pbs2 | train 10, line_ave, no rotation     | 0.924 - 0.924 | 0.892 - 0.805 |
 
 # Questions
-* pcl input. img_shape = pcl_scope / voxel size. Currently in strpoints_head.py Line 486, float img shape is used.
 * a big issue is that the refine stage cannot remove false positive of the first stage
 * base_scale=2 seems not right
 * Is the max_iou assigner configuration not good, num_total_pos is too large
@@ -170,3 +169,11 @@ datasets/pipelines/transforms.py/RandomLineFlip
 flip line instead of box, sort the 2 points of line after fliping
 
 
+# img shape for pcl
+- get_points in strpoints_head.py
+```
+h, w, _ = img_meta['pad_shape']
+voxel_zero_offset_i = int(np.ceil( img_meta['voxel_zero_offset'] * 2 / point_stride ))
+feat_w += voxel_zero_offset_i
+valid_feat_h = min(int(np.ceil(h / point_stride)), feat_h)
+```

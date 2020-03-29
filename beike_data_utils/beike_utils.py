@@ -511,11 +511,13 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     lines_pt = (lines - min_xy) / voxel_size
     #lines_pt = np.clip(lines_pt, a_min=0, a_max=None)
 
+  #assert lines_pt.min() >=  0, f'lines_pt min<0: {lines_pt.min()}'
   if floor:
     lines_pt = np.floor(lines_pt).astype(np.uint32)
 
-  line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
-  line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
+  #line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
+  #line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
+  #assert line_size_pt.min() > 3
 
   if corners is None:
     corners_pt = None
@@ -536,7 +538,6 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
 
-  #assert line_size_pt.min() > 3
   return corners_pt, lines_pt, img_size
 
 def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
@@ -578,8 +579,9 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
   if floor:
     lines_pt = np.floor(lines_pt).astype(np.uint32)
 
-  line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
-  line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
+  #line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
+  #line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
+  #assert line_size_pt.min() > 3
 
   if corners is None:
     corners_pt = None
@@ -599,7 +601,6 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
 
-  #assert line_size_pt.min() > 3
   return corners_pt, lines_pt
 
 def raw_anno_to_img(anno_raw, anno_style, pixel_config):
@@ -641,7 +642,7 @@ def load_pcl_scope(anno_folder):
       #pcl_scopes[fid][1] = np.ceil(pcl_scopes[fid][1] * 10)/10 + offset_aug
     return pcl_scopes
 
-def load_anno_1scene(anno_folder, filename):
+def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
         metadata = json.load(f)
@@ -747,6 +748,14 @@ def load_anno_1scene(anno_folder, filename):
       anno['lines'] = fix_1_unaligned_scene(scene_name, anno['lines'], scene_size, 'std_2p')
       tmp = np.repeat( anno['corners'][:,None,:], 2, axis=1 )
       anno['corners'] = fix_1_unaligned_scene(scene_name, tmp, scene_size, 'std_2p')[:,0,:]
+
+      # make min lines >= 0
+      if pcl_scope_zero_offset is not None:
+        anno['lines'] += pcl_scope_zero_offset
+        anno['corners'] += pcl_scope_zero_offset
+      min_lines = anno['lines'].min()
+      #print(f'{filename}\t\t{min_lines}')
+      #assert anno['lines'].min() >= 0, f'min lines={min_lines}'
 
       if 0:
         if not( anno['corners'].min() > -PCL_LINE_BOUND_METER and anno['corners'].min() < 1 ):

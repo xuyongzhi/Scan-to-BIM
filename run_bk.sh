@@ -5,10 +5,9 @@
 
 CONFIG=configs/strpoints/_strpoints_r50_fpn_1x.py
 CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x.py
-#CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x_8.py
 
 
-wkdir=R50_fpn_refine_final_beike_pcl_2d_bs6_lr10_Rfiou743_Fpn34_Pbs1_Bp32_Vsz8
+wkdir=R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_Rfiou743_Fpn34_Pbs1_Bp32_Vsz8
 CP=./work_dirs/${wkdir}/best.pth
 
 ROTATE=0
@@ -16,15 +15,13 @@ CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0
 BASE_PLANE=32
-BS=5
+BS=1
 
-ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --bs $BS
 #--resume $CP 
 
 #./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE
 
-CONFIG=configs/strpoints/_pcl_strpoints_r50_fpn_1x_8.py
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE
 
 ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
