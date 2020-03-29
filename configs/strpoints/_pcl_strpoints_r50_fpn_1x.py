@@ -11,7 +11,7 @@
 '''
 import math
 
-voxel_size = [0.04, 0.08, 0.16][1]
+voxel_size = [0.04, 0.08, 0.16][0]
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 _obj_rep = OBJ_REP
@@ -236,5 +236,4 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-workflow = [('train', 1)]
 
