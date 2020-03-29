@@ -39,7 +39,6 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       print(f'lines scope: {min_lines} - {max_lines}')
       print(f'data aug:\n {data_aug}\n')
 
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True)
       pass

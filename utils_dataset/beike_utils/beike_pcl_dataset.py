@@ -143,6 +143,7 @@ class BeikePclDataset(VoxelDatasetBase):
                       voxel_resolution = self.voxel_resolution,
                       voxel_size = self.VOXEL_SIZE,
                       scale_factor = 1,
+                      img_shape = (512,512,3),
                       data_aug={})
 
       img_info = dict(
