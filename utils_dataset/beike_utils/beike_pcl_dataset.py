@@ -133,9 +133,9 @@ class BeikePclDataset(VoxelDatasetBase):
       anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE)
       self.anno_raws.append(anno_raw)
       anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
-      #img_shape = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0])[:2] / self.VOXEL_SIZE
-      #img_shape = tuple(img_shape.tolist()) + (3,)
-      img_shape = None # update after data aug
+      img_shape = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0])[:2] / self.VOXEL_SIZE
+      img_shape = np.ceil(img_shape).astype(np.int32)
+      img_shape = tuple(img_shape.tolist()) + (3,)
       img_meta = dict(filename = anno_raw['filename'],
                       input_style='pcl',
                       pcl_scope = anno_raw['pcl_scope'],
@@ -143,7 +143,7 @@ class BeikePclDataset(VoxelDatasetBase):
                       voxel_resolution = self.voxel_resolution,
                       voxel_size = self.VOXEL_SIZE,
                       scale_factor = 1,
-                      img_shape = (512,512,3),
+                      img_shape = img_shape,
                       data_aug={})
 
       img_info = dict(

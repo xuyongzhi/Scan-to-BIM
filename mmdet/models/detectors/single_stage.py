@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+import numpy as np
 
 from mmdet.core import bbox2result
 from .. import builder
@@ -36,6 +37,9 @@ class SingleStageDetector(BaseDetector):
         self.test_cfg = test_cfg
         self.init_weights(pretrained=pretrained)
 
+        self.stem_stride = backbone['stem_stride']
+
+        self.point_strides = bbox_head['point_strides']
         if 0:
           print('\n\nneck:')
           print(self.backbone)
@@ -140,6 +144,9 @@ class SingleStageDetector(BaseDetector):
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
         x = self.extract_feat(img)
+        img_meta[0]['feat_sizes'] = [np.array( [*xi.size()[2:]] ) for xi in x]
+        img_meta[0]['pad_shape'] = img_meta[0]['feat_sizes'][0] * self.point_strides[0]
+        img_meta[0]['img_shape'] = img_meta[0]['pad_shape']
         outs = self.bbox_head(x)
         bbox_inputs = outs + (img_meta, self.test_cfg, rescale)
         bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)

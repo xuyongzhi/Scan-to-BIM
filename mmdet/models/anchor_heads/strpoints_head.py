@@ -1212,17 +1212,26 @@ class StrPointsHead(nn.Module):
       bbox_refine = line_pred[:,:5]
       line_2p_refine_0 = decode_line_rep_th(bbox_refine, OBJ_REP)
       num_lines = line_2p_refine_0.shape[0]
-      pad_shape = img_meta['pad_shape'][:2]
+      if 'pad_shape' in img_meta:
+        pad_shape = img_meta['pad_shape'][:2]
+      else:
+        pad_shape = None
       m = cor_hm_pred.shape[0]
       assert cor_hm_pred.shape[1] == 4
-      featmap_size = int(np.sqrt(m))
-      cor_hm0 = cor_hm_pred.reshape(featmap_size, featmap_size, cor_hm_pred.shape[1])
-      cor_hm1 = torch.nn.functional.interpolate(cor_hm0.permute(2,0,1).unsqueeze(0), size=(512,512), mode='bilinear')
+      #featmap_size = int(np.sqrt(m))
+      feat_size0, feat_size1 = img_meta['feat_sizes'][0]
+      cor_hm0 = cor_hm_pred.reshape(feat_size0, feat_size1, cor_hm_pred.shape[1])
+      cor_hm1 = torch.nn.functional.interpolate(cor_hm0.permute(2,0,1).unsqueeze(0), size=(pad_shape[0], pad_shape[1]), mode='bilinear')
       cor_hm2 = cor_hm1.squeeze(0).permute(1,2,0)
 
       line_2p_refine_1 = line_2p_refine_0.reshape(num_lines*2, 2)
-      rr_inds = torch.ceil(line_2p_refine_1).to(torch.int64).clamp(min=0, max=pad_shape[0]-1)
-      ll_inds = torch.floor(line_2p_refine_1).to(torch.int64).clamp(min=0, max=pad_shape[0]-1)
+      rr_inds = torch.ceil(line_2p_refine_1).to(torch.int64)
+      ll_inds = torch.floor(line_2p_refine_1).to(torch.int64)
+
+      rr_inds[:,0] = rr_inds[:,0].clamp(min=0, max=pad_shape[1]-1)
+      rr_inds[:,1] = rr_inds[:,1].clamp(min=0, max=pad_shape[0]-1)
+      ll_inds[:,0] = ll_inds[:,0].clamp(min=0, max=pad_shape[1]-1)
+      ll_inds[:,1] = ll_inds[:,1].clamp(min=0, max=pad_shape[0]-1)
 
       rr_d = (line_2p_refine_1 - rr_inds.to(torch.float)).norm(dim=1)
       ll_d = (line_2p_refine_1 - ll_inds.to(torch.float)).norm(dim=1)
