@@ -11,13 +11,13 @@
 '''
 import math
 
-voxel_size = [0.04, 0.08][0]
+voxel_size = [0.04, 0.08][1]
 
-#stem_strides = {0.04:4, 0.08:2, 0.16:1}
-#batch_size = {0.04:5, 0.08:7}[voxel_size]
+stem_strides = {0.04:4, 0.08:2, 0.16:1}
+batch_size = {0.04:5, 0.08:7}[voxel_size]
 
-stem_strides = {0.04:2, 0.08:1, 0.16:1}
-batch_size = {0.04:2, 0.08:2}[voxel_size]
+#stem_strides = {0.04:2, 0.08:1, 0.16:1}
+#batch_size = {0.04:2, 0.08:2}[voxel_size]
 
 stem_stride = stem_strides[voxel_size]
 #*******************************************************************************
