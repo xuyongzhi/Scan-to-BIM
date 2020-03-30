@@ -56,9 +56,7 @@ backbone_type = 'VoxResNet'
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
-point_strides_all = { 0.04: [2, 4, 8, 16,  ],
-                      0.08: [2, 4, 8,  16, ],
-                      0.16: [1, 2, 4,  8,  ],  }
+point_strides_all = [(2**i)*stem_stride for i in range(4)]
 bbp = 32
 model = dict(
     type='StrPointsDetector',
@@ -90,7 +88,7 @@ model = dict(
         stacked_convs=3,
         num_points=9,
         gradient_mul=0.1,
-        point_strides=point_strides_all[voxel_size],
+        point_strides=point_strides_all,
         point_base_scale=1,
         norm_cfg=norm_cfg,
         loss_cls=dict(
@@ -244,4 +242,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+workflow = [('train', 1)]
 
