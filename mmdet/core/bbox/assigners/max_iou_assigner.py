@@ -99,6 +99,9 @@ class MaxIoUAssigner(BaseAssigner):
         """
         assign_on_cpu = True if (self.gpu_assign_thr > 0) and (
             gt_bboxes.shape[0] > self.gpu_assign_thr) else False
+
+        gt_bboxes_raw = gt_bboxes
+        bboxes_raw = bboxes
         # compute overlap and assign gt on CPU when number of GT is large
         if assign_on_cpu:
             device = bboxes.device
@@ -168,7 +171,7 @@ class MaxIoUAssigner(BaseAssigner):
         if PRINT_IOU_ASSIGNER:
           print('\tmax_iou_assigner\t' + str(assign_result))
         if VISUALIZE_IOU_ASSIGNER:
-          show_assign_res(bboxes, gt_bboxes, assign_result, img_meta)
+          show_assign_res(bboxes_raw, gt_bboxes_raw, assign_result, img_meta)
         return assign_result
 
     def assign_wrt_overlaps(self, overlaps, gt_labels=None):
@@ -257,9 +260,10 @@ def fix_bboxes_size(bboxes, size=2):
 
 def show_assign_res(bboxes, gt_bboxes, assign_res, img_meta):
   import mmcv, numpy as np
+  from  tools.debug_utils import _show_lines_ls_points_ls
+
   filename = img_meta['filename']
-  img_shape = img_meta['img_shape']
-  print(f'\nfilename: {filename}\nimg_shape: {img_shape}')
+  print(f'\nfilename: {filename}\n')
 
   if gt_bboxes.shape[1] == 2:
     gt_bboxes = corner_as_bboxes(gt_bboxes, 2)
@@ -276,17 +280,16 @@ def show_assign_res(bboxes, gt_bboxes, assign_res, img_meta):
   gt_inds_invalid = [i for i in range(gt_num) if i not in gt_inds_valid]
   gt_num_missed = len(gt_inds_invalid)
 
-  img = np.zeros(img_shape, dtype=np.uint8)
+  img = np.zeros((512,512,3), dtype=np.uint8)
   gt_bboxes_ = gt_bboxes.cpu().data.numpy()
   bboxes_ = bboxes.cpu().data.numpy()
   pos_bboxes_ = bboxes_[pos_inds]
   print(f'gt_num: {gt_num}, pos_num: {pos_num}, miss_gt_num: {gt_num_missed}')
 
-  #mmcv.imshow_bboxes(img, [ bboxes_, gt_bboxes_], ['green', 'red'])
-  #mmcv.imshow_bboxes(img, [gt_bboxes_, pos_bboxes_], ['red', 'green'])
-  mmcv.imshow_bboxes(img, [gt_bboxes_, gt_bboxes_[gt_inds_invalid]], ['red', 'green'])
+  _show_lines_ls_points_ls(img, [gt_bboxes_, bboxes_], line_colors=['red', 'green'])
+  _show_lines_ls_points_ls(img, [gt_bboxes_, pos_bboxes_], line_colors=['red', 'green'])
+  _show_lines_ls_points_ls(img, [gt_bboxes_, gt_bboxes_[gt_inds_invalid]], line_colors=['red', 'green'])
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   for i in range(gt_num):
     mask = gt_inds_valid == i
     ni = mask.sum()
@@ -299,7 +302,8 @@ def show_assign_res(bboxes, gt_bboxes, assign_res, img_meta):
     print(f'overlaps: mean={mol:.2} : {ol_str}')
 
     pos_ids_i = pos_inds[mask]
-    mmcv.imshow_bboxes(img, [gt_bboxes_, gt_bboxes_[i:i+1], bboxes_[pos_ids_i]], ['red', 'green', 'yellow'])
+    _show_lines_ls_points_ls(img, [gt_bboxes_, gt_bboxes_[i:i+1], bboxes_[pos_ids_i]], line_colors=['red', 'green', 'yellow'])
+
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()
     pass

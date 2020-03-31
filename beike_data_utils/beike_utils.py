@@ -493,10 +493,10 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
   elif anno_style == 'voxelization':
     voxel_size = pixel_config['voxel_size']
 
-  min_xy = pcl_scope[0,:2] * 0
-  max_xy = pcl_scope[1,:2] - pcl_scope[0,:2]
 
   if anno_style == 'topview':
+    min_xy = pcl_scope[0,:2] * 0
+    max_xy = pcl_scope[1,:2] - pcl_scope[0,:2]
     # leave a bit gap along the boundaries
     max_range = (max_xy - min_xy).max()
     padding = max_range * 0.05
@@ -507,8 +507,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
   if anno_style == 'voxelization':
     # in voxelization of pcl: coords = floor( position / voxel_size)
-    img_size = max_xy / voxel_size
-    lines_pt = (lines - min_xy) / voxel_size
+    lines_pt = (lines ) / voxel_size
     #lines_pt = np.clip(lines_pt, a_min=0, a_max=None)
 
   #assert lines_pt.min() >=  0, f'lines_pt min<0: {lines_pt.min()}'
@@ -525,7 +524,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     if anno_style == 'topview':
       corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
     if anno_style == 'voxelization':
-      corners_pt = (corners - min_xy) / voxel_size
+      corners_pt = (corners) / voxel_size
 
     if not( corners_pt.min() > -PCL_LINE_BOUND_PIXEL and corners_pt.max() < IMAGE_SIZE+PCL_LINE_BOUND_PIXEL ):
         scene_name = scene.split('.')[0]
@@ -538,7 +537,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
 
-  return corners_pt, lines_pt, img_size
+  return corners_pt, lines_pt
 
 def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
   '''
@@ -605,7 +604,10 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
 
 def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       anno_img = {}
-      corners_pt, lines_pt, img_size = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
+      if 'voxel_size' in pixel_config:
+        corners_pt, lines_pt = anno_raw['corners'], anno_raw['lines']
+      else:
+        corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
                                            pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = encode_line_rep(lines_pt, OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
@@ -614,7 +616,6 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
 
       anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
-      anno_img['raw_img_size'] = img_size
 
       anno_img['min_line_size'] = min_line_size
 

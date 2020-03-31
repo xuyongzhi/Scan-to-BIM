@@ -11,11 +11,14 @@ from torch.utils.data import Dataset, DataLoader
 
 import MinkowskiEngine as ME
 
+from beike_data_utils.line_utils import m_transform_lines
+from configs.common import OBJ_REP
+
 from plyfile import PlyData
 from . import transforms as t
 from .dataloader import InfSampler
 from .voxelizer import Voxelizer
-from tools.debug_utils import _show_3d_points_bboxes_ls
+from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 
 DEBUG = 0
 
@@ -236,7 +239,6 @@ class VoxelizationDataset(VoxelizationDatasetBase):
         rotation_augmentation_bound=self.ROTATION_AUGMENTATION_BOUND,
         translation_augmentation_ratio_bound=self.TRANSLATION_AUGMENTATION_RATIO_BOUND,
         ignore_label=ignore_label,
-        voxel_resolution = self.voxel_resolution,
         auto_scale_to_full_resolution = self.auto_scale_to_full_resolution)
 
     # map labels not evaluated to ignore_label
@@ -267,8 +269,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     return mat[:, :3], mat[:, 3:-1], mat[:, -1]
 
   def __getitem__(self, index):
-    from beike_data_utils.line_utils import m_transform_lines
-    from configs.common import OBJ_REP
+    debug = 0
 
     is_include_gt_bboxes = 'gt_bboxes_raw' in self.img_infos[index]
     if is_include_gt_bboxes:
@@ -290,21 +291,37 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if self.prevoxel_transform is not None:
       coords, feats, labels = self.prevoxel_transform(coords, feats, labels)
 
-    #_show_3d_points_bboxes_ls([coords])
+    if debug and 0:
+      scale = 3
+      print('\n\ncoords min:', coords.min(0))
+      print('coords max:', coords.max(0))
+      print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
+      print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
+      _show_lines_ls_points_ls((512,512), [gt_bboxes/self.VOXEL_SIZE*scale], [coords / self.VOXEL_SIZE*scale])
+
     #coords_raw = coords.copy()
     coords, feats, labels, transformation, rotate_angles, scale_rate = self.voxelizer.voxelize(
         coords, feats, labels, center=center)
 
-    un_voxelization_matrix = np.eye(4)
-    np.fill_diagonal(un_voxelization_matrix[:3, :3], self.VOXEL_SIZE)
-    line_transformation = transformation @ un_voxelization_matrix
+    #un_voxelization_matrix = np.eye(4)
+    #np.fill_diagonal(un_voxelization_matrix[:3, :3], self.VOXEL_SIZE)
+    #line_transformation = transformation @ un_voxelization_matrix
+    line_transformation = transformation
     img_meta['data_aug']['transformation'] = transformation
     img_meta['data_aug']['rotate_angles'] = rotate_angles
     img_meta['data_aug']['scale_rate'] = scale_rate
     if is_include_gt_bboxes:
       gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, OBJ_REP)
 
-    #_show_3d_points_bboxes_ls([coords])
+    if debug and 0:
+      scale = 3
+      print('\n\ncoords min:', coords.min(0))
+      print('coords max:', coords.max(0))
+      print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
+      print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
+      print(gt_bboxes)
+      _show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
+
     # map labels not used for evaluation to ignore_label
     if self.input_transform is not None:
       coords, feats, labels, gt_bboxes, img_meta = self.input_transform(
@@ -323,13 +340,23 @@ class VoxelizationDataset(VoxelizationDatasetBase):
 
     if is_include_gt_bboxes:
       self.img_infos[index]['gt_bboxes'] = gt_bboxes
+
+    img_meta['dynamic_vox_size_aug'] = coords.max(0)+1
     self.img_infos[index]['img_meta'] = img_meta
     #print(img_meta['data_aug'])
 
     assert (coords.min(axis=0)==0).all()
-    #img_shape = tuple(coords.max(axis=0).tolist())
-    #self.img_infos[index]['img_meta']['img_shape'] = img_shape
-    #self.img_infos[index]['img_meta']['pad_shape'] = img_shape
+
+    if debug:
+      scale = 3
+      print('\n\ndataset item')
+      print('coords min:', coords.min(0))
+      print('coords max:', coords.max(0))
+      print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
+      print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
+      #print(gt_bboxes)
+      _show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
+
     return_args = [coords, feats, labels, self.img_infos[index]]
     #if self.return_transformation:
     #  return_args.append(transformation.astype(np.float32))

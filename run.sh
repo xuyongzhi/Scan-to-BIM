@@ -7,7 +7,7 @@ CONFIG=configs/strpoints/_strpoints_r50_fpn_1x.py
 CONFIG=configs/strpoints/pcl_strpoints_r50_fpn_1x.py
 
 
-wkdir=R50_fpn_refine_final_beike_pcl_2d_bs2_lr10_Rfiou743_Fpn34_Pbs1_Bp32_Vsz4Stem2
+wkdir=R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_Rfiou743_Fpn34_Pbs1_Bp32_Vsz8Stem2
 CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_pcl_strpoints_r50_fpn_1x.py
 

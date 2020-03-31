@@ -69,7 +69,6 @@ class BeikePclDataset(VoxelDatasetBase):
                img_prefix='train',
                test_mode=False,
                voxel_size=None,
-               voxel_resolution=[None, None, None],
                voxel_zero_offset=0,
                auto_scale_vs = None,
                augment_data = None,
@@ -78,17 +77,16 @@ class BeikePclDataset(VoxelDatasetBase):
     self.data_root = ann_file
     self.test_mode = test_mode
     self.VOXEL_SIZE = voxel_size
-    self.voxel_resolution = voxel_resolution
     self.voxel_zero_offset = voxel_zero_offset
     self.auto_scale_to_full_resolution = auto_scale_vs
     assert img_prefix in ['train', 'test']
 
-    if voxel_resolution[0] is not None:
-      bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
-      clip_bound = ((-bdx, bdx), (-bdy, bdy), (-bdz, bdz))
-      self.CLIP_BOUND = clip_bound
-    else:
-      self.CLIP_BOUND = None
+    #if voxel_resolution[0] is not None:
+    #  bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
+    #  clip_bound = ((-bdx, bdx), (-bdy, bdy), (-bdz, bdz))
+    #  self.CLIP_BOUND = clip_bound
+    #else:
+    self.CLIP_BOUND = None
 
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     self.scene_list = np.loadtxt(os.path.join(self.data_root, img_prefix+'.txt'), 'str').tolist()
@@ -133,17 +131,16 @@ class BeikePclDataset(VoxelDatasetBase):
       anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE)
       self.anno_raws.append(anno_raw)
       anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
-      img_shape = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0])[:2] / self.VOXEL_SIZE
-      img_shape = np.ceil(img_shape).astype(np.int32)
-      img_shape = tuple(img_shape.tolist()) + (3,)
+      raw_dynamic_vox_size = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0]) / self.VOXEL_SIZE
+      raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
+      raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
       img_meta = dict(filename = anno_raw['filename'],
                       input_style='pcl',
                       pcl_scope = anno_raw['pcl_scope'],
                       line_length_min_mean_max = anno_raw['line_length_min_mean_max'],
-                      voxel_resolution = self.voxel_resolution,
                       voxel_size = self.VOXEL_SIZE,
                       scale_factor = 1,
-                      img_shape = img_shape,
+                      raw_dynamic_vox_size = raw_dynamic_vox_size,
                       data_aug={})
 
       img_info = dict(
@@ -151,7 +148,7 @@ class BeikePclDataset(VoxelDatasetBase):
       #if not self.test_mode:
       if True:
         gt_bboxes = anno_2d['bboxes']
-        img_info['gt_bboxes'] = gt_bboxes
+        #img_info['gt_bboxes'] = gt_bboxes
         img_info['gt_bboxes_raw'] =  gt_bboxes
         img_info['gt_labels'] = anno_2d['labels']
       self.img_infos.append(img_info)

@@ -6,6 +6,7 @@ from mmdet.core import bbox2result
 from .. import builder
 from ..registry import DETECTORS
 from .base import BaseDetector
+from utils_dataset.gen_sparse_input import update_img_shape_for_pcl
 
 from tools import debug_utils
 import time
@@ -85,6 +86,13 @@ class SingleStageDetector(BaseDetector):
         outs = self.bbox_head(x)
         return outs
 
+    def update_dynamic_shape(self, x, img_metas):
+        feat_sizes = [ np.array([*xi.shape[2:]]) for xi in x]
+        for img_meta in img_metas:
+          img_meta['stem_stride'] = self.stem_stride
+          img_meta['feat_sizes'] = feat_sizes
+          img_meta['dynamic_img_shape'] = feat_sizes[0] * self.stem_stride
+
     def forward_train(self,
                       img,
                       img_metas,
@@ -100,6 +108,7 @@ class SingleStageDetector(BaseDetector):
         if RECORD_T:
           t0 = time.time()
         x = self.extract_feat(img)
+        self.update_dynamic_shape(x, img_metas)
         #debug_utils._show_tensor_ls_shapes(x, 'single_stage forward_train - features')
         if RECORD_T:
           t1 = time.time()
@@ -144,9 +153,8 @@ class SingleStageDetector(BaseDetector):
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
         x = self.extract_feat(img)
-        img_meta[0]['feat_sizes'] = [np.array( [*xi.size()[2:]] ) for xi in x]
-        img_meta[0]['pad_shape'] = img_meta[0]['feat_sizes'][0] * self.point_strides[0]
-        img_meta[0]['img_shape'] = img_meta[0]['pad_shape']
+        self.update_dynamic_shape(x, img_meta)
+        update_img_shape_for_pcl(x, img_meta[0], self.point_strides)
         outs = self.bbox_head(x)
         bbox_inputs = outs + (img_meta, self.test_cfg, rescale)
         bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)

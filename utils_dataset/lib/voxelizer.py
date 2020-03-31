@@ -20,7 +20,6 @@ class Voxelizer:
                rotation_augmentation_bound=None,
                translation_augmentation_ratio_bound=None,
                ignore_label=255,
-               voxel_resolution=None,
                auto_scale_to_full_resolution=None):
     """
     Args:
@@ -36,7 +35,6 @@ class Voxelizer:
     self.voxel_size = voxel_size
     self.clip_bound = clip_bound
     self.ignore_label = ignore_label
-    self.voxel_resolution = voxel_resolution
     self.auto_scale_to_full_resolution = auto_scale_to_full_resolution
 
     # Augmentation
@@ -63,6 +61,8 @@ class Voxelizer:
           axis[axis_ind] = 1
           if rot_bound is not None:
             theta = np.random.uniform(*rot_bound)
+            #if axis_ind == 2:
+            #  theta = np.pi * -0.25
           rot_mats.append(M(axis, theta))
           rot_angles.append(theta)
         # Use random order
@@ -73,11 +73,13 @@ class Voxelizer:
     rotation_matrix[:3, :3] = rot_mat
     # 2. Scale and translate to the voxel space.
     scale = 1 / self.voxel_size
+    random_scale_rate = 1
     if self.use_augmentation and self.scale_augmentation_bound is not None:
-      scale *= np.random.uniform(*self.scale_augmentation_bound)
+      random_scale_rate = np.random.uniform(*self.scale_augmentation_bound)
+      scale *= random_scale_rate
     np.fill_diagonal(voxelization_matrix[:3, :3], scale)
     # Get final transformation matrix.
-    return voxelization_matrix, rotation_matrix, rot_angles
+    return voxelization_matrix, rotation_matrix, rot_angles, random_scale_rate
 
   def clip(self, coords, center=None, trans_aug_ratio=None):
     bound_min = np.min(coords, 0).astype(float)
@@ -126,7 +128,7 @@ class Voxelizer:
           labels = labels[clip_inds]
 
     # Get rotation and scale
-    M_v, M_r, angles_rot = self.get_transformation_matrix()
+    M_v, M_r, angles_rot, random_scale_rate = self.get_transformation_matrix()
     # Apply transformations
     rigid_transformation = M_v
     if self.use_augmentation:
@@ -136,7 +138,8 @@ class Voxelizer:
     if self.auto_scale_to_full_resolution:
       rigid_transformation, scale_rate = self.auto_scale_inside_voxel_resolution(homo_coords, rigid_transformation)
     else:
-      scale_rate = None
+      scale_rate = 1
+    scale_rate *= random_scale_rate
     coords_aug = np.floor(homo_coords @ rigid_transformation.T[:, :3])
 
     # Align all coordinates to the origin.

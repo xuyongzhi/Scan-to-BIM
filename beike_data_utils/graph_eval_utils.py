@@ -18,7 +18,8 @@ def save_res_graph(dataset, data_loader, results, out_file):
           img_meta_i = data['img_meta'][0].data[0][0]
         else:
           img_meta_i = data['img_meta'][0]
-          img_shape = img_meta_i['img_shape']
+          img_shape = img_meta_i['dynamic_vox_size_aug']
+          img_shape[2] = 3
           img_i = np.zeros(img_shape, dtype=np.int8)
         res_data = dict(  img_id = i_img,
                           img=img_i,

@@ -191,9 +191,8 @@ class PointAssigner(BaseAssigner):
             from  tools.debug_utils import _show_lines_ls_points_ls
             import numpy as np
             filename = img_meta['filename']
-            img_shape = img_meta['img_shape']
             points_scope = points.max(0)[0][:2].int()
-            print(f'{filename}\nimg_shape: {img_shape}')
+            print(f'{filename}')
 
             pos_inds = torch.nonzero(assigned_gt_inds).squeeze()
             pos_gt_inds = assigned_gt_inds[pos_inds].cpu().data.numpy() - 1
