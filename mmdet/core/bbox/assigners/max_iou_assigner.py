@@ -7,7 +7,7 @@ from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 import cv2
 
-from configs.common import PRINT_IOU_ASSIGNER
+from configs.common import PRINT_IOU_ASSIGNER, VISUALIZE_IOU_ASSIGNER
 
 class MaxIoUAssigner(BaseAssigner):
     """Assign a corresponding gt bbox or background to each bbox.
@@ -167,7 +167,8 @@ class MaxIoUAssigner(BaseAssigner):
 
         if PRINT_IOU_ASSIGNER:
           print('\tmax_iou_assigner\t' + str(assign_result))
-          #show_assign_res(bboxes, gt_bboxes, assign_result)
+        if VISUALIZE_IOU_ASSIGNER:
+          show_assign_res(bboxes, gt_bboxes, assign_result, img_meta)
         return assign_result
 
     def assign_wrt_overlaps(self, overlaps, gt_labels=None):
@@ -254,8 +255,12 @@ def fix_bboxes_size(bboxes, size=2):
   bboxes_ = torch.cat( [centroids - size/2, centroids + size/2], 1 )
   return bboxes_
 
-def show_assign_res(bboxes, gt_bboxes, assign_res):
+def show_assign_res(bboxes, gt_bboxes, assign_res, img_meta):
   import mmcv, numpy as np
+  filename = img_meta['filename']
+  img_shape = img_meta['img_shape']
+  print(f'\nfilename: {filename}\nimg_shape: {img_shape}')
+
   if gt_bboxes.shape[1] == 2:
     gt_bboxes = corner_as_bboxes(gt_bboxes, 2)
     bboxes = corner_as_bboxes(bboxes[:,:2], 1)
@@ -264,20 +269,24 @@ def show_assign_res(bboxes, gt_bboxes, assign_res):
 
   gt_inds_valid = assign_res.gt_inds_valid.cpu().data.numpy()
   pos_inds = assign_res.pos_inds.cpu().data.numpy()
+  pos_num = pos_inds.shape[0]
   max_overlaps = assign_res.max_overlaps.cpu().data.numpy()[pos_inds]
 
   gt_num = gt_bboxes.shape[0]
   gt_inds_invalid = [i for i in range(gt_num) if i not in gt_inds_valid]
+  gt_num_missed = len(gt_inds_invalid)
 
-  img = np.zeros([512,512,3], dtype=np.uint8)
+  img = np.zeros(img_shape, dtype=np.uint8)
   gt_bboxes_ = gt_bboxes.cpu().data.numpy()
   bboxes_ = bboxes.cpu().data.numpy()
   pos_bboxes_ = bboxes_[pos_inds]
+  print(f'gt_num: {gt_num}, pos_num: {pos_num}, miss_gt_num: {gt_num_missed}')
 
   #mmcv.imshow_bboxes(img, [ bboxes_, gt_bboxes_], ['green', 'red'])
   #mmcv.imshow_bboxes(img, [gt_bboxes_, pos_bboxes_], ['red', 'green'])
-  #mmcv.imshow_bboxes(img, [gt_bboxes_, gt_bboxes_[gt_inds_invalid]], ['red', 'green'])
+  mmcv.imshow_bboxes(img, [gt_bboxes_, gt_bboxes_[gt_inds_invalid]], ['red', 'green'])
 
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   for i in range(gt_num):
     mask = gt_inds_valid == i
     ni = mask.sum()

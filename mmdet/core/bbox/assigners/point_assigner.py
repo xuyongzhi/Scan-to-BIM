@@ -3,7 +3,7 @@ import torch
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
-from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE,  CHECK_POINT_ASSIGN
+from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE,  CHECK_POINT_ASSIGN, VISUALIZE_POINT_ASSIGNER
 DEBUG = 0
 
 class PointAssigner(BaseAssigner):
@@ -186,33 +186,39 @@ class PointAssigner(BaseAssigner):
           assign_res.dg_add_pos_dist(pos_dist)
           print('\tPointAssigner\t' + str(assign_res))
 
-        if DEBUG and (not assign_res.num_pos_inds == num_gts):
-          from  tools.debug_utils import _show_lines_ls_points_ls
-          import numpy as np
-          filename = img_meta['filename']
-          pos_inds = torch.nonzero(assigned_gt_inds).squeeze()
-          pos_gt_inds = assigned_gt_inds[pos_inds].cpu().data.numpy() - 1
-          pos_gt_inds = np.array(pos_gt_inds).reshape([-1])
-          neg_gt_inds = [i for i in range(num_gts) if i not in pos_gt_inds]
-          miss_gt_num = len(neg_gt_inds)
-          print(f'\n\nMiss {miss_gt_num} in point assigner: {filename}\n')
-          gt_bboxes_raw = gt_bboxes_raw.cpu().data.numpy()
-          missed_gt_bboxes = gt_bboxes_raw[neg_gt_inds]
-          missed_gt_bboxes_center = missed_gt_bboxes[:,:4].reshape(-1,2,2).mean(1)
+        if VISUALIZE_POINT_ASSIGNER:
+          #if (not assign_res.num_pos_inds == num_gts):
+            from  tools.debug_utils import _show_lines_ls_points_ls
+            import numpy as np
+            filename = img_meta['filename']
+            img_shape = img_meta['img_shape']
+            points_scope = points.max(0)[0][:2].int()
+            print(f'{filename}\nimg_shape: {img_shape}')
 
-          if miss_gt_num>0:
-            point_scope = points.max(0)[0][:2].cpu().data.numpy()
-            is_gt_out_scope = (missed_gt_bboxes_center >  point_scope).any(-1)
-            if is_gt_out_scope.all():
-              print('\n\tthe missed gts are out of scope\n')
-            else:
-              assert False, "miss gt"
-          if 1:
-            pos_points = points[:,:2][pos_inds].cpu().data.numpy().reshape(-1,2)
-            _show_lines_ls_points_ls((512,512,), [gt_bboxes_raw, missed_gt_bboxes], [pos_points], line_colors=['red', 'green'])
-            #for i in range(len(pos_inds)):
-            #  pos_gt_i = gt_bboxes_raw[pos_gt_inds[i]].reshape(-1,5)
-            #  _show_lines_ls_points_ls((512,512,), [gt_bboxes_raw, pos_gt_i], [pos_points[i:i+1]], line_colors=['red', 'green'])
-            pass
+            pos_inds = torch.nonzero(assigned_gt_inds).squeeze()
+            pos_gt_inds = assigned_gt_inds[pos_inds].cpu().data.numpy() - 1
+            pos_gt_inds = np.array(pos_gt_inds).reshape([-1])
+            neg_gt_inds = [i for i in range(num_gts) if i not in pos_gt_inds]
+            miss_gt_num = len(neg_gt_inds)
+            print(f'\n\nMiss {miss_gt_num} in point assigner\n')
+            gt_bboxes_raw = gt_bboxes_raw.cpu().data.numpy()
+            missed_gt_bboxes = gt_bboxes_raw[neg_gt_inds]
+            missed_gt_bboxes_center = missed_gt_bboxes[:,:4].reshape(-1,2,2).mean(1)
+
+            if miss_gt_num>0:
+              point_scope = points.max(0)[0][:2].cpu().data.numpy()
+              is_gt_out_scope = (missed_gt_bboxes_center >  point_scope).any(-1)
+              if is_gt_out_scope.all():
+                print('\n\tthe missed gts are out of scope\n')
+              else:
+                assert False, "miss gt"
+            if 1:
+              pos_points = points[:,:2][pos_inds].cpu().data.numpy().reshape(-1,2)
+              _show_lines_ls_points_ls((points_scope[1], points_scope[0]), [gt_bboxes_raw, missed_gt_bboxes], [pos_points], line_colors=['red', 'green'])
+              #for i in range(len(pos_inds)):
+              #  pos_gt_i = gt_bboxes_raw[pos_gt_inds[i]].reshape(-1,5)
+              #  _show_lines_ls_points_ls((points_scope[1], points_scope[0]), [gt_bboxes_raw, pos_gt_i], [pos_points[i:i+1]], line_colors=['red', 'green'])
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
 
         return assign_res
