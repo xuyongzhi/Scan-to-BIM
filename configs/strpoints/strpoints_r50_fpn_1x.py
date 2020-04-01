@@ -25,7 +25,6 @@ elif _obj_rep == 'line_scope':
 elif _obj_rep == 'lscope_istopleft':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
-
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 model = dict(
