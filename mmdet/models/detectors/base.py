@@ -209,10 +209,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
 
     def show_result_graph(self, data, result, dataset=None, score_thr=0.5):
-        if isinstance(result, tuple):
-            bbox_result, segm_result = result
-        else:
-            bbox_result, segm_result = result, None
+        bbox_result = result['det_bboxes']
         if bbox_result[0].shape[0] > 0:
             assert bbox_result[0].shape[1] == OUT_DIM_FINAL
         else:
@@ -243,7 +240,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 ' of class names, not {}'.format(type(dataset)))
 
         for img, img_meta in zip(imgs, img_metas):
-            h, w, _ = img_meta['img_shape']
+            h = img_meta['img_shape'][0]
+            w = img_meta['img_shape'][1]
             if img.shape[-1] == 4:
               img_show = np.repeat(img[:h, :w, 0:1], 3, axis=2)
             else:
