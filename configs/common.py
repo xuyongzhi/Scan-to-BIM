@@ -9,7 +9,7 @@ TRAIN_NUM=90
 DATA = 'coco'
 DATA = 'stanford_pcl_2d'
 DATA = 'beike2d'
-#DATA = 'beike_pcl_2d'
+DATA = 'beike_pcl_2d'
 
 if DATA == 'coco':
   OBJ_REP = 'box_scope'
