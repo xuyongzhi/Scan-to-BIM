@@ -12,12 +12,16 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   sinput = SparseTensor(feats_batch, coords_batch)
 
   if 0:
+    n = coords_batch.shape[0]
+    print(f'batch voxe num: {n/1000}K')
+
     batch_size = coords_batch[:,0].max()+1
     for i in range(batch_size):
       batch_mask = coords_batch[:,0] == i
       points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
       colors = feats_batch[batch_mask][:, :3].cpu().data.numpy()
       colors = colors+0.5
+      np = points.shape[0]
 
       img_meta_i = img_meta[i]
       voxel_size = img_meta_i['voxel_size']
@@ -40,16 +44,17 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       data_aug = img_meta_i['data_aug']
       print('\n\nfinal sparse input')
+      print(f'num voxel: {np/1000}K')
       print(img_meta[i]['filename'])
       print(f'points scope: {min_points} - {max_points}')
       print(f'lines scope: {min_lines} - {max_lines}')
       print(f'data aug:\n {data_aug}\n')
 
       scale = 3
-      _show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
+      #_show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
 
-      #_show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
-      #            b_colors = 'red', box_oriented=True)
+      _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
+                  b_colors = 'red', box_oriented=True)
       pass
   return sinput
 

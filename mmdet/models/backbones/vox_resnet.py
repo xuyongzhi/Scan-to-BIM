@@ -484,7 +484,7 @@ class VoxResNet(nn.Module):
         self.out_strides = []
         for i in self.out_indices:
           xy_stride = 2**(i+0) * self.stem_stride
-          z_stride = 2**(i+3)
+          z_stride = 2**(i+0) * self.stem_stride_z
           self.out_strides.append(np.array([xy_stride, xy_stride, z_stride]))
 
         # project to BEV
@@ -498,7 +498,7 @@ class VoxResNet(nn.Module):
 
     def _make_bev_project_layer(self):
         self.bev_layers = []
-        z_dim_base = int( math.ceil( self.full_height / self.voxel_size / 8))
+        z_dim_base = int( math.ceil( self.full_height / self.voxel_size / self.stem_stride_z))
 
         for i in self.out_indices:
           bev_layer_i = []
@@ -541,18 +541,16 @@ class VoxResNet(nn.Module):
           # voxel size = 0.04
           kernels = [(3,3,3), (3,3,3), (1,1,3)]
           strides = [(2,2,2), (2,2,2), (1,1,2)]
-          self.z_full_dim = 24
         elif self.stem_stride == 2:
           kernels = [(3,3,3), (3,3,3), (1,1,3)]
           strides = [(2,2,2), (1,1,2), (1,1,2)]
-          self.z_full_dim = 12
         elif self.stem_stride == 1:
-          kernels = [(3,3,3), (3,3,3), (1,1,3)]
+          kernels = [(3,3,3), (1,1,3), (1,1,3)]
           strides = [(1,1,2), (1,1,2), (1,1,2)]
-          self.z_full_dim = 6
         else:
           raise ValueError
 
+        self.stem_stride_z = np.product( [s[-1] for s in strides] )
         out_planes = [self.basic_planes, self.basic_planes*2, self.basic_planes*2]
 
         num_layers = len(kernels)

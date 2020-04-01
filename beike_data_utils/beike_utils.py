@@ -781,7 +781,7 @@ def load_gt_lines_bk(img_meta, img):
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json')
   anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': IMAGE_SIZE},)
   lines0 = anno_img['bboxes']
-  lines = fix_1_unaligned_scene(scene_name, lines0, IMAGE_SIZE, OBJ_REP)
+  lines = fix_1_unaligned_scene(scene_name, lines0, (IMAGE_SIZE, IMAGE_SIZE), OBJ_REP)
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']
     #show_img_lines(img[:,:,:3], lines)

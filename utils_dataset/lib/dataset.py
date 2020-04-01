@@ -345,17 +345,22 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     self.img_infos[index]['img_meta'] = img_meta
     #print(img_meta['data_aug'])
 
+    check_shape = 1
+    if check_shape:
+      assert all(img_meta['dynamic_vox_size_aug'] == coords.max(0) +1)
+
     assert (coords.min(axis=0)==0).all()
 
     if debug:
       scale = 3
       print('\n\ndataset item')
+      print('coords num:', coords.shape[0])
       print('coords min:', coords.min(0))
       print('coords max:', coords.max(0))
       print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
       print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
       #print(gt_bboxes)
-      _show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
+      #_show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
 
     return_args = [coords, feats, labels, self.img_infos[index]]
     #if self.return_transformation:

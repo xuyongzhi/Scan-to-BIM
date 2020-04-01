@@ -16,9 +16,9 @@ voxel_size = [0.04, 0.08][1]
 if 1:
   stem_strides = {0.04:4, 0.08:2, 0.16:1}
   batch_size = {0.04:5, 0.08:7}[voxel_size]
-if 0:
+if 1:
   stem_strides = {0.04:2, 0.08:1, 0.16:1}
-  batch_size = {0.04:2, 0.08:2}[voxel_size]
+  batch_size = {0.04:2, 0.08:3}[voxel_size]
 
 stem_stride = stem_strides[voxel_size]
 #*******************************************************************************
@@ -177,6 +177,8 @@ test_pipeline = train_pipeline
 
 lra = 0.01
 
+max_num_points = 8 * 10000
+#max_num_points = None
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=0,
@@ -185,18 +187,21 @@ data = dict(
         ann_file=ann_file,
         img_prefix=img_prefix_train,
         augment_data=True,
+        max_num_points=max_num_points,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
         augment_data=True,
+        max_num_points=max_num_points,
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
         augment_data=False,
+        max_num_points=max_num_points,
         pipeline=test_pipeline))
 
 

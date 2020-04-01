@@ -71,6 +71,7 @@ class BeikePclDataset(VoxelDatasetBase):
                voxel_size=None,
                voxel_zero_offset=0,
                auto_scale_vs = None,
+               max_num_points = None,
                augment_data = None,
                pipeline=None,):
     assert voxel_size is not None
@@ -79,6 +80,7 @@ class BeikePclDataset(VoxelDatasetBase):
     self.VOXEL_SIZE = voxel_size
     self.voxel_zero_offset = voxel_zero_offset
     self.auto_scale_to_full_resolution = auto_scale_vs
+    self.max_num_points = max_num_points
     assert img_prefix in ['train', 'test']
 
     #if voxel_resolution[0] is not None:
@@ -167,6 +169,12 @@ class BeikePclDataset(VoxelDatasetBase):
     filepath = self.data_root / self.data_paths[index]
     plydata = PlyData.read(filepath)
     points = np.array(plydata['vertex'].data.tolist()).astype(np.float32)
+    np0 = points.shape[0]
+    if self.max_num_points is not None and  np0 > self.max_num_points:
+      inds = np.random.choice(np0, self.max_num_points, replace=False)
+      inds.sort()
+      points = points[inds]
+    #print(f'num points raw: {np0/1000}K -> {self.max_num_points}')
     assert points.shape[1] == 9
 
     pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
