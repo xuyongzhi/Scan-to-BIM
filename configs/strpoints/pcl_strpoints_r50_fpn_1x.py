@@ -18,7 +18,7 @@ if 1:
   batch_size = {0.04:5, 0.08:7}[voxel_size]
 if 1:
   stem_strides = {0.04:2, 0.08:1, 0.16:1}
-  batch_size = {0.04:2, 0.08:3}[voxel_size]
+  batch_size = {0.04:2, 0.08:2}[voxel_size]
 
 stem_stride = stem_strides[voxel_size]
 #*******************************************************************************
@@ -222,7 +222,7 @@ for split in ['train', 'test', 'val']:
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 800
+total_epochs = 1000
 lr_config = dict(
     policy='step',
     warmup='linear',
