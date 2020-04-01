@@ -12,7 +12,9 @@ def save_res_graph(dataset, data_loader, results, out_file):
     assert len(data_loader) == num_imgs
     results_datas = []
     for i_img, data in enumerate(data_loader):
-        is_pcl = 'input_style' in data['img_meta'][0] and data['img_meta'][0]['input_style'] == 'pcl'
+        #is_pcl = 'input_style' in data['img_meta'][0] and data['img_meta'][0]['input_style'] == 'pcl'
+        is_image = data['img_meta'][0].__class__.__name__ == 'DataContainer'
+        is_pcl = not is_image
         if not is_pcl:
           img_i = data['img'][0][0].permute(1,2,0).cpu().data.numpy()
           img_meta_i = data['img_meta'][0].data[0][0]
@@ -29,8 +31,9 @@ def save_res_graph(dataset, data_loader, results, out_file):
         #assert img_id == i_img
         result = results[i_img]
         det_result = result['det_bboxes']
-        res_data['gt_bboxes'] = [ b.cpu().data.numpy() for b in result['gt_bboxes']]
-        res_data['gt_labels'] = [ b.cpu().data.numpy() for b in result['gt_labels']]
+        if result['gt_bboxes']:
+          res_data['gt_bboxes'] = [ b.cpu().data.numpy() for b in result['gt_bboxes']]
+          res_data['gt_labels'] = [ b.cpu().data.numpy() for b in result['gt_labels']]
 
         detections_all_labels = []
         for label in range(len(det_result)):
@@ -116,13 +119,10 @@ class GraphEval():
         filename =  img_meta['filename']
         scene_name = os.path.splitext(os.path.basename(filename))[0]
 
-        #if not is_pcl:
-        #  gt_lines = load_gt_lines_bk(img_meta, img)
-        #else:
-        #  import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        #  pass
-
-        gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
+        if not is_pcl:
+          gt_lines = load_gt_lines_bk(img_meta, img)
+        else:
+          gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
 
         gt_size = gt_lines[:,:4].max() - gt_lines[:,:4].min()
         self.eval_scale_ratio = (self._eval_img_size-5) / gt_size

@@ -35,7 +35,10 @@ def single_gpu_test(model, data_loader, show=False):
         if show:
             model.module.show_result(data, result)
 
-        if  'input_style' in data['img_meta'][0] and data['img_meta'][0]['input_style'] == 'pcl':
+        is_image = data['img_meta'][0].__class__.__name__ == 'DataContainer'
+        is_pcl = not is_image
+        #is_pcl =  'input_style' in data['img_meta'][0] and data['img_meta'][0]['input_style'] == 'pcl'
+        if is_pcl:
           batch_size = data['img'][0][:,0].max()+1
         else:
           batch_size = data['img'][0].size(0)

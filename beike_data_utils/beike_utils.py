@@ -774,16 +774,13 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
       return anno
 
 def load_gt_lines_bk(img_meta, img):
-  from mmdet.debug_tools import show_heatmap, show_img_lines
-
   filename = img_meta['filename']
   scene_name = os.path.basename(filename).replace('.npy', '')
-  processed_dir = os.path.dirname(os.path.dirname(os.path.dirname(filename)))
+  processed_dir = os.path.dirname(os.path.dirname(filename))
   json_dir = os.path.join(processed_dir, 'json/')
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json')
-  anno_img = raw_anno_to_img(anno_raw)
+  anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': IMAGE_SIZE},)
   lines0 = anno_img['bboxes']
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   lines = fix_1_unaligned_scene(scene_name, lines0, IMAGE_SIZE, OBJ_REP)
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']

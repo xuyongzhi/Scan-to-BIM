@@ -70,6 +70,7 @@ model = dict(
         out_indices=( 0, 1, 2,),
         frozen_stages=-1,
         style='pytorch',
+        stem_stride=stem_stride,
         basic_planes=bbp,
         max_planes=1024),
     neck=dict(
@@ -207,7 +208,6 @@ elif DATA == 'stanford_pcl_2d':
 
 auto_scale_vs = False
 model['backbone']['voxel_size'] = voxel_size
-model['backbone']['stem_stride'] = stem_stride
 model['backbone']['full_height'] = max_scene_size[-1]
 for split in ['train', 'test', 'val']:
   data[split]['voxel_size'] = voxel_size

@@ -10,11 +10,10 @@
   transform_method
 '''
 
-DATAFLAG='A'
 TOPVIEW = 'VerD' # better
 #TOPVIEW = 'All'
 #*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM
+from configs.common import  OBJ_REP, IMAGE_SIZE, DATA
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
@@ -26,7 +25,6 @@ elif _obj_rep == 'line_scope':
 elif _obj_rep == 'lscope_istopleft':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
-
 
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
@@ -40,7 +38,9 @@ model = dict(
         num_stages=4,
         out_indices=( 0, 1, 2,),
         frozen_stages=-1,
-        style='pytorch'),
+        style='pytorch',
+        basic_planes=64,
+        max_planes=2048),
     neck=dict(
         type='FPN',
         in_channels=[ 256, 512, 1024],
@@ -172,24 +172,19 @@ if IMAGE_SIZE == 1024:
   batch_size = 1
   lra = 0.005
 
-if TRAIN_NUM < 10:
-  batch_size = 6
-  lra = 0.05
-
-#test_dir=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG
-test_dir=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG
+test_dir=data_root + f'TopView_{TOPVIEW}'
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_train_{TRAIN_NUM}_' + DATAFLAG,
+        img_prefix=data_root + f'TopView_{TOPVIEW}',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/_test_10_' + DATAFLAG,
+        img_prefix=data_root + f'TopView_{TOPVIEW}',
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
@@ -210,7 +205,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
-    interval=max(TRAIN_NUM//25,1),
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
@@ -219,7 +214,7 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/T{TRAIN_NUM}_r50_fpn'
+work_dir = f'./work_dirs/TPV_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
 #load_from = f'{work_dir}/best.pth'
@@ -227,6 +222,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-if  TRAIN_NUM < 10:
-  workflow = [('train', 1)]
+workflow = [('train', 1)]
 

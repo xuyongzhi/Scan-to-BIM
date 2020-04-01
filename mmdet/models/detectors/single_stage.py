@@ -38,7 +38,8 @@ class SingleStageDetector(BaseDetector):
         self.test_cfg = test_cfg
         self.init_weights(pretrained=pretrained)
 
-        self.stem_stride = backbone['stem_stride']
+        if 'stem_stride' in backbone:
+          self.stem_stride = backbone['stem_stride']
 
         self.point_strides = bbox_head['point_strides']
         if 0:
@@ -87,6 +88,9 @@ class SingleStageDetector(BaseDetector):
         return outs
 
     def update_dynamic_shape(self, x, img_metas):
+        is_pcl =  'input_type' in img_metas[0] and img_metas[0]['input_type'] == 'pcl'
+        if not is_pcl:
+          return
         feat_sizes = [ np.array([*xi.shape[2:]]) for xi in x]
         for img_meta in img_metas:
           img_meta['stem_stride'] = self.stem_stride

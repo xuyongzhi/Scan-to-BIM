@@ -11,7 +11,7 @@ from ..utils import build_conv_layer, build_norm_layer
 
 from tools import debug_utils
 import time
-RECORD_T = 1
+RECORD_T = 0
 
 
 class BasicBlock(nn.Module):
