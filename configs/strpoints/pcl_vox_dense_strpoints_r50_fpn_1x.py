@@ -32,8 +32,6 @@ elif _obj_rep == 'lscope_istopleft':
 if DATA == 'stanford_pcl_2d':
   dataset_type = 'StanfordPclDataset'
   data_root = f'data/stanford/'
-  img_prefix_train = 'train'
-  img_prefix_test = 'test'
   ann_file = data_root
   in_channels = 6
 
@@ -41,8 +39,6 @@ if DATA == 'beike_pcl_2d':
   dataset_type = 'BeikePclDataset'
   data_root = f'data/beike/processed_512/'
   ann_file = data_root
-  img_prefix_train = 'train'
-  img_prefix_test = 'test'
   in_channels = 9
 
 backbone_type = 'VoxDenseResNet'
@@ -196,7 +192,8 @@ data = dict(
     test=None,
 )
 data['val'] = data['train']
-data['test'] = data['train']
+data['val']['img_prefix'] = 'test'
+data['test'] = data['val']
 
 
 
