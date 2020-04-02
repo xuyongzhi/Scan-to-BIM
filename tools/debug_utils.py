@@ -25,13 +25,14 @@ def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
   if isinstance(tensor_ls, SparseTensor):
     tensor = tensor_ls
     coords = tensor.coords
+    num = coords.shape[0]
     feats = tensor.feats
     c_shape = [*coords.shape]
     f_shape = [*feats.shape]
     t_stride = [*tensor.tensor_stride]
     min_coords = [*coords.min(dim=0)[0].numpy()]
     max_coords = [*coords.max(dim=0)[0].numpy()]
-    print(f'{pre} {i} \tcoords:{c_shape} \tfeats:{f_shape} \tstride:{t_stride} \tcoords scope: {min_coords} - {max_coords}')
+    print(f'{pre} {i} \tcoords:{c_shape} \tfeats:{f_shape} \tstride:{t_stride} \tcoords scope: {min_coords} - {max_coords} \tnum points: {num}')
     pass
   else:
     assert isinstance(tensor_ls, list) or isinstance(tensor_ls, tuple)
@@ -42,6 +43,14 @@ def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
 
 
 #-3d------------------------------------------------------------------------------
+def _show_sparse_coords(x):
+  C = x.C.cpu().data.numpy()
+  batch_size = C[:,0].max()+1
+  for i in range(batch_size):
+    mask = C[:,0] == i
+    Ci = C[mask][:,1:]
+    _show_3d_points_bboxes_ls([Ci])
+
 def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
              bboxes_ls=None, b_colors='random', box_oriented=False):
   show_ls = []

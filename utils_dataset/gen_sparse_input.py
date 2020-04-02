@@ -43,18 +43,22 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       max_lines = lines2d[:,:4].reshape(-1,2).max(axis=0)
 
       data_aug = img_meta_i['data_aug']
+      dynamic_vox_size_aug = img_meta_i['dynamic_vox_size_aug']
       print('\n\nfinal sparse input')
+      footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1]
+      print(f'dynamic_vox_size_aug: {dynamic_vox_size_aug}, footprint: {footprint}')
+
       print(f'num voxel: {np/1000}K')
       print(img_meta[i]['filename'])
       print(f'points scope: {min_points} - {max_points}')
       print(f'lines scope: {min_lines} - {max_lines}')
       print(f'data aug:\n {data_aug}\n')
 
-      scale = 3
-      #_show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
+      scale = 1
+      _show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
 
-      _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
-                  b_colors = 'red', box_oriented=True)
+      #_show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
+      #            b_colors = 'red', box_oriented=True)
       pass
   return sinput
 

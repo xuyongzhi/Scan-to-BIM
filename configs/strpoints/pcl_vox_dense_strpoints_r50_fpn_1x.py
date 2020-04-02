@@ -13,8 +13,8 @@ import math
 
 voxel_size = [0.04, 0.08][0]
 
-stem_stride = 1
-batch_size = 2
+stem_stride = 2
+batch_size = 4
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 _obj_rep = OBJ_REP
@@ -45,7 +45,7 @@ if DATA == 'beike_pcl_2d':
   img_prefix_test = 'test'
   in_channels = 9
 
-backbone_type = 'VoxResNet'
+backbone_type = 'VoxDenseResNet'
 
 #*******************************************************************************
 
@@ -171,33 +171,6 @@ test_pipeline = train_pipeline
 
 lra = 0.01
 
-max_num_points = 8 * 10000
-#max_num_points = None
-data = dict(
-    imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
-    train=dict(
-        type=dataset_type,
-        ann_file=ann_file,
-        img_prefix=img_prefix_train,
-        augment_data=True,
-        max_num_points=max_num_points,
-        pipeline=train_pipeline),
-    val=dict(
-        type=dataset_type,
-        ann_file=ann_file,
-        img_prefix=img_prefix_test,
-        augment_data=True,
-        max_num_points=max_num_points,
-        pipeline=train_pipeline),
-    test=dict(
-        type=dataset_type,
-        ann_file=ann_file,
-        img_prefix=img_prefix_test,
-        augment_data=False,
-        max_num_points=max_num_points,
-        pipeline=test_pipeline))
-
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
@@ -205,12 +178,29 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_scene_size = [10.24, 10.24, 5.12]
 
-auto_scale_vs = False
+max_footprint_for_scale = 150
+max_num_points = 20 * 10000
+data = dict(
+    imgs_per_gpu=batch_size,
+    workers_per_gpu=0,
+    train=dict(
+        type=dataset_type,
+        ann_file=ann_file,
+        img_prefix=img_prefix_train,
+        voxel_size=voxel_size,
+        augment_data=True,
+        max_num_points=max_num_points,
+        max_footprint_for_scale=max_footprint_for_scale,
+        pipeline=train_pipeline),
+    val=None,
+    test=None,
+)
+data['val'] = data['train']
+data['test'] = data['train']
+
+
+
 model['backbone']['voxel_size'] = voxel_size
-model['backbone']['full_height'] = max_scene_size[-1]
-for split in ['train', 'test', 'val']:
-  data[split]['voxel_size'] = voxel_size
-  data[split]['auto_scale_vs'] = auto_scale_vs
 
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)

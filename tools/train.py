@@ -58,8 +58,6 @@ def parse_args():
     parser.add_argument('--base_plane', type=int, default=64)
     parser.add_argument('--corhm', type=int, default=None,
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
-    parser.add_argument('--auto_scale_vs', type=int, default=None,
-                        help='0 or 1: auto scale the point cloud to full voxel resolution')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -79,7 +77,6 @@ def update_config(cfg, args, split):
     cls_loss = args.cls
     dcn_zero_base = args.dcn_zero_base
     corner_hm = args.corhm
-    auto_scale_vs = args.auto_scale_vs
     base_plane = args.base_plane
 
     dataset  = cfg['DATA']
@@ -100,8 +97,6 @@ def update_config(cfg, args, split):
     if 'pcl' in dataset:
       for sp in ['train', 'val', 'test']:
         cfg['data'][sp]['augment_data'] = rotate
-        if auto_scale_vs is not None:
-          cfg['data'][sp]['auto_scale_vs'] = auto_scale_vs
 
     bbp = cfg['model']['backbone']['basic_planes']
     cfg['model']['backbone']['basic_planes'] = base_plane
@@ -189,8 +184,6 @@ def update_config(cfg, args, split):
           vsz = int(100 * cfg['data'][split]['voxel_size'])
           stem_stride = cfg['model']['backbone']['stem_stride']
           cfg['work_dir'] += f'_Vsz{vsz}Stem{stem_stride}'
-          if cfg['data']['train']['auto_scale_vs']:
-            cfg['work_dir'] += f'_Asv'
 
         # backup config
         aim_path = os.path.join(cfg['work_dir'], '_'+os.path.basename(cfg.filename))

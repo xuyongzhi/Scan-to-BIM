@@ -70,8 +70,9 @@ class BeikePclDataset(VoxelDatasetBase):
                test_mode=False,
                voxel_size=None,
                voxel_zero_offset=0,
-               auto_scale_vs = None,
+               auto_scale_vs = True,
                max_num_points = None,
+               max_footprint_for_scale = None,
                augment_data = None,
                pipeline=None,):
     assert voxel_size is not None
@@ -79,8 +80,9 @@ class BeikePclDataset(VoxelDatasetBase):
     self.test_mode = test_mode
     self.VOXEL_SIZE = voxel_size
     self.voxel_zero_offset = voxel_zero_offset
-    self.auto_scale_to_full_resolution = auto_scale_vs
     self.max_num_points = max_num_points
+    self.max_footprint_for_scale = max_footprint_for_scale
+    self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size
     assert img_prefix in ['train', 'test']
 
     #if voxel_resolution[0] is not None:

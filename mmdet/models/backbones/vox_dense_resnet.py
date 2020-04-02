@@ -21,6 +21,9 @@ import time
 RECORD_T = 0
 SHOW_NET = 0
 
+CONV_TYPE = 'Conv'
+BN_TYPE = 'BN'
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -32,8 +35,8 @@ class BasicBlock(nn.Module):
                  downsample=None,
                  style='pytorch',
                  with_cp=False,
-                 conv_cfg=dict(type='MinkConv'),
-                 norm_cfg=dict(type='MinkBN'),
+                 conv_cfg=dict(type=CONV_TYPE),
+                 norm_cfg=dict(type=BN_TYPE),
                  dcn=None,
                  gcb=None,
                  gen_attention=None):
@@ -59,7 +62,7 @@ class BasicBlock(nn.Module):
             conv_cfg, planes, planes, 3, padding=1, bias=False)
         self.add_module(self.norm2_name, norm2)
 
-        self.relu = ME.MinkowskiReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
         self.dilation = dilation
@@ -103,12 +106,12 @@ class Bottleneck(nn.Module):
                  downsample=None,
                  style='pytorch',
                  with_cp=False,
-                 conv_cfg=dict(type='MinkConv'),
-                 norm_cfg=dict(type='MinkBN'),
+                 conv_cfg=dict(type=CONV_TYPE),
+                 norm_cfg=dict(type=BN_TYPE),
                  dcn=None,
                  gcb=None,
                  gen_attention=None):
-        """Bottleneck block for VoxResNet.
+        """Bottleneck block for VoxDenseResNet.
         If style is "pytorch", the stride-two layer is the 3x3 conv layer,
         if it is "caffe", the stride-two layer is the first 1x1 conv layer.
         """
@@ -202,7 +205,7 @@ class Bottleneck(nn.Module):
             bias=False)
         self.add_module(self.norm3_name, norm3)
 
-        self.relu = ME.MinkowskiReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
 
         if self.with_gcb:
@@ -283,8 +286,8 @@ def make_vox_res_layer(block,
                    dilation=1,
                    style='pytorch',
                    with_cp=False,
-                   conv_cfg=dict(type='MinkConv'),
-                   norm_cfg=dict(type='MinkBN'),
+                   conv_cfg=dict(type=CONV_TYPE),
+                   norm_cfg=dict(type=BN_TYPE),
                    dcn=None,
                    gcb=None,
                    gen_attention=None,
@@ -339,8 +342,8 @@ def make_vox_res_layer(block,
 
 
 @BACKBONES.register_module
-class VoxResNet(nn.Module):
-    """VoxResNet backbone.
+class VoxDenseResNet(nn.Module):
+    """VoxDenseResNet backbone.
 
     Args:
         depth (int): Depth of resnet, from {18, 34, 50, 101, 152}.
@@ -364,9 +367,9 @@ class VoxResNet(nn.Module):
             in resblocks to let them behave as identity.
 
     Example:
-        >>> from mmdet.models import VoxResNet
+        >>> from mmdet.models import VoxDenseResNet
         >>> import torch
-        >>> self = VoxResNet(depth=18)
+        >>> self = VoxDenseResNet(depth=18)
         >>> self.eval()
         >>> inputs = torch.rand(1, 3, 32, 32)
         >>> level_outputs = self.forward(inputs)
@@ -395,8 +398,10 @@ class VoxResNet(nn.Module):
                  out_indices=(0, 1, 2, 3),
                  style='pytorch',
                  frozen_stages=-1,
-                 conv_cfg=dict(type='MinkConv'),
-                 norm_cfg=dict(type='MinkBN', requires_grad=True),
+                 sparse_conv_cfg=dict(type='MinkConv'),
+                 conv_cfg=dict(type=CONV_TYPE),
+                 sparse_norm_cfg=dict(type='MinkBN', requires_grad=True),
+                 norm_cfg=dict(type=BN_TYPE, requires_grad=True),
                  norm_eval=True,
                  dcn=None,
                  stage_with_dcn=(False, False, False, False),
@@ -412,7 +417,7 @@ class VoxResNet(nn.Module):
                  full_height  = 10.24,
                  stem_stride = None,
                  ):
-        super(VoxResNet, self).__init__()
+        super(VoxDenseResNet, self).__init__()
 
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
@@ -426,8 +431,10 @@ class VoxResNet(nn.Module):
         assert max(out_indices) < num_stages
         self.style = style
         self.frozen_stages = frozen_stages
+        self.sparse_conv_cfg = sparse_conv_cfg
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
+        self.sparse_norm_cfg = sparse_norm_cfg
         self.with_cp = with_cp
         self.norm_eval = norm_eval
         self.dcn = dcn
@@ -447,9 +454,9 @@ class VoxResNet(nn.Module):
         self.max_planes = max_planes
 
         self.voxel_size = voxel_size
-        self.full_height = full_height
         self.stem_stride = stem_stride
 
+        self.relu = nn.ReLU(inplace=True)
         self._make_stem_layer(in_channels)
 
         self.res_layers = []
@@ -487,52 +494,11 @@ class VoxResNet(nn.Module):
           z_stride = 2**(i+0) * self.stem_stride_z
           self.out_strides.append(np.array([xy_stride, xy_stride, z_stride]))
 
-        # project to BEV
-        self._make_bev_project_layer()
-
         self._freeze_stages()
 
         p = min( 2**(len(self.stage_blocks) - 1), self.max_planes)
         self.feat_dim = self.block.expansion * self.basic_planes * p
 
-
-    def _make_bev_project_layer(self):
-        self.bev_layers = []
-        z_dim_base = int( math.ceil( self.full_height / self.voxel_size / self.stem_stride_z))
-
-        for i in self.out_indices:
-          bev_layer_i = []
-          planes = self.basic_planes * 2**(i+2)
-          z_dim_i = int( math.ceil(z_dim_base / 2**(i)))
-          if z_dim_i == 1:
-            kernels_i = []
-            strides_i = []
-          elif z_dim_i <= 7:
-            kernels_i = [z_dim_i]
-            strides_i = [z_dim_i]
-          else:
-            kernel_i = int(math.ceil(math.sqrt(z_dim_i)))
-            kernels_i = [kernel_i] * 2
-            strides_i = [kernel_i] * 2
-          num_layers = len(kernels_i)
-          for j in range(num_layers):
-            bev_conv_i = build_conv_layer(
-                self.conv_cfg,
-                planes,
-                planes,
-                kernel_size=(1,1,kernels_i[j]),
-                stride=(1,1,strides_i[j]),
-                padding=0,
-                bias=False)
-            bev_norm_name_i, bev_norm_i = build_norm_layer(self.norm_cfg, planes, postfix=j)
-            bev_layer_i.append(bev_conv_i)
-            bev_layer_i.append(bev_norm_i)
-            bev_layer_i.append(self.relu)
-          bev_layer_i = nn.Sequential(*bev_layer_i)
-          self.add_module(f'bev_layer_{i}', bev_layer_i)
-          self.bev_layers.append(bev_layer_i)
-
-        pass
 
     @property
     def norm1(self):
@@ -542,19 +508,19 @@ class VoxResNet(nn.Module):
         self.conv1s = []
         if self.stem_stride == 4:
           # voxel size = 0.04
-          kernels = [(3,3,3), (3,3,3), (1,1,3)]
-          strides = [(2,2,2), (2,2,2), (1,1,2)]
+          kernels = [(3,3,7), (3,3,7), (1,1,5), (1,1,5)]
+          strides = [(2,2,4), (2,2,4), (1,1,4), (1,1,2)]
         elif self.stem_stride == 2:
-          kernels = [(3,3,3), (3,3,3), (1,1,3)]
-          strides = [(2,2,2), (1,1,2), (1,1,2)]
+          kernels = [(3,3,7), (3,3,7), (1,1,5), (1,1,5)]
+          strides = [(2,2,4), (1,1,4), (1,1,4), (1,1,2)]
         elif self.stem_stride == 1:
-          kernels = [(3,3,7), (3,3,7), (1,1,7)]
-          strides = [(1,1,4), (1,1,4), (1,1,4)]
+          kernels = [(3,3,7), (3,3,7), (1,1,5), (1,1,5)]
+          strides = [(1,1,4), (1,1,4), (1,1,4), (1,1,2)]
         else:
           raise ValueError
 
         self.stem_stride_z = np.product( [s[-1] for s in strides] )
-        out_planes = [self.basic_planes, self.basic_planes*2, self.basic_planes*2]
+        out_planes = [self.basic_planes, self.basic_planes*2, self.basic_planes*2, self.basic_planes*2]
 
         num_layers = len(kernels)
         in_channels_i = in_channels
@@ -563,7 +529,7 @@ class VoxResNet(nn.Module):
         self.norm1s = []
         for i in range(num_layers):
           conv1_i = build_conv_layer(
-              self.conv_cfg,
+              self.sparse_conv_cfg,
               in_channels_i,
               out_planes[i],
               kernel_size=kernels[i],
@@ -571,15 +537,15 @@ class VoxResNet(nn.Module):
               padding=1,
               bias=False)
           in_channels_i = out_planes[i]
-          norm1_name, norm1 = build_norm_layer(self.norm_cfg, in_channels_i, postfix=i+1)
+          norm1_name, norm1 = build_norm_layer(self.sparse_norm_cfg, in_channels_i, postfix=i+1)
           self.add_module(f'conv1_{i}', conv1_i)
           self.add_module(norm1_name, norm1)
 
           self.conv1s.append(conv1_i)
           self.norm1s.append(norm1)
 
-        self.relu = ME.MinkowskiReLU(inplace=True)
-        self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
+        self.sparse_maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
+        self.sparse_relu = ME.MinkowskiReLU(inplace=True)
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:
@@ -666,10 +632,19 @@ class VoxResNet(nn.Module):
         pass
       return bev_dense_outs
 
+    def pad_outs_for_fpn(self, outs):
+      # pad the shape  of outs to be 2 times between neighbouring levels,
+      # to input into fpn
+      base_size = np.array([*outs[-1].shape[2:]])
+      num_levels = len(outs)
+      for i in range(0,num_levels-1):
+        size_i = base_size * 2**(num_levels-1-i)
+        cur_size_i = np.array([*outs[i].shape[2:]])
+        psx, psy = size_i - cur_size_i
+        outs[i] = nn.functional.pad(outs[i], (0, psy, 0, psx), "constant", 0)
+        pass
 
     def forward(self, x):
-        #debug_utils.show_shapes(x, 'img')
-
         if RECORD_T:
           ts = []
           ts.append(time.time())
@@ -679,14 +654,11 @@ class VoxResNet(nn.Module):
           debug_utils._show_sparse_ls_shapes([x], 'res in')
 
         for i in range(len(self.conv1s)):
+          x = self.conv1s[i](x)
+          x = self.norm1s[i](x)
+          x = self.sparse_relu(x)
           #debug_utils._show_sparse_ls_shapes([x], f'{i}-0')
           #debug_utils._show_sparse_coords(x)
-          x = self.conv1s[i](x)
-          #debug_utils._show_sparse_ls_shapes([x], f'{i}-1')
-          x = self.norm1s[i](x)
-          #debug_utils._show_sparse_ls_shapes([x], f'{i}-2')
-          #debug_utils._show_sparse_coords(x)
-          x = self.relu(x)
 
           if RECORD_T:
             ts.append(time.time())
@@ -696,14 +668,20 @@ class VoxResNet(nn.Module):
           if SHOW_NET:
             debug_utils._show_sparse_ls_shapes([x], f'conv1 {i}')
 
-        x = self.maxpool(x)
+        #x = self.sparse_maxpool(x)
+
+        x, min_coords, strides = x.dense()
+        x = x.max(dim=-1)[0]
+        #self.dense_zdim = x.shape[-1]
+        #x = x.squeeze(-1)
+
         outs = []
 
         if RECORD_T:
           ts.append(time.time())
           print(f'max: {ts[-1]-ts[-2]:.3f}')
         if SHOW_NET:
-          debug_utils._show_sparse_ls_shapes([x], 'max')
+          debug_utils._show_tensor_ls_shapes([x], 'max')
 
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)
@@ -715,22 +693,21 @@ class VoxResNet(nn.Module):
               ts.append(time.time())
               print(f'res {i}: {ts[-1]-ts[-2]:.3f}')
             if SHOW_NET:
-              debug_utils._show_sparse_ls_shapes([x], f'res {i}')
+              debug_utils._show_tensor_ls_shapes([x], f'res {i}')
 
-        # project sparse 3d out to BEV
-        outs_bev = self.get_bev_dense_dynamic(outs)
+        self.pad_outs_for_fpn(outs)
 
         if SHOW_NET:
-          debug_utils._show_tensor_ls_shapes(outs_bev, 'bev')
+          debug_utils._show_tensor_ls_shapes(outs, 'outs')
         if RECORD_T:
           ts.append(time.time())
           print(f'bev: {ts[-1]-ts[-2]:.3f}')
           print(f'conv1: {t1-t0:.3f}')
           pass
-        return tuple(outs_bev)
+        return tuple(outs)
 
     def train(self, mode=True):
-        super(VoxResNet, self).train(mode)
+        super(VoxDenseResNet, self).train(mode)
         self._freeze_stages()
         if mode and self.norm_eval:
             for m in self.modules():

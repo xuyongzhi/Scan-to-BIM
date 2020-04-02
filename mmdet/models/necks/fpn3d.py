@@ -8,10 +8,10 @@ from ..utils import ConvModule
 
 
 from tools.debug_utils import _show_tensor_ls_shapes
-SHOW_NET = 0
+SHOW_NET = 1
 
 @NECKS.register_module
-class FPN(nn.Module):
+class FPN3D(nn.Module):
 
     def __init__(self,
                  in_channels,
@@ -23,10 +23,10 @@ class FPN(nn.Module):
                  extra_convs_on_inputs=True,
                  relu_before_extra_convs=False,
                  no_norm_on_lateral=False,
-                 conv_cfg=None,
-                 norm_cfg=None,
+                 conv_cfg=dict(type='Conv3d'),
+                 norm_cfg=dict(type='BN3d', requires_grad=True),
                  activation=None):
-        super(FPN, self).__init__()
+        super(FPN3D, self).__init__()
         assert isinstance(in_channels, list)
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -110,7 +110,8 @@ class FPN(nn.Module):
             lateral_conv(inputs[i + self.start_level])
             for i, lateral_conv in enumerate(self.lateral_convs)
         ]
-        if SHOW_NET and 0:
+
+        if SHOW_NET:
           print('\n\n')
           _show_tensor_ls_shapes(inputs, 'inputs')
           _show_tensor_ls_shapes(laterals, 'laterals')
@@ -121,16 +122,19 @@ class FPN(nn.Module):
             laterals[i - 1] += F.interpolate(
                 laterals[i], scale_factor=2, mode='nearest')
 
+
         # build outputs
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         # part 1: from original levels
         outs = [
             self.fpn_convs[i](laterals[i]) for i in range(used_backbone_levels)
         ]
 
-        if SHOW_NET and 0:
+        if SHOW_NET:
           print('\n\n')
           _show_tensor_ls_shapes(laterals, 'laterals')
           _show_tensor_ls_shapes(outs, 'outs')
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
         # part 2: add extra levels
         if self.num_outs > len(outs):
@@ -161,7 +165,7 @@ class FPN(nn.Module):
           if pad_sx > 0 or pad_sy > 0:
             outs[i] = F.pad(outs[i], (0, pad_sy, 0, pad_sx), "constant", 0)
 
-        if SHOW_NET and 1:
-          print('\n\n')
-          _show_tensor_ls_shapes(outs, 'outs')
+        #debug_utils._show_tensor_ls_shapes(inputs, 'fpn inputs')
+        #debug_utils._show_tensor_ls_shapes(laterals, 'fpn laterals')
+        #debug_utils._show_tensor_ls_shapes(outs, 'fpn outs')
         return tuple(outs)

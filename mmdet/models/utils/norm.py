@@ -6,6 +6,7 @@ norm_cfg = {
     'BN': ('bn', nn.BatchNorm2d),
     'SyncBN': ('bn', nn.SyncBatchNorm),
     'GN': ('gn', nn.GroupNorm),
+    'BN3d': ('bn', nn.BatchNorm3d),
     'MinkBN': ('vbn', mink_batch_norm),
     # and potentially 'SN'
 }

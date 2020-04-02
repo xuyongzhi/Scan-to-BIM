@@ -239,7 +239,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
         rotation_augmentation_bound=self.ROTATION_AUGMENTATION_BOUND,
         translation_augmentation_ratio_bound=self.TRANSLATION_AUGMENTATION_RATIO_BOUND,
         ignore_label=ignore_label,
-        auto_scale_to_full_resolution = self.auto_scale_to_full_resolution)
+        max_voxel_footprint = self.max_voxel_footprint,)
 
     # map labels not evaluated to ignore_label
     label_map = {}

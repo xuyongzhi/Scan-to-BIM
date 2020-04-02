@@ -20,7 +20,7 @@ class Voxelizer:
                rotation_augmentation_bound=None,
                translation_augmentation_ratio_bound=None,
                ignore_label=255,
-               auto_scale_to_full_resolution=None):
+               max_voxel_footprint=None ):
     """
     Args:
       voxel_size: side length of a voxel
@@ -35,7 +35,7 @@ class Voxelizer:
     self.voxel_size = voxel_size
     self.clip_bound = clip_bound
     self.ignore_label = ignore_label
-    self.auto_scale_to_full_resolution = auto_scale_to_full_resolution
+    self.max_voxel_footprint = max_voxel_footprint
 
     # Augmentation
     self.use_augmentation = use_augmentation
@@ -135,7 +135,7 @@ class Voxelizer:
       rigid_transformation = M_r @ rigid_transformation
 
     homo_coords = np.hstack((coords, np.ones((coords.shape[0], 1), dtype=coords.dtype)))
-    if self.auto_scale_to_full_resolution:
+    if self.max_voxel_footprint is not None:
       rigid_transformation, scale_rate = self.auto_scale_inside_voxel_resolution(homo_coords, rigid_transformation)
     else:
       scale_rate = 1
@@ -165,14 +165,21 @@ class Voxelizer:
     The pcl scope could be out of the resolution because of rotation.
     assign a scale after the rotation.
     '''
-    assert self.voxel_resolution is not None
     coords_aug = homo_coords @ rigid_transformation.T[:, :3]
     min_coords = coords_aug.min(0)
     max_coords = coords_aug.max(0)
     scope_coords = max_coords - min_coords
+    voxel_footprint = np.product( scope_coords[:2] )
+    scale_rate = np.sqrt( self.max_voxel_footprint / voxel_footprint)
+    if scale_rate < 1:
+      rigid_transformation[:3,:3] *= scale_rate
+    else:
+      scale_rate = 1
+    return rigid_transformation, scale_rate
+
     #scale_rates = (np.array(self.voxel_resolution[:2])-1) / scope_coords[:2] # xy
-    scale_rates = (np.array(self.voxel_resolution)-1) / scope_coords # xyz
-    scale_rate = scale_rates.min()
+    #scale_rates = (np.array(self.voxel_resolution)-1) / scope_coords # xyz
+    #scale_rate = scale_rates.min()
     #print(f'scale_rates:{scale_rates}, min={scale_rate}')
     rigid_transformation[:3,:3] *= scale_rate
     return rigid_transformation, scale_rate
