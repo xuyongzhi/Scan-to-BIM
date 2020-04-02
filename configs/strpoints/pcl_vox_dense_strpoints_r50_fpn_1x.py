@@ -162,11 +162,7 @@ img_norm_cfg = dict(
 #    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
 
 
-train_pipeline = None
-test_pipeline = train_pipeline
-
 lra = 0.01
-
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
@@ -182,19 +178,18 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
-        img_prefix='test',
+        img_prefix='train',
         voxel_size=voxel_size,
         augment_data=True,
         max_num_points=max_num_points,
         max_footprint_for_scale=max_footprint_for_scale,
-        pipeline=train_pipeline),
+        pipeline=None),
     val=None,
     test=None,
 )
-data['val'] = data['train']
+data['val'] = data['train'].copy()
 data['val']['img_prefix'] = 'test'
-data['test'] = data['val']
-
+data['test'] = data['val'].copy()
 
 
 model['backbone']['voxel_size'] = voxel_size
