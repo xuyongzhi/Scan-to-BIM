@@ -13,7 +13,7 @@ import math
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
 
 voxel_size = [0.04, 0.08][1]
-stem_stride = {0.04:2, 0.08:1}[voxel_size]
+stem_stride = {0.04:2, 0.08:1}[voxel_size] * 2
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
@@ -22,7 +22,7 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_height = 5.12
 
-batch_size = 3
+batch_size = 5
 
 stem_stride_z = 8
 max_z_dim_fpn_start = max_height / voxel_size / stem_stride_z # both backbone and neck start from 0
