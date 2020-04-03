@@ -25,14 +25,14 @@ def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
   if isinstance(tensor_ls, SparseTensor):
     tensor = tensor_ls
     coords = tensor.coords
-    num = coords.shape[0]
     feats = tensor.feats
     c_shape = [*coords.shape]
     f_shape = [*feats.shape]
     t_stride = [*tensor.tensor_stride]
     min_coords = [*coords.min(dim=0)[0].numpy()]
     max_coords = [*coords.max(dim=0)[0].numpy()]
-    print(f'{pre} {i} \tcoords:{c_shape} \tfeats:{f_shape} \tstride:{t_stride} \tcoords scope: {min_coords} - {max_coords} \tnum points: {num}')
+    dense_size = [c/s for c,s in zip(max_coords[1:], t_stride)]
+    print(f'{pre} {i} \tcoords:{c_shape} \tfeats:{f_shape} \tstride:{t_stride} \tcoords scope: {min_coords} - {max_coords} \tdense size:{dense_size}')
     pass
   else:
     assert isinstance(tensor_ls, list) or isinstance(tensor_ls, tuple)
@@ -43,16 +43,23 @@ def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
 
 
 #-3d------------------------------------------------------------------------------
-def _show_sparse_coords(x):
+def _show_sparse_coords(x, gt_bboxes=None):
   C = x.C.cpu().data.numpy()
+  if gt_bboxes is not None:
+    gt_bboxes = [g.cpu().data.numpy() for g in gt_bboxes]
+
   batch_size = C[:,0].max()+1
   for i in range(batch_size):
     mask = C[:,0] == i
     Ci = C[mask][:,1:]
-    _show_3d_points_bboxes_ls([Ci])
+    if gt_bboxes is None:
+      _show_3d_points_bboxes_ls([Ci])
+    else:
+      _show_3d_points_bboxes_ls([Ci], bboxes_ls = [gt_bboxes[i]], box_oriented=True)
 
 def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
              bboxes_ls=None, b_colors='random', box_oriented=False):
+  from beike_data_utils.line_utils import lines2d_to_bboxes3d
   show_ls = []
   if points_ls is not None:
     assert isinstance(points_ls, list)
@@ -69,6 +76,7 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
     assert isinstance(bboxes_ls, list)
     if not isinstance(b_colors, list):
       b_colors = [b_colors] * len(bboxes_ls)
+    bboxes_ls = [lines2d_to_bboxes3d(b) for b in bboxes_ls]
     for i,bboxes in enumerate(bboxes_ls):
       bboxes_o3d = _make_bboxes_o3d(bboxes, box_oriented, b_colors[i])
       show_ls = show_ls + bboxes_o3d
@@ -491,4 +499,5 @@ def show_img_with_norm(img):
 
   show_points_3d(img3d)
   pass
+
 

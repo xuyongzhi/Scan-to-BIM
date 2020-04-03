@@ -1,7 +1,7 @@
 from .bfp import BFP
 from .fpn import FPN
-from .fpn3d import FPN3D
 from .hrfpn import HRFPN
 from .nas_fpn import NASFPN
+from .fpn_dense3d import FPN_Dense3D
 
-__all__ = ['FPN', 'BFP', 'HRFPN', 'NASFPN']
+__all__ = ['FPN', 'BFP', 'HRFPN', 'NASFPN',  'FPN_Dense3D']

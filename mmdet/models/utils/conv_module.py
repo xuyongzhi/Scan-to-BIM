@@ -6,6 +6,7 @@ from mmcv.cnn import constant_init, kaiming_init
 from .conv_ws import ConvWS2d
 from .norm import build_norm_layer
 from .mink_vox_common import mink_conv
+import MinkowskiEngine as ME
 
 conv_cfg = {
     'Conv': nn.Conv2d,
@@ -83,6 +84,7 @@ class ConvModule(nn.Module):
         super(ConvModule, self).__init__()
         assert conv_cfg is None or isinstance(conv_cfg, dict)
         assert norm_cfg is None or isinstance(norm_cfg, dict)
+        self.is_mink = conv_cfg is not None and conv_cfg['type'] == 'MinkConv'
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
         self.activation = activation
@@ -117,11 +119,12 @@ class ConvModule(nn.Module):
         self.out_channels = self.conv.out_channels
         self.kernel_size = self.conv.kernel_size
         self.stride = self.conv.stride
-        self.padding = self.conv.padding
+        if not self.is_mink:
+          self.padding = self.conv.padding
+          self.output_padding = self.conv.output_padding
+          self.transposed = self.conv.transposed
+          self.groups = self.conv.groups
         self.dilation = self.conv.dilation
-        self.transposed = self.conv.transposed
-        self.output_padding = self.conv.output_padding
-        self.groups = self.conv.groups
 
         # build normalization layers
         if self.with_norm:
@@ -136,11 +139,13 @@ class ConvModule(nn.Module):
         # build activation layer
         if self.with_activatation:
             # TODO: introduce `act_cfg` and supports more activation layers
-            if self.activation not in ['relu']:
+            if self.activation not in ['relu', 'MinkRelu']:
                 raise ValueError('{} is currently not supported.'.format(
                     self.activation))
             if self.activation == 'relu':
                 self.activate = nn.ReLU(inplace=inplace)
+            if self.activation == 'MinkRelu':
+                ME.MinkowskiReLU(inplace=True)
 
         # Use msra init by default
         self.init_weights()
@@ -151,9 +156,15 @@ class ConvModule(nn.Module):
 
     def init_weights(self):
         nonlinearity = 'relu' if self.activation is None else self.activation
-        kaiming_init(self.conv, nonlinearity=nonlinearity)
-        if self.with_norm:
-            constant_init(self.norm, 1, bias=0)
+        if not self.is_mink:
+          kaiming_init(self.conv, nonlinearity=nonlinearity)
+          if self.with_norm:
+              constant_init(self.norm, 1, bias=0)
+        else:
+          #kaiming_init(self.conv.conv, nonlinearity=nonlinearity)
+          if self.with_norm:
+              nn.init.constant_(self.norm.bn.weight, 1)
+              nn.init.constant_(self.norm.bn.bias, 0)
 
     def forward(self, x, activate=True, norm=True):
         for layer in self.order:

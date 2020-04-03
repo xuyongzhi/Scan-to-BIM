@@ -10,13 +10,23 @@
   transform_method
 '''
 import math
-
-voxel_size = [0.04, 0.08][0]
-
-stem_stride = 2
-batch_size = 4
-#*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
+
+voxel_size = [0.04, 0.08][1]
+stem_stride = {0.04:2, 0.08:1}[voxel_size]
+
+if DATA == 'beike_pcl_2d':
+  # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
+  max_height = 7.68
+  max_height = 5
+elif DATA == 'stanford_pcl_2d':
+  max_height = 5.12
+
+batch_size = 3
+
+stem_stride_z = 8
+max_z_dim_fpn_start = max_height / voxel_size / stem_stride_z # both backbone and neck start from 0
+#*******************************************************************************
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
@@ -41,7 +51,7 @@ if DATA == 'beike_pcl_2d':
   ann_file = data_root
   in_channels = 9
 
-backbone_type = 'VoxDenseResNet'
+backbone_type = 'Sparse3DResNet'
 
 #*******************************************************************************
 
@@ -64,13 +74,15 @@ model = dict(
         basic_planes=bbp,
         max_planes=1024),
     neck=dict(
-        type='FPN',
+        type='FPN_Dense3D',
         in_channels=[ bbp*4, bbp*8, bbp*16],
         out_channels=256,
         start_level=0,
         add_extra_convs=True,
         num_outs=4,
-        norm_cfg=norm_cfg),
+        norm_cfg = norm_cfg,
+        max_z_dim_start = max_z_dim_fpn_start,
+        ),
     bbox_head=dict(
         type='StrPointsHead',
         num_classes=2,
@@ -164,11 +176,6 @@ img_norm_cfg = dict(
 
 lra = 0.01
 
-if DATA == 'beike_pcl_2d':
-  # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
-  max_scene_size = [20.48, 20.48, 7.68]
-elif DATA == 'stanford_pcl_2d':
-  max_scene_size = [10.24, 10.24, 5.12]
 
 max_footprint_for_scale = 150
 max_num_points = 20 * 10000
@@ -222,4 +229,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+workflow = [('train', 1),]
 

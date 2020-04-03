@@ -67,6 +67,7 @@ VISUALIZE_IOU_ASSIGNER = 0
 
 CHECK_POINT_ASSIGN = False
 LOAD_GT_TEST = True
+VISUAL_SPARSE_IN_BACKBONE = 0
 #*******************************************************************************
 
 OBJ_LEGEND = 'score' # score or rotation

@@ -63,12 +63,12 @@ class SingleStageDetector(BaseDetector):
                 self.neck.init_weights()
         self.bbox_head.init_weights()
 
-    def extract_feat(self, img):
+    def extract_feat(self, img, gt_bboxes):
         """Directly extract features from the backbone+neck
         """
         if RECORD_T:
           t0 = time.time()
-        x = self.backbone(img)
+        x = self.backbone(img, gt_bboxes)
         if RECORD_T:
           t1 = time.time()
         if self.with_neck:
@@ -111,7 +111,7 @@ class SingleStageDetector(BaseDetector):
         '''
         if RECORD_T:
           t0 = time.time()
-        x = self.extract_feat(img)
+        x = self.extract_feat(img, gt_bboxes)
         self.update_dynamic_shape(x, img_metas)
         #debug_utils._show_tensor_ls_shapes(x, 'single_stage forward_train - features')
         if RECORD_T:

@@ -433,7 +433,7 @@ def merge_corners(corners_0, scores_0, opt_graph_cor_dis_thr=3):
 def round_positions(data, scale=100):
   return np.round(data*scale)/scale
 
-def lines2d_to_bboxes3d(lines, line_obj_rep, height=100, thickness=1):
+def lines2d_to_bboxes3d(lines, line_obj_rep='lscope_istopleft', height=60, thickness=1):
   '''
   lines:  [n,5]
   bboxes: [n,9] [center, size, angle]
