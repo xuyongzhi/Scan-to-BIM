@@ -1,7 +1,7 @@
 # xyz
 
 #export CUDA_LAUNCH_BLOCKING=1
-#export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_strpoints_r50_fpn_1x.py
@@ -20,7 +20,7 @@ DCN_ZERO_BASE=0
 BASE_PLANE=32
 BS=1
 
-ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.05 --base_plane $BASE_PLANE --bs $BS 
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --bs $BS 
 #--resume $CP 
 
 #./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE --bs $BS

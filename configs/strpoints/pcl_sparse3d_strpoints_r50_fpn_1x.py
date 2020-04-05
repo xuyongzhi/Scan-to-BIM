@@ -52,7 +52,7 @@ if DATA == 'beike_pcl_2d':
   if not SPARSE_BEV:
     in_channels = 9
   else:
-    in_channels = 7
+    in_channels = 1
 
 backbone_type = 'Sparse3DResNet'
 

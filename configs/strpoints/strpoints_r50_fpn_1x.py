@@ -221,4 +221,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
+workflow = [('train', 1),]
 

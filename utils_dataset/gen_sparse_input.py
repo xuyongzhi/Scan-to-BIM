@@ -34,6 +34,8 @@ def get_pcl_topview(sinput, gt_bboxes):
   bev_coords = bev_coords[mask]
   bev_sfeat = bev_sfeat[mask]
 
+  bev_sfeat = bev_sfeat[:, 3:][:, [3,0,1,2]]
+
   bev_sparse = SparseTensor(bev_sfeat, bev_coords)
 
   if 0:
@@ -61,7 +63,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   if SPARSE_BEV:
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
-  if 0:
+  if 1:
     coords_batch = sinput.C
     feats_batch = sinput.F
 
@@ -69,9 +71,22 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
     dense = dense.permute(0,1,3,2,4)
     batch_size = coords_batch[:,0].max()+1
     for i in range(batch_size):
+      batch_mask = coords_batch[:,0] == i
+      points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
+      normals = feats_batch[batch_mask][:, 1:].cpu().data.numpy()
+      np = points.shape[0]
+
+
       lines2d = gt_bboxes[i].cpu().data.numpy()
       density = dense[i,-1,:,:,0].cpu().data.numpy()
       _show_lines_ls_points_ls(density, [lines2d])
+
+      from beike_data_utils.line_utils import lines2d_to_bboxes3d
+      from configs.common import OBJ_REP
+      bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=30, thickness=1)
+      _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
+                  b_colors = 'red', box_oriented=True, point_normals=[normals])
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
   if 0:
@@ -85,6 +100,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
       colors = feats_batch[batch_mask][:, :3].cpu().data.numpy()
       colors = colors+0.5
+      normals = feats_batch[batch_mask][:, 3:6].cpu().data.numpy()
       np = points.shape[0]
 
       img_meta_i = img_meta[i]
@@ -119,10 +135,10 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       print(f'data aug:\n {data_aug}\n')
 
       scale = 1
-      _show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
+      #_show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
 
-      _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
-                  b_colors = 'red', box_oriented=True)
+      _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
+                  b_colors = 'red', box_oriented=True, point_normals=[normals])
       pass
   return sinput
 

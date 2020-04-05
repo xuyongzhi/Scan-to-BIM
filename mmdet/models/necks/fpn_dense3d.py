@@ -7,7 +7,7 @@ from ..registry import NECKS
 from ..utils import ConvModule
 import math
 
-
+from configs.common import SPARSE_BEV
 from tools.debug_utils import _show_tensor_ls_shapes
 SHOW_NET = 0
 
@@ -90,12 +90,15 @@ class FPN_Dense3D(nn.Module):
         self.extra_levels = extra_levels
         if add_extra_convs and extra_levels >= 1:
             for i in range(extra_levels):
-                #if i == 0 and self.extra_convs_on_inputs:
-                #    in_channels = self.in_channels[self.backbone_end_level - 1]
-                #else:
-                #    in_channels = out_channels
+                if SPARSE_BEV:
+                  if i == 0 and self.extra_convs_on_inputs:
+                      in_channels = self.in_channels[self.backbone_end_level - 1]
+                  else:
+                      in_channels = out_channels
+                else:
+                      in_channels = out_channels
                 extra_fpn_conv = ConvModule(
-                    out_channels,
+                    in_channels,
                     out_channels,
                     3,
                     stride=2,
@@ -108,7 +111,9 @@ class FPN_Dense3D(nn.Module):
 
         stride_se = pow(2, self.backbone_end_level - self.start_level-1)
         self.zdim_end_level = int(math.ceil( max_z_dim_start / stride_se))
-        self.build_project_layers()
+
+        if not SPARSE_BEV:
+          self.build_project_layers()
 
     def build_project_layers(self,):
         self.project_layers = nn.ModuleList()
@@ -234,9 +239,13 @@ class FPN_Dense3D(nn.Module):
 
     @auto_fp16()
     def forward_project(self, laterals_i, i):
+        if SPARSE_BEV:
+          return laterals_i[...,0]
+
         bev_laterals_i = self.project_layers[i][0](laterals_i)
         bev_laterals_i = F.pad(bev_laterals_i, (0, self.zdim_end_level - bev_laterals_i.shape[-1]), "constant", 0)
         bev_laterals_i = self.project_layers[i][1](bev_laterals_i)
         bev_laterals_i = bev_laterals_i.max(4)[0]
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return bev_laterals_i
 

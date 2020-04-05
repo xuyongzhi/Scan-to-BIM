@@ -21,7 +21,7 @@ import time
 RECORD_T = 0
 SHOW_NET = 0
 
-from configs.common import VISUAL_SPARSE_IN_BACKBONE
+from configs.common import VISUAL_SPARSE_IN_BACKBONE, SPARSE_BEV
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -445,7 +445,10 @@ class Sparse3DResNet(nn.Module):
         self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
         self.basic_planes = basic_planes
-        self.inplanes = basic_planes * 2
+        if not SPARSE_BEV:
+          self.inplanes = basic_planes * 2
+        else:
+          self.inplanes = basic_planes
         self.max_planes = max_planes
 
         self.voxel_size = voxel_size
@@ -508,12 +511,17 @@ class Sparse3DResNet(nn.Module):
         if self.stem_stride == 1:
           s0, s1 = 1, 1
 
-        kernels = [(3,3,3), (1,1,5),]
-        strides = [(s0,s0,2), (s1,s1,4),]
-        paddings = [ ( int(k[0]>1), int(k[1]>1), 0 ) for k in kernels ]
+        if not SPARSE_BEV:
+          kernels = [(3,3,3), (1,1,5),]
+          strides = [(s0,s0,2), (s1,s1,4),]
+          paddings = [ ( int(k[0]>1), int(k[1]>1), 0 ) for k in kernels ]
+        else:
+          kernels = [(7,7,1),]
+          strides = [(self.stem_stride,self.stem_stride,1),]
+          paddings = [ (3,3,0) ]
 
         self.stem_stride_z = np.product( [s[-1] for s in strides] )
-        out_planes = [self.basic_planes, self.basic_planes*2, self.basic_planes*2]
+        out_planes = [self.basic_planes, self.basic_planes*2]
 
         num_layers = len(kernels)
         in_channels_i = in_channels
@@ -538,7 +546,10 @@ class Sparse3DResNet(nn.Module):
           self.norm1s.append(norm1)
 
         self.relu = ME.MinkowskiReLU(inplace=True)
-        self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
+        if not SPARSE_BEV:
+          self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
+        else:
+          self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:

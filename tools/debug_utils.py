@@ -65,7 +65,7 @@ def _show_3d_points_lines_ls(points_ls=None, point_feats=None,
   _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, b_colors, box_oriented=True)
 
 def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
-             bboxes_ls=None, b_colors='random', box_oriented=False):
+             bboxes_ls=None, b_colors='random', box_oriented=False, point_normals=None):
   show_ls = []
   if points_ls is not None:
     assert isinstance(points_ls, list)
@@ -74,8 +74,12 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
       assert isinstance(point_feats, list)
     else:
       point_feats = [None] * n
-    for points, feats in zip(points_ls, point_feats):
-      pcd = _make_pcd(points, feats)
+    if point_normals is not None:
+      assert isinstance(point_normals, list)
+    else:
+      point_normals = [None] * n
+    for points, feats, normals in zip(points_ls, point_feats, point_normals):
+      pcd = _make_pcd(points, feats, normals)
       show_ls.append(pcd)
 
   if bboxes_ls is not None:
@@ -124,7 +128,7 @@ def _make_bbox_o3d(bbox, box_oriented, color):
   bbox_.color = c
   return bbox_
 
-def _make_pcd(points, feats=None):
+def _make_pcd(points, feats=None, normals=None):
     if points.shape[1] == 6 and feats is None:
       feats = points[:,3:6]
       points = points[:,:3]
@@ -141,6 +145,9 @@ def _make_pcd(points, feats=None):
       elif feats.shape[1] == 1:
         labels = feats
         pcd.colors = o3d.utility.Vector3dVector( label2color(labels) / 255)
+
+    if normals is not None:
+      pcd.normals = o3d.utility.Vector3dVector(normals)
     return pcd
 
 

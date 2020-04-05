@@ -525,7 +525,7 @@ class ResNet(nn.Module):
         else:
             raise TypeError('pretrained must be a str or None')
 
-    def forward(self, x):
+    def forward(self, x, gt_bboxes=None):
         #debug_tools.show_shapes(x, 'img')
         if RECORD_T:
           t0 = time.time()
