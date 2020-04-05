@@ -5,7 +5,7 @@ import numpy as np
 import glob
 import os
 from collections import defaultdict
-from tools.debug_utils import _show_3d_points_bboxes_ls
+from tools.debug_utils import _show_3d_points_lines_ls
 
 DEBUG_INPUT = 0
 
@@ -191,14 +191,15 @@ class BeikePclDataset(VoxelDatasetBase):
     point_labels = np.zeros([feats.shape[0]], dtype=np.int32)
 
     if DEBUG_INPUT:
-      gt_bboxes = self.img_infos[index]['gt_bboxes'] * self.VOXEL_SIZE
+      gt_bboxes = self.img_infos[index]['gt_bboxes_raw']
       from configs.common import OBJ_REP
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
-      bboxes3d = lines2d_to_bboxes3d(gt_bboxes, OBJ_REP, height=2.5, thickness=0.1)
+      #bboxes3d = lines2d_to_bboxes3d(gt_bboxes, OBJ_REP, height=2.5, thickness=0.1)
       print(filepath)
-      _show_3d_points_bboxes_ls([coords], [feats[:,:3]], [bboxes3d], b_colors = 'red', box_oriented=True)
+      _show_3d_points_lines_ls([coords], [feats[:,:3]], [gt_bboxes], b_colors = 'red', height=2.5, thickness=0.1)
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
     return coords, feats, point_labels, None
+
 
   def _augment_coords_to_feats(self, coords, feats, labels=None):
     # Center x,y

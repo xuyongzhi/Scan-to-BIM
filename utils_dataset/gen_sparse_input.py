@@ -4,14 +4,71 @@ import torch
 
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 
+def get_pcl_topview(sinput, gt_bboxes):
+  '''
+  9 channels: [color, normal, coords]
+  '''
+  sinput.F[:,6:] = 1
+  dense_t , _, _ = sinput.dense()
+  zdim =  dense_t.shape[-1]
+  bev_d = dense_t.mean(-1)
+  bev_d = bev_d[:, :7, ...]
+  batch_size = bev_d.shape[0]
+
+  bev_d = bev_d.permute(0,1,3,2)
+
+  h, w = bev_d.shape[2:]
+  grid_y, grid_x = torch.meshgrid( torch.arange(h), torch.arange(w) )
+  bev_coords_base = torch.cat([grid_y[:,:,None], grid_x[:,:,None]],  dim=2).view(-1, 2).int()
+  bev_coords = []
+  for i in range(batch_size):
+    batch_inds = (torch.ones(h*w,1)*i).int()
+    third_inds = (torch.ones(h*w,1)*0).int()
+    bev_coords_i = torch.cat([ batch_inds, bev_coords_base, third_inds ], dim=1)
+    bev_coords.append(bev_coords_i)
+  bev_coords = torch.cat(bev_coords, dim=0)
+
+  bev_sfeat = bev_d.permute(0,2,3, 1).reshape(-1, bev_d.shape[1])
+  mask = bev_sfeat[:,-1] > 1e-5
+  bev_coords = bev_coords[mask]
+  bev_sfeat = bev_sfeat[mask]
+
+  bev_sparse = SparseTensor(bev_sfeat, bev_coords)
+
+  if 1:
+    for i in range(batch_size):
+      bev_i = bev_d[i]
+      bev_i = bev_i.permute(1,2,0)
+      lines2d = gt_bboxes[i].cpu().data.numpy()
+      density = bev_i[..., -1].cpu().data.numpy()
+      color = bev_i[..., :3].cpu().data.numpy()
+      normal = bev_i[..., 3:6].cpu().data.numpy()
+      _show_lines_ls_points_ls( density, [lines2d] )
+      _show_lines_ls_points_ls( color, [lines2d] )
+      _show_lines_ls_points_ls( normal, [lines2d] )
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
+  return bev_sparse
+
 def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
   coords_batch, feats_batch = img
   ## For some networks, making the network invariant to even, odd coords is important
   #coord_base = (torch.rand(3) * 100).type_as(coords_batch)
   #coords_batch[:, 1:4] += coord_base
   sinput = SparseTensor(feats_batch, coords_batch)
+  #sinput = get_pcl_topview(sinput, gt_bboxes)
+  coords_batch = sinput.C
+  feats_batch = sinput.F
 
   if 0:
+    dense, _, _ = sinput.dense()
+    density = dense[0,0,:,:,0].cpu().data.numpy()
+    _show_lines_ls_points_ls(density)
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+
+  if 1:
     n = coords_batch.shape[0]
     print(f'batch voxe num: {n/1000}K')
 
@@ -57,8 +114,8 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       scale = 1
       _show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
 
-      #_show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
-      #            b_colors = 'red', box_oriented=True)
+      _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
+                  b_colors = 'red', box_oriented=True)
       pass
   return sinput
 

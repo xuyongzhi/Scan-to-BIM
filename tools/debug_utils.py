@@ -57,9 +57,15 @@ def _show_sparse_coords(x, gt_bboxes=None):
     else:
       _show_3d_points_bboxes_ls([Ci], bboxes_ls = [gt_bboxes[i]], box_oriented=True)
 
+
+def _show_3d_points_lines_ls(points_ls=None, point_feats=None,
+             lines_ls=None, b_colors='random', height=2.5, thickness=0.1):
+  from beike_data_utils.line_utils import lines2d_to_bboxes3d
+  bboxes_ls = [lines2d_to_bboxes3d(b, height=height, thickness=thickness) for b in lines_ls]
+  _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, b_colors, box_oriented=True)
+
 def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
              bboxes_ls=None, b_colors='random', box_oriented=False):
-  from beike_data_utils.line_utils import lines2d_to_bboxes3d
   show_ls = []
   if points_ls is not None:
     assert isinstance(points_ls, list)
@@ -76,7 +82,6 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
     assert isinstance(bboxes_ls, list)
     if not isinstance(b_colors, list):
       b_colors = [b_colors] * len(bboxes_ls)
-    bboxes_ls = [lines2d_to_bboxes3d(b) for b in bboxes_ls]
     for i,bboxes in enumerate(bboxes_ls):
       bboxes_o3d = _make_bboxes_o3d(bboxes, box_oriented, b_colors[i])
       show_ls = show_ls + bboxes_o3d
@@ -86,7 +91,7 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
   else:
     center = [0,0,0]
   center = [0,0,0]
-  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 100, origin=center)
+  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 1, origin=center)
   if ADD_FRAME:
     show_ls.append(mesh_frame)
 

@@ -18,12 +18,12 @@ CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0
 BASE_PLANE=32
-BS=6
+BS=2
 
-#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.05 --base_plane $BASE_PLANE --bs $BS
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.05 --base_plane $BASE_PLANE --bs $BS 
 #--resume $CP 
 
-./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE --bs $BS
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE --bs $BS
 
 
 ROTATE=0
