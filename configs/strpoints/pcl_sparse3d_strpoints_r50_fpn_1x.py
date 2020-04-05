@@ -10,7 +10,7 @@
   transform_method
 '''
 import math
-from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
+from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA, SPARSE_BEV
 
 voxel_size = [0.04, 0.08][1]
 stem_stride = {0.04:2, 0.08:1}[voxel_size] * 2
@@ -49,7 +49,10 @@ if DATA == 'beike_pcl_2d':
   dataset_type = 'BeikePclDataset'
   data_root = f'data/beike/processed_512/'
   ann_file = data_root
-  in_channels = 9
+  if not SPARSE_BEV:
+    in_channels = 9
+  else:
+    in_channels = 7
 
 backbone_type = 'Sparse3DResNet'
 
@@ -181,7 +184,7 @@ max_footprint_for_scale = 150
 max_num_points = 20 * 10000
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -190,7 +193,6 @@ data = dict(
         augment_data=True,
         max_num_points=max_num_points,
         max_footprint_for_scale=max_footprint_for_scale,
-        topview_input = True,
         pipeline=None),
     val=None,
     test=None,
@@ -230,5 +232,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-#workflow = [('train', 1),]
+workflow = [('train', 1),]
 

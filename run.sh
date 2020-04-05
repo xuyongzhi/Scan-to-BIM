@@ -13,12 +13,12 @@ CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_pcl_strpoints_r50_fpn_1x.py
 
 
-ROTATE=1
+ROTATE=0
 CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0
 BASE_PLANE=32
-BS=2
+BS=1
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.05 --base_plane $BASE_PLANE --bs $BS 
 #--resume $CP 

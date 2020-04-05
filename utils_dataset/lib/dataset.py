@@ -271,12 +271,14 @@ class VoxelizationDataset(VoxelizationDatasetBase):
   def __getitem__(self, index):
     debug = 0
 
-    is_include_gt_bboxes = 'gt_bboxes_raw' in self.img_infos[index]
+    img_info = self.img_infos[index].copy()
+
+    is_include_gt_bboxes = 'gt_bboxes_raw' in img_info
     if is_include_gt_bboxes:
-      gt_bboxes = self.img_infos[index]['gt_bboxes_raw']
+      gt_bboxes = img_info['gt_bboxes_raw']
     else:
       gt_bboxes = None
-    img_meta = self.img_infos[index]['img_meta']
+    img_meta = img_info['img_meta']
 
     coords, feats, labels, center = self.load_ply(index)
     # Downsample the pointcloud with finer voxel size before transformation for memory and speed
@@ -339,10 +341,10 @@ class VoxelizationDataset(VoxelizationDatasetBase):
       feats = self._normalization(feats)
 
     if is_include_gt_bboxes:
-      self.img_infos[index]['gt_bboxes'] = gt_bboxes
+      img_info['gt_bboxes'] = gt_bboxes
 
     img_meta['dynamic_vox_size_aug'] = coords.max(0)+1
-    self.img_infos[index]['img_meta'] = img_meta
+    img_info['img_meta'] = img_meta
     #print(img_meta['data_aug'])
 
     check_shape = 1
@@ -360,9 +362,10 @@ class VoxelizationDataset(VoxelizationDatasetBase):
       print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
       print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
       #print(gt_bboxes)
-      #_show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
+      _show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
+      pass
 
-    return_args = [coords, feats, labels, self.img_infos[index]]
+    return_args = [coords, feats, labels, img_info]
     #if self.return_transformation:
     #  return_args.append(transformation.astype(np.float32))
 

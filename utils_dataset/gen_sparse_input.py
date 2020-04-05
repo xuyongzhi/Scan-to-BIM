@@ -2,6 +2,7 @@ from MinkowskiEngine import SparseTensor
 import numpy as np
 import torch
 
+from configs.common import SPARSE_BEV
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 
 def get_pcl_topview(sinput, gt_bboxes):
@@ -15,7 +16,7 @@ def get_pcl_topview(sinput, gt_bboxes):
   bev_d = bev_d[:, :7, ...]
   batch_size = bev_d.shape[0]
 
-  bev_d = bev_d.permute(0,1,3,2)
+  #bev_d = bev_d.permute(0,1,3,2)
 
   h, w = bev_d.shape[2:]
   grid_y, grid_x = torch.meshgrid( torch.arange(h), torch.arange(w) )
@@ -35,10 +36,10 @@ def get_pcl_topview(sinput, gt_bboxes):
 
   bev_sparse = SparseTensor(bev_sfeat, bev_coords)
 
-  if 1:
+  if 0:
     for i in range(batch_size):
       bev_i = bev_d[i]
-      bev_i = bev_i.permute(1,2,0)
+      bev_i = bev_i.permute(2,1,0)
       lines2d = gt_bboxes[i].cpu().data.numpy()
       density = bev_i[..., -1].cpu().data.numpy()
       color = bev_i[..., :3].cpu().data.numpy()
@@ -46,7 +47,6 @@ def get_pcl_topview(sinput, gt_bboxes):
       _show_lines_ls_points_ls( density, [lines2d] )
       _show_lines_ls_points_ls( color, [lines2d] )
       _show_lines_ls_points_ls( normal, [lines2d] )
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
   return bev_sparse
@@ -56,24 +56,31 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   ## For some networks, making the network invariant to even, odd coords is important
   #coord_base = (torch.rand(3) * 100).type_as(coords_batch)
   #coords_batch[:, 1:4] += coord_base
+
   sinput = SparseTensor(feats_batch, coords_batch)
-  #sinput = get_pcl_topview(sinput, gt_bboxes)
-  coords_batch = sinput.C
-  feats_batch = sinput.F
+  if SPARSE_BEV:
+    sinput = get_pcl_topview(sinput, gt_bboxes)
 
   if 0:
-    dense, _, _ = sinput.dense()
-    density = dense[0,0,:,:,0].cpu().data.numpy()
-    _show_lines_ls_points_ls(density)
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    pass
+    coords_batch = sinput.C
+    feats_batch = sinput.F
 
-  if 1:
+    dense, _, _ = sinput.dense()
+    dense = dense.permute(0,1,3,2,4)
+    batch_size = coords_batch[:,0].max()+1
+    for i in range(batch_size):
+      lines2d = gt_bboxes[i].cpu().data.numpy()
+      density = dense[i,-1,:,:,0].cpu().data.numpy()
+      _show_lines_ls_points_ls(density, [lines2d])
+      pass
+
+  if 0:
     n = coords_batch.shape[0]
     print(f'batch voxe num: {n/1000}K')
 
     batch_size = coords_batch[:,0].max()+1
     for i in range(batch_size):
+      print(f'example {i}/{batch_size}')
       batch_mask = coords_batch[:,0] == i
       points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
       colors = feats_batch[batch_mask][:, :3].cpu().data.numpy()
