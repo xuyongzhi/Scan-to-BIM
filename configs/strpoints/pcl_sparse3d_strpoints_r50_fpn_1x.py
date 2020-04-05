@@ -52,7 +52,7 @@ if DATA == 'beike_pcl_2d':
   if not SPARSE_BEV:
     in_channels = 9
   else:
-    in_channels = 1
+    in_channels = 4
 
 backbone_type = 'Sparse3DResNet'
 
@@ -184,7 +184,7 @@ max_footprint_for_scale = 150
 max_num_points = 20 * 10000
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,

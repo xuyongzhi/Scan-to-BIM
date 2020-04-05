@@ -62,7 +62,7 @@ class Voxelizer:
           if rot_bound is not None:
             theta = np.random.uniform(*rot_bound)
             #if axis_ind == 2:
-            #  theta = np.pi * -0.25
+            #  theta = np.pi * 0.25
           rot_mats.append(M(axis, theta))
           rot_angles.append(theta)
         # Use random order
@@ -157,6 +157,9 @@ class Voxelizer:
       coords_aug, feats = ME.utils.sparse_quantize(
           coords_aug, feats)
 
+
+    # rotate normal
+    feats[:,3:6] = feats[:, 3:6] @ M_r.T[:3,:3]
     return coords_aug, feats, labels, rigid_transformation, angles_rot, scale_rate
 
   def auto_scale_inside_voxel_resolution(self, homo_coords, rigid_transformation):

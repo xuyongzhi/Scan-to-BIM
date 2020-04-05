@@ -179,6 +179,9 @@ class RandomHorizontalFlip(object):
           coord_max = np.max(coords[:, curr_ax])
           coords[:, curr_ax] = coord_max - coords[:, curr_ax]
 
+          # flip surface normal
+          feats[:,3:6][:,1-curr_ax] *= -1
+
           if img_meta is not None:
             line_flip_scope_itl(gt_bboxes, curr_ax, coord_max)
             img_meta['data_aug']['flip'][ ['x','y'][curr_ax] ] = coord_max

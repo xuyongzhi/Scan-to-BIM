@@ -246,6 +246,5 @@ class FPN_Dense3D(nn.Module):
         bev_laterals_i = F.pad(bev_laterals_i, (0, self.zdim_end_level - bev_laterals_i.shape[-1]), "constant", 0)
         bev_laterals_i = self.project_layers[i][1](bev_laterals_i)
         bev_laterals_i = bev_laterals_i.max(4)[0]
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return bev_laterals_i
 

@@ -342,6 +342,9 @@ class RandomLineFlip(object):
             # flip image
             results['img'] = mmcv.imflip(
                 results['img'], direction=results['flip_direction'])
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            # flip surface normal
+
             # flip bboxes
             for key in results.get('bbox_fields', []):
                 results[key] = self.bbox_flip(results[key],

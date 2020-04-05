@@ -63,7 +63,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   if SPARSE_BEV:
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
-  if 1:
+  if 0 and SPARSE_BEV:
     coords_batch = sinput.C
     feats_batch = sinput.F
 
@@ -79,7 +79,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       lines2d = gt_bboxes[i].cpu().data.numpy()
       density = dense[i,-1,:,:,0].cpu().data.numpy()
-      _show_lines_ls_points_ls(density, [lines2d])
+      #_show_lines_ls_points_ls(density, [lines2d])
 
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
       from configs.common import OBJ_REP
@@ -89,7 +89,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-  if 0:
+  if 0 and not SPARSE_BEV:
     n = coords_batch.shape[0]
     print(f'batch voxe num: {n/1000}K')
 
