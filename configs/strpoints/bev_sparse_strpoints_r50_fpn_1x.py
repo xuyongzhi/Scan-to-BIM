@@ -14,7 +14,6 @@ TOPVIEW = 'VerD' # better
 #TOPVIEW = 'All'
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE, DATA
-assert 'pcl' not in DATA
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
@@ -175,7 +174,7 @@ if IMAGE_SIZE == 1024:
 test_dir=data_root + f'TopView_{TOPVIEW}'
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',

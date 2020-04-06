@@ -63,7 +63,9 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   if SPARSE_BEV:
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
-  if 0 and SPARSE_BEV:
+
+  debug = 0
+  if debug and SPARSE_BEV:
     coords_batch = sinput.C
     feats_batch = sinput.F
 
@@ -79,6 +81,27 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       lines2d = gt_bboxes[i].cpu().data.numpy()
       density = dense[i,-1,:,:,0].cpu().data.numpy()
+
+
+      min_points = points.min(axis=0)
+      max_points = points.max(axis=0)
+      min_lines = lines2d[:,:4].reshape(-1,2).min(axis=0)
+      max_lines = lines2d[:,:4].reshape(-1,2).max(axis=0)
+
+
+      img_meta_i = img_meta[i]
+      data_aug = img_meta_i['data_aug']
+      dynamic_vox_size_aug = img_meta_i['dynamic_vox_size_aug']
+      print('\n\nfinal sparse input')
+      footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1]
+      print(f'dynamic_vox_size_aug: {dynamic_vox_size_aug}, footprint: {footprint}')
+
+      print(f'num voxel: {np/1000}K')
+      print(img_meta[i]['filename'])
+      print(f'points scope: {min_points} - {max_points}')
+      print(f'lines scope: {min_lines} - {max_lines}')
+      print(f'data aug:\n {data_aug}\n')
+
       #_show_lines_ls_points_ls(density, [lines2d])
 
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
@@ -89,7 +112,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-  if 0 and not SPARSE_BEV:
+  if debug and not SPARSE_BEV:
     n = coords_batch.shape[0]
     print(f'batch voxe num: {n/1000}K')
 
@@ -139,6 +162,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True, point_normals=[normals])
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
   return sinput
 

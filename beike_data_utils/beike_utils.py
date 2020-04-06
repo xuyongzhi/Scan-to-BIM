@@ -17,7 +17,7 @@ import glob
 
 from configs.common import OBJ_DIM, OBJ_REP, IMAGE_SIZE
 from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines, gen_corners_from_lines_np
-from tools.debug_utils import get_random_color, show_img_with_norm, _show_lines_ls_points_ls
+from tools.debug_utils import get_random_color, _show_img_with_norm, _show_lines_ls_points_ls
 np.set_printoptions(precision=3, suppress=True)
 
 
@@ -370,7 +370,7 @@ class BEIKE:
                                line_thickness=1, point_thickness=1,
                                out_file=anno_img_file, only_save=1)
       return img
-      #show_img_with_norm(img)
+      #_show_img_with_norm(img)
 
       img_type = 'density'
       #img_type = 'norm'

@@ -7,6 +7,7 @@ from torch.utils.data import Dataset
 from .pipelines import Compose
 from .registry import DATASETS
 np.set_printoptions(precision=3, suppress=True)
+from configs.common import VISUAL_TOPVIEW_INPUT
 
 @DATASETS.register_module
 class CustomDataset(Dataset):
@@ -157,7 +158,8 @@ class CustomDataset(Dataset):
         self.pre_pipeline(results)
         results = self.pipeline(results)
 
-        #show_results_train(results)
+        if VISUAL_TOPVIEW_INPUT:
+          show_results_train(results)
         return results
 
     def prepare_test_img(self, idx):
@@ -185,7 +187,7 @@ def show_results_test(results):
     pass
 
 def show_results_train(results):
-  from mmdet.debug_tools import _show_lines_ls_points_ls
+  from tools.debug_utils import _show_lines_ls_points_ls, _show_img_with_norm
   print('\ncustom, after data augmentation',results['img_meta'].data['filename'])
   img = results['img'].data.cpu().numpy()
   img = np.moveaxis(img, 0, -1)
@@ -199,6 +201,15 @@ def show_results_train(results):
   gt_bboxes = results['gt_bboxes'].data.cpu().numpy()
   gt_labels = results['gt_labels'].data.cpu().numpy()
 
-  _show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
+  flip = img_meta['flip']
+  if 'rotate_angle' in img_meta:
+    rotate_angle = img_meta['rotate_angle']
+  else:
+    rotate_angle = 0
+  print(f'flip: {flip}\nrotate_angle: {rotate_angle}')
+
+  #_show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
+  _show_img_with_norm(img)
   #_show_lines_ls_points_ls(img[:,:,1:])
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass

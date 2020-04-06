@@ -3,7 +3,7 @@ import numpy as np
 import mmcv
 from .geometric_utils import sin2theta_np
 import cv2
-from tools.debug_utils import show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls
+from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls
 import torch
 from configs.common import OPT_GRAPH_COR_DIS_THR
 
@@ -272,8 +272,8 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   # rotate the surface normal
   new_img[:,:,[1,2]] = np.matmul( new_img[:,:,[1,2]], matrix[:,:2].T )
 
-  #show_img_with_norm(img)
-  #show_img_with_norm(new_img)
+  #_show_img_with_norm(img)
+  #_show_img_with_norm(new_img)
 
   lines_rotated = lines_rotated.astype(np.float32)
   new_img = new_img.astype(np.float32)

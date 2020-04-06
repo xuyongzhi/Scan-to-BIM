@@ -496,7 +496,7 @@ def show_points_3d(points):
   o3d.visualization.draw_geometries([pcl])
 
 
-def show_img_with_norm(img):
+def _show_img_with_norm(img):
   assert img.shape[2] == 4
   h,w = img.shape[:2]
   xs = np.repeat( np.arange(w).reshape(1,-1,1), h, axis=0).astype(np.float32)/h

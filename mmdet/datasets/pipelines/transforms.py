@@ -330,6 +330,7 @@ class RandomLineFlip(object):
         if 'flip' not in results:
             flip = True if np.random.rand() < self.flip_ratio else False
             results['flip'] = flip
+
         if 'flip_direction' not in results:
             results['flip_direction'] = self.direction
         if results['flip_direction'] == 'random':
@@ -342,8 +343,10 @@ class RandomLineFlip(object):
             # flip image
             results['img'] = mmcv.imflip(
                 results['img'], direction=results['flip_direction'])
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             # flip surface normal
+            assert results['img'].shape[-1] == 4
+            flip_axis = {'horizontal':1, 'vertical':0}[results['flip_direction']]
+            results['img'][:,:, 1-flip_axis+1 ]  *= -1
 
             # flip bboxes
             for key in results.get('bbox_fields', []):

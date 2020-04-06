@@ -9,7 +9,7 @@ import math
 
 from configs.common import SPARSE_BEV
 from tools.debug_utils import _show_tensor_ls_shapes
-SHOW_NET = 0
+SHOW_NET = 1
 
 @NECKS.register_module
 class FPN_Dense3D(nn.Module):
