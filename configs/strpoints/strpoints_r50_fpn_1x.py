@@ -175,7 +175,7 @@ if IMAGE_SIZE == 1024:
 test_dir=data_root + f'TopView_{TOPVIEW}'
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
@@ -222,5 +222,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-workflow = [('train', 1),]
+#workflow = [('train', 1),]
 
