@@ -11,8 +11,9 @@
 '''
 import math
 from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA, SPARSE_BEV
+assert 'pcl' in DATA
 
-voxel_size = [0.02, 0.04, 0.08][0]
+voxel_size = [0.02, 0.04, 0.08][1]
 stem_stride = {0.02:2, 0.04:2, 0.08:1}[voxel_size] * 2
 
 if DATA == 'beike_pcl_2d':
@@ -74,6 +75,7 @@ model = dict(
         frozen_stages=-1,
         style='pytorch',
         stem_stride=stem_stride,
+        stem_stride_z = stem_stride_z,
         basic_planes=bbp,
         max_planes=1024),
     neck=dict(
@@ -84,7 +86,7 @@ model = dict(
         add_extra_convs=True,
         num_outs=4,
         norm_cfg = norm_cfg,
-        max_z_dim_start = max_z_dim_fpn_start,
+        max_z_dim_fpn_start = max_z_dim_fpn_start,
         ),
     bbox_head=dict(
         type='StrPointsHead',
@@ -184,7 +186,7 @@ max_footprint_for_scale = 150
 max_num_points = 20 * 10000
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -232,5 +234,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-workflow = [('train', 1),]
+#workflow = [('train', 1),]
 

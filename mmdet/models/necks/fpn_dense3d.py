@@ -26,7 +26,7 @@ class FPN_Dense3D(nn.Module):
                  no_norm_on_lateral=False,
                  conv_cfg=dict(type='Conv3d'),
                  norm_cfg=None,
-                 max_z_dim_start = None,
+                 max_z_dim_fpn_start = None,
                  activation=None,
                  activation_bev_proj='relu'):
         super(FPN_Dense3D, self).__init__()
@@ -111,8 +111,8 @@ class FPN_Dense3D(nn.Module):
 
         stride_se = pow(2, self.backbone_end_level - self.start_level-1)
         if SPARSE_BEV:
-          max_z_dim_start = 1
-        self.zdim_end_level = int(math.ceil( max_z_dim_start / stride_se))
+          max_z_dim_fpn_start = 1
+        self.zdim_end_level = int(math.ceil( max_z_dim_fpn_start / stride_se))
 
         if not SPARSE_BEV:
           self.build_project_layers()

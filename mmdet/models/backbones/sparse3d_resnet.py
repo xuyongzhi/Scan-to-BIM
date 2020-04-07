@@ -424,6 +424,7 @@ class Sparse3DResNet(nn.Module):
                  voxel_size = 0.04,
                  full_height  = 10.24,
                  stem_stride = None,
+                 stem_stride_z = None,
                  ):
         super(Sparse3DResNet, self).__init__()
 
@@ -465,6 +466,7 @@ class Sparse3DResNet(nn.Module):
         self.voxel_size = voxel_size
         self.full_height = full_height
         self.stem_stride = stem_stride
+        self.stem_stride_z_design = stem_stride_z
 
         self._make_stem_layer(in_channels)
 
@@ -523,18 +525,17 @@ class Sparse3DResNet(nn.Module):
           s0, s1 = 1, 1
 
         if not SPARSE_BEV:
-          kernels = [(3,3,3), (1,1,5),]
-          strides = [(s0,s0,2), (s1,s1,4),]
-          paddings = [ ( int(k[0]>1), int(k[1]>1), 0 ) for k in kernels ]
+          kernels = [(3,3,5),   (3,3,5), (3,3,3)]
+          strides = [(s0,s0,2), (1,1,2), (s1,s1,2)]
+          paddings = [(1,1,0), (1,1,0), (1,1,0)]
         else:
           kernels = [(7,7,1),]
           strides = [(s0, s0,1),]
           paddings = [ (3,3,0) ]
 
-        self.stem_stride_z = np.product( [s[-1] for s in strides] )
         out_planes = [self.basic_planes, self.basic_planes*2]
 
-        num_layers = len(kernels)
+        num_layers = len(kernels) - 1
         in_channels_i = in_channels
 
         self.conv1s = []
@@ -558,9 +559,13 @@ class Sparse3DResNet(nn.Module):
 
         self.relu = ME.MinkowskiReLU(inplace=True)
         if not SPARSE_BEV:
-          self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
+          self.maxpool = mink_max_pool(kernel_size=3, stride=(s1, s1, 2), padding=(1,1,0))
         else:
           self.maxpool = mink_max_pool(kernel_size=(3,3,1), stride=(s1,s1,1), padding=1)
+
+        self.stem_stride_z = np.product( [s[-1] for s in strides] )
+        assert self.stem_stride_z == self.stem_stride_z_design
+        assert self.stem_stride == np.product( [s[0] for s in strides] )
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:
