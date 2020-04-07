@@ -1,5 +1,6 @@
 import open3d as o3d
 import torch
+import torch.nn.functional as F
 import numpy as np
 import mmcv
 from mmcv.image import imread, imwrite
@@ -10,6 +11,29 @@ from .color import color_val, get_random_color, label2color
 
 ADD_FRAME = 1
 
+#-feature------------------------------------------------------------------------------
+def _show_feats(feats, gt_bboxes, stride):
+  '''
+  feats: [batch_size, c, h, w]
+  gt_bboxes: []*batch_size
+  '''
+  feats = F.interpolate(feats, scale_factor=stride, mode='bilinear')
+  feats =  feats.cpu().data.numpy()
+  gt_bboxes =  [gt.cpu().data.numpy() for gt in gt_bboxes]
+
+  batch_size = feats.shape[0]
+  for i in range(batch_size):
+    img = np.moveaxis(feats[i], [0,1,2], [2,0,1])
+    cn = img.shape[2]
+    img0 = img[:,:,:cn//3].sum(2)[:,:,None]
+    img1 = img[:,:,cn//3:cn//2*2].sum(2)[:,:,None]
+    img2 = img[:,:,cn//3*2:].sum(2)[:,:,None]
+    img_3 = np.concatenate([img0, img1, img2], axis=2)
+    gt = gt_bboxes[i]
+    _show_lines_ls_points_ls( img_3, [gt], line_colors='yellow' )
+    pass
+
+#-shape------------------------------------------------------------------------------
 def _show_tensor_ls_shapes(tensor_ls, pre='', i=0):
   if isinstance(tensor_ls, torch.Tensor):
     shape = tensor_ls.shape
@@ -45,6 +69,7 @@ def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
 #-3d------------------------------------------------------------------------------
 def _show_sparse_coords(x, gt_bboxes=None):
   C = x.C.cpu().data.numpy()
+  F = x.F.cpu().data.numpy()
   if gt_bboxes is not None:
     gt_bboxes = [g.cpu().data.numpy() for g in gt_bboxes]
 
@@ -52,10 +77,17 @@ def _show_sparse_coords(x, gt_bboxes=None):
   for i in range(batch_size):
     mask = C[:,0] == i
     Ci = C[mask][:,1:]
+    Fi_ = F[mask]
+    ci = Fi_.shape[1]
+    Fi0 = Fi_[:,:ci//3].sum(1).reshape(-1, 1)
+    Fi1 = Fi_[:,ci//3:ci//3*2].sum(1).reshape(-1, 1)
+    Fi2 = Fi_[:,ci//3*2:ci].sum(1).reshape(-1, 1)
+    Fi = np.concatenate([Fi0, Fi1, Fi2], axis=1)
+    Fi = (Fi / Fi.max() * 255).astype(np.int)
     if gt_bboxes is None:
       _show_3d_points_bboxes_ls([Ci])
     else:
-      _show_3d_points_bboxes_ls([Ci], bboxes_ls = [gt_bboxes[i]], box_oriented=True)
+      _show_3d_points_lines_ls([Ci], [Fi], lines_ls = [gt_bboxes[i]])
 
 
 def _show_3d_points_lines_ls(points_ls=None, point_feats=None,
@@ -128,22 +160,22 @@ def _make_bbox_o3d(bbox, box_oriented, color):
   bbox_.color = c
   return bbox_
 
-def _make_pcd(points, feats=None, normals=None):
-    if points.shape[1] == 6 and feats is None:
-      feats = points[:,3:6]
+def _make_pcd(points, colors=None, normals=None):
+    if points.shape[1] == 6 and colors is None:
+      colors = points[:,3:6]
       points = points[:,:3]
     assert points.shape[1] == 3
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
-    if feats is not None:
-      assert feats.shape[0] == points.shape[0]
-      feats = feats.reshape(points.shape[0], -1)
-      if  feats.shape[1] == 3:
-        if feats.max() > 1:
-          feats = feats / 255
-        pcd.colors = o3d.utility.Vector3dVector(feats)
-      elif feats.shape[1] == 1:
-        labels = feats
+    if colors is not None:
+      assert colors.shape[0] == points.shape[0]
+      colors = colors.reshape(points.shape[0], -1)
+      if  colors.shape[1] == 3:
+        if colors.max() > 1:
+          colors = colors / 255
+        pcd.colors = o3d.utility.Vector3dVector(colors)
+      elif colors.shape[1] == 1:
+        labels = colors
         pcd.colors = o3d.utility.Vector3dVector( label2color(labels) / 255)
 
     if normals is not None:

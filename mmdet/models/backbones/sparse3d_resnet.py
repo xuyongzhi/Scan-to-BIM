@@ -21,7 +21,7 @@ import time
 RECORD_T = 0
 SHOW_NET = 0
 
-from configs.common import VISUAL_SPARSE_IN_BACKBONE, SPARSE_BEV
+from configs.common import VISUAL_RESNET_OUT, SPARSE_BEV
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -654,14 +654,18 @@ class Sparse3DResNet(nn.Module):
             if SHOW_NET:
               debug_utils._show_sparse_ls_shapes([x], f'res {i}')
 
-        if VISUAL_SPARSE_IN_BACKBONE:
-          debug_utils._show_sparse_coords(outs[0], gt_bboxes)
 
         outs_dense = []
         for i in range(len(outs)):
           dense_out ,_,_ = outs[i].dense()
+          dense_out = dense_out.permute(0, 1, 3, 2, 4)
           outs_dense.append(dense_out)
           pass
+
+        if VISUAL_RESNET_OUT:
+          debug_utils._show_sparse_coords(outs[0], gt_bboxes)
+          for i in range(len(outs)):
+            debug_utils._show_feats(outs_dense[i][...,0], gt_bboxes, self.stem_stride * 2**(i))
 
         if SHOW_NET:
           debug_utils._show_sparse_ls_shapes(outs, 'resnet outs')
