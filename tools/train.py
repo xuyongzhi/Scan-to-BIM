@@ -189,13 +189,14 @@ def update_config(cfg, args, split):
         aim_path = os.path.join(cfg['work_dir'], '_'+os.path.basename(cfg.filename))
         if not os.path.exists(cfg['work_dir']):
           os.makedirs(cfg['work_dir'])
-        shutil.copy(cfg.filename, aim_path)
-        cur_path = os.path.abspath('.')
-        shutil.copy(os.path.join(cur_path,'run.sh'), os.path.join(cfg['work_dir'], '_run.sh'))
-        import subprocess
-        git_label = subprocess.check_output(["git", "describe"]).strip().decode("utf-8")
-        with open(os.path.join(cfg['work_dir'], 'git__'+git_label ), 'w'):
-          pass
+          shutil.copy(cfg.filename, aim_path)
+          cur_path = os.path.abspath('.')
+          shutil.copy(os.path.join(cur_path,'run.sh'), os.path.join(cfg['work_dir'], '_run.sh'))
+          import git
+          repo = git.Repo("./")
+          git_label = str(repo.head.commit)
+          with open(os.path.join(cfg['work_dir'], git_label ), 'w'):
+            pass
         #print(cfg['work_dir'])
         pass
 
