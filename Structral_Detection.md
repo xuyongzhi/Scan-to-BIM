@@ -1,22 +1,25 @@
 # RES
+```
+8/Mar T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs6_lr10_RA_Normrawstd_ChmR2P1N1_Rfiou743_Fpn34_Pbs1
+```
 |config | eval set | corner prec-recall| line prec-recall |
 |-|-|-|-|
-|Rfiou743_Fpn34_Pbs1 | test 10, composite, no rotation    | 0.828 - 0.82  |0.694 - 0.638  |
-|Rfiou743_Fpn34_Pbs1 | test 10, line_ave, no rotation     | 0.842 - 0.836 |0.746 - 0.649  |
-|Rfiou743_Fpn34_Pbs1 | test 10, 1 stage, no rotation | 0.715 - 0.833 |0.637 - 0.545  |
+|Rfiou743_Fpn34_Pbs1 | test, composite, no rotation    | 0.828 - 0.82  |0.694 - 0.638  |
+|Rfiou743_Fpn34_Pbs1 | test, line_ave, no rotation     | 0.842 - 0.836 |0.746 - 0.649  |
+|Rfiou743_Fpn34_Pbs1 | test, 1 stage, no rotation | 0.715 - 0.833 |0.637 - 0.545  |
 | | | |
-|Rfiou743_Fpn34_Pbs1 | train 10, composite, no rotation    | 0.909 - 0.93  |  0.826 - 0.827 |
-|Rfiou743_Fpn34_Pbs1 | train 10, line_ave, no rotation     | 0.932 - 0.926 | 0.908 - 0.822 |
-|Rfiou743_Fpn34_Pbs1 | train 10, 1 stage, no rotation | 0.814 - 0.927 | 0.801 - 0.722  |
+|Rfiou743_Fpn34_Pbs1 | train, composite, no rotation    | 0.909 - 0.93  |  0.826 - 0.827 |
+|Rfiou743_Fpn34_Pbs1 | train, line_ave, no rotation     | 0.932 - 0.926 | 0.908 - 0.822 |
+|Rfiou743_Fpn34_Pbs1 | train, 1 stage, no rotation | 0.814 - 0.927 | 0.801 - 0.722  |
 
 
 |config | eval set | corner prec-recall| line prec-recall |
 |-|-|-|-|
-| Rfiou743_Fpn34_Pbs2 | test 10, line_ave, no rotation     |  0.837 - 0.826 | 0.754 - 0.628  |
-| Rfiou743_Fpn34_Pbs2 | train 10, line_ave, no rotation     | 0.918 - 0.91 | 0.891 - 0.786 |
+| Rfiou743_Fpn34_Pbs2 | test, line_ave, no rotation     |  0.837 - 0.826 | 0.754 - 0.628  |
+| Rfiou743_Fpn34_Pbs2 | train, line_ave, no rotation     | 0.918 - 0.91 | 0.891 - 0.786 |
 | | | |
-| Rfiou743_Fpn45_Pbs2 | test 10, line_ave, no rotation     |  0.821 - 0.813 | 0.748 - 0.622  |
-| Rfiou743_Fpn45_Pbs2 | train 10, line_ave, no rotation     | 0.924 - 0.924 | 0.892 - 0.805 |
+| Rfiou743_Fpn45_Pbs2 | test, line_ave, no rotation     |  0.821 - 0.813 | 0.748 - 0.622  |
+| Rfiou743_Fpn45_Pbs2 | train, line_ave, no rotation     | 0.924 - 0.924 | 0.892 - 0.805 |
 
 # Questions
 * a big issue is that the refine stage cannot remove false positive of the first stage
