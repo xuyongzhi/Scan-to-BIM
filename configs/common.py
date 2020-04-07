@@ -9,7 +9,7 @@ TRAIN_NUM=90
 DATA = 'coco'
 DATA = 'stanford_pcl_2d'
 DATA = 'beike2d'
-DATA = 'beike_pcl_2d'
+#DATA = 'beike_pcl_2d'
 
 if DATA == 'coco':
   OBJ_REP = 'box_scope'
@@ -19,7 +19,8 @@ else:
   NUM_CLASS = 1
 #*******************************************************************************
 OPT_GRAPH_COR_DIS_THR = 10
-#*******************************************************************************
+# net *******************************************************************************
+MOVE_POINTS_CENTER = 1
 SPARSE_BEV = 0
 _all_obj_rep_dims = {'box_scope': 4, 'box3d_scope': 6, 'lscope_istopleft':5}
 OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
@@ -59,7 +60,7 @@ OUT_ORDER = {'bbox_refine':[0,0+5], 'bbox_init':[5,5+5],
 # [1,1,2]
 OUT_CORNER_HM_ONLY = 0
 LINE_CLS_WEIGHTS = {'refine':0.7, 'final':0.3}
-#*******************************************************************************
+# debug *******************************************************************************
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
 PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0

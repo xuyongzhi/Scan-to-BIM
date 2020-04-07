@@ -203,6 +203,7 @@ def parse_args():
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
     parser.add_argument('--auto_scale_vs', type=int, default=None,
                         help='0 or 1: auto scale the point cloud to full voxel resolution')
+    parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)

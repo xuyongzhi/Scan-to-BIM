@@ -19,7 +19,7 @@ from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lin
 
 import torchvision as tcv
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL, MOVE_POINTS_CENTER
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -495,7 +495,20 @@ class StrPointsHead(nn.Module):
                 multi_level_flags.append(flags)
             valid_flag_list.append(multi_level_flags)
 
+        if MOVE_POINTS_CENTER:
+          self.move_points_to_center(points_list)
+        debug_points = 0
+        if debug_points:
+          for i in  range(len(featmap_sizes)):
+            for j in range(num_imgs):
+              print(f'featmap_size: {featmap_sizes[i]}')
+              print(points_list[j][i])
         return points_list, valid_flag_list
+
+    def move_points_to_center(self, points_list):
+      for i in range(len(points_list)):
+        for j in range(len(points_list[i])):
+          points_list[i][j][:,:2] += points_list[i][j][:,2:] * 0.5
 
     def centers_to_bboxes(self, point_list):
         """Get bboxes according to center points. Only used in MaxIOUAssigner.
