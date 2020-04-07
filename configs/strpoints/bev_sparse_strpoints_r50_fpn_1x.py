@@ -10,10 +10,13 @@
   transform_method
 '''
 
+stem_stride = 4
 TOPVIEW = 'VerD' # better
 #TOPVIEW = 'All'
 #*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE, DATA
+from configs.common import  OBJ_REP, IMAGE_SIZE, DATA, SPARSE_BEV
+assert SPARSE_BEV==1
+assert 'pcl' not in DATA
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
@@ -31,17 +34,18 @@ model = dict(
     type='StrPointsDetector',
     pretrained=None,
     backbone=dict(
-        type='ResNet',
+        type='Sparse3DResNet',
         depth=50,
         in_channels=4,
         num_stages=4,
         out_indices=( 0, 1, 2,),
         frozen_stages=-1,
         style='pytorch',
+        stem_stride=stem_stride,
         basic_planes=64,
         max_planes=2048),
     neck=dict(
-        type='FPN',
+        type='FPN_Dense3D',
         in_channels=[ 256, 512, 1024],
         out_channels=256,
         start_level=0,
@@ -171,24 +175,28 @@ if IMAGE_SIZE == 1024:
   batch_size = 1
   lra = 0.005
 
-test_dir=data_root + f'TopView_{TOPVIEW}'
+test_dir=data_root + f'TopView_{TOPVIEW}/test.txt'
+input_style = ['bev_img', 'bev_sparse'][1]
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}',
+        img_prefix=data_root + f'TopView_{TOPVIEW}/train.txt',
+        input_style = input_style,
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}',
+        img_prefix=data_root + f'TopView_{TOPVIEW}/test.txt',
+        input_style = input_style,
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=test_dir,
+        input_style = input_style,
         pipeline=test_pipeline))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)

@@ -5,6 +5,75 @@ import torch
 from configs.common import SPARSE_BEV
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 
+def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
+  batch_size, c, h, w = img.shape
+
+  grid_y, grid_x = torch.meshgrid( torch.arange(h), torch.arange(w) )
+  bev_coords_base = torch.cat([grid_y[:,:,None], grid_x[:,:,None]],  dim=2).view(-1, 2).int()
+  bev_coords = []
+  for i in range(batch_size):
+    batch_inds = (torch.ones(h*w,1)*i).int()
+    third_inds = (torch.ones(h*w,1)*0).int()
+    bev_coords_i = torch.cat([ batch_inds, bev_coords_base, third_inds ], dim=1)
+    bev_coords.append(bev_coords_i)
+  bev_coords = torch.cat(bev_coords, dim=0)
+
+  bev_sfeat = img.permute(0,3,2,1).reshape(-1, c)
+  bev_sparse = SparseTensor(bev_sfeat, bev_coords)
+
+  debug = 0
+  if debug:
+    coords_batch = bev_sparse.C
+    feats_batch = bev_sparse.F
+
+    dense, _, _ = bev_sparse.dense()
+    dense = dense[...,0].permute(0,3,2,1)
+    batch_size = coords_batch[:,0].max()+1
+    for i in range(batch_size):
+      img_meta_i = img_meta[i]
+      img_norm_cfg = img_meta_i['img_norm_cfg']
+      mean = img_norm_cfg['mean']
+      std  = img_norm_cfg['std']
+      img = dense[i].cpu().data.numpy()
+      img = img*std + mean
+
+      batch_mask = coords_batch[:,0] == i
+      points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
+      normals = feats_batch[batch_mask][:, 1:].cpu().data.numpy() * 0.2
+      np = points.shape[0]
+
+      lines2d = gt_bboxes[i].cpu().data.numpy()
+      density = img[:,:,0]
+
+      min_points = points.min(axis=0)
+      max_points = points.max(axis=0)
+      min_lines = lines2d[:,:4].reshape(-1,2).min(axis=0)
+      max_lines = lines2d[:,:4].reshape(-1,2).max(axis=0)
+
+      print('\n\nfinal bev sparse input')
+      if 'flip' in img_meta_i:
+        flip = img_meta_i['flip']
+        print(f'flip: {flip}')
+      if 'rotate_angle' in img_meta_i:
+        rotate_angle = img_meta_i['rotate_angle']
+        print(f'rotate_angle: {rotate_angle}')
+
+      print(img_meta[i]['filename'])
+      print(f'points scope: {min_points} - {max_points}')
+      print(f'lines scope: {min_lines} - {max_lines}')
+
+      _show_lines_ls_points_ls(density, [lines2d])
+
+      from beike_data_utils.line_utils import lines2d_to_bboxes3d
+      from configs.common import OBJ_REP
+      bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=30, thickness=1)
+      _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
+                  b_colors = 'red', box_oriented=True, point_normals=[normals])
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
+  return bev_sparse
+
 def get_pcl_topview(sinput, gt_bboxes):
   '''
   9 channels: [color, normal, coords]

@@ -11,7 +11,7 @@ from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from beike_data_utils.line_utils import  optimize_graph
-from utils_dataset.gen_sparse_input import prepare_sparse_input
+from utils_dataset.gen_sparse_input import prepare_sparse_input, prepare_bev_sparse
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -140,11 +140,14 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
+        if 'input_style' in img_meta[0] and img_meta[0]['input_style'] == 'bev_sparse':
+          img = prepare_bev_sparse(img, img_meta, **kwargs)
         if 'input_style' in img_meta[0] and img_meta[0]['input_style'] == 'pcl':
           img = prepare_sparse_input(img, img_meta, **kwargs)
           if not return_loss:
             img = [img]
             img_meta = [img_meta]
+
         if return_loss:
             return self.forward_train(img, img_meta, **kwargs)
         else:

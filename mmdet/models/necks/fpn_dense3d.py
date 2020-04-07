@@ -9,7 +9,7 @@ import math
 
 from configs.common import SPARSE_BEV
 from tools.debug_utils import _show_tensor_ls_shapes
-SHOW_NET = 1
+SHOW_NET = 0
 
 @NECKS.register_module
 class FPN_Dense3D(nn.Module):
@@ -110,6 +110,8 @@ class FPN_Dense3D(nn.Module):
                 self.fpn_convs.append(extra_fpn_conv)
 
         stride_se = pow(2, self.backbone_end_level - self.start_level-1)
+        if SPARSE_BEV:
+          max_z_dim_start = 1
         self.zdim_end_level = int(math.ceil( max_z_dim_start / stride_se))
 
         if not SPARSE_BEV:
@@ -168,7 +170,7 @@ class FPN_Dense3D(nn.Module):
         assert len(inputs) == len(self.in_channels)
         if SHOW_NET and 1:
           print('\n\n')
-          _show_tensor_ls_shapes(inputs, 'inputs')
+          _show_tensor_ls_shapes(inputs, ' FPN_Dense3D inputs')
 
         # build laterals
         laterals = [
@@ -195,7 +197,7 @@ class FPN_Dense3D(nn.Module):
             self.fpn_convs[i](bev_laterals[i]) for i in range(used_backbone_levels)
         ]
 
-        if SHOW_NET and 0:
+        if SHOW_NET and 1:
           print('\n\n')
           _show_tensor_ls_shapes(laterals, 'laterals')
           _show_tensor_ls_shapes(bev_laterals, 'bev_laterals')
@@ -233,7 +235,8 @@ class FPN_Dense3D(nn.Module):
 
         if SHOW_NET and 1:
           print('\n\n')
-          _show_tensor_ls_shapes(outs, 'outs')
+          _show_tensor_ls_shapes(outs, 'FPN_Dense3D outs')
+          print('\n\n')
         return tuple(outs)
 
 

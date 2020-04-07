@@ -39,6 +39,7 @@ class CustomDataset(Dataset):
                  pipeline,
                  data_root=None,
                  img_prefix='',
+                 input_style='',
                  seg_prefix=None,
                  proposal_file=None,
                  test_mode=False,
@@ -50,6 +51,7 @@ class CustomDataset(Dataset):
         self.proposal_file = proposal_file
         self.test_mode = test_mode
         self.filter_empty_gt = filter_empty_gt
+        self.input_style = input_style
 
         # join paths if data_root is specified
         if self.data_root is not None:
@@ -157,6 +159,7 @@ class CustomDataset(Dataset):
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)
         results = self.pipeline(results)
+        results['img_meta'].data['input_style'] = self.input_style
 
         if VISUAL_TOPVIEW_INPUT:
           show_results_train(results)
@@ -173,6 +176,7 @@ class CustomDataset(Dataset):
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)
         results = self.pipeline(results)
+        results['img_meta'].data['input_style'] = self.input_style
 
         #show_results_test(results)
         return  results
@@ -208,8 +212,8 @@ def show_results_train(results):
     rotate_angle = 0
   print(f'flip: {flip}\nrotate_angle: {rotate_angle}')
 
-  #_show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
-  _show_img_with_norm(img)
+  _show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
+  #_show_img_with_norm(img)
   #_show_lines_ls_points_ls(img[:,:,1:])
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass

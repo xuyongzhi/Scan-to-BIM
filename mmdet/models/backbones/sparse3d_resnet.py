@@ -517,7 +517,7 @@ class Sparse3DResNet(nn.Module):
           paddings = [ ( int(k[0]>1), int(k[1]>1), 0 ) for k in kernels ]
         else:
           kernels = [(7,7,1),]
-          strides = [(self.stem_stride,self.stem_stride,1),]
+          strides = [(s0, s0,1),]
           paddings = [ (3,3,0) ]
 
         self.stem_stride_z = np.product( [s[-1] for s in strides] )
@@ -549,7 +549,7 @@ class Sparse3DResNet(nn.Module):
         if not SPARSE_BEV:
           self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
         else:
-          self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
+          self.maxpool = mink_max_pool(kernel_size=3, stride=s1, padding=1)
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:
