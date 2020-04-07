@@ -160,13 +160,20 @@ class Bottleneck(nn.Module):
         if self.with_dcn:
             fallback_on_stride = dcn.get('fallback_on_stride', False)
             self.with_modulated_dcn = dcn.get('modulated', False)
+        if SPARSE_BEV:
+          kernel_2 = (3,3,1)
+          stride_2 = (self.conv2_stride, self.conv2_stride,1)
+        else:
+          kernel_2 = 3
+          stride_2 = self.conv2_stride
+
         if not self.with_dcn or fallback_on_stride:
             self.conv2 = build_conv_layer(
                 conv_cfg,
                 planes,
                 planes,
-                kernel_size=3,
-                stride=self.conv2_stride,
+                kernel_size=kernel_2,
+                stride=stride_2,
                 padding=dilation,
                 dilation=dilation,
                 bias=False)
@@ -189,8 +196,8 @@ class Bottleneck(nn.Module):
             self.conv2 = conv_op(
                 planes,
                 planes,
-                kernel_size=3,
-                stride=self.conv2_stride,
+                kernel_size=kernel_2,
+                stride=stride_2,
                 padding=dilation,
                 dilation=dilation,
                 deformable_groups=self.deformable_groups,
@@ -293,13 +300,17 @@ def make_vox_res_layer(block,
                    gen_attention_blocks=[]):
     downsample = None
     if stride != 1 or inplanes != planes * block.expansion:
+        if SPARSE_BEV:
+          stride_ds = (stride,stride,1)
+        else:
+          stride_ds = stride
         downsample = nn.Sequential(
             build_conv_layer(
                 conv_cfg,
                 inplanes,
                 planes * block.expansion,
                 kernel_size=1,
-                stride=stride,
+                stride=stride_ds,
                 bias=False),
             build_norm_layer(norm_cfg, planes * block.expansion)[1],
         )
@@ -549,7 +560,7 @@ class Sparse3DResNet(nn.Module):
         if not SPARSE_BEV:
           self.maxpool = mink_max_pool(kernel_size=3, stride=1, padding=1)
         else:
-          self.maxpool = mink_max_pool(kernel_size=3, stride=s1, padding=1)
+          self.maxpool = mink_max_pool(kernel_size=(3,3,1), stride=(s1,s1,1), padding=1)
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:

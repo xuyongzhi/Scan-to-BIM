@@ -23,6 +23,10 @@ def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, resca
 
   debug = 0
   if debug:
+    debug_sparse_bev(bev_sparse, img_meta, gt_bboxes)
+  return bev_sparse
+
+def debug_sparse_bev(bev_sparse, img_meta, gt_bboxes):
     coords_batch = bev_sparse.C
     feats_batch = bev_sparse.F
 
@@ -40,10 +44,11 @@ def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, resca
       batch_mask = coords_batch[:,0] == i
       points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
       normals = feats_batch[batch_mask][:, 1:].cpu().data.numpy() * 0.2
-      np = points.shape[0]
 
       lines2d = gt_bboxes[i].cpu().data.numpy()
       density = img[:,:,0]
+      norm_img = img[:,:,1:]
+      norm_img = np.abs(norm_img * 255).astype(np.int32)
 
       min_points = points.min(axis=0)
       max_points = points.max(axis=0)
@@ -63,6 +68,7 @@ def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, resca
       print(f'lines scope: {min_lines} - {max_lines}')
 
       _show_lines_ls_points_ls(density, [lines2d])
+      _show_lines_ls_points_ls(norm_img, [lines2d])
 
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
       from configs.common import OBJ_REP
@@ -72,7 +78,6 @@ def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, resca
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-  return bev_sparse
 
 def get_pcl_topview(sinput, gt_bboxes):
   '''
@@ -145,7 +150,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       batch_mask = coords_batch[:,0] == i
       points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
       normals = feats_batch[batch_mask][:, 1:].cpu().data.numpy()
-      np = points.shape[0]
+      num_p = points.shape[0]
 
 
       lines2d = gt_bboxes[i].cpu().data.numpy()
@@ -165,7 +170,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1]
       print(f'dynamic_vox_size_aug: {dynamic_vox_size_aug}, footprint: {footprint}')
 
-      print(f'num voxel: {np/1000}K')
+      print(f'num voxel: {num_p/1000}K')
       print(img_meta[i]['filename'])
       print(f'points scope: {min_points} - {max_points}')
       print(f'lines scope: {min_lines} - {max_lines}')
@@ -193,7 +198,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       colors = feats_batch[batch_mask][:, :3].cpu().data.numpy()
       colors = colors+0.5
       normals = feats_batch[batch_mask][:, 3:6].cpu().data.numpy()
-      np = points.shape[0]
+      num_p = points.shape[0]
 
       img_meta_i = img_meta[i]
       voxel_size = img_meta_i['voxel_size']
@@ -220,7 +225,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1]
       print(f'dynamic_vox_size_aug: {dynamic_vox_size_aug}, footprint: {footprint}')
 
-      print(f'num voxel: {np/1000}K')
+      print(f'num voxel: {num_p/1000}K')
       print(img_meta[i]['filename'])
       print(f'points scope: {min_points} - {max_points}')
       print(f'lines scope: {min_lines} - {max_lines}')

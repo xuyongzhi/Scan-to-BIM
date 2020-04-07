@@ -7,6 +7,7 @@ from ..registry import NECKS
 from ..utils import ConvModule
 
 
+from configs.common import SPARSE_BEV
 from tools.debug_utils import _show_tensor_ls_shapes
 SHOW_NET = 0
 
@@ -103,6 +104,8 @@ class FPN(nn.Module):
 
     @auto_fp16()
     def forward(self, inputs):
+        if SPARSE_BEV:
+          inputs = [d.squeeze(dim=4) for d in inputs]
         assert len(inputs) == len(self.in_channels)
 
         # build laterals
