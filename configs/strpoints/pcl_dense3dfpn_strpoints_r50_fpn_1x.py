@@ -186,13 +186,14 @@ max_footprint_for_scale = 150
 max_num_points = 20 * 10000
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=3,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
         img_prefix='train',
         voxel_size=voxel_size,
         augment_data=True,
+        data_types = ['color', 'norm', 'xyz'],
         max_num_points=max_num_points,
         max_footprint_for_scale=max_footprint_for_scale,
         pipeline=None),
@@ -210,7 +211,7 @@ model['backbone']['voxel_size'] = voxel_size
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1000
+total_epochs = 500
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -234,5 +235,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-#workflow = [('train', 1),]
+workflow = [('train', 10),]
 

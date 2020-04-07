@@ -74,6 +74,7 @@ class BeikePclDataset(VoxelDatasetBase):
                max_num_points = None,
                max_footprint_for_scale = None,
                augment_data = None,
+               data_types = ['color', 'norm', 'xyz'],
                pipeline=None,):
     assert voxel_size is not None
     self.data_root = ann_file
@@ -83,6 +84,7 @@ class BeikePclDataset(VoxelDatasetBase):
     self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size
+    self.data_types = data_types
     assert img_prefix in ['train', 'test']
 
     #if voxel_resolution[0] is not None:
@@ -109,6 +111,9 @@ class BeikePclDataset(VoxelDatasetBase):
     self._set_group_flag()
     print(f'\n {img_prefix}: load {len(self)} files\n')
     VoxelDatasetBase.__init__(self, phase, self.data_paths, self.data_config)
+
+    all_inds = dict(color=[0,1,2], norm=[3,4,5], xyz=[6,7,8])
+    self.data_channel_inds = np.array([all_inds[dt] for dt in self.data_types]).reshape(-1)
     pass
 
   def _set_group_flag(self):
@@ -210,8 +215,16 @@ class BeikePclDataset(VoxelDatasetBase):
     return coords, feats, labels
 
   def _normalization(self, feats):
+    assert feats.shape[1] == 9
     feats[:,:3] = feats[:,:3] / 255. - 0.5
     return feats
+
+  def select_data_types(self, feats):
+    '''
+    do this at the last step
+    '''
+    assert feats.shape[1] == 9
+    return feats[:, self.data_channel_inds]
 
 
 def test():

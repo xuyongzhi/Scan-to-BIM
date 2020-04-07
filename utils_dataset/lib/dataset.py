@@ -339,6 +339,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
 
     if self.NORMALIZATION:
       feats = self._normalization(feats)
+    feats = self.select_data_types(feats)
 
     if is_include_gt_bboxes:
       img_info['gt_bboxes'] = gt_bboxes

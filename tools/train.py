@@ -58,6 +58,7 @@ def parse_args():
     parser.add_argument('--base_plane', type=int, default=64)
     parser.add_argument('--corhm', type=int, default=None,
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
+    parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -78,6 +79,7 @@ def update_config(cfg, args, split):
     dcn_zero_base = args.dcn_zero_base
     corner_hm = args.corhm
     base_plane = args.base_plane
+    data_types_ = args.data_types
 
     dataset  = cfg['DATA']
     if 'pcl' not in dataset:
@@ -95,6 +97,12 @@ def update_config(cfg, args, split):
           pass
 
     if 'pcl' in dataset:
+      if data_types_ is not None:
+        full_names = {'c':'color', 'n':'norm', 'x':'xyz'}
+        data_types = [full_names[dt] for dt in data_types_]
+        for sp in ['train', 'val', 'test']:
+          cfg['data'][sp]['data_types'] = data_types
+        cfg['model']['backbone']['in_channels'] = 3 * len(data_types)
       for sp in ['train', 'val', 'test']:
         cfg['data'][sp]['augment_data'] = rotate
 
@@ -133,6 +141,8 @@ def update_config(cfg, args, split):
 
 
         if 'pcl' in dataset:
+          if data_types is not None:
+            cfg['work_dir'] += '_' + data_types_
           if rotate:
             cfg['work_dir'] += '_Daug'
 
