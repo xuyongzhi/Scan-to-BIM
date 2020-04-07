@@ -176,7 +176,7 @@ class CustomDataset(Dataset):
             results['proposals'] = self.proposals[idx]
         self.pre_pipeline(results)
         results = self.pipeline(results)
-        results['img_meta'].data['input_style'] = self.input_style
+        results['img_meta'][0].data['input_style'] = self.input_style
 
         #show_results_test(results)
         return  results

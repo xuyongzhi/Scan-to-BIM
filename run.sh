@@ -14,7 +14,7 @@ CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_pcl_strpoints_r50_fpn_1x.py
 
 
-ROTATE=1
+ROTATE=0
 CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0

@@ -156,7 +156,7 @@ class SingleStageDetector(BaseDetector):
         return losses
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
-        x = self.extract_feat(img)
+        x = self.extract_feat(img, gt_bboxes)
         self.update_dynamic_shape(x, img_meta)
         update_img_shape_for_pcl(x, img_meta[0], self.point_strides)
         outs = self.bbox_head(x)
