@@ -66,19 +66,18 @@ class BEIKE:
     _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
     def __init__(self, anno_folder='data/beike/processed_512/json/',
-                 img_prefix='data/beike/processed_512/TopView_VerD', test_mode=False):
+                 img_prefix='data/beike/processed_512/TopView_VerD',
+                 test_mode=False):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
-        if test_mode:
-          split_file = os.path.join(img_prefix, 'test.txt')
-        else:
-          split_file = os.path.join(img_prefix, 'train.txt')
+        self.test_mode = test_mode
+        split_file = img_prefix
         self.scene_list = np.loadtxt(split_file,str).tolist()
 
         #self.scene_list = [*BAD_SCENE_TRANSFERS_1024.keys()]
         #self.scene_list = ['wcSLwyAKZafnozTPsaQMyv']
 
-        self.img_prefix = img_prefix
+        self.img_prefix = os.path.dirname( img_prefix )
         self.is_pcl = os.path.basename(self.img_prefix) == 'ply'
         data_format = '.ply' if self.is_pcl else '.npy'
 
@@ -140,7 +139,8 @@ class BEIKE:
           valid_ids.append(i)
       self.img_infos = [self.img_infos[i] for i in valid_ids]
       n1 = len(self.img_infos)
-      print(f'\nload {n0} scenes with {n1} valid\n')
+      mode = 'test' if self.test_mode else 'train'
+      print(f'\n {mode} load {n0} scenes with {n1} valid\n')
 
     def rm_anno_withno_data(self):
       n0 = len(self.img_infos)

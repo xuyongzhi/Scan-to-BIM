@@ -182,7 +182,8 @@ class LoadTopviewFromFile(object):
 
     def __call__(self, results):
         if results['img_prefix'] is not None:
-            filename = osp.join(results['img_prefix'],
+            img_prefix = osp.dirname(results['img_prefix'])
+            filename = osp.join(img_prefix,
                                 results['img_info']['filename'])
         else:
             filename = results['img_info']['filename']

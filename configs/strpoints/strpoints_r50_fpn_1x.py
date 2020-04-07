@@ -172,19 +172,19 @@ if IMAGE_SIZE == 1024:
   batch_size = 1
   lra = 0.005
 
-test_dir=data_root + f'TopView_{TOPVIEW}'
+test_dir=data_root + f'TopView_{TOPVIEW}/test.txt'
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}',
+        img_prefix=data_root + f'TopView_{TOPVIEW}/train.txt',
         pipeline=train_pipeline),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}',
+        img_prefix=data_root + f'TopView_{TOPVIEW}/test.txt',
         pipeline=train_pipeline),
     test=dict(
         type=dataset_type,
