@@ -65,8 +65,11 @@ class BEIKE:
     _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
     _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
+    edge_atts = ['thickness','curve', 'align', 'type', 'edgeComputed', 'thicknessComputed', 'offsetComputed', 'isLoadBearing']
+    edge_attributions =  ['e_'+a for a in edge_atts]
+
     def __init__(self, anno_folder='data/beike/processed_512/json/',
-                 img_prefix='data/beike/processed_512/TopView_VerD',
+                 img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
                  test_mode=False):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
@@ -368,7 +371,20 @@ class BEIKE:
       _show_lines_ls_points_ls(img, [bboxes], [corners],
                                line_colors='random', point_colors='random',
                                line_thickness=1, point_thickness=1,
-                               out_file=anno_img_file, only_save=1)
+                               out_file=anno_img_file, only_save=0)
+
+      show_1by1 = True
+      if show_1by1:
+        for k in range(bboxes.shape[0]):
+            print(f'{k}')
+            for ele in self.edge_attributions:
+              if anno[ele].shape[0] > k:
+                print(f'{ele}: {anno[ele][k]}')
+            _show_lines_ls_points_ls(img, [bboxes[k:k+1]], [corners],
+                                line_colors='random', point_colors='random',
+                                line_thickness=1, point_thickness=1,
+                                out_file=anno_img_file, only_save=0)
+            pass
       return img
       #_show_img_with_norm(img)
 
@@ -625,6 +641,9 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       anno_img['seg_map'] = None
       bboxes = anno_img['bboxes'][:,:4]
       assert bboxes.max() < IMAGE_SIZE
+
+      for ele in BEIKE.edge_attributions:
+        anno_img[ele] = anno_raw[ele]
       #assert bboxes.min() >= 0
       return anno_img
 
@@ -677,14 +696,12 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
             #anno['line_ids'].append( line['id']  )
             #anno['line_ponit_ids'].append( line['points'] )
             anno['line_cat_ids'].append( BEIKE._category_ids_map['wall'] )
-            #for ele in ['curve', 'align', 'type', 'edgeComputed', 'thicknessComputed']:
-            #  if ele in line:
-            #    anno['line_'+ele].append( line[ele] )
-            #  else:
-            #    rasie NotImplemented
-            if filename == '7w6zvVsOBAQK4h4Bne7caQ.json':
-              pass
-            pass
+            for ele in BEIKE.edge_atts:
+              if ele in line:
+                anno['e_'+ele].append( line[ele] )
+              else:
+                pass
+                #rasie NotImplementedError
 
         for line_item in line_items:
           cat = line_item['is']
@@ -722,10 +739,14 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
         #for ele in ['corners', 'lines', 'corner_ids', 'corner_cat_ids', 'corner_locked', '']:
         for ele in anno:
           if len(anno[ele])>0 and (not isinstance(anno[ele][0], str)):
-            if isinstance(anno[ele][0], int):
-              anno[ele] = np.array(anno[ele])
-            else:
-              anno[ele] = np.concatenate(anno[ele], 0)
+              #if isinstance(anno[ele][0], int):
+              if isinstance(anno[ele][0], np.ndarray):
+                anno[ele] = np.concatenate(anno[ele], 0)
+              else:
+                anno[ele] = np.array(anno[ele])
+              #if ele in BEIKE.edge_attributions:
+              #  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              #  pass
 
       anno['corners'] = anno['corners'].astype(np.float32)
       anno['lines'] = anno['lines'].astype(np.float32)
@@ -963,14 +984,14 @@ def gen_images_from_npy(data_path):
 
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
-  topview_path = os.path.join(data_path, 'TopView_VerD')
+  topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
 
-  scenes = ['0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
+  scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
 
   beike = BEIKE(ANNO_PATH, topview_path)
 
-  #for s in scenes:
-  #  beike.show_scene_anno(s, True, 0)
+  for s in scenes:
+    beike.show_scene_anno(s, True, 0)
 
 
   #for s in UNALIGNED_SCENES:
