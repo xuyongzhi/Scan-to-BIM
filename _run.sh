@@ -9,9 +9,9 @@ CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
 
 
-wkdir=TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn35_Pbs1_Bp32
+wkdir=TPV_r50_fpn_refine_final_beike2d_bs6_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn34_Pbs1_Bp64_Mc
 CP=./work_dirs/${wkdir}/best.pth
-#CONFIG=./work_dirs/${wkdir}/_pcl_strpoints_r50_fpn_1x.py
+CONFIG=./work_dirs/${wkdir}/_strpoints_r50_fpn_1x.py
 
 
 ROTATE=1
@@ -22,17 +22,16 @@ BASE_PLANE=64
 BS=3
 DATA_TYPES=cn
 
-#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --bs 1  --data_types $DATA_TYPES
+#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES
 #--resume $CP 
 
 #./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE   --data_types $DATA_TYPES
 
-CONFIG=configs/strpoints/strpoints_r50_fpn_1x_mc.py
 
 ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 #STYLE=--show
 
-#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE $STYLE --base_plane $BASE_PLANE
+ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE $STYLE --base_plane $BASE_PLANE
 
 

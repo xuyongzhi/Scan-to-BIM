@@ -303,7 +303,15 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
     '''
     lines: [n,5]
     labels: [n,1/2]: 1 for label only, 2 for label and score
+
+    corners: [m,2]
+    labels_cor: [m, 1/2]
+    corIds_per_line: [n,2]
+    num_cor_uq: m
     '''
+    if lines.shape[0] == 0:
+      return np.zeros(0,2), np.zeros(0,labels.shape[1]), np.zeros(0,2), 0
+
     lines0 = decode_line_rep(lines, obj_rep)
     if labels is not None:
       num_line = lines.shape[0]
@@ -341,7 +349,6 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
       #for i in range(lines.shape[0]):
       #  cor_ids = corIds_per_line[i]
       #  _show_lines_ls_points_ls((512,512), [lines, lines[i:i+1]], [corners[cor_ids]], ['white', 'green'], ['red'], point_thickness=2)
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
     return corners, labels_cor, corIds_per_line, num_cor_uq

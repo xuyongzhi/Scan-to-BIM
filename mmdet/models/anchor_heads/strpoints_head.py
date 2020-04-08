@@ -19,7 +19,7 @@ from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lin
 
 import torchvision as tcv
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL, MOVE_POINTS_CENTER
+from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -80,8 +80,10 @@ class StrPointsHead(nn.Module):
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
                  loss_cor_ofs=dict(
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
+                 move_points_to_center = False,
                  ):
         super(StrPointsHead, self).__init__()
+        self.move_points_to_center = move_points_to_center
         self.in_channels = in_channels
         self.num_classes = num_classes
         self.feat_channels = feat_channels
@@ -495,8 +497,8 @@ class StrPointsHead(nn.Module):
                 multi_level_flags.append(flags)
             valid_flag_list.append(multi_level_flags)
 
-        if MOVE_POINTS_CENTER:
-          self.move_points_to_center(points_list)
+        if self.move_points_to_center:
+          self.do_move_points_to_center(points_list)
         debug_points = 0
         if debug_points:
           for i in  range(len(featmap_sizes)):
@@ -505,7 +507,7 @@ class StrPointsHead(nn.Module):
               print(points_list[j][i])
         return points_list, valid_flag_list
 
-    def move_points_to_center(self, points_list):
+    def do_move_points_to_center(self, points_list):
       for i in range(len(points_list)):
         for j in range(len(points_list[i])):
           points_list[i][j][:,:2] += points_list[i][j][:,2:] * 0.5

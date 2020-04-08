@@ -66,6 +66,7 @@ class BEIKE:
     _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
     edge_atts = ['thickness','curve', 'align', 'type', 'edgeComputed', 'thicknessComputed', 'offsetComputed', 'isLoadBearing']
+    edge_atts = []
     edge_attributions =  ['e_'+a for a in edge_atts]
 
     def __init__(self, anno_folder='data/beike/processed_512/json/',
@@ -494,6 +495,10 @@ class BEIKE:
       assert idx is not None, f'cannot find {scene_name}'
       self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
 
+
+    def find_unscanned_edges(self,):
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
 def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
   '''
@@ -989,6 +994,7 @@ def main(data_path):
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
 
   beike = BEIKE(ANNO_PATH, topview_path)
+  beike.find_unscanned_edges()
 
   for s in scenes:
     beike.show_scene_anno(s, True, 0)

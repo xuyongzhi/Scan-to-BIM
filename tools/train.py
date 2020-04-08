@@ -17,7 +17,6 @@ from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
 import shutil
 
-from configs.common import MOVE_POINTS_CENTER
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
@@ -196,7 +195,7 @@ def update_config(cfg, args, split):
           stem_stride = cfg['model']['backbone']['stem_stride']
           cfg['work_dir'] += f'_Vsz{vsz}Stem{stem_stride}'
 
-        if MOVE_POINTS_CENTER:
+        if 'move_points_to_center' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['move_points_to_center']:
           cfg['work_dir'] += f'_Mc'
 
         # backup config
