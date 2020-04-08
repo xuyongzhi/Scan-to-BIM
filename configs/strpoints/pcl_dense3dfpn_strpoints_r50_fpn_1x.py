@@ -191,7 +191,7 @@ img_norm_cfg = dict(
 lra = 0.01
 
 
-max_footprint_for_scale = 180
+max_footprint_for_scale = 200
 max_num_points = 20 * 10000
 data = dict(
     imgs_per_gpu=batch_size,
