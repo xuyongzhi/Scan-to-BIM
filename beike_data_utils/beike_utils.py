@@ -75,8 +75,8 @@ class BEIKE:
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
         self.test_mode = test_mode
-        split_file = img_prefix
-        self.scene_list = np.loadtxt(split_file,str).tolist()
+        self.split_file = img_prefix
+        self.scene_list = np.loadtxt(self.split_file,str).tolist()
 
         #self.scene_list = [*BAD_SCENE_TRANSFERS_1024.keys()]
         #self.scene_list = ['wcSLwyAKZafnozTPsaQMyv']
@@ -143,8 +143,7 @@ class BEIKE:
           valid_ids.append(i)
       self.img_infos = [self.img_infos[i] for i in valid_ids]
       n1 = len(self.img_infos)
-      mode = 'test' if self.test_mode else 'train'
-      print(f'\n {mode} load {n0} scenes with {n1} valid\n')
+      print(f'\n {self.split_file}\t load {n0} scenes with {n1} valid\n')
 
     def rm_anno_withno_data(self):
       n0 = len(self.img_infos)
