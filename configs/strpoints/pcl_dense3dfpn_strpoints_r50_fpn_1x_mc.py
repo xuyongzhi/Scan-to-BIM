@@ -121,7 +121,7 @@ model = dict(
         dcn_zero_base=False,
         corner_hm = True,
         corner_hm_only = False,
-        move_points_to_center = False,
+        move_points_to_center = 1,
         )
     )
         #transform_method='minmax'))

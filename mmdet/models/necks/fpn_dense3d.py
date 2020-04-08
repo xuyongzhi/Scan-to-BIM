@@ -26,7 +26,8 @@ class FPN_Dense3D(nn.Module):
                  no_norm_on_lateral=False,
                  conv_cfg=dict(type='Conv3d'),
                  norm_cfg=None,
-                 max_z_dim_fpn_start = None,
+                 z_out_dims = None,
+                 z_stride = 2,
                  activation=None,
                  activation_bev_proj='relu'):
         super(FPN_Dense3D, self).__init__()
@@ -43,6 +44,7 @@ class FPN_Dense3D(nn.Module):
         self.relu_before_extra_convs = relu_before_extra_convs
         self.no_norm_on_lateral = no_norm_on_lateral
         self.fp16_enabled = False
+        self.z_stride = z_stride
 
 
         if end_level == -1:
@@ -110,9 +112,7 @@ class FPN_Dense3D(nn.Module):
                 self.fpn_convs.append(extra_fpn_conv)
 
         stride_se = pow(2, self.backbone_end_level - self.start_level-1)
-        if SPARSE_BEV:
-          max_z_dim_fpn_start = 1
-        self.zdim_end_level = int(math.ceil( max_z_dim_fpn_start / stride_se))
+        self.z_out_dims = z_out_dims
 
         if not SPARSE_BEV:
           self.build_project_layers()
@@ -123,6 +123,7 @@ class FPN_Dense3D(nn.Module):
           self.project_layers.append( self.build_project_layer(i, self.out_channels) )
 
         for i in range(self.extra_levels):
+          self.z_out_dims += (self.z_out_dims[-1],)
           if i == 0 and self.extra_convs_on_inputs:
               in_channels = self.in_channels[self.backbone_end_level - 1]
           else:
@@ -133,15 +134,46 @@ class FPN_Dense3D(nn.Module):
 
     def build_project_layer(self, level, in_channels):
       num_layer_to_end = self.backbone_end_level - level -1
+      kernels_i =   [(1, 1, self.z_out_dims[level]), (3,3)]
+      strides_i =   [(1, 1, self.z_out_dims[level]), (1,1)]
+
+      paddings_i = [(int(k[0]/2), int(k[1]/2), int(k[2]/2)) for k in kernels_i[:-1]] + [(1,1)]
+      npj = len(kernels_i)
+      fpn_layer_i = []
+      for j in range(npj):
+          if j < npj-1:
+            conv_cfg = self.conv_cfg
+          else:
+            conv_cfg = dict(type='Conv')
+          fpn_conv_j = ConvModule(
+              in_channels,
+              self.out_channels,
+              kernels_i[j],
+              strides_i[j],
+              padding=paddings_i[j],
+              conv_cfg=conv_cfg,
+              norm_cfg=self.norm_cfg,
+              activation=self.activation_bev_proj,
+              inplace=False)
+          fpn_layer_i.append(fpn_conv_j)
+          in_channels = self.out_channels
+
+      part1 = nn.Sequential(*fpn_layer_i[:-1])
+      part2 = fpn_layer_i[-1]
+      return nn.ModuleList( [part1, part2] )
+
+    @auto_fp16()
+    def A_build_project_layer(self, level, in_channels):
+      num_layer_to_end = self.backbone_end_level - level -1
       kernels_i =   [[3,3,3]] * num_layer_to_end
       strides_i =   [[1,1,2]] * num_layer_to_end
       kernels_i += [[1,1,self.zdim_end_level],]
       strides_i += [[1,1,self.zdim_end_level],]
 
       paddings_i = [[int(k[0]>1), int(k[1]>1), 1] for k in kernels_i]
-      num_bev_project_layers = len(kernels_i)
+      npj = len(kernels_i)
       fpn_layer_i = []
-      for j in range(num_bev_project_layers):
+      for j in range(npj):
           fpn_conv_j = ConvModule(
               in_channels,
               self.out_channels,
@@ -182,9 +214,9 @@ class FPN_Dense3D(nn.Module):
         used_backbone_levels = len(laterals)
         for i in range(used_backbone_levels - 1, 0, -1):
             xd, yd, zd = laterals[i-1].shape[2:]
-            upper_i = F.interpolate(laterals[i], scale_factor=2, mode='nearest')
-            upper_i = upper_i[..., :xd, :yd, :zd]
+            upper_i = F.interpolate(laterals[i], scale_factor=(2, 2, self.z_stride), mode='nearest')
             #_show_tensor_ls_shapes([laterals[i-1], upper_i], f'level {i}')
+            upper_i = upper_i[..., :xd, :yd, :zd]
             laterals[i - 1] += upper_i
 
 
@@ -242,6 +274,19 @@ class FPN_Dense3D(nn.Module):
 
     @auto_fp16()
     def forward_project(self, laterals_i, i):
+        if SPARSE_BEV:
+          return laterals_i[...,0]
+
+        pad_size = self.z_out_dims[i] - laterals_i.shape[-1]
+        if pad_size > 0:
+          laterals_i = F.pad(laterals_i, (0, pad_size), "constant", 0)
+        bev_laterals_i = self.project_layers[i][0](laterals_i)
+        bev_laterals_i = bev_laterals_i.max(4)[0]
+        bev_laterals_i = self.project_layers[i][1](bev_laterals_i)
+        return bev_laterals_i
+
+    @auto_fp16()
+    def A_forward_project(self, laterals_i, i):
         if SPARSE_BEV:
           return laterals_i[...,0]
 

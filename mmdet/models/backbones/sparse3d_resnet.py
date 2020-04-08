@@ -101,6 +101,7 @@ class Bottleneck(nn.Module):
                  inplanes,
                  planes,
                  stride=1,
+                 z_stride=1,
                  dilation=1,
                  downsample=None,
                  style='pytorch',
@@ -123,6 +124,7 @@ class Bottleneck(nn.Module):
         self.inplanes = inplanes
         self.planes = planes
         self.stride = stride
+        self.z_stride = z_stride
         self.dilation = dilation
         self.style = style
         self.with_cp = with_cp
@@ -134,6 +136,13 @@ class Bottleneck(nn.Module):
         self.with_gcb = gcb is not None
         self.gen_attention = gen_attention
         self.with_gen_attention = gen_attention is not None
+
+        if SPARSE_BEV:
+          stride = (stride, stride, 1)
+          kernel_2 = (3,3,1)
+        else:
+          stride = (stride, stride, z_stride)
+          kernel_2 = (3,3,5)
 
         if self.style == 'pytorch':
             self.conv1_stride = 1
@@ -160,12 +169,6 @@ class Bottleneck(nn.Module):
         if self.with_dcn:
             fallback_on_stride = dcn.get('fallback_on_stride', False)
             self.with_modulated_dcn = dcn.get('modulated', False)
-        if SPARSE_BEV:
-          kernel_2 = (3,3,1)
-          stride_2 = (self.conv2_stride, self.conv2_stride,1)
-        else:
-          kernel_2 = 3
-          stride_2 = self.conv2_stride
 
         if not self.with_dcn or fallback_on_stride:
             self.conv2 = build_conv_layer(
@@ -173,7 +176,7 @@ class Bottleneck(nn.Module):
                 planes,
                 planes,
                 kernel_size=kernel_2,
-                stride=stride_2,
+                stride=self.conv2_stride,
                 padding=dilation,
                 dilation=dilation,
                 bias=False)
@@ -189,7 +192,7 @@ class Bottleneck(nn.Module):
             self.conv2_offset = nn.Conv2d(
                 planes,
                 self.deformable_groups * offset_channels,
-                kernel_size=3,
+                kernel_size=kernel_2,
                 stride=self.conv2_stride,
                 padding=dilation,
                 dilation=dilation)
@@ -197,7 +200,7 @@ class Bottleneck(nn.Module):
                 planes,
                 planes,
                 kernel_size=kernel_2,
-                stride=stride_2,
+                stride=self.conv2_stride,
                 padding=dilation,
                 dilation=dilation,
                 deformable_groups=self.deformable_groups,
@@ -289,6 +292,7 @@ def make_vox_res_layer(block,
                    planes,
                    blocks,
                    stride=1,
+                   z_stride=1,
                    dilation=1,
                    style='pytorch',
                    with_cp=False,
@@ -303,7 +307,7 @@ def make_vox_res_layer(block,
         if SPARSE_BEV:
           stride_ds = (stride,stride,1)
         else:
-          stride_ds = stride
+          stride_ds = (stride, stride, z_stride)
         downsample = nn.Sequential(
             build_conv_layer(
                 conv_cfg,
@@ -321,6 +325,7 @@ def make_vox_res_layer(block,
             inplanes=inplanes,
             planes=planes,
             stride=stride,
+            z_stride=z_stride,
             dilation=dilation,
             downsample=downsample,
             style=style,
@@ -404,6 +409,7 @@ class Sparse3DResNet(nn.Module):
                  in_channels=3,
                  num_stages=4,
                  strides=(1, 2, 2, 2),
+                 z_strides=(3, 3, 3, 3),
                  dilations=(1, 1, 1, 1),
                  out_indices=(0, 1, 2, 3),
                  style='pytorch',
@@ -434,6 +440,7 @@ class Sparse3DResNet(nn.Module):
         self.num_stages = num_stages
         assert num_stages >= 1 and num_stages <= 4
         self.strides = strides
+        self.z_strides = z_strides
         self.dilations = dilations
         assert len(strides) == len(dilations) == num_stages
         self.out_indices = out_indices
@@ -473,6 +480,7 @@ class Sparse3DResNet(nn.Module):
         self.res_layers = []
         for i, num_blocks in enumerate(self.stage_blocks):
             stride = strides[i]
+            z_stride = z_strides[i]
             dilation = dilations[i]
             dcn = self.dcn if self.stage_with_dcn[i] else None
             gcb = self.gcb if self.stage_with_gcb[i] else None
@@ -483,6 +491,7 @@ class Sparse3DResNet(nn.Module):
                 planes,
                 num_blocks,
                 stride=stride,
+                z_stride=z_stride,
                 dilation=dilation,
                 style=self.style,
                 with_cp=with_cp,
