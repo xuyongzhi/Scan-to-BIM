@@ -5,7 +5,6 @@ from .geometric_utils import sin2theta_np
 import cv2
 from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls
 import torch
-from configs.common import OPT_GRAPH_COR_DIS_THR
 
 def encode_line_rep(lines, obj_rep):
   '''
@@ -371,7 +370,7 @@ def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
   #  lineIds_per_cor[i] = np.array(lineIds_per_cor[i])
   return lineIds_per_cor
 
-def optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr=OPT_GRAPH_COR_DIS_THR):
+def optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr):
   '''
     lines_in: [n,5]
   '''

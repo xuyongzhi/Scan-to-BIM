@@ -9,7 +9,7 @@ TRAIN_NUM=90
 DATA = 'coco'
 DATA = 'stanford_pcl_2d'
 DATA = 'beike2d'
-#DATA = 'beike_pcl_2d'
+DATA = 'beike_pcl_2d'
 
 if DATA == 'coco':
   OBJ_REP = 'box_scope'
@@ -17,8 +17,6 @@ if DATA == 'coco':
 else:
   OBJ_REP = 'lscope_istopleft'
   NUM_CLASS = 1
-#*******************************************************************************
-OPT_GRAPH_COR_DIS_THR = 10
 # net *******************************************************************************
 SPARSE_BEV = 0
 _all_obj_rep_dims = {'box_scope': 4, 'box3d_scope': 6, 'lscope_istopleft':5}
@@ -32,7 +30,7 @@ OUT_EXTAR_DIM = POINTS_DIM + OBJ_DIM + SCORE_REFINE_DIM + SCORE_FINAL_DIM # see 
 CORNER_DIM = 4
 AVE_LINE_SCORE = 1
 COMPOSITE_SCORE = 1
-IS_OUT_CORNER = 1
+IS_OUT_CORNER = 0
 CORNER_DIM = CORNER_DIM * IS_OUT_CORNER
 COMPOSITE_SCORE = COMPOSITE_SCORE * IS_OUT_CORNER
 # IS_OUT_CORNER=1: 5+43+1+4+1 = 54

@@ -1,4 +1,5 @@
 # RES
+## RES Img 8/Mar
 ```
 8/Mar T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs6_lr10_RA_Normrawstd_ChmR2P1N1_Rfiou743_Fpn34_Pbs1
 ```
@@ -20,6 +21,19 @@
 | | | |
 | Rfiou743_Fpn45_Pbs2 | test, line_ave, no rotation     |  0.821 - 0.813 | 0.748 - 0.622  |
 | Rfiou743_Fpn45_Pbs2 | train, line_ave, no rotation     | 0.924 - 0.924 | 0.892 - 0.805 |
+
+## RES Pcl 9 Img
+|config | eval set | corner prec-recall| line prec-recall |
+|-|-|-|-|
+|Bp32_Vsz4Stem4| train, line_ave, no rotation    |  0.96 - 0.921  | 0.933 - 0.825  |
+|              | test                          |  0.813 - 0.776 | 0.707 - 0.598  |
+## RES Pcl 9 Apr
+ Rfiou743_Fpn34_Pbs1
+|config | eval set | corner prec-recall| line prec-recall |
+|-|-|-|-|
+|Bp32_Vsz4Stem4| train, line_ave, no rotation    | 0.867 - 0.807  | 0.8 - 0.614  |
+|              | test                            |  0.824 - 0.764 | 0.721 - 0.533  |
+
 
 # Questions
 * a big issue is that the refine stage cannot remove false positive of the first stage

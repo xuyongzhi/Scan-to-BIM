@@ -6,21 +6,22 @@
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/bev_sparse_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_strpoints_r50_fpn_1x.py
-#CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x_mc.py
 
 
-wkdir=TPV_r50_fpn_refine_final_beike2d_bs6_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn34_Pbs1_Bp64
+wkdir=R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_cnx_Daug_Rfiou743_Fpn34_Pbs1_Bp32_Vsz4Stem4
 CP=./work_dirs/${wkdir}/best.pth
-CONFIG=./work_dirs/${wkdir}/_strpoints_r50_fpn_1x.py
+CONFIG=./work_dirs/${wkdir}/_pcl_dense3dfpn_strpoints_r50_fpn_1x.py
 
 
 ROTATE=1
 CLS=refine_final
 CORHM=0
 DCN_ZERO_BASE=0
-BASE_PLANE=64
-BS=3
-DATA_TYPES=cn
+BASE_PLANE=32
+BS=5
+DATA_TYPES=cnx
 
 #ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES
 #--resume $CP 

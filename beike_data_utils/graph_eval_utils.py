@@ -1,7 +1,7 @@
 import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from tools.debug_utils import _show_lines_ls_points_ls
-from configs.common import clean_bboxes_out, OBJ_REP, IMAGE_SIZE, OPT_GRAPH_COR_DIS_THR
+from configs.common import clean_bboxes_out, OBJ_REP, IMAGE_SIZE
 from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine, optimize_graph
 from collections import defaultdict
 import os
@@ -20,11 +20,12 @@ def save_res_graph(dataset, data_loader, results, out_file):
           img_meta_i = data['img_meta'][0].data[0][0]
         else:
           img_meta_i = data['img_meta'][0]
-          img_shape = img_meta_i['dynamic_vox_size_aug']
+          img_shape = img_meta_i['dynamic_vox_size_aug'][[1,0,2]]
           img_shape[2] = 3
-          img_i = np.zeros(img_shape, dtype=np.int8)
+
+          #img_i = np.zeros(img_shape, dtype=np.int8)
         res_data = dict(  img_id = i_img,
-                          img=img_i,
+                          img_shape=img_shape,
                           img_meta=img_meta_i,
                         )
         #img_id = dataset.img_ids[i_img]
@@ -56,21 +57,27 @@ def save_res_graph(dataset, data_loader, results, out_file):
 def eval_graph(results_datas, dataset, out_file):
   graph_eval = GraphEval()
   graph_eval(results_datas, dataset, out_file)
+  graph_eval._score_threshold = 0.2
+  graph_eval(results_datas, dataset, out_file)
+
 
 
 class GraphEval():
-  _eval_img_size = 512
-  _all_out_types = [ 'composite', 'line_ave', 'score_refine' ]
+  _all_out_types = [ 'composite', 'line_ave', 'score_refine' ][1:2]
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
-  _opt_graph_cor_dis_thr = OPT_GRAPH_COR_DIS_THR
+  _opt_graph_cor_dis_thr = 10
 
-  def __init__(self):
+  _pcl_img_scale_ratio = 1.5
+  _pcl_img_size_aug = 20
+
+  def __init__(self, score_threshold=0.4):
+    self._score_threshold = score_threshold
     pass
 
   def __str__(self):
     s = self._score_threshold
-    par_str =  f'Eval parameters: eval img size = {self._eval_img_size}\n'
+    par_str =  f'Eval parameters:\n'
     if self.is_pcl:
       par_str += f'input: pcl'
     else:
@@ -97,7 +104,6 @@ class GraphEval():
 
   def evaluate(self, results_datas, dataset, out_file, out_type):
     debug = 0
-    scale_before_eval = 0
 
     self.num_img = len(results_datas)
     self.update_path(out_file)
@@ -111,13 +117,17 @@ class GraphEval():
 
     for i_img, res_data in enumerate(results_datas):
         detections = res_data['detections']
-        img = res_data['img']
         img_meta = res_data['img_meta']
         is_pcl = 'input_style' in img_meta and img_meta['input_style'] == 'pcl'
         if not is_pcl:
+          img = res_data['img']
           img_mean = img_meta['img_norm_cfg']['mean']
           img_std = img_meta['img_norm_cfg']['std']
           img = img * img_std + img_mean
+        else:
+          img_shape = res_data['img_shape']
+          img_shape[:2] = img_shape[:2] * self._pcl_img_scale_ratio + self._pcl_img_size_aug * 2
+          img = np.zeros(img_shape, dtype=np.int8)
 
         filename =  img_meta['filename']
         scene_name = os.path.splitext(os.path.basename(filename))[0]
@@ -126,36 +136,32 @@ class GraphEval():
           gt_lines = load_gt_lines_bk(img_meta, img)
         else:
           gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
-
-        if scale_before_eval:
-          gt_size = gt_lines[:,:4].max() - gt_lines[:,:4].min()
-          self.eval_scale_ratio = (self._eval_img_size-5) / gt_size
-          self.eval_scale_ratio = min(self.eval_scale_ratio, 2)
-          self.eval_tranlation = -(gt_lines[:,:4]*self.eval_scale_ratio).min() + 2
-          gt_lines[:,:4] = gt_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
+          gt_lines[:,:4] = gt_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
 
         num_labels = len(detections)
         for label in range(num_labels):
             det_lines_raw = detections[label]['det_lines'].copy()
             det_lines = clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
+            if is_pcl:
+              det_lines[:,:4] = det_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
             if debug:
               print('raw prediction')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5]])
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines], line_colors=['green','red'])
+
             det_lines = filter_low_score_det(det_lines, self._score_threshold)
             if debug:
               print(f'score > {self._score_threshold}')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5]])
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines], line_colors=['green','red'])
 
             labels_i = np.ones(det_lines.shape[0])*label
             scores_i = det_lines[:,-1]
-            if scale_before_eval:
-              det_lines[:,:4] = det_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
             det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
             det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
 
             if debug:
               print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5]])
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines], line_colors=['green','red'])
+
             det_category_id = detections[label]['category_id']
             if det_category_id != 1:
               raise NotImplementedError
@@ -332,7 +338,7 @@ class GraphEval():
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet.png'
     img_file = os.path.join(self.eval_dir, img_name)
     #print('det corners. green: true pos, red: false pos')
-    img_size = (self._eval_img_size, self._eval_img_size)
+    img_size = img.shape[:2]
     _show_lines_ls_points_ls(img_size, [det_lines_pos, det_lines_neg],
                               points_ls=[det_corners_pos, det_corners_neg],
                             line_colors=['green', 'red'], line_thickness=1,
@@ -357,22 +363,23 @@ class GraphEval():
                              out_file=img_file, only_save=1)
 
     # with input
-    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt_wiht_input.png'
-    img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls(img[:,:,0], [gt_lines_true, gt_lines_false],
-                            points_ls=[gt_corners_true, gt_corners_false],
-                            line_colors=['green','red'],
-                            line_thickness=1,
-                            point_colors=['blue', 'yellow'],
-                            point_thickness=2, out_file=img_file, only_save=1)
+    if  not self.is_pcl:
+      img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt_wiht_input.png'
+      img_file = os.path.join(self.eval_dir, img_name)
+      _show_lines_ls_points_ls(img[:,:,0], [gt_lines_true, gt_lines_false],
+                              points_ls=[gt_corners_true, gt_corners_false],
+                              line_colors=['green','red'],
+                              line_thickness=1,
+                              point_colors=['blue', 'yellow'],
+                              point_thickness=2, out_file=img_file, only_save=1)
 
-    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet_with_input.png'
-    img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls(img[:,:,0], [det_lines_pos, det_lines_neg],
-                              points_ls=[det_corners_pos, det_corners_neg],
-                            line_colors=['green', 'red'], line_thickness=1,
-                            point_colors=['blue', 'yellow'], point_thickness=2,
-                            out_file=img_file, only_save=1)
+      img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet_with_input.png'
+      img_file = os.path.join(self.eval_dir, img_name)
+      _show_lines_ls_points_ls(img[:,:,0], [det_lines_pos, det_lines_neg],
+                                points_ls=[det_corners_pos, det_corners_neg],
+                              line_colors=['green', 'red'], line_thickness=1,
+                              point_colors=['blue', 'yellow'], point_thickness=2,
+                              out_file=img_file, only_save=1)
 
     pass
 
