@@ -10,7 +10,6 @@ from numpy import random
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..registry import PIPELINES
 from beike_data_utils.line_utils import rotate_lines_img
-from configs.common import MAR8_VERSION
 
 @PIPELINES.register_module
 class Resize(object):
@@ -347,8 +346,7 @@ class RandomLineFlip(object):
             # flip surface normal
             assert results['img'].shape[-1] == 4
             flip_axis = {'horizontal':1, 'vertical':0}[results['flip_direction']]
-            if not MAR8_VERSION:
-              results['img'][:,:, 1-flip_axis+1 ]  *= -1
+            results['img'][:,:, 1-flip_axis+1 ]  *= -1
 
             # flip bboxes
             for key in results.get('bbox_fields', []):
