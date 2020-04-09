@@ -16,7 +16,7 @@ CP=./work_dirs/${wkdir}/best.pth
 
 ROTATE=1
 CLS=refine_final
-CORHM=1
+CORHM=0
 DCN_ZERO_BASE=0
 BASE_PLANE=64
 BS=5
