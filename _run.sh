@@ -7,12 +7,12 @@ CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/bev_sparse_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_strpoints_r50_fpn_1x.py
 CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
-#CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x_mc.py
+CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x_mc.py
 
 
-wkdir=R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_cnx_Daug_Rfiou743_Fpn34_Pbs1_Bp32_Vsz4Stem4
+wkdir=R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_cnx_Daug_Rfiou743_Fpn34_Pbs1_Bp32_Vsz4Stem4_Mc
 CP=./work_dirs/${wkdir}/best.pth
-CONFIG=./work_dirs/${wkdir}/_pcl_dense3dfpn_strpoints_r50_fpn_1x.py
+CONFIG=./work_dirs/${wkdir}/_pcl_dense3dfpn_strpoints_r50_fpn_1x_mc.py
 
 
 ROTATE=1

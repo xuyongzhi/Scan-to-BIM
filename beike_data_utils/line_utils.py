@@ -1,9 +1,9 @@
 # xyz
 import numpy as np
 import mmcv
-from .geometric_utils import sin2theta_np
+from .geometric_utils import sin2theta_np, angle_with_x_np
 import cv2
-from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls
+from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls, _draw_lines_ls_points_ls
 import torch
 
 def encode_line_rep(lines, obj_rep):
@@ -480,3 +480,56 @@ def lines2d_to_bboxes3d(lines, line_obj_rep='lscope_istopleft', height=60, thick
   matrixes = np.array(matrixes)
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
+
+
+def getOrientedLineRectSubPix(img, line, obj_rep, length_aug=-5, thickness_aug=40):
+  '''
+  img: [h,w] [h,w,1/3]
+  line: [5]
+  '''
+  debug  = 0
+  assert line.shape == (5,)
+  assert img.shape[:2] == (512,512)
+  if debug:
+    img = _draw_lines_ls_points_ls(img, [line.reshape(-1,5)])
+  h, w = img.shape[:2]
+
+  #angle = line[-1]
+  line = decode_line_rep(line[None, :], obj_rep)[0]
+  points = line[:4].reshape(2,2)
+  x, y = points.mean(axis=0).astype(np.int)
+
+  # move to center first
+  xofs, yofs = w/2-x, h/2-y
+  M_mc = np.array([[1,0, xofs], [0,1,yofs]])
+
+  dir_v = points[1] - points[0]
+  angle = angle_with_x_np( dir_v.reshape(1,2), 1 )[0]
+  angle = -angle * 180 / np.pi
+
+  M = cv2.getRotationMatrix2D( (w/2,h/2), angle, 1 )
+  img_1 = cv2.warpAffine(img, M_mc, (w,h))
+  img_rot = cv2.warpAffine(img_1, M, (w,h))
+  tmp = np.concatenate([points, np.ones([2,1])], axis=1)
+  points_1 = tmp @ M_mc.T
+  tmp = np.concatenate([points_1, np.ones([2,1])], axis=1)
+  points_rot = tmp @ M.T
+
+  x,y = points_rot.mean(axis=0)
+  center = (x,y)
+  length = np.linalg.norm(points_rot[1] - points_rot[0]) + length_aug
+  length = max(length, 5)
+  thickness = thickness_aug
+  size = (int(length), int(thickness))
+
+  roi = cv2.getRectSubPix(img_rot, size, center)
+
+  if debug:
+
+    print(angle)
+    _show_lines_ls_points_ls(img, points_ls=[points])
+    _show_lines_ls_points_ls(img_rot, points_ls=[points_rot])
+    _show_lines_ls_points_ls(roi)
+    pass
+  return roi
+

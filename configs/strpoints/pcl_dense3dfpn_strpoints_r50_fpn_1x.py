@@ -23,7 +23,7 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_height = 5.12
 
-batch_size = 5
+batch_size = 4
 
 stem_stride_z = 8
 z_stride = 3

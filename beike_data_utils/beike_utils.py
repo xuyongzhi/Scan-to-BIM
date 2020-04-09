@@ -71,10 +71,12 @@ class BEIKE:
 
     def __init__(self, anno_folder='data/beike/processed_512/json/',
                  img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
-                 test_mode=False):
+                 test_mode=False,
+                 filter_edges=True ):
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
         self.test_mode = test_mode
+        self.filter_edges = filter_edges
         self.split_file = img_prefix
         self.scene_list = np.loadtxt(self.split_file,str).tolist()
 
@@ -103,6 +105,11 @@ class BEIKE:
           if scene_name not in self.scene_list:
             continue
           anno_raw = load_anno_1scene(self.anno_folder, jfn)
+          if self.filter_edges:
+            line_valid = get_line_valid_by_density(self.anno_folder, jfn, anno_raw['line_ids'])
+            for ele in ['lines','line_cat_ids']:
+              anno_raw[ele] = anno_raw[ele][line_valid]
+
           anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': IMAGE_SIZE}, )
           filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
@@ -496,7 +503,42 @@ class BEIKE:
 
 
     def find_unscanned_edges(self,):
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      self.line_density_sum_mean_dir = self.anno_folder.replace('json', 'line_density_sum_mean')
+      if not os.path.exists(self.line_density_sum_mean_dir):
+        os.makedirs( self.line_density_sum_mean_dir )
+      for i in range(len(self)):
+        self.find_unscanned_edges_1_scene(i)
+
+    def find_unscanned_edges_1_scene(self, idx):
+      from beike_data_utils.line_utils import  getOrientedLineRectSubPix
+
+      anno = self.img_infos[idx]['ann']
+      bboxes = anno['bboxes']
+      labels = anno['labels']
+      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, OBJ_REP)
+
+      scene_name = self.img_infos[idx]['filename'].split('.')[0]
+      print(f'{scene_name}')
+      img = self.load_data(scene_name)[:,:,0]
+      #_show_lines_ls_points_ls(img, [bboxes])
+
+      density_sum_mean = []
+      for i in range(0, bboxes.shape[0]):
+        inside_i = getOrientedLineRectSubPix(img, bboxes[i], OBJ_REP)
+        density_sum_mean_i = [inside_i.sum(), inside_i.mean()]
+        density_sum_mean.append( density_sum_mean_i )
+        if 0:
+          print(density_sum_mean_i)
+          if density_sum_mean_i[0] == 0:
+            _show_lines_ls_points_ls(img, [bboxes, bboxes[i:i+1]], line_colors=['green', 'red'])
+      density_sum_mean = np.array(density_sum_mean)
+
+      line_density_sum_mean_file = os.path.join(self.line_density_sum_mean_dir, self.img_infos[idx]['filename'] )
+      line_ids = np.array( self.img_infos[idx]['ann_raw']['line_ids'])
+      res =  ( density_sum_mean[:,0], density_sum_mean[:,1], line_ids)
+      np.save( line_density_sum_mean_file, res, allow_pickle=True )
+      print(line_density_sum_mean_file)
+      return density_sum_mean
       pass
 
 def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
@@ -666,6 +708,16 @@ def load_pcl_scope(anno_folder):
       #pcl_scopes[fid][1] = np.ceil(pcl_scopes[fid][1] * 10)/10 + offset_aug
     return pcl_scopes
 
+def get_line_valid_by_density(anno_folder, filename, line_ids_check):
+    line_density_dir = anno_folder.replace('json', 'line_density_sum_mean')
+    file_path = os.path.join(line_density_dir, filename.replace('json', 'npy'))
+    line_density_sum, line_density_mean, line_ids = np.load(file_path, allow_pickle=True).tolist()
+    assert line_ids_check == line_ids
+
+    line_density_sum = np.array(line_density_sum).astype(np.float32)
+    line_valid = line_density_sum > 0
+    return line_valid
+
 def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
@@ -677,6 +729,7 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
 
         anno = defaultdict(list)
         anno['filename'] = filename
+        anno['line_ids'] = []
 
         if 'wall' in LOAD_CLASSES:
           point_dict = {}
@@ -697,7 +750,7 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
             xy2 = point_dict[point_id_2]
             line_xys = np.array([xy1, xy2]).reshape(1,2,2)
             anno['lines'].append( line_xys )
-            #anno['line_ids'].append( line['id']  )
+            anno['line_ids'].append( line['id']  )
             #anno['line_ponit_ids'].append( line['points'] )
             anno['line_cat_ids'].append( BEIKE._category_ids_map['wall'] )
             for ele in BEIKE.edge_atts:
@@ -727,8 +780,8 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
           #anno['corner_locked'].append( False )
           #anno['corner_locked'].append( False )
 
+          anno['line_ids'].append(line_id)
           anno['lines'].append( line_xy )
-          #anno['line_ids'].append( line_item['id']  )
           #anno['line_ponit_ids'].append( [line_item['line']+'_start_point', line_item['line']+'_end_point' ] )
           anno['line_cat_ids'].append( cat_id )
           #for ele in ['curve', 'align', 'type', 'edgeComputed', 'thicknessComputed']:
@@ -988,13 +1041,14 @@ def gen_images_from_npy(data_path):
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
   scenes = ['IDZkUGse-74FIy2OqM2u_Y']
-  scenes = ['yY5OzetjnLred7G8oOzZr1']
+  scenes = ['1Kc4s2I4OuEriA-vURDlpH']
+  #scenes = BAD_SCENE_TRANSFERS_PCL
 
-  beike = BEIKE(ANNO_PATH, topview_path)
+  beike = BEIKE(ANNO_PATH, topview_path, filter_edges=1)
   #beike.find_unscanned_edges()
 
   for s in scenes:
