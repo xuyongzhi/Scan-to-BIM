@@ -96,6 +96,9 @@ class GraphEval():
       self.evaluate(results_datas, dataset, out_file, out_type)
 
   def evaluate(self, results_datas, dataset, out_file, out_type):
+    debug = 0
+    scale_before_eval = 0
+
     self.num_img = len(results_datas)
     self.update_path(out_file)
     all_cor_nums_gt_pos_tp = defaultdict(list)
@@ -124,30 +127,39 @@ class GraphEval():
         else:
           gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
 
-        gt_size = gt_lines[:,:4].max() - gt_lines[:,:4].min()
-        self.eval_scale_ratio = (self._eval_img_size-5) / gt_size
-        self.eval_scale_ratio = min(self.eval_scale_ratio, 2)
-        self.eval_tranlation = -(gt_lines[:,:4]*self.eval_scale_ratio).min() + 2
-        gt_lines[:,:4] = gt_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
+        if scale_before_eval:
+          gt_size = gt_lines[:,:4].max() - gt_lines[:,:4].min()
+          self.eval_scale_ratio = (self._eval_img_size-5) / gt_size
+          self.eval_scale_ratio = min(self.eval_scale_ratio, 2)
+          self.eval_tranlation = -(gt_lines[:,:4]*self.eval_scale_ratio).min() + 2
+          gt_lines[:,:4] = gt_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
 
         num_labels = len(detections)
         for label in range(num_labels):
             det_lines_raw = detections[label]['det_lines'].copy()
             det_lines = clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
-            #_show_lines_ls_points_ls(img[:,:,0], det_lines[:,:5])
+            if debug:
+              print('raw prediction')
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5]])
             det_lines = filter_low_score_det(det_lines, self._score_threshold)
+            if debug:
+              print(f'score > {self._score_threshold}')
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5]])
 
             labels_i = np.ones(det_lines.shape[0])*label
             scores_i = det_lines[:,-1]
-            det_lines[:,:4] = det_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
+            if scale_before_eval:
+              det_lines[:,:4] = det_lines[:,:4] * self.eval_scale_ratio + self.eval_tranlation
             det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
             det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
 
-            #_show_lines_ls_points_ls(img[:,:,0], det_lines[:,:5])
+            if debug:
+              print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5]])
             det_category_id = detections[label]['category_id']
             if det_category_id != 1:
               raise NotImplementedError
-            cor_nums_gt_pos_tp, line_nums_gt_pos_tp = self.eval_1img_1cls(det_lines_merged, gt_lines, scene_name, det_category_id)
+            cor_nums_gt_pos_tp, line_nums_gt_pos_tp = self.eval_1img_1cls(img, det_lines_merged, gt_lines, scene_name, det_category_id)
             all_cor_nums_gt_pos_tp[label].append(cor_nums_gt_pos_tp)
             all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
             pass
@@ -201,7 +213,7 @@ class GraphEval():
       eval_str += f'{cat:6} line prec-recall: \t{precision:.3} - {recall:.3}\n'
     return eval_str
 
-  def eval_1img_1cls(self, det_lines, gt_lines, scene_name, det_category_id):
+  def eval_1img_1cls(self, img, det_lines, gt_lines, scene_name, det_category_id):
     num_gt = gt_lines.shape[0]
 
     det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:5],\
@@ -235,7 +247,7 @@ class GraphEval():
     line_nums_gt_pos_tp = [gt_lines.shape[0], det_lines.shape[0], num_ture_pos_line]
 
     if 1:
-      self.save_eval_res_imgs(det_lines, gt_lines, det_corners, gt_corners,
+      self.save_eval_res_imgs(img, det_lines, gt_lines, det_corners, gt_corners,
                             cor_detIds_per_gt, line_detIds_per_gt,
                             cor_nums_gt_pos_tp, scene_name, det_category_id)
       #self.debug_line_eval(det_lines, gt_lines, line_detIds_per_gt)
@@ -282,7 +294,7 @@ class GraphEval():
           _show_lines_ls_points_ls((512,512), [gt_lines[i:i+1], det_lines[j:j+1,:5]], line_colors=['white', 'green'])
     pass
 
-  def save_eval_res_imgs(self, det_lines, gt_lines, det_corners, gt_corners,
+  def save_eval_res_imgs(self, img, det_lines, gt_lines, det_corners, gt_corners,
                         cor_detIds_per_gt, line_detIds_per_gt,
                         cor_nums_gt_pos_tp,  scene_name, det_category_id, obj_wise=0):
     cor_recall = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[0]
@@ -343,6 +355,25 @@ class GraphEval():
                              line_colors='random', point_colors='random',
                              line_thickness=1, point_thickness=2,
                              out_file=img_file, only_save=1)
+
+    # with input
+    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt_wiht_input.png'
+    img_file = os.path.join(self.eval_dir, img_name)
+    _show_lines_ls_points_ls(img[:,:,0], [gt_lines_true, gt_lines_false],
+                            points_ls=[gt_corners_true, gt_corners_false],
+                            line_colors=['green','red'],
+                            line_thickness=1,
+                            point_colors=['blue', 'yellow'],
+                            point_thickness=2, out_file=img_file, only_save=1)
+
+    img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet_with_input.png'
+    img_file = os.path.join(self.eval_dir, img_name)
+    _show_lines_ls_points_ls(img[:,:,0], [det_lines_pos, det_lines_neg],
+                              points_ls=[det_corners_pos, det_corners_neg],
+                            line_colors=['green', 'red'], line_thickness=1,
+                            point_colors=['blue', 'yellow'], point_thickness=2,
+                            out_file=img_file, only_save=1)
+
     pass
 
     if obj_wise:

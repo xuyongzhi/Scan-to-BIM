@@ -54,7 +54,7 @@ BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159
                             'B9Abt6B78a0j2eRcygHjqC': (44, -0.521 + 0.1, 0.928 + 0.1),
                             'Akkq4Ch_48pVUAum3ooSnK': (2.5, 0.108, 0.000),
                             'w2BaBfwjX0iN2cMjvpUNfa': (2, 0.110, 0.028+0.05),
-                            'yY5OzetjnLred7G8oOzZr1': (-2, -0.108, 0.000),
+                            'yY5OzetjnLred7G8oOzZr1': (-1.3, -0.1, 0.000),
                             'wIGxjDDGkPk3udZW4vo-ic': (-1, 0.074, 0.048),
                             'vZIjhovtYde9e2qUjMzvz3': (-1, 0.078, 0.000),
                             'wcSLwyAKZafnozTPsaQMyv': (-1,-0.1,-0.05),
@@ -373,7 +373,7 @@ class BEIKE:
                                line_thickness=1, point_thickness=1,
                                out_file=anno_img_file, only_save=0)
 
-      show_1by1 = True
+      show_1by1 = False
       if show_1by1:
         for k in range(bboxes.shape[0]):
             print(f'{k}')
@@ -805,8 +805,7 @@ def load_gt_lines_bk(img_meta, img):
   json_dir = os.path.join(processed_dir, 'json/')
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json')
   anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': IMAGE_SIZE},)
-  lines0 = anno_img['bboxes']
-  lines = fix_1_unaligned_scene(scene_name, lines0, (IMAGE_SIZE, IMAGE_SIZE), OBJ_REP)
+  lines = anno_img['bboxes']
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']
     #show_img_lines(img[:,:,:3], lines)
@@ -989,11 +988,14 @@ def gen_images_from_npy(data_path):
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
+  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
+  scenes = ['IDZkUGse-74FIy2OqM2u_Y']
+  scenes = ['yY5OzetjnLred7G8oOzZr1']
 
   beike = BEIKE(ANNO_PATH, topview_path)
-  beike.find_unscanned_edges()
+  #beike.find_unscanned_edges()
 
   for s in scenes:
     beike.show_scene_anno(s, True, 0)
