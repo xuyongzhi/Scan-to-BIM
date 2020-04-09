@@ -104,11 +104,7 @@ class BEIKE:
           scene_name = jfn.split('.')[0]
           if scene_name not in self.scene_list:
             continue
-          anno_raw = load_anno_1scene(self.anno_folder, jfn)
-          if self.filter_edges:
-            line_valid = get_line_valid_by_density(self.anno_folder, jfn, anno_raw['line_ids'])
-            for ele in ['lines','line_cat_ids']:
-              anno_raw[ele] = anno_raw[ele][line_valid]
+          anno_raw = load_anno_1scene(self.anno_folder, jfn, filter_edges=filter_edges)
 
           anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': IMAGE_SIZE}, )
           filename = jfn.split('.')[0]+data_format
@@ -718,7 +714,7 @@ def get_line_valid_by_density(anno_folder, filename, line_ids_check):
     line_valid = line_density_sum > 0
     return line_valid
 
-def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
+def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None, filter_edges=True):
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
         metadata = json.load(f)
@@ -849,6 +845,11 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None):
           print(  anno['lines'].max(axis=0).max(axis=0) )
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
+
+      if filter_edges:
+        line_valid = get_line_valid_by_density(anno_folder, filename, anno['line_ids'])
+        for ele in ['lines','line_cat_ids']:
+          anno[ele] = anno[ele][line_valid]
       return anno
 
 def load_gt_lines_bk(img_meta, img):
@@ -1040,19 +1041,19 @@ def gen_images_from_npy(data_path):
 
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
-  topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  #topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
+  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
   scenes = ['IDZkUGse-74FIy2OqM2u_Y']
   scenes = ['1Kc4s2I4OuEriA-vURDlpH']
   #scenes = BAD_SCENE_TRANSFERS_PCL
 
-  beike = BEIKE(ANNO_PATH, topview_path, filter_edges=1)
-  #beike.find_unscanned_edges()
+  beike = BEIKE(ANNO_PATH, topview_path, filter_edges=0)
+  beike.find_unscanned_edges()
 
-  for s in scenes:
-    beike.show_scene_anno(s, True, 0)
+  #for s in scenes:
+  #  beike.show_scene_anno(s, True, 0)
 
 
   #for s in UNALIGNED_SCENES:

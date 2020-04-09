@@ -75,8 +75,10 @@ class BeikePclDataset(VoxelDatasetBase):
                max_footprint_for_scale = None,
                augment_data = None,
                data_types = ['color', 'norm', 'xyz'],
+               filter_edges = True,
                pipeline=None,):
     assert voxel_size is not None
+    self.filter_edges = filter_edges
     self.data_root = ann_file
     self.test_mode = test_mode
     self.VOXEL_SIZE = voxel_size
@@ -137,7 +139,8 @@ class BeikePclDataset(VoxelDatasetBase):
     self.img_infos = []
     self.anno_raws = []
     for i in range(n):
-      anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE)
+      anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE, filter_edges=self.filter_edges)
+
       self.anno_raws.append(anno_raw)
       anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
       raw_dynamic_vox_size = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0]) / self.VOXEL_SIZE
