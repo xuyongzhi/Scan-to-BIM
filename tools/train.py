@@ -16,6 +16,7 @@ from mmdet.apis import get_root_logger, set_random_seed, train_detector
 from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
 import shutil
+import numpy as np
 
 
 def parse_args():
@@ -198,21 +199,36 @@ def update_config(cfg, args, split):
         if 'move_points_to_center' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['move_points_to_center']:
           cfg['work_dir'] += f'_Mc'
 
+        img_prefix = cfg['data']['train']['img_prefix']
+        cur_path = os.path.abspath('.')
+        img_list_file = os.path.join(cur_path,img_prefix)
+        data_flag = get_file_list_flag(img_list_file)
+        cfg['work_dir'] += data_flag
+
         # backup config
         aim_path = os.path.join(cfg['work_dir'], '_'+os.path.basename(cfg.filename))
         if not os.path.exists(cfg['work_dir']):
           os.makedirs(cfg['work_dir'])
           shutil.copy(cfg.filename, aim_path)
-          cur_path = os.path.abspath('.')
           shutil.copy(os.path.join(cur_path,'run.sh'), os.path.join(cfg['work_dir'], '_run.sh'))
           import git
           repo = git.Repo("./")
           git_label = str(repo.head.commit)
           with open(os.path.join(cfg['work_dir'], git_label ), 'w'):
             pass
+          shutil.copy(img_list_file,
+                      os.path.join(cfg['work_dir'], os.path.basename(img_prefix)))
+          pass
         #print(cfg['work_dir'])
         pass
 
+def get_file_list_flag(img_list_file):
+  flist = np.loadtxt(img_list_file, dtype=str)
+  n = len(flist)
+  a = flist[0][0:2]
+  c = flist[-1][0:2]
+  flag = f'-D{n}_{a}_{c}'
+  return flag
 
 def main():
     args = parse_args()

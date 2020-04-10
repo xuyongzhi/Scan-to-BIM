@@ -6,7 +6,7 @@
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/bev_sparse_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
 
 
 wkdir=TPV_r50_fpn_refine_final_beike2d_bs5_lr10_512_VerD_RA_Normrawstd_ChmR2P1N1_Rfiou743_Fpn34_Pbs1_Bp64
