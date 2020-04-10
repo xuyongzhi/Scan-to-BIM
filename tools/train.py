@@ -60,6 +60,7 @@ def parse_args():
     parser.add_argument('--corhm', type=int, default=None,
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
     parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
+    parser.add_argument('--filter_edges', type=int, default=None,)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -81,6 +82,12 @@ def update_config(cfg, args, split):
     corner_hm = args.corhm
     base_plane = args.base_plane
     data_types_ = args.data_types
+    filter_edges = args.filter_edges
+
+
+    if filter_edges is not None:
+        for sp in ['train', 'val', 'test']:
+          cfg['data'][sp]['filter_edges'] = filter_edges == 1
 
     dataset  = cfg['DATA']
     if 'pcl' not in dataset:
@@ -198,6 +205,10 @@ def update_config(cfg, args, split):
 
         if 'move_points_to_center' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['move_points_to_center']:
           cfg['work_dir'] += f'_Mc'
+
+        if cfg['data']['train']['filter_edges']:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          cfg['work_dir'] += f'_Fe'
 
         img_prefix = cfg['data']['train']['img_prefix']
         cur_path = os.path.abspath('.')

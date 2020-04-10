@@ -22,10 +22,11 @@ def save_res_graph(dataset, data_loader, results, out_file):
           img_meta_i = data['img_meta'][0]
           img_shape = img_meta_i['dynamic_vox_size_aug'][[1,0,2]]
           img_shape[2] = 3
+          img_i = img_shape
 
           #img_i = np.zeros(img_shape, dtype=np.int8)
         res_data = dict(  img_id = i_img,
-                          img_shape=img_shape,
+                          img = img_i,
                           img_meta=img_meta_i,
                         )
         #img_id = dataset.img_ids[i_img]
@@ -125,7 +126,7 @@ class GraphEval():
           img_std = img_meta['img_norm_cfg']['std']
           img = img * img_std + img_mean
         else:
-          img_shape = res_data['img_shape']
+          img_shape = res_data['img']
           img_shape[:2] = img_shape[:2] * self._pcl_img_scale_ratio + self._pcl_img_size_aug * 2
           img = np.zeros(img_shape, dtype=np.int8)
 

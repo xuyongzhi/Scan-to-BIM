@@ -205,6 +205,7 @@ data = dict(
         data_types = ['color', 'norm', 'xyz'],
         max_num_points=max_num_points,
         max_footprint_for_scale=max_footprint_for_scale,
+        filter_edges=True,
         pipeline=None),
     val=None,
     test=None,

@@ -174,6 +174,7 @@ if IMAGE_SIZE == 1024:
   lra = 0.005
 
 test_dir=data_root + f'TopView_{TOPVIEW}/test.txt'
+filter_edges=True
 data = dict(
     imgs_per_gpu=batch_size,
     workers_per_gpu=2,
@@ -181,17 +182,20 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=data_root + f'TopView_{TOPVIEW}/train.txt',
-        pipeline=train_pipeline),
+        pipeline=train_pipeline,
+        filter_edges=filter_edges),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=data_root + f'TopView_{TOPVIEW}/test.txt',
-        pipeline=train_pipeline),
+        pipeline=train_pipeline,
+        filter_edges=filter_edges),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=test_dir,
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+        filter_edges=filter_edges))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))

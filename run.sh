@@ -14,26 +14,26 @@ CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_pcl_strpoints_r50_fpn_1x.py
 
 
+LR=0.01
 ROTATE=1
-CLS=refine_final
 CORHM=0
-DCN_ZERO_BASE=0
 BASE_PLANE=64
 BS=5
 DATA_TYPES=cnx
+FILTER_EDGES=0
 
-ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE  --lr 0.01 --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES 
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE  --corhm $CORHM   --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
 #--resume $CP 
 
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE   --data_types $DATA_TYPES
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE  --corhm $CORHM  --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES
 DATA_TYPES=cn
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE   --data_types $DATA_TYPES
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE  --corhm $CORHM  --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES
 DATA_TYPES=n
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE --lr 0.01 --base_plane $BASE_PLANE   --data_types $DATA_TYPES
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE  --corhm $CORHM  --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES
 
 
 ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 #STYLE=--show
 
-#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE --cls $CLS --corhm $CORHM --dcn_zero_base $DCN_ZERO_BASE $STYLE --base_plane $BASE_PLANE
+#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE  --corhm $CORHM  $STYLE --base_plane $BASE_PLANE

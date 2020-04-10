@@ -13,7 +13,7 @@ class BeikeDataset(CustomDataset):
     CLASSES = ( 'wall', )
 
     def load_annotations(self, ann_folder):
-        self.beike = BEIKE(ann_folder, img_prefix=self.img_prefix, test_mode=self.test_mode)
+        self.beike = BEIKE(ann_folder, img_prefix=self.img_prefix, test_mode=self.test_mode, filter_edges=self.filter_edges)
         self.cat_ids = self.beike.getCatIds()
         self.cat2label = {
             cat_id: i + 1
