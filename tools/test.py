@@ -204,6 +204,7 @@ def parse_args():
     parser.add_argument('--auto_scale_vs', type=int, default=None,
                         help='0 or 1: auto scale the point cloud to full voxel resolution')
     parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
+    parser.add_argument('--filter_edges', type=int, default=None,)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -281,7 +282,7 @@ def main():
                 coco_eval(result_file, eval_types, dataset.coco)
             else:
                 if DATA != 'coco':
-                      results_datas = save_res_graph(dataset, data_loader, outputs, args.out)
+                      results_datas = save_res_graph(dataset, data_loader, outputs, args.out, cfg['data']['test']['filter_edges'])
                       #eval_graph(results_datas, dataset, args.out)
                 else:
                   if not isinstance(outputs[0], dict):

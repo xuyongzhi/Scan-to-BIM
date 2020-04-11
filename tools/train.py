@@ -207,7 +207,6 @@ def update_config(cfg, args, split):
           cfg['work_dir'] += f'_Mc'
 
         if cfg['data']['train']['filter_edges']:
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           cfg['work_dir'] += f'_Fe'
 
         img_prefix = cfg['data']['train']['img_prefix']

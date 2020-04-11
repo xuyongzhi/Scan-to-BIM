@@ -20,20 +20,16 @@ CORHM=0
 BASE_PLANE=64
 BS=5
 DATA_TYPES=cnx
-FILTER_EDGES=0
+FILTER_EDGES=1
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE  --corhm $CORHM   --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
 #--resume $CP 
 
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE  --corhm $CORHM  --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES
-DATA_TYPES=cn
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE  --corhm $CORHM  --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES
-DATA_TYPES=n
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE  --corhm $CORHM  --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE  --corhm $CORHM  --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
 
 
 ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 #STYLE=--show
 
-#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE  --corhm $CORHM  $STYLE --base_plane $BASE_PLANE
+#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE  --corhm $CORHM  $STYLE --base_plane $BASE_PLANE  --filter_edges $FILTER_EDGES

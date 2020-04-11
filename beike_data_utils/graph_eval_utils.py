@@ -7,7 +7,7 @@ from collections import defaultdict
 import os
 import numpy as np
 
-def save_res_graph(dataset, data_loader, results, out_file):
+def save_res_graph(dataset, data_loader, results, out_file, filter_edges):
     num_imgs = len(results)
     assert len(data_loader) == num_imgs
     results_datas = []
@@ -52,11 +52,11 @@ def save_res_graph(dataset, data_loader, results, out_file):
       pickle.dump(results_datas, f)
       print(f'\nsave: {out_file}')
 
-    eval_graph(results_datas, dataset, out_file)
+    eval_graph(results_datas, dataset, out_file, filter_edges)
     return results_datas
 
-def eval_graph(results_datas, dataset, out_file):
-  graph_eval = GraphEval()
+def eval_graph(results_datas, dataset, out_file, filter_edges):
+  graph_eval = GraphEval(filter_edges)
   graph_eval(results_datas, dataset, out_file)
   graph_eval._score_threshold = 0.2
   graph_eval(results_datas, dataset, out_file)
@@ -72,7 +72,8 @@ class GraphEval():
   _pcl_img_scale_ratio = 1.5
   _pcl_img_size_aug = 20
 
-  def __init__(self, score_threshold=0.4):
+  def __init__(self,  filter_edges, score_threshold=0.4,):
+    self.filter_edges = filter_edges
     self._score_threshold = score_threshold
     pass
 
@@ -134,7 +135,7 @@ class GraphEval():
         scene_name = os.path.splitext(os.path.basename(filename))[0]
 
         if not is_pcl:
-          gt_lines = load_gt_lines_bk(img_meta, img)
+          gt_lines = load_gt_lines_bk(img_meta, img, self.filter_edges)
         else:
           gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
           gt_lines[:,:4] = gt_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug

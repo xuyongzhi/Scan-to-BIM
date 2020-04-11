@@ -852,12 +852,12 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None, filter_e
           anno[ele] = anno[ele][line_valid]
       return anno
 
-def load_gt_lines_bk(img_meta, img):
+def load_gt_lines_bk(img_meta, img, filter_edges):
   filename = img_meta['filename']
   scene_name = os.path.basename(filename).replace('.npy', '')
   processed_dir = os.path.dirname(os.path.dirname(filename))
   json_dir = os.path.join(processed_dir, 'json/')
-  anno_raw = load_anno_1scene(json_dir, scene_name+'.json')
+  anno_raw = load_anno_1scene(json_dir, scene_name+'.json', filter_edges=filter_edges)
   anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': IMAGE_SIZE},)
   lines = anno_img['bboxes']
   if 'rotate_angle' in img_meta:
