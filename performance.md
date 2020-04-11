@@ -12,6 +12,15 @@ Empty gt edges not filtered
 |Bp32_Vsz4Stem4| train, line_ave, no rotation    |  0.942 - 0.944  | 0.916 - 0.845  |
 |              | test                          |  0.825 - 0.82 | 0.734 - 0.596  |
 
+## RES 10 Apr Pcl
+cc35d1814317a79f14aeed300b431cc1422cfd6d
+R50_fpn_refine_final_beike_pcl_2d_bs5_lr10_cnx_Daug_Rfiou743_Fpn34_Pbs1_Bp64_Vsz4Stem4
+Empty gt edges filtered
+|config | eval set | corner prec-recall| line prec-recall |
+|-|-|-|-|
+|Bp32_Vsz4Stem4| train, line_ave, no rotation    |  0.897 - 0.844  | 0.833 - 0.685  |
+|              | test                          |  0.827 - 0.768 | 0.742 - 0.582  |
+
 ## RES Img 8/Mar
 ```
 8/Mar T90_r50_fpn_lscope_istopleft_refine_final_512_VerD_bs6_lr10_RA_Normrawstd_ChmR2P1N1_Rfiou743_Fpn34_Pbs1

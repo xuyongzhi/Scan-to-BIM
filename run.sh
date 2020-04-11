@@ -32,4 +32,4 @@ ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 #STYLE=--show
 
-#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE  --corhm $CORHM  $STYLE --base_plane $BASE_PLANE  --filter_edges $FILTER_EDGES
+#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE  --corhm $CORHM  $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
