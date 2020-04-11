@@ -654,7 +654,7 @@ class Sparse3DResNet(nn.Module):
           ts.append(time.time())
           print(f'max: {ts[-1]-ts[-2]:.3f}')
         if SHOW_NET:
-          debug_utils._show_sparse_ls_shapes([x], 'max')
+          debug_utils._show_sparse_ls_shapes([x], 'max, stem out')
 
         for i, layer_name in enumerate(self.res_layers):
             res_layer = getattr(self, layer_name)

@@ -4,7 +4,7 @@
 #export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
-#CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_dense3dunet_strpoints_r50_fpn_1x.py
 
 
