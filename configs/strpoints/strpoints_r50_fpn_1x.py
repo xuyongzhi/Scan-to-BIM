@@ -72,8 +72,8 @@ model = dict(
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
         transform_method=_transform_method,
         dcn_zero_base=False,
-        corner_hm = True,
-        corner_hm_only = True,
+        corner_hm = False,
+        corner_hm_only = False,
         move_points_to_center = 0,
         )
     )
