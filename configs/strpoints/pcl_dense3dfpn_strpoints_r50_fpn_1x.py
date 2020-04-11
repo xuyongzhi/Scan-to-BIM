@@ -28,7 +28,7 @@ batch_size = 5
 stem_stride_z = 8
 z_stride = 3
 z_strides = (z_stride,) * 4
-backbone_out_indices = (0,1,2)
+backbone_out_indices = (0,1,2,3)
 z_out_dims  = [max_height/voxel_size/stem_stride_z/z_strides[0] ]
 for zs in z_strides[1:]:
   z_out_dims.append( z_out_dims[-1]/zs )
@@ -87,7 +87,7 @@ model = dict(
         max_planes=1024),
     neck=dict(
         type='FPN_Dense3D',
-        in_channels=[ bbp*4, bbp*8, bbp*16],
+        in_channels=[ bbp*4, bbp*8, bbp*16, bbp*32],
         out_channels=256,
         start_level=0,
         add_extra_convs=True,

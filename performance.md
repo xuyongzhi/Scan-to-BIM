@@ -1,6 +1,15 @@
 
 # RES
 
+## 11 Apr
+e52b9d6fc7df1a8ae341b269afffd89250e3c273
+TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn34_Pbs1_Bp64_Fe-D90_0K_zX
+|config | eval set | corner prec-recall| line prec-recall |
+|-|-|-|-|
+|Bp32_Vsz4Stem4| train, line_ave, no rotation    |  0.933 - 0.906  | 0.905 - 0.788  |
+|              | test                          |  0.877 - 0.822 | 0.77 - 0.639  |
+
+
 ## 10 Apr
 
 ## RES 11 Apr Img

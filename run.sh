@@ -5,6 +5,7 @@
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/pcl_dense3dunet_strpoints_r50_fpn_1x.py
 
 
 wkdir=R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_cnx_Daug_Rfiou743_Fpn34_Pbs1_Bp64_Vsz4Stem4_Fe-D1_cX_cX
@@ -20,10 +21,10 @@ BS=1
 DATA_TYPES=cnx
 FILTER_EDGES=1
 
-#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
 #--resume $CP 
 
-./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES
 
 
 ROTATE=0

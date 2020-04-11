@@ -9,16 +9,35 @@
   img_norm_cfg
   transform_method
 '''
+import math
+from configs.common import  OBJ_REP, IMAGE_SIZE, SPARSE_BEV
+DATA = 'beike_pcl_2d'
 
-TOPVIEW = 'VerD' # better
-#TOPVIEW = 'All'
+voxel_size = [0.02, 0.04, 0.08][1]
+stem_stride = {0.02:2, 0.04:2, 0.08:1}[voxel_size] * 2
+
+if DATA == 'beike_pcl_2d':
+  # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
+  max_height = 7.68
+  max_height = 5
+elif DATA == 'stanford_pcl_2d':
+  max_height = 5.12
+
+batch_size = 5
+
+stem_stride_z = 8
+z_stride = 3
+z_strides = (z_stride,) * 4
+backbone_out_indices = (0,1,2,3)
+z_out_dims  = [max_height/voxel_size/stem_stride_z/z_strides[0] ]
+for zs in z_strides[1:]:
+  z_out_dims.append( z_out_dims[-1]/zs )
+z_out_dims = tuple([int(math.ceil( z_out_dims[i] )) for i in backbone_out_indices])
 #*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE
-DATA = 'beike2d'
-
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
+
 
 if _obj_rep == 'box_scope':
   _transform_method = 'moment'
@@ -27,29 +46,56 @@ elif _obj_rep == 'line_scope':
 elif _obj_rep == 'lscope_istopleft':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
+if DATA == 'stanford_pcl_2d':
+  dataset_type = 'StanfordPclDataset'
+  data_root = f'data/stanford/'
+  ann_file = data_root
+  in_channels = 6
+
+if DATA == 'beike_pcl_2d':
+  dataset_type = 'BeikePclDataset'
+  data_root = f'data/beike/processed_512/'
+  ann_file = data_root + 'json/'
+  if not SPARSE_BEV:
+    in_channels = 9
+  else:
+    in_channels = 4
+
+backbone_type = 'Sparse3DResNet'
+
+#*******************************************************************************
+
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
+point_strides_all = [(2**i)*stem_stride for i in range(4)]
+bbp = 32
 model = dict(
     type='StrPointsDetector',
     pretrained=None,
     backbone=dict(
-        type='ResNet',
+        type=backbone_type,
         depth=50,
-        in_channels=4,
+        in_channels=in_channels,
         num_stages=4,
-        out_indices=( 0, 1, 2, 3),
+        z_strides=z_strides,
+        out_indices=backbone_out_indices,
         frozen_stages=-1,
         style='pytorch',
-        basic_planes=64,
-        max_planes=2048),
+        stem_stride=stem_stride,
+        stem_stride_z = stem_stride_z,
+        basic_planes=bbp,
+        max_planes=1024),
     neck=dict(
-        type='FPN',
-        in_channels=[ 256, 512, 1024, 2048],
+        type='UNET_Dense3D',
+        in_channels=[ bbp*4, bbp*8, bbp*16, bbp*32],
         out_channels=256,
         start_level=0,
         add_extra_convs=True,
         num_outs=4,
-        norm_cfg=norm_cfg),
+        norm_cfg = norm_cfg,
+        z_out_dims = z_out_dims,
+        z_stride = z_stride,
+        ),
     bbox_head=dict(
         type='StrPointsHead',
         num_classes=2,
@@ -59,7 +105,7 @@ model = dict(
         stacked_convs=3,
         num_points=9,
         gradient_mul=0.1,
-        point_strides=[4, 8, 16, 32],
+        point_strides=point_strides_all,
         point_base_scale=1,
         norm_cfg=norm_cfg,
         loss_cls=dict(
@@ -75,7 +121,7 @@ model = dict(
         dcn_zero_base=False,
         corner_hm = False,
         corner_hm_only = False,
-        move_points_to_center = 0,
+        move_points_to_center = False,
         )
     )
         #transform_method='minmax'))
@@ -120,9 +166,11 @@ test_cfg = dict(
     score_thr=0.2,
     nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
     max_per_img=100)
+
 # dataset settings
-dataset_type = 'BeikeDataset'
-data_root = f'data/beike/processed_{IMAGE_SIZE}/'
+
+
+
 #img_norm_cfg = dict(
 #    mean=[  0, 0,0,0],
 #    std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
@@ -139,76 +187,48 @@ img_norm_cfg = dict(
 #    mean=[4.753, 11.142, 11.044, 25.969],
 #    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
 
-train_pipeline = [
-    dict(type='LoadTopviewFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='Resize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
-    dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
-    dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
-    dict(type='NormalizeTopview', **img_norm_cfg),
-    dict(type='Pad', size_divisor=32),
-    dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
-]
-test_pipeline = [
-    dict(type='LoadTopviewFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True),
-    dict(
-        type='MultiScaleFlipAug',
-        img_scale=(512,512),
-        flip=False,
-        transforms=[
-            dict(type='Resize', keep_ratio=True, obj_dim=_obj_dim),
-            dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
-            dict(type='NormalizeTopview', **img_norm_cfg),
-            dict(type='Pad', size_divisor=32),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img']),
-        ])
-]
-if IMAGE_SIZE == 512:
-  batch_size = 7
-  lra = 0.01
-if IMAGE_SIZE == 1024:
-  batch_size = 1
-  lra = 0.005
 
-test_dir=data_root + f'TopView_{TOPVIEW}/test.txt'
-filter_edges=True
+lra = 0.01
+
+
+max_footprint_for_scale = 200
+max_num_points = 20 * 10000
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/train.txt',
-        pipeline=train_pipeline,
-        filter_edges=filter_edges),
-    val=dict(
-        type=dataset_type,
-        ann_file=data_root + 'json/',
-        img_prefix=data_root + f'TopView_{TOPVIEW}/test.txt',
-        pipeline=train_pipeline,
-        filter_edges=filter_edges),
-    test=dict(
-        type=dataset_type,
-        ann_file=data_root + 'json/',
-        img_prefix=test_dir,
-        pipeline=test_pipeline,
-        filter_edges=filter_edges))
+        ann_file=ann_file,
+        img_prefix=data_root + f'ply/train.txt',
+        voxel_size=voxel_size,
+        augment_data=True,
+        data_types = ['color', 'norm', 'xyz'],
+        max_num_points=max_num_points,
+        max_footprint_for_scale=max_footprint_for_scale,
+        filter_edges=True,
+        pipeline=None),
+    val=None,
+    test=None,
+)
+data['val'] = data['train'].copy()
+data['val']['img_prefix'] = data_root + f'ply/test.txt'
+data['test'] = data['val'].copy()
+
+
+model['backbone']['voxel_size'] = voxel_size
+
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 810
+total_epochs = 500
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.7), int(total_epochs*0.85)])
-checkpoint_config = dict(interval=20)
+checkpoint_config = dict(interval=10)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -220,13 +240,10 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/TPV_r50_fpn'
+work_dir = f'./work_dirs/R50_fpn'
 load_from = None
-#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
-#load_from = f'{work_dir}/best.pth'
-#load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_refine_512_VerD_bs1_lr10_RA_Normrawstd/best.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-#workflow = [('train', 1),]
+#workflow = [('train', 10),]
 

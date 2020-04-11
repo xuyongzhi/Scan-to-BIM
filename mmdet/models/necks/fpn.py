@@ -113,7 +113,7 @@ class FPN(nn.Module):
             lateral_conv(inputs[i + self.start_level])
             for i, lateral_conv in enumerate(self.lateral_convs)
         ]
-        if SHOW_NET and 0:
+        if SHOW_NET and 1:
           print('\n\n')
           _show_tensor_ls_shapes(inputs, 'inputs')
           _show_tensor_ls_shapes(laterals, 'laterals')

@@ -12,6 +12,8 @@ from ..utils import build_conv_layer, build_norm_layer
 from tools import debug_utils
 import time
 RECORD_T = 0
+SHOW_NET = 0
+from tools.debug_utils import _show_tensor_ls_shapes
 
 
 class BasicBlock(nn.Module):
@@ -526,7 +528,8 @@ class ResNet(nn.Module):
             raise TypeError('pretrained must be a str or None')
 
     def forward(self, x, gt_bboxes=None):
-        #debug_tools.show_shapes(x, 'img')
+        if SHOW_NET:
+          _show_tensor_ls_shapes([x], 'res in')
         if RECORD_T:
           t0 = time.time()
         x = self.conv1(x)
@@ -535,6 +538,8 @@ class ResNet(nn.Module):
         x = self.norm1(x)
         x = self.relu(x)
         x = self.maxpool(x)
+        if SHOW_NET:
+          _show_tensor_ls_shapes([x], 'stem')
         if RECORD_T:
           t2 = time.time()
         outs = []
@@ -547,7 +552,8 @@ class ResNet(nn.Module):
           t3 = time.time()
           print(f'\tresnet forward. conv1:{t1-t0:.3f} maxpool:{t2-t1:.3f} reslayers:{t3-t2:.3f}')
 
-        #debug_tools.show_shapes(outs, 'backbone outs')
+        if SHOW_NET:
+          _show_tensor_ls_shapes(outs, 'res out')
         return tuple(outs)
 
     def train(self, mode=True):
