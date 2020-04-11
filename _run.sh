@@ -5,9 +5,10 @@
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/pcl_dense3dunet_strpoints_r50_fpn_1x.py
 
 
-wkdir=TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn34_Pbs1_Bp64_Fe-D90_0K_zX
+wkdir=TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D90_0K_zX
 CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_pcl_dense3dfpn_strpoints_r50_fpn_1x.py
 CONFIG=./work_dirs/${wkdir}/_strpoints_r50_fpn_1x.py

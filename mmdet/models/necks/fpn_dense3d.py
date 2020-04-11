@@ -33,7 +33,7 @@ class FPN_Dense3D(nn.Module):
                  activation_bev_proj='relu'):
         super(FPN_Dense3D, self).__init__()
         assert isinstance(in_channels, list)
-        self.proj_method = ['res_block', '2conv'][0]
+        self.proj_method = ['res_block', '2conv'][1]
         conv_cfg_2d = dict(type='Conv')
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
@@ -299,7 +299,7 @@ class FPN_Dense3D(nn.Module):
           s0, s1 = self.proj_z_strides[i]
           zdim = s0 * s1
         else:
-          zdim = z_out_dims[i]
+          zdim = self.z_out_dims[i]
         pad_size = zdim - laterals_i.shape[-1]
         if pad_size > 0:
           laterals_i = F.pad(laterals_i, (0, pad_size), "constant", 0)

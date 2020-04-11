@@ -1,7 +1,15 @@
 
 # RES
 
-## 11 Apr
+## 11 Apr Img
+c60fbb970fb75c93b1019b64f3c968dbe866fe33
+TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D90_0K_zX
+|config | eval set | corner prec-recall| line prec-recall |
+|-|-|-|-|
+|Fpn44_Pbs1_        | train, line_ave, no rotation    |  0.932 - 0.945  | 0.907 - 0.849  |
+| Bp64_Fe-D90_0K_zX | test                          |  0.828 - 0.842 | 0.742 - 0.655  |
+
+## 11 Apr Img
 e52b9d6fc7df1a8ae341b269afffd89250e3c273
 TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn34_Pbs1_Bp64_Fe-D90_0K_zX
 |config | eval set | corner prec-recall| line prec-recall |

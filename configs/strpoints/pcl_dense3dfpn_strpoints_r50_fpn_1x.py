@@ -26,7 +26,7 @@ elif DATA == 'stanford_pcl_2d':
 batch_size = 5
 
 stem_stride_z = 8
-z_stride = 2
+z_stride = 3
 z_strides = (z_stride,) * 4
 backbone_out_indices = (0,1,2,3)
 z_out_dims  = [max_height/voxel_size/stem_stride_z/z_strides[0] ]
@@ -245,5 +245,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-#workflow = [('train', 10),]
+workflow = [('train', 10),]
 
