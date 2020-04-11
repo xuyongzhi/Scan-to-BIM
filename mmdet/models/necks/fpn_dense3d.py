@@ -176,24 +176,28 @@ class FPN_Dense3D(nn.Module):
       part2 = proj_layer[-1]
       return nn.ModuleList( [part1, part2] )
 
-    def build_project_layer_2conv(self, level, in_channels):
+    def _build_project_layer_2conv(self, level, in_channels):
       '''
       part1 -> max pool -> part2
       '''
-      kernels_i =   [(1, 1, self.z_out_dims[level]), (3,3)]
-      strides_i =   [(1, 1, self.z_out_dims[level]), (1,1)]
+      kernels_i =   [(1, 1, self.z_out_dims[level]),]
+      strides_i =   [(1, 1, self.z_out_dims[level]),]
+      n1 = len(kernels_i)
+      kernels_i += [(3,3), (1,1)]
+      strides_i += [(1,1), (1,1)]
+      channel_rates = [4, 2, 1]
 
-      paddings_i = [(int(k[0]/2), int(k[1]/2), int(k[2]/2)) for k in kernels_i[:-1]] + [(1,1)]
+      paddings_i = [ get_padding_same_featsize(k) for k in kernels_i]
       npj = len(kernels_i)
       fpn_layer_i = []
       for j in range(npj):
-          if j < npj-1:
+          if j < n1:
             conv_cfg = self.conv_cfg
           else:
             conv_cfg = dict(type='Conv')
           fpn_conv_j = ConvModule(
               in_channels,
-              self.out_channels,
+              self.out_channels * channel_rates[j],
               kernels_i[j],
               strides_i[j],
               padding=paddings_i[j],
@@ -202,10 +206,40 @@ class FPN_Dense3D(nn.Module):
               activation=self.activation_bev_proj,
               inplace=False)
           fpn_layer_i.append(fpn_conv_j)
-          in_channels = self.out_channels
+          in_channels = self.out_channels * channel_rates[j]
 
-      part1 = nn.Sequential(*fpn_layer_i[:-1])
-      part2 = fpn_layer_i[-1]
+      part1 = nn.Sequential(*fpn_layer_i[:n1])
+      part2 = nn.Sequential(*fpn_layer_i[n1:])
+      return nn.ModuleList( [part1, part2] )
+
+    def build_project_layer_2conv(self, level, in_channels):
+      '''
+      part1 -> max pool -> part2
+      '''
+      from ..backbones.resnet import make_res_layer, BasicBlock
+      kernels_i =   [(1, 1, self.z_out_dims[level]),]
+      strides_i =   [(1, 1, self.z_out_dims[level]),]
+
+      paddings_i = [ get_padding_same_featsize(k) for k in kernels_i]
+      channel_rate = 4
+      part1 = ConvModule(
+              in_channels,
+              self.out_channels * channel_rate,
+              kernels_i[0],
+              strides_i[0],
+              padding=paddings_i[0],
+              conv_cfg=self.conv_cfg,
+              norm_cfg=self.norm_cfg,
+              activation=self.activation_bev_proj,
+              inplace=False)
+
+      part2 = make_res_layer( BasicBlock,
+                              self.out_channels * channel_rate,
+                              self.out_channels,
+                              blocks=2,
+                              conv_cfg=dict(type='Conv'),
+                              norm_cfg=self.norm_cfg )
+
       return nn.ModuleList( [part1, part2] )
 
 
@@ -390,7 +424,7 @@ def get_padding_same_featsize(kernel):
     padding = [int((k-1)/2) for k in kernel]
     padding = tuple(padding)
   else:
-    padding = int((k-1)/2)
+    padding = int((kernel-1)/2)
   return padding
 
 class BasicBlock3D(nn.Module):
