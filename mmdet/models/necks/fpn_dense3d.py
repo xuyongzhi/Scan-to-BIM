@@ -6,6 +6,7 @@ from mmdet.core import auto_fp16
 from ..registry import NECKS
 from ..utils import ConvModule
 import math
+from ..utils import build_conv_layer, build_norm_layer
 
 from configs.common import SPARSE_BEV
 from tools.debug_utils import _show_tensor_ls_shapes
@@ -32,6 +33,7 @@ class FPN_Dense3D(nn.Module):
                  activation_bev_proj='relu'):
         super(FPN_Dense3D, self).__init__()
         assert isinstance(in_channels, list)
+        self.proj_method = ['res_block', '2conv'][0]
         conv_cfg_2d = dict(type='Conv')
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
@@ -113,6 +115,12 @@ class FPN_Dense3D(nn.Module):
 
         stride_se = pow(2, self.backbone_end_level - self.start_level-1)
         self.z_out_dims = z_out_dims
+        self.proj_z_strides = []
+        for zdim in z_out_dims:
+          s0 = 3 if zdim > 1 else 1
+          s1 = 3 if zdim > 3 else 1
+          #s1 = int(math.ceil(zdim/3))
+          self.proj_z_strides.append( (s0,s1) )
 
         if not SPARSE_BEV:
           self.build_project_layers()
@@ -133,7 +141,45 @@ class FPN_Dense3D(nn.Module):
         pass
 
     def build_project_layer(self, level, in_channels):
-      num_layer_to_end = self.backbone_end_level - level -1
+      if self.proj_method == 'res_block':
+        return self.build_project_layer_res_block(level, in_channels)
+      else:
+        return self.build_project_layer_2conv(level, in_channels)
+
+    def build_project_layer_res_block(self, level, in_channels):
+      '''
+      part1 -> max pool -> part2
+      '''
+      s0, s1 = self.proj_z_strides[level]
+      kernels = [ (3,3,s0), (1,1,s1) ] + [(3,3)]
+      strides = [ (1,1,s0), (1,1,s1) ] + [(1,1)]
+      proj_layer = []
+      for j in range(3):
+          if j < 2:
+            conv_cfg = self.conv_cfg
+          else:
+            conv_cfg = dict(type='Conv')
+          proj_j = make_res_layer_3d(
+              BasicBlock3D,
+              in_channels,
+              self.out_channels,
+              kernel=kernels[j],
+              blocks=1,
+              stride=strides[j],
+              conv_cfg=conv_cfg,
+              norm_cfg=self.norm_cfg,
+              )
+          proj_layer.append(proj_j)
+          in_channels = self.out_channels
+
+      part1 = nn.Sequential(*proj_layer[:-1])
+      part2 = proj_layer[-1]
+      return nn.ModuleList( [part1, part2] )
+
+    def build_project_layer_2conv(self, level, in_channels):
+      '''
+      part1 -> max pool -> part2
+      '''
       kernels_i =   [(1, 1, self.z_out_dims[level]), (3,3)]
       strides_i =   [(1, 1, self.z_out_dims[level]), (1,1)]
 
@@ -162,34 +208,6 @@ class FPN_Dense3D(nn.Module):
       part2 = fpn_layer_i[-1]
       return nn.ModuleList( [part1, part2] )
 
-    @auto_fp16()
-    def A_build_project_layer(self, level, in_channels):
-      num_layer_to_end = self.backbone_end_level - level -1
-      kernels_i =   [[3,3,3]] * num_layer_to_end
-      strides_i =   [[1,1,2]] * num_layer_to_end
-      kernels_i += [[1,1,self.zdim_end_level],]
-      strides_i += [[1,1,self.zdim_end_level],]
-
-      paddings_i = [[int(k[0]>1), int(k[1]>1), 1] for k in kernels_i]
-      npj = len(kernels_i)
-      fpn_layer_i = []
-      for j in range(npj):
-          fpn_conv_j = ConvModule(
-              in_channels,
-              self.out_channels,
-              kernels_i[j],
-              strides_i[j],
-              padding=paddings_i[j],
-              conv_cfg=self.conv_cfg,
-              norm_cfg=self.norm_cfg,
-              activation=self.activation_bev_proj,
-              inplace=False)
-          fpn_layer_i.append(fpn_conv_j)
-          in_channels = self.out_channels
-
-      part1 = nn.Sequential(*fpn_layer_i[:-1])
-      part2 = fpn_layer_i[-1]
-      return nn.ModuleList( [part1, part2] )
 
     # default init_weights for conv(msra) and norm in ConvModule
     def init_weights(self):
@@ -200,7 +218,7 @@ class FPN_Dense3D(nn.Module):
     @auto_fp16()
     def forward(self, inputs):
         assert len(inputs) == len(self.in_channels)
-        if SHOW_NET and 1:
+        if SHOW_NET and 0:
           print('\n\n')
           _show_tensor_ls_shapes(inputs, ' FPN_Dense3D inputs')
 
@@ -229,7 +247,7 @@ class FPN_Dense3D(nn.Module):
             self.fpn_convs[i](bev_laterals[i]) for i in range(used_backbone_levels)
         ]
 
-        if SHOW_NET and 1:
+        if SHOW_NET and 0:
           print('\n\n')
           _show_tensor_ls_shapes(laterals, 'laterals')
           _show_tensor_ls_shapes(bev_laterals, 'bev_laterals')
@@ -277,7 +295,12 @@ class FPN_Dense3D(nn.Module):
         if SPARSE_BEV:
           return laterals_i[...,0]
 
-        pad_size = self.z_out_dims[i] - laterals_i.shape[-1]
+        if self.proj_method == 'res_block':
+          s0, s1 = self.proj_z_strides[i]
+          zdim = s0 * s1
+        else:
+          zdim = z_out_dims[i]
+        pad_size = zdim - laterals_i.shape[-1]
         if pad_size > 0:
           laterals_i = F.pad(laterals_i, (0, pad_size), "constant", 0)
         bev_laterals_i = self.project_layers[i][0](laterals_i)
@@ -295,4 +318,151 @@ class FPN_Dense3D(nn.Module):
         bev_laterals_i = self.project_layers[i][1](bev_laterals_i)
         bev_laterals_i = bev_laterals_i.max(4)[0]
         return bev_laterals_i
+
+
+def make_res_layer_3d(block,
+                   inplanes,
+                   planes,
+                   blocks,
+                   kernel=3,
+                   stride=1,
+                   dilation=1,
+                   style='pytorch',
+                   with_cp=False,
+                   conv_cfg=None,
+                   norm_cfg=dict(type='BN'),
+                   dcn=None,
+                   gcb=None,
+                   gen_attention=None,
+                   gen_attention_blocks=[]):
+    downsample = None
+    if stride != 1 or inplanes != planes * block.expansion:
+        downsample = nn.Sequential(
+            build_conv_layer(
+                conv_cfg,
+                inplanes,
+                planes * block.expansion,
+                kernel_size=1,
+                stride=stride,
+                bias=False),
+            build_norm_layer(norm_cfg, planes * block.expansion)[1],
+        )
+
+    layers = []
+    layers.append(
+        block(
+            inplanes=inplanes,
+            planes=planes,
+            kernel=kernel,
+            stride=stride,
+            dilation=dilation,
+            downsample=downsample,
+            style=style,
+            with_cp=with_cp,
+            conv_cfg=conv_cfg,
+            norm_cfg=norm_cfg,
+            dcn=dcn,
+            gcb=gcb,
+            gen_attention=gen_attention if
+            (0 in gen_attention_blocks) else None))
+    inplanes = planes * block.expansion
+    for i in range(1, blocks):
+        layers.append(
+            block(
+                inplanes=inplanes,
+                planes=planes,
+                kernel=kernel,
+                stride=1,
+                dilation=dilation,
+                style=style,
+                with_cp=with_cp,
+                conv_cfg=conv_cfg,
+                norm_cfg=norm_cfg,
+                dcn=dcn,
+                gcb=gcb,
+                gen_attention=gen_attention if
+                (i in gen_attention_blocks) else None))
+
+    return nn.Sequential(*layers)
+
+def get_padding_same_featsize(kernel):
+  if isinstance(kernel, tuple):
+    padding = [int((k-1)/2) for k in kernel]
+    padding = tuple(padding)
+  else:
+    padding = int((k-1)/2)
+  return padding
+
+class BasicBlock3D(nn.Module):
+    expansion = 1
+
+    def __init__(self,
+                 inplanes,
+                 planes,
+                 kernel=3,
+                 stride=1,
+                 dilation=1,
+                 downsample=None,
+                 style='pytorch',
+                 with_cp=False,
+                 conv_cfg=None,
+                 norm_cfg=dict(type='BN'),
+                 dcn=None,
+                 gcb=None,
+                 gen_attention=None):
+        super(BasicBlock3D, self).__init__()
+        assert dcn is None, "Not implemented yet."
+        assert gen_attention is None, "Not implemented yet."
+        assert gcb is None, "Not implemented yet."
+
+        self.norm1_name, norm1 = build_norm_layer(norm_cfg, planes, postfix=1)
+        self.norm2_name, norm2 = build_norm_layer(norm_cfg, planes, postfix=2)
+
+
+        padding = get_padding_same_featsize(kernel)
+        self.conv1 = build_conv_layer(
+            conv_cfg,
+            inplanes,
+            planes,
+            kernel,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            bias=False)
+        self.add_module(self.norm1_name, norm1)
+        self.conv2 = build_conv_layer(
+            conv_cfg, planes, planes, kernel, padding=padding, bias=False)
+        self.add_module(self.norm2_name, norm2)
+
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        self.dilation = dilation
+        assert not with_cp
+
+    @property
+    def norm1(self):
+        return getattr(self, self.norm1_name)
+
+    @property
+    def norm2(self):
+        return getattr(self, self.norm2_name)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.norm1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.norm2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
 
