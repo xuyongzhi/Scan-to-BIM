@@ -3,20 +3,9 @@ import numpy as np
 
 #IMAGE_SIZE = 1024
 IMAGE_SIZE = 512
-#TRAIN_NUM=1
-TRAIN_NUM=90
 
-DATA = 'coco'
-DATA = 'stanford_pcl_2d'
-DATA = 'beike2d'
-DATA = 'beike_pcl_2d'
-
-if DATA == 'coco':
-  OBJ_REP = 'box_scope'
-  NUM_CLASS = 80
-else:
-  OBJ_REP = 'lscope_istopleft'
-  NUM_CLASS = 1
+OBJ_REP = 'lscope_istopleft'
+NUM_CLASS = 1
 # net *******************************************************************************
 SPARSE_BEV = 0
 _all_obj_rep_dims = {'box_scope': 4, 'box3d_scope': 6, 'lscope_istopleft':5}
@@ -35,11 +24,8 @@ CORNER_DIM = CORNER_DIM * IS_OUT_CORNER
 COMPOSITE_SCORE = COMPOSITE_SCORE * IS_OUT_CORNER
 # IS_OUT_CORNER=1: 5+43+1+4+1 = 54
 # IS_OUT_CORNER=0: 5+43+1+1 = 50
-if DATA == 'coco':
-  OUT_DIM_FINAL = OBJ_DIM + OUT_EXTAR_DIM + 1
-else:
-  OUT_DIM_BOX_INDEPENDENT_FINAL = OBJ_DIM + OUT_EXTAR_DIM + AVE_LINE_SCORE # 48
-  OUT_DIM_FINAL = OUT_DIM_BOX_INDEPENDENT_FINAL + CORNER_DIM + COMPOSITE_SCORE
+OUT_DIM_BOX_INDEPENDENT_FINAL = OBJ_DIM + OUT_EXTAR_DIM + AVE_LINE_SCORE # 48
+OUT_DIM_FINAL = OUT_DIM_BOX_INDEPENDENT_FINAL + CORNER_DIM + COMPOSITE_SCORE
 
 #OUT_SCORE_TYPE = ['Line_Ave', 'Corner_Ave', 'Corner_0', 'Corner_1'][1]
 

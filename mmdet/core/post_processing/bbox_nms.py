@@ -28,6 +28,7 @@ def multiclass_nms(multi_bboxes,
         tuple: (bboxes, labels), tensors of shape (k, 5) and (k, 1). Labels
             are 0-based.
     """
+    assert  multi_bboxes.shape[1] == OBJ_DIM
     num_classes = multi_scores.shape[1]
     bboxes, labels = [], []
     nms_cfg_ = nms_cfg.copy()
@@ -61,7 +62,7 @@ def multiclass_nms(multi_bboxes,
             bboxes = bboxes[inds]
             labels = labels[inds]
     else:
-        bboxes = multi_bboxes.new_zeros((0, 5))
+        bboxes = multi_bboxes.new_zeros((0, OBJ_DIM+1))
         labels = multi_bboxes.new_zeros((0, ), dtype=torch.long)
 
     return bboxes, labels

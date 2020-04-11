@@ -19,8 +19,6 @@ from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
 from tools.train import update_config
 
-from configs.common import DATA
-
 
 def single_gpu_test(model, data_loader, show=False):
     model.eval()
@@ -281,7 +279,7 @@ def main():
                 result_file = args.out
                 coco_eval(result_file, eval_types, dataset.coco)
             else:
-                if DATA != 'coco':
+                if cfg['DATA'] != 'coco':
                       results_datas = save_res_graph(dataset, data_loader, outputs, args.out, cfg['data']['test']['filter_edges'])
                       #eval_graph(results_datas, dataset, args.out)
                 else:

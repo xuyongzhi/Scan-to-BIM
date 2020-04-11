@@ -13,8 +13,9 @@
 TOPVIEW = 'VerD' # better
 #TOPVIEW = 'All'
 #*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE, DATA
-assert 'pcl' not in DATA
+from configs.common import  OBJ_REP, IMAGE_SIZE
+DATA = 'beike2d'
+
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
@@ -167,7 +168,7 @@ test_pipeline = [
         ])
 ]
 if IMAGE_SIZE == 512:
-  batch_size = 6
+  batch_size = 7
   lra = 0.01
 if IMAGE_SIZE == 1024:
   batch_size = 1

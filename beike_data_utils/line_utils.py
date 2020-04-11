@@ -309,7 +309,7 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
     num_cor_uq: m
     '''
     if lines.shape[0] == 0:
-      return np.zeros(0,2), np.zeros(0,labels.shape[1]), np.zeros(0,2), 0
+      return np.zeros([0,2]), np.zeros([0,labels.shape[1]]), np.zeros([0,2]), 0
 
     lines0 = decode_line_rep(lines, obj_rep)
     if labels is not None:
@@ -430,7 +430,7 @@ def merge_corners(corners_0, scores_0, opt_graph_cor_dis_thr=3):
     corners_1.append(merged_cor)
     scores_1.append(merged_sco)
     pass
-  corners_1 = np.array(corners_1)
+  corners_1 = np.array(corners_1).reshape((-1, corners_0.shape[1]))
   scores_merged = np.array(scores_1)
   labels_merged = corners_1[:,2]
   corners_merged = corners_1[:,:2]

@@ -10,8 +10,8 @@
   transform_method
 '''
 import math
-from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA, SPARSE_BEV
-assert 'pcl' in DATA
+from configs.common import  OBJ_REP, IMAGE_SIZE, SPARSE_BEV
+DATA = 'beike_pcl_2d'
 
 voxel_size = [0.02, 0.04, 0.08][1]
 stem_stride = {0.02:2, 0.04:2, 0.08:1}[voxel_size] * 2
@@ -23,7 +23,7 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_height = 5.12
 
-batch_size = 4
+batch_size = 5
 
 stem_stride_z = 8
 z_stride = 3
@@ -55,7 +55,7 @@ if DATA == 'stanford_pcl_2d':
 if DATA == 'beike_pcl_2d':
   dataset_type = 'BeikePclDataset'
   data_root = f'data/beike/processed_512/'
-  ann_file = data_root
+  ann_file = data_root + 'json/'
   if not SPARSE_BEV:
     in_channels = 9
   else:
@@ -199,7 +199,7 @@ data = dict(
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
-        img_prefix='train',
+        img_prefix=data_root + f'ply/train.txt',
         voxel_size=voxel_size,
         augment_data=True,
         data_types = ['color', 'norm', 'xyz'],
@@ -211,7 +211,7 @@ data = dict(
     test=None,
 )
 data['val'] = data['train'].copy()
-data['val']['img_prefix'] = 'test'
+data['val']['img_prefix'] = data_root + f'ply/test.txt'
 data['test'] = data['val'].copy()
 
 

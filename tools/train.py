@@ -211,7 +211,7 @@ def update_config(cfg, args, split):
 
         img_prefix = cfg['data']['train']['img_prefix']
         cur_path = os.path.abspath('.')
-        img_list_file = os.path.join(cur_path,img_prefix)
+        img_list_file = os.path.join(cur_path, img_prefix)
         data_flag = get_file_list_flag(img_list_file)
         cfg['work_dir'] += data_flag
 
@@ -234,7 +234,9 @@ def update_config(cfg, args, split):
 
 def get_file_list_flag(img_list_file):
   flist = np.loadtxt(img_list_file, dtype=str)
-  n = len(flist)
+  n = flist.size
+  if n==1:
+    flist = [flist.tolist()]
   a = flist[0][0:2]
   c = flist[-1][0:2]
   flag = f'-D{n}_{a}_{c}'

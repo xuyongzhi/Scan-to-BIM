@@ -191,7 +191,7 @@ def bbox2result(bboxes, labels, num_classes):
     """
     if bboxes.shape[0] == 0:
         return [
-            np.zeros((0, 5), dtype=np.float32) for i in range(num_classes - 1)
+            np.zeros((0, bboxes.shape[1]), dtype=np.float32) for i in range(num_classes - 1)
         ]
     else:
         bboxes = bboxes.cpu().numpy()

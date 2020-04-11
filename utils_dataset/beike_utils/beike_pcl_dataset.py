@@ -79,7 +79,11 @@ class BeikePclDataset(VoxelDatasetBase):
                pipeline=None,):
     assert voxel_size is not None
     self.filter_edges = filter_edges
-    self.data_root = ann_file
+    self.ann_path = ann_file
+    if ann_file[-1] == '/':
+      self.data_root = os.path.dirname( ann_file[:-1] )
+    else:
+      self.data_root = os.path.dirname( ann_file )
     self.test_mode = test_mode
     self.VOXEL_SIZE = voxel_size
     self.voxel_zero_offset = voxel_zero_offset
@@ -87,7 +91,8 @@ class BeikePclDataset(VoxelDatasetBase):
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size
     self.data_types = data_types
-    assert img_prefix in ['train', 'test']
+    phase = os.path.basename(img_prefix).split('.')[0]
+    assert phase in ['train', 'test']
 
     #if voxel_resolution[0] is not None:
     #  bdx, bdy, bdz = [s * voxel_size / 2 for s in voxel_resolution]
@@ -96,8 +101,8 @@ class BeikePclDataset(VoxelDatasetBase):
     #else:
     self.CLIP_BOUND = None
 
-    self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
-    self.scene_list = np.loadtxt(os.path.join(self.data_root, img_prefix+'.txt'), 'str').tolist()
+    self.area_list = [1,2,3,4,6] if phase == 'train' else [5]
+    self.scene_list = np.loadtxt(img_prefix, 'str').tolist()
 
     #self.scene_list = ['wcSLwyAKZafnozTPsaQMyv']
 
@@ -106,8 +111,6 @@ class BeikePclDataset(VoxelDatasetBase):
     self.scene_list = sorted(self.scene_list)
     if isinstance( self.scene_list, str ):
       self.scene_list = [self.scene_list]
-    #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
-    phase = img_prefix
     self.data_config = DataConfig(phase, augment_data)
     self.load_anno()
     self._set_group_flag()
@@ -139,7 +142,7 @@ class BeikePclDataset(VoxelDatasetBase):
     self.img_infos = []
     self.anno_raws = []
     for i in range(n):
-      anno_raw = load_anno_1scene(os.path.join(self.data_root, 'json'), self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE, filter_edges=self.filter_edges)
+      anno_raw = load_anno_1scene(self.ann_path, self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE, filter_edges=self.filter_edges)
 
       self.anno_raws.append(anno_raw)
       anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
