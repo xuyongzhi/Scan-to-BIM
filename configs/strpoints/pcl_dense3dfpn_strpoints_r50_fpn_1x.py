@@ -64,7 +64,7 @@ if DATA == 'beike_pcl_2d':
 backbone_type = 'Sparse3DResNet'
 
 #*******************************************************************************
-
+max_planes = 1024
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 point_strides_all = [(2**i)*stem_stride for i in range(4)]
@@ -84,7 +84,7 @@ model = dict(
         stem_stride=stem_stride,
         stem_stride_z = stem_stride_z,
         basic_planes=bbp,
-        max_planes=1024),
+        max_planes=max_planes),
     neck=dict(
         type='FPN_Dense3D',
         in_channels=[ bbp*4, bbp*8, bbp*16, bbp*32],
@@ -228,7 +228,7 @@ lr_config = dict(
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.7), int(total_epochs*0.85)])
-checkpoint_config = dict(interval=10)
+checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
     interval=1,

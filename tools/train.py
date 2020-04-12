@@ -115,9 +115,10 @@ def update_config(cfg, args, split):
         cfg['data'][sp]['augment_data'] = rotate
 
     bbp = cfg['model']['backbone']['basic_planes']
+    max_planes = cfg['model']['backbone']['max_planes']
     cfg['model']['backbone']['basic_planes'] = base_plane
     ccc = [c/bbp for c in cfg['model']['neck']['in_channels']]
-    cfg['model']['neck']['in_channels'] = [int(c * base_plane) for c in ccc]
+    cfg['model']['neck']['in_channels'] = [min(max_planes, int(c * base_plane)) for c in ccc]
 
     if lr is not None:
       cfg['optimizer']['lr'] = lr

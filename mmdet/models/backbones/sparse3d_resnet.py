@@ -19,7 +19,7 @@ import math
 import time
 
 RECORD_T = 0
-SHOW_NET = 0
+SHOW_NET = 1
 
 from configs.common import VISUAL_RESNET_OUT, SPARSE_BEV
 
@@ -110,7 +110,8 @@ class Bottleneck(nn.Module):
                  norm_cfg=dict(type='MinkBN'),
                  dcn=None,
                  gcb=None,
-                 gen_attention=None):
+                 gen_attention=None,
+                 max_planes=2048):
         """Bottleneck block for Sparse3DResNet.
         If style is "pytorch", the stride-two layer is the 3x3 conv layer,
         if it is "caffe", the stride-two layer is the first 1x1 conv layer.
@@ -122,6 +123,7 @@ class Bottleneck(nn.Module):
         assert gen_attention is None or isinstance(gen_attention, dict)
 
         self.inplanes = inplanes
+        self.max_planes = max_planes
         self.planes = planes
         self.stride = stride
         self.z_stride = z_stride
@@ -154,7 +156,7 @@ class Bottleneck(nn.Module):
         self.norm1_name, norm1 = build_norm_layer(norm_cfg, planes, postfix=1)
         self.norm2_name, norm2 = build_norm_layer(norm_cfg, planes, postfix=2)
         self.norm3_name, norm3 = build_norm_layer(
-            norm_cfg, planes * self.expansion, postfix=3)
+            norm_cfg, min(self.max_planes, planes * self.expansion), postfix=3)
 
         self.conv1 = build_conv_layer(
             conv_cfg,
@@ -209,7 +211,7 @@ class Bottleneck(nn.Module):
         self.conv3 = build_conv_layer(
             conv_cfg,
             planes,
-            planes * self.expansion,
+            min(self.max_planes, planes * self.expansion),
             kernel_size=1,
             bias=False)
         self.add_module(self.norm3_name, norm3)
@@ -218,7 +220,7 @@ class Bottleneck(nn.Module):
         self.downsample = downsample
 
         if self.with_gcb:
-            gcb_inplanes = planes * self.expansion
+            gcb_inplanes = min(self.max_planes, planes * self.expansion)
             self.context_block = ContextBlock(inplanes=gcb_inplanes, **gcb)
 
         # gen_attention
@@ -242,7 +244,6 @@ class Bottleneck(nn.Module):
 
         def _inner_forward(x):
             identity = x
-
             out = self.conv1(x)
             out = self.norm1(out)
             out = self.relu(out)
@@ -301,9 +302,10 @@ def make_vox_res_layer(block,
                    dcn=None,
                    gcb=None,
                    gen_attention=None,
-                   gen_attention_blocks=[]):
+                   gen_attention_blocks=[],
+                   max_planes=2048):
     downsample = None
-    if stride != 1 or inplanes != planes * block.expansion:
+    if stride != 1 or inplanes != min(max_planes,planes * block.expansion):
         if SPARSE_BEV:
           stride_ds = (stride,stride,1)
         else:
@@ -312,11 +314,11 @@ def make_vox_res_layer(block,
             build_conv_layer(
                 conv_cfg,
                 inplanes,
-                planes * block.expansion,
+                min(max_planes, planes * block.expansion),
                 kernel_size=1,
                 stride=stride_ds,
                 bias=False),
-            build_norm_layer(norm_cfg, planes * block.expansion)[1],
+            build_norm_layer(norm_cfg, min(max_planes, planes * block.expansion))[1],
         )
 
     layers = []
@@ -335,8 +337,11 @@ def make_vox_res_layer(block,
             dcn=dcn,
             gcb=gcb,
             gen_attention=gen_attention if
-            (0 in gen_attention_blocks) else None))
-    inplanes = planes * block.expansion
+            (0 in gen_attention_blocks) else None,
+            max_planes = max_planes
+        )
+    )
+    inplanes = min(max_planes, planes * block.expansion)
     for i in range(1, blocks):
         layers.append(
             block(
@@ -351,7 +356,9 @@ def make_vox_res_layer(block,
                 dcn=dcn,
                 gcb=gcb,
                 gen_attention=gen_attention if
-                (i in gen_attention_blocks) else None))
+                (i in gen_attention_blocks) else None,
+                max_planes = max_planes)
+        )
 
     return nn.Sequential(*layers)
 
@@ -484,7 +491,7 @@ class Sparse3DResNet(nn.Module):
             dilation = dilations[i]
             dcn = self.dcn if self.stage_with_dcn[i] else None
             gcb = self.gcb if self.stage_with_gcb[i] else None
-            planes = min( self.basic_planes * 2**i, self.max_planes)
+            planes = self.basic_planes * 2**i
             res_layer = make_vox_res_layer(
                 self.block,
                 self.inplanes,
@@ -500,8 +507,9 @@ class Sparse3DResNet(nn.Module):
                 dcn=dcn,
                 gcb=gcb,
                 gen_attention=gen_attention,
-                gen_attention_blocks=stage_with_gen_attention[i])
-            self.inplanes = planes * self.block.expansion
+                gen_attention_blocks=stage_with_gen_attention[i],
+                max_planes = self.max_planes)
+            self.inplanes = min(self.max_planes, planes * self.block.expansion)
             layer_name = 'layer{}'.format(i + 1)
             self.add_module(layer_name, res_layer)
             self.res_layers.append(layer_name)
