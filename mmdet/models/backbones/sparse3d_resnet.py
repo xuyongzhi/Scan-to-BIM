@@ -19,7 +19,7 @@ import math
 import time
 
 RECORD_T = 0
-SHOW_NET = 1
+SHOW_NET = 0
 
 from configs.common import VISUAL_RESNET_OUT, SPARSE_BEV
 

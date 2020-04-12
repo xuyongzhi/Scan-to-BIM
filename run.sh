@@ -13,7 +13,7 @@ CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_strpoints_r50_fpn_1x.py
 
 
-LR=0.01
+LR=0.05
 ROTATE=0
 BASE_PLANE=64
 BS=1
