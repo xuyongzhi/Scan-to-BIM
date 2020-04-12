@@ -8,6 +8,7 @@ from collections import defaultdict
 from tools.debug_utils import _show_3d_points_lines_ls
 
 DEBUG_INPUT = 0
+from configs.common import LOAD_VOXED_SPARSE
 
 class DataConfig:
     return_transformation=True
@@ -77,6 +78,9 @@ class BeikePclDataset(VoxelDatasetBase):
                data_types = ['color', 'norm', 'xyz'],
                filter_edges = True,
                pipeline=None,):
+    self.save_sparse_input_for_debug = 0
+    self.load_voxed_sparse = LOAD_VOXED_SPARSE
+
     assert voxel_size is not None
     self.filter_edges = filter_edges
     self.ann_path = ann_file
@@ -232,6 +236,44 @@ class BeikePclDataset(VoxelDatasetBase):
     assert feats.shape[1] == 9
     return feats[:, self.data_channel_inds]
 
+
+  def save_sparse_input(self, coords, feats, labels, img_info ):
+    import pickle
+    sparse_intput_dir = os.path.join(self.data_root, 'sparse_vox_inputs')
+    if not os.path.exists(sparse_intput_dir):
+      os.makedirs(sparse_intput_dir)
+    filename = img_info['img_meta']['filename']
+
+    is_rotate = len(img_info['img_meta']['data_aug']['rotate_angles']) == 3
+    if is_rotate:
+      angle = img_info['img_meta']['data_aug']['rotate_angles'][2]
+      ang_str = str(int(abs(angle)*100))
+      if angle<0:
+        ang_str = 'n'+ang_str
+      svi_file = os.path.join(sparse_intput_dir, filename.replace('.json', f'-{ang_str}.pickle'))
+    else:
+      svi_file = os.path.join(sparse_intput_dir, filename.replace('.json', '.pickle'))
+    with open(svi_file, 'wb') as f:
+      pickle.dump( (coords, feats, labels, img_info), f  )
+    print(f'save sparse vox input: {svi_file}')
+    pass
+
+  def load_sparse_input(self, index, is_rotate=0):
+    import pickle
+
+    img_info = self.img_infos[index]
+    filename =  img_info['img_meta']['filename']
+    sparse_intput_dir = os.path.join(self.data_root, 'sparse_vox_inputs')
+    if is_rotate:
+      svi_file_tem = os.path.join(sparse_intput_dir, filename.replace('.json', '*.pickle'))
+      svi_files = glob.glob(svi_file_tem)
+      n = len(svi_files)
+      svi_file = svi_files[ np.random.choice(n) ]
+    else:
+      svi_file = os.path.join(sparse_intput_dir, filename.replace('.json', '.pickle'))
+    with open(svi_file, 'rb') as f:
+      return_args = pickle.load(f)
+    return return_args
 
 def test():
   beikepcl = BeikePclDataset(ann_file='/home/z/Research/mmdetection/data/beike/processed_512')

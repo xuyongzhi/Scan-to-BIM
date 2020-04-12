@@ -269,6 +269,9 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     return mat[:, :3], mat[:, 3:-1], mat[:, -1]
 
   def __getitem__(self, index):
+    if self.load_voxed_sparse:
+      return self.load_sparse_input(index)
+
     debug = 0
 
     img_info = self.img_infos[index].copy()
@@ -370,6 +373,8 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     #if self.return_transformation:
     #  return_args.append(transformation.astype(np.float32))
 
+    if self.save_sparse_input_for_debug:
+      self.save_sparse_input( coords, feats, labels, img_info )
     return tuple(return_args)
 
 

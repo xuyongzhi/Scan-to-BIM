@@ -44,6 +44,7 @@ OUT_ORDER = {'bbox_refine':[0,0+5], 'bbox_init':[5,5+5],
 OUT_CORNER_HM_ONLY = 0
 LINE_CLS_WEIGHTS = {'refine':0.7, 'final':0.3}
 # debug *******************************************************************************
+LOAD_VOXED_SPARSE = 1
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
 PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0
