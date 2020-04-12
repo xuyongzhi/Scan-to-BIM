@@ -223,7 +223,7 @@ model['backbone']['voxel_size'] = voxel_size
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 500
+total_epochs = 5000
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -247,5 +247,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-#workflow = [('train', 1),]
+workflow = [('train', 1),]
 

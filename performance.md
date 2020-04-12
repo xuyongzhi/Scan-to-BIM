@@ -8,6 +8,7 @@
 |-|----|
 |R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_cnx_ Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K  (No data aug)  | 300-0.1, 500 - 0.0036, 1000 - 0.0001 |
 |R50_fpn_refine_final_beike_pcl_2d_bs1_lr50_cnx_ Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K   (No data aug) | 500 - 0.0775 |
+|TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D1_0K_0K | 335 - 0.1, 465-0.01,  800-0.0026|
 |TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_NR_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K |325 - 0.1, 445-0.01,  800 - 0.0006|
 |TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K | 800-0.0590 |
 
