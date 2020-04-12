@@ -187,6 +187,8 @@ class Collect(object):
         return data
 
     def filter_classes(self, data):
+        if 'gt_labels' not in data:
+          return
         from beike_data_utils.beike_utils import BEIKE
         valid_labels = [BEIKE._category_ids_map[c] for c in self.classes]
         masks = [data['gt_labels'].data == l for l in valid_labels ]

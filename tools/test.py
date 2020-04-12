@@ -280,7 +280,7 @@ def main():
                 coco_eval(result_file, eval_types, dataset.coco)
             else:
                 if cfg['DATA'] != 'coco':
-                      results_datas = save_res_graph(dataset, data_loader, outputs, args.out, cfg['data']['test']['filter_edges'])
+                      results_datas = save_res_graph(dataset, data_loader, outputs, args.out, cfg['data']['test'])
                       #eval_graph(results_datas, dataset, args.out)
                 else:
                   if not isinstance(outputs[0], dict):

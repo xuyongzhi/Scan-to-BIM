@@ -12,6 +12,7 @@
 import math
 from configs.common import  OBJ_REP, IMAGE_SIZE, SPARSE_BEV
 DATA = 'beike_pcl_2d'
+classes= ['window', 'door']
 
 voxel_size = [0.02, 0.04, 0.08][1]
 stem_stride = {0.02:2, 0.04:2, 0.08:1}[voxel_size] * 2
@@ -208,6 +209,7 @@ data = dict(
         max_num_points=max_num_points,
         max_footprint_for_scale=max_footprint_for_scale,
         filter_edges=True,
+        classes = classes,
         pipeline=None),
     val=None,
     test=None,

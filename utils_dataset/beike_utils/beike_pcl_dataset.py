@@ -38,6 +38,7 @@ class BeikePclDataset(VoxelDatasetBase):
   _catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
 
   CLASSES = ['wall']
+  CLASSES = ['window']
   for i,cat in enumerate(_classes):
     if cat not in CLASSES:
       del _category_ids_map[cat]
@@ -77,9 +78,11 @@ class BeikePclDataset(VoxelDatasetBase):
                augment_data = None,
                data_types = ['color', 'norm', 'xyz'],
                filter_edges = True,
+               classes = ['wall'],
                pipeline=None,):
     self.save_sparse_input_for_debug = 0
     self.load_voxlized_sparse = LOAD_VOXELIZED_SPARSE
+    self.classes = classes
 
     assert voxel_size is not None
     self.filter_edges = filter_edges
