@@ -28,6 +28,10 @@ train loss
 
         :800-0.0590 
 
+a22d1e687410ee53173743b4728e72f0d7bd84a2        
+- R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_cnx_Daug_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4_Fe-D1_0K_0K (data aug)  
+        1478-1, 2179-0.5, 5000-0.1
+
 ## 11 Apr Img
 c60fbb970fb75c93b1019b64f3c968dbe866fe33
 TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D90_0K_zX

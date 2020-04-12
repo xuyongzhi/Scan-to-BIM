@@ -3,9 +3,10 @@
 #export CUDA_LAUNCH_BLOCKING=1
 export CUDA_VISIBLE_DEVICES=1
 
-CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/strpoints_r50_fpn_1x_1f.py
 CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x_1f.py
+#CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x_1f.py
 
 
 wkdir=R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_cnx_Daug_Rfiou743_Fpn34_Pbs1_Bp64_Vsz4Stem4_Fe-D1_cX_cX
@@ -17,7 +18,7 @@ CP=./work_dirs/${wkdir}/best.pth
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=1
+BS=5
 DATA_TYPES=cnx
 FILTER_EDGES=1
 

@@ -26,6 +26,8 @@ PCL_LINE_BOUND_PIXEL = PCL_LINE_BOUND_METER / 0.04
 
 #LOAD_CLASSES = ['wall', 'window', 'door']
 LOAD_CLASSES = ['wall']
+#LOAD_CLASSES = ['window',]
+#LOAD_CLASSES = ['door',]
 
 DEBUG = True
 #UNALIGNED_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y',
@@ -776,7 +778,7 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None, filter_e
           #anno['corner_locked'].append( False )
           #anno['corner_locked'].append( False )
 
-          anno['line_ids'].append(line_id)
+          anno['line_ids'].append(line_item['id'])
           anno['lines'].append( line_xy )
           #anno['line_ponit_ids'].append( [line_item['line']+'_start_point', line_item['line']+'_end_point' ] )
           anno['line_cat_ids'].append( cat_id )
@@ -1045,15 +1047,13 @@ def main(data_path):
   topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
-  scenes = ['IDZkUGse-74FIy2OqM2u_Y']
-  scenes = ['1Kc4s2I4OuEriA-vURDlpH']
   #scenes = BAD_SCENE_TRANSFERS_PCL
 
   beike = BEIKE(ANNO_PATH, topview_path, filter_edges=0)
-  beike.find_unscanned_edges()
+  #beike.find_unscanned_edges()
 
-  #for s in scenes:
-  #  beike.show_scene_anno(s, True, 0)
+  for s in scenes:
+    beike.show_scene_anno(s, True, 0)
 
 
   #for s in UNALIGNED_SCENES:
