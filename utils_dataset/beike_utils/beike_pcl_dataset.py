@@ -268,9 +268,12 @@ class BeikePclDataset(VoxelDatasetBase):
       svi_file_tem = os.path.join(sparse_intput_dir, filename.replace('.json', '*.pickle'))
       svi_files = glob.glob(svi_file_tem)
       n = len(svi_files)
-      svi_file = svi_files[ np.random.choice(n) ]
+      i = np.random.choice(n)
+      svi_file = svi_files[ i ]
+      print(f'voxlized sparse input: {i}/{n}')
     else:
       svi_file = os.path.join(sparse_intput_dir, filename.replace('.json', '.pickle'))
+      print(f'voxelized sparse input no rotate')
     with open(svi_file, 'rb') as f:
       return_args = pickle.load(f)
     return return_args

@@ -13,9 +13,9 @@ CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_strpoints_r50_fpn_1x.py
 
 
-LR=0.05
-ROTATE=0
-BASE_PLANE=64
+LR=0.01
+ROTATE=1
+BASE_PLANE=32
 BS=1
 DATA_TYPES=cnx
 FILTER_EDGES=1

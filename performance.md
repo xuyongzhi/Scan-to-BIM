@@ -1,6 +1,16 @@
 
 # RES
 
+## 12 Apr 1 File
+0Kajc_nnyZ6K0cRGCQJW56
+7bb635fc33dcba7fa3d90de9768c9f67bc50ba8c
+|config | train loss |
+|-|----|
+|R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_cnx_ Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K    | 300-0.1, 500 - 0.0036 |
+|R50_fpn_refine_final_beike_pcl_2d_bs1_lr50_cnx_ Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K    | 500 - 0.0775 |
+|TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_NR_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K |325 - 0.1, 445-0.01,  800 - 0.0006|
+|TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K | 800-0.0590 |
+
 ## 11 Apr Img
 c60fbb970fb75c93b1019b64f3c968dbe866fe33
 TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D90_0K_zX
