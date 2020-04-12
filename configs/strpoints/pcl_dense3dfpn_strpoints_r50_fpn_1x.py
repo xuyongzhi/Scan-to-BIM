@@ -29,10 +29,11 @@ stem_stride_z = 8
 z_stride = 3
 z_strides = (z_stride,) * 4
 backbone_out_indices = (0,1,2,3)
-z_out_dims  = [max_height/voxel_size/stem_stride_z/z_strides[0] ]
-for zs in z_strides[1:]:
+stem_z_out_dim = max_height/voxel_size/stem_stride_z
+z_out_dims  = [stem_z_out_dim]
+for zs in z_strides:
   z_out_dims.append( z_out_dims[-1]/zs )
-z_out_dims = tuple([int(math.ceil( z_out_dims[i] )) for i in backbone_out_indices])
+z_out_dims = tuple([int(math.ceil( d )) for d in z_out_dims])
 #*******************************************************************************
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
@@ -84,6 +85,7 @@ model = dict(
         stem_stride=stem_stride,
         stem_stride_z = stem_stride_z,
         basic_planes=bbp,
+        z_out_dims = z_out_dims,
         max_planes=max_planes),
     neck=dict(
         type='FPN_Dense3D',
@@ -93,7 +95,7 @@ model = dict(
         add_extra_convs=True,
         num_outs=4,
         norm_cfg = norm_cfg,
-        z_out_dims = z_out_dims,
+        z_out_dims = z_out_dims[1:],
         z_stride = z_stride,
         ),
     bbox_head=dict(

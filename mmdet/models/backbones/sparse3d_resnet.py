@@ -102,6 +102,7 @@ class Bottleneck(nn.Module):
                  planes,
                  stride=1,
                  z_stride=1,
+                 z_kernel=3,
                  dilation=1,
                  downsample=None,
                  style='pytorch',
@@ -127,6 +128,7 @@ class Bottleneck(nn.Module):
         self.planes = planes
         self.stride = stride
         self.z_stride = z_stride
+        self.z_kernel = z_kernel
         self.dilation = dilation
         self.style = style
         self.with_cp = with_cp
@@ -144,7 +146,7 @@ class Bottleneck(nn.Module):
           kernel_2 = (3,3,1)
         else:
           stride = (stride, stride, z_stride)
-          kernel_2 = (3,3,5)
+          kernel_2 = (3,3,z_kernel)
 
         if self.style == 'pytorch':
             self.conv1_stride = 1
@@ -294,6 +296,7 @@ def make_vox_res_layer(block,
                    blocks,
                    stride=1,
                    z_stride=1,
+                   z_kernel=3,
                    dilation=1,
                    style='pytorch',
                    with_cp=False,
@@ -328,6 +331,7 @@ def make_vox_res_layer(block,
             planes=planes,
             stride=stride,
             z_stride=z_stride,
+            z_kernel=z_kernel,
             dilation=dilation,
             downsample=downsample,
             style=style,
@@ -348,6 +352,7 @@ def make_vox_res_layer(block,
                 inplanes=inplanes,
                 planes=planes,
                 stride=1,
+                z_kernel=z_kernel,
                 dilation=dilation,
                 style=style,
                 with_cp=with_cp,
@@ -438,8 +443,10 @@ class Sparse3DResNet(nn.Module):
                  full_height  = 10.24,
                  stem_stride = None,
                  stem_stride_z = None,
+                 z_out_dims = (),
                  ):
         super(Sparse3DResNet, self).__init__()
+        assert len(z_out_dims) == num_stages + 1
 
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
@@ -481,6 +488,8 @@ class Sparse3DResNet(nn.Module):
         self.full_height = full_height
         self.stem_stride = stem_stride
         self.stem_stride_z_design = stem_stride_z
+        self.z_out_dims = z_out_dims
+        self.z_kernels = [min(3,d) for d in z_out_dims][:-1]
 
         self._make_stem_layer(in_channels)
 
@@ -499,6 +508,7 @@ class Sparse3DResNet(nn.Module):
                 num_blocks,
                 stride=stride,
                 z_stride=z_stride,
+                z_kernel=self.z_kernels[i],
                 dilation=dilation,
                 style=self.style,
                 with_cp=with_cp,

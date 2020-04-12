@@ -33,6 +33,7 @@ class FPN_Dense3D(nn.Module):
                  activation_bev_proj='relu'):
         super(FPN_Dense3D, self).__init__()
         assert isinstance(in_channels, list)
+        assert len(z_out_dims) == len(in_channels)
         self.proj_method = ['res_block', '2conv'][1]
         conv_cfg_2d = dict(type='Conv')
         self.conv_cfg = conv_cfg
@@ -47,7 +48,6 @@ class FPN_Dense3D(nn.Module):
         self.no_norm_on_lateral = no_norm_on_lateral
         self.fp16_enabled = False
         self.z_stride = z_stride
-
 
         if end_level == -1:
             self.backbone_end_level = self.num_ins
@@ -176,7 +176,7 @@ class FPN_Dense3D(nn.Module):
       part2 = proj_layer[-1]
       return nn.ModuleList( [part1, part2] )
 
-    def _build_project_layer_2conv(self, level, in_channels):
+    def small_build_project_layer_2conv(self, level, in_channels):
       '''
       part1 -> max pool -> part2
       '''
@@ -216,7 +216,7 @@ class FPN_Dense3D(nn.Module):
       '''
       part1 -> max pool -> part2
       '''
-      from ..backbones.resnet import make_res_layer, BasicBlock
+      from ..backbones.resnet import make_res_layer, BasicBlock, Bottleneck
       kernels_i =   [(1, 1, self.z_out_dims[level]),]
       strides_i =   [(1, 1, self.z_out_dims[level]),]
 
