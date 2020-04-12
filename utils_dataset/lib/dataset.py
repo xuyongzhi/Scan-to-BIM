@@ -269,8 +269,8 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     return mat[:, :3], mat[:, 3:-1], mat[:, -1]
 
   def __getitem__(self, index):
-    if self.load_voxed_sparse:
-      return self.load_sparse_input(index)
+    if self.load_voxlized_sparse != False:
+      return self.load_sparse_input(index, self.load_voxlized_sparse=='aug')
 
     debug = 0
 

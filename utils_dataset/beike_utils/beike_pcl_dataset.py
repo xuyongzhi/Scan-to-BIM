@@ -8,7 +8,7 @@ from collections import defaultdict
 from tools.debug_utils import _show_3d_points_lines_ls
 
 DEBUG_INPUT = 0
-from configs.common import LOAD_VOXED_SPARSE
+from configs.common import LOAD_VOXELIZED_SPARSE
 
 class DataConfig:
     return_transformation=True
@@ -79,7 +79,7 @@ class BeikePclDataset(VoxelDatasetBase):
                filter_edges = True,
                pipeline=None,):
     self.save_sparse_input_for_debug = 0
-    self.load_voxed_sparse = LOAD_VOXED_SPARSE
+    self.load_voxlized_sparse = LOAD_VOXELIZED_SPARSE
 
     assert voxel_size is not None
     self.filter_edges = filter_edges
@@ -258,7 +258,7 @@ class BeikePclDataset(VoxelDatasetBase):
     print(f'save sparse vox input: {svi_file}')
     pass
 
-  def load_sparse_input(self, index, is_rotate=0):
+  def load_sparse_input(self, index, is_rotate=1):
     import pickle
 
     img_info = self.img_infos[index]
