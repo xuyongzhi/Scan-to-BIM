@@ -26,7 +26,7 @@ PCL_LINE_BOUND_PIXEL = PCL_LINE_BOUND_METER / 0.04
 
 #LOAD_CLASSES = ['wall', 'window', 'door']
 LOAD_CLASSES = ['wall']
-#LOAD_CLASSES = ['window',]
+LOAD_CLASSES = ['window',]
 #LOAD_CLASSES = ['door',]
 
 DEBUG = True
