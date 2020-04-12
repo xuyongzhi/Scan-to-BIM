@@ -239,7 +239,7 @@ def rotate_lines_img(lines, img, angle,  obj_rep, check_by_cross=False):
   gap_y = np.ceil(np.array([gap_y0, gap_y1, 0]).max())
   scale_x = w / (w+gap_x*2.0)
   scale_y = h / (h+gap_y*2.0)
-  scale = min(scale_x, scale_y)
+  scale = min(scale_x, scale_y) * 0.95
   scale = np.floor(scale * 100)/100.0
   if scale < 1:
     scale = scale - 0.03

@@ -83,7 +83,7 @@ def update_config(cfg, args, split):
     base_plane = args.base_plane
     data_types_ = args.data_types
     filter_edges = args.filter_edges
-
+    classes = cfg['classes']
 
     if filter_edges is not None:
         for sp in ['train', 'val', 'test']:
@@ -145,6 +145,8 @@ def update_config(cfg, args, split):
           cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
         if 'DATA' in cfg:
           cfg['work_dir'] += '_' + cfg['DATA']
+        cls_str = ''.join([c[:2] for c in classes])
+        cfg['work_dir'] += '_' + cls_str
         cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
         cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
 

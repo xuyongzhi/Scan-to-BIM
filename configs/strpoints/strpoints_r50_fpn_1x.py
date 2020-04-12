@@ -15,6 +15,7 @@ TOPVIEW = 'VerD' # better
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE
 DATA = 'beike2d'
+classes= ['window', 'door']
 
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
@@ -148,7 +149,7 @@ train_pipeline = [
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'], classes=classes),
 ]
 test_pipeline = [
     dict(type='LoadTopviewFromFile'),
@@ -178,24 +179,27 @@ test_dir=data_root + f'TopView_{TOPVIEW}/test.txt'
 filter_edges=True
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=data_root + f'TopView_{TOPVIEW}/train.txt',
         pipeline=train_pipeline,
+        classes=classes,
         filter_edges=filter_edges),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=data_root + f'TopView_{TOPVIEW}/test.txt',
         pipeline=train_pipeline,
+        classes=classes,
         filter_edges=filter_edges),
     test=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
         img_prefix=test_dir,
         pipeline=test_pipeline,
+        classes=classes,
         filter_edges=filter_edges))
 # optimizer
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)

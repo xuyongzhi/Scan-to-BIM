@@ -167,9 +167,12 @@ class Collect(object):
     def __init__(self,
                  keys,
                  meta_keys=('filename', 'ori_shape', 'img_shape', 'pad_shape',
-                            'scale_factor', 'flip', 'img_norm_cfg', 'rotate_angle')):
+                            'scale_factor', 'flip', 'img_norm_cfg', 'rotate_angle'),
+                 classes=['wall'],
+                 ):
         self.keys = keys
         self.meta_keys = meta_keys
+        self.classes = classes
 
     def __call__(self, results):
         data = {}
@@ -180,7 +183,31 @@ class Collect(object):
         data['img_meta'] = DC(img_meta, cpu_only=True)
         for key in self.keys:
             data[key] = results[key]
+        self.filter_classes(data)
         return data
+
+    def filter_classes(self, data):
+        from beike_data_utils.beike_utils import BEIKE
+        valid_labels = [BEIKE._category_ids_map[c] for c in self.classes]
+        masks = [data['gt_labels'].data == l for l in valid_labels ]
+        mask = masks[0]
+        for m in masks[1:]:
+          mask += m
+        data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
+        data['gt_labels'] = DC(data['gt_labels'].data[mask])
+
+def filter_classes(gt_bboxes, gt_labels):
+    valid_labels = [self.beike._category_ids_map[c] for c in self.classes]
+    masks = [results['gt_labels'].data == l for l in valid_labels ]
+    mask = masks[0]
+    for m in masks[1:]:
+      mask += m
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    results['gt_bboxes'].data = results['gt_bboxes'].data[mask]
+    results['gt_labels'].data = results['gt_labels'].data[mask]
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+
 
     def __repr__(self):
         return self.__class__.__name__ + '(keys={}, meta_keys={})'.format(

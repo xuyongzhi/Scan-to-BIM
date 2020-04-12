@@ -43,6 +43,7 @@ class CustomDataset(Dataset):
                  seg_prefix=None,
                  proposal_file=None,
                  test_mode=False,
+                 classes=['wall'],
                  filter_edges=True):
         self.ann_file = ann_file
         self.data_root = data_root
@@ -50,6 +51,7 @@ class CustomDataset(Dataset):
         self.seg_prefix = seg_prefix
         self.proposal_file = proposal_file
         self.test_mode = test_mode
+        self.classes = classes
         self.filter_edges = filter_edges
         self.input_style = input_style
 
@@ -215,5 +217,4 @@ def show_results_train(results):
   _show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
   #_show_img_with_norm(img)
   #_show_lines_ls_points_ls(img[:,:,1:])
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass

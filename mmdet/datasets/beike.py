@@ -10,10 +10,14 @@ from .registry import DATASETS
 class BeikeDataset(CustomDataset):
 
     #CLASSES = ( 'wall', 'window', 'door' )
-    CLASSES = ( 'wall', )
+    #CLASSES = ( 'wall', )
 
     def load_annotations(self, ann_folder):
-        self.beike = BEIKE(ann_folder, img_prefix=self.img_prefix, test_mode=self.test_mode, filter_edges=self.filter_edges)
+        self.beike = BEIKE(ann_folder, img_prefix=self.img_prefix,
+                           test_mode=self.test_mode,
+                           filter_edges=self.filter_edges,
+                           classes = self.classes,
+                           )
         self.cat_ids = self.beike.getCatIds()
         self.cat2label = {
             cat_id: i + 1
@@ -32,6 +36,5 @@ class BeikeDataset(CustomDataset):
 
     def _set_group_flag(self):
       self.flag = np.zeros(len(self), dtype=np.uint8)
-
 
 

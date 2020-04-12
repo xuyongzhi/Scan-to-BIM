@@ -25,9 +25,7 @@ PCL_LINE_BOUND_METER = 1
 PCL_LINE_BOUND_PIXEL = PCL_LINE_BOUND_METER / 0.04
 
 #LOAD_CLASSES = ['wall', 'window', 'door']
-LOAD_CLASSES = ['wall']
-LOAD_CLASSES = ['window',]
-#LOAD_CLASSES = ['door',]
+#LOAD_CLASSES = ['wall']
 
 DEBUG = True
 #UNALIGNED_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y',
@@ -74,8 +72,10 @@ class BEIKE:
     def __init__(self, anno_folder='data/beike/processed_512/json/',
                  img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
                  test_mode=False,
-                 filter_edges=True ):
+                 filter_edges=True,
+                 classes = ['wall']):
         assert  anno_folder[-5:] == 'json/'
+        self.classes = ['wall', 'window', 'door']
         self.anno_folder = anno_folder
         self.test_mode = test_mode
         self.filter_edges = filter_edges
@@ -106,7 +106,7 @@ class BEIKE:
           scene_name = jfn.split('.')[0]
           if scene_name not in self.scene_list:
             continue
-          anno_raw = load_anno_1scene(self.anno_folder, jfn, filter_edges=filter_edges)
+          anno_raw = load_anno_1scene(self.anno_folder, jfn, self.classes, filter_edges=filter_edges)
 
           anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': IMAGE_SIZE}, )
           filename = jfn.split('.')[0]+data_format
@@ -201,7 +201,7 @@ class BEIKE:
         anno = defaultdict(list)
         anno['filename'] = filename
 
-        if 'wall' in LOAD_CLASSES:
+        if 'wall' in self.classes:
           point_dict = {}
 
           for point in points:
@@ -234,7 +234,7 @@ class BEIKE:
 
         for line_item in line_items:
           cat = line_item['is']
-          if cat not in LOAD_CLASSES:
+          if cat not in self.classes:
             continue
           start_pt = np.array([line_item['startPointAt']['x'], line_item['startPointAt']['y']]).reshape(1,2)
           end_pt = np.array([line_item['endPointAt']['x'], line_item['endPointAt']['y']]).reshape(1,2)
@@ -716,7 +716,7 @@ def get_line_valid_by_density(anno_folder, filename, line_ids_check):
     line_valid = line_density_sum > 0
     return line_valid
 
-def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None, filter_edges=True):
+def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None, filter_edges=True):
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
         metadata = json.load(f)
@@ -729,7 +729,7 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None, filter_e
         anno['filename'] = filename
         anno['line_ids'] = []
 
-        if 'wall' in LOAD_CLASSES:
+        if 'wall' in classes:
           point_dict = {}
 
           for point in points:
@@ -760,7 +760,7 @@ def load_anno_1scene(anno_folder, filename, pcl_scope_zero_offset=None, filter_e
 
         for line_item in line_items:
           cat = line_item['is']
-          if cat not in LOAD_CLASSES:
+          if cat not in classes:
             continue
           start_pt = np.array([line_item['startPointAt']['x'], line_item['startPointAt']['y']]).reshape(1,2)
           end_pt = np.array([line_item['endPointAt']['x'], line_item['endPointAt']['y']]).reshape(1,2)
@@ -859,6 +859,7 @@ def load_gt_lines_bk(img_meta, img, filter_edges):
   scene_name = os.path.basename(filename).replace('.npy', '')
   processed_dir = os.path.dirname(os.path.dirname(filename))
   json_dir = os.path.join(processed_dir, 'json/')
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json', filter_edges=filter_edges)
   anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': IMAGE_SIZE},)
   lines = anno_img['bboxes']
