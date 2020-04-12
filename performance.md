@@ -1,16 +1,32 @@
 
 # RES
+## 12 Apr Img
+4640796996946f34798d2480e8d97799615cbdac
+TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train, line_ave, no rotation  |  0.938 - 0.942  | 0.912 - 0.84 |
+| test                          |  0.857 - 0.832  | 0.748 - 0.63 |
 
 ## 12 Apr 1 File
 0Kajc_nnyZ6K0cRGCQJW56
 7bb635fc33dcba7fa3d90de9768c9f67bc50ba8c
-|config | train loss |
-|-|----|
-|R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_cnx_ Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K  (No data aug)  | 300-0.1, 500 - 0.0036, 1000 - 0.0001 |
-|R50_fpn_refine_final_beike_pcl_2d_bs1_lr50_cnx_ Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K   (No data aug) | 500 - 0.0775 |
-|TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D1_0K_0K | 335 - 0.1, 465-0.01,  800-0.0026|
-|TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_NR_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K |325 - 0.1, 445-0.01,  800 - 0.0006|
-|TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_ VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K | 800-0.0590 |
+train loss 
+- R50_fpn_refine_final_beike_pcl_2d_bs1_lr10_cnx_Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K  (No data aug)  
+
+        : 300-0.1, 500 - 0.0036, 1000 - 0.0001 
+- R50_fpn_refine_final_beike_pcl_2d_bs1_lr50_cnx_Rfiou743_Fpn44_Pbs1_Bp64_Vsz4Stem4_Fe-D1_0K_0K   (No data aug)  
+
+        : 500 - 0.0775 
+- TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D1_0K_0K  
+
+        :335 - 0.1, 465-0.01,  800-0.0026
+- TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_VerD_NR_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K  
+
+        :325 - 0.1, 445-0.01,  800 - 0.0006
+- TPV_r50_fpn_refine_final_beike2d_bs1_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp64_Fe-D1_0K_0K  
+
+        :800-0.0590 
 
 ## 11 Apr Img
 c60fbb970fb75c93b1019b64f3c968dbe866fe33
