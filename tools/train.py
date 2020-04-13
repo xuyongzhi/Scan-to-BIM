@@ -141,12 +141,12 @@ def update_config(cfg, args, split):
     if split == 'train':
         #if '_obj_rep' in cfg:
         #  cfg['work_dir'] += '_' + cfg['_obj_rep']
-        if 'cls_types' in cfg['model']['bbox_head']:
+        if 0 and 'cls_types' in cfg['model']['bbox_head']:
           cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
         if 'DATA' in cfg:
           cfg['work_dir'] += '_' + cfg['DATA']
         cls_str = ''.join([c[:2] for c in classes])
-        cfg['work_dir'] += '_' + cls_str
+        #cfg['work_dir'] += '_' + cls_str
         cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
         cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
 
@@ -158,29 +158,29 @@ def update_config(cfg, args, split):
             cfg['work_dir'] += '_Daug'
 
         if 'pcl' not in dataset:
-          if 'IMAGE_SIZE' in cfg:
-            cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
-          if 'TOPVIEW' in cfg:
-            cfg['work_dir'] += '_' + cfg['TOPVIEW']
+          #if 'IMAGE_SIZE' in cfg:
+          #  cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
+          #if 'TOPVIEW' in cfg:
+          #  cfg['work_dir'] += '_' + cfg['TOPVIEW']
           if 'rotate_ratio' in cfg['train_pipeline'][4]:
             if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
               cfg['work_dir'] += '_NR'
             else:
               cfg['work_dir'] += '_RA'
-          if 'method' in cfg['img_norm_cfg']:
-            cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
+          #if 'method' in cfg['img_norm_cfg']:
+          #  cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
 
-        if dcn_zero_base:
+        if 0 and dcn_zero_base:
           cfg['work_dir'] += '_DcnZb'
         if 'corner_hm' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['corner_hm']:
           cfg['work_dir'] += '_Chm'
           if cfg['model']['bbox_head']['corner_hm_only']:
             cfg['work_dir'] += 'Only'
-          cor_assigner = cfg['train_cfg']['corner']['assigner']
-          radius = cor_assigner['ref_radius']
-          pos_iou = int(cor_assigner['pos_iou_thr'] * 10)
-          neg_iou = int(cor_assigner['neg_iou_thr'] * 10)
-          cfg['work_dir'] += f'R{radius}P{neg_iou}N{neg_iou}'
+        cor_assigner = cfg['train_cfg']['corner']['assigner']
+        radius = cor_assigner['ref_radius']
+        pos_iou = int(cor_assigner['pos_iou_thr'] * 10)
+        neg_iou = int(cor_assigner['neg_iou_thr'] * 10)
+        cfg['work_dir'] += f'R{radius}P{neg_iou}N{neg_iou}'
 
         # refine_iou_assigner
         refine_iou_assigner = cfg['train_cfg']['refine']['assigner']
@@ -206,10 +206,10 @@ def update_config(cfg, args, split):
           stem_stride = cfg['model']['backbone']['stem_stride']
           cfg['work_dir'] += f'_Vsz{vsz}Stem{stem_stride}'
 
-        if 'move_points_to_center' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['move_points_to_center']:
+        if 0 and 'move_points_to_center' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['move_points_to_center']:
           cfg['work_dir'] += f'_Mc'
 
-        if cfg['data']['train']['filter_edges']:
+        if 0 and cfg['data']['train']['filter_edges']:
           cfg['work_dir'] += f'_Fe'
 
         img_prefix = cfg['data']['train']['img_prefix']

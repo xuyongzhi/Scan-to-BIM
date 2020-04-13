@@ -16,6 +16,7 @@
 * compare performace of feeding images of different resolution
 *
 # Items need to be further researched
+- focal loss config
 - voxel_resolution = [512,512] is not fully used. 
 - apis/train.py/batch_processor num_samples
 - conv type for MinkConv

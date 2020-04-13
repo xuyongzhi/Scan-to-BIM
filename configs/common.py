@@ -46,6 +46,7 @@ LINE_CLS_WEIGHTS = {'refine':0.7, 'final':0.3}
 # debug *******************************************************************************
 LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][0]
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
+VISUAL_TOPVIEW_INPUT = 1
 PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0
 VISUALIZE_POINT_ASSIGNER = 0
@@ -55,7 +56,6 @@ SHOW_TRAIN_RES = 0
 CHECK_POINT_ASSIGN = False
 LOAD_GT_TEST = True
 VISUAL_RESNET_OUT = 0
-VISUAL_TOPVIEW_INPUT = 0
 #*******************************************************************************
 
 OBJ_LEGEND = 'score' # score or rotation
