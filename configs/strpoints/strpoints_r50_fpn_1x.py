@@ -17,6 +17,7 @@ from configs.common import  OBJ_REP, IMAGE_SIZE
 DATA = 'beike2d'
 classes= ['window', 'door']
 #classes= ['door']
+#classes= ['wall']
 
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
@@ -150,7 +151,7 @@ train_pipeline = [
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='Pad', size_divisor=32),
     dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels'], classes=classes),
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
 ]
 test_pipeline = [
     dict(type='LoadTopviewFromFile'),

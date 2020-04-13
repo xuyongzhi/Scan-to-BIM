@@ -61,7 +61,7 @@ BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159
                             }
 
 class BEIKE_CLSINFO(object):
-  def __init__(self, classes_in):
+  def __init__(self, classes_in, always_load_walls=1):
       classes_order = ['background', 'door', 'wall',  'window', 'other']
       classes = [c for c in classes_order if c in classes_in]
       self._classes = classes
@@ -70,6 +70,14 @@ class BEIKE_CLSINFO(object):
       self._catid_2_cat = {i:cat for i,cat in enumerate(classes)}
       labels = [*self._category_ids_map.values()]
       self._labels = [l for l in labels if l!=0]
+
+      if always_load_walls:
+        # as current data augment always need walls, add walls if it is not
+        # included, but set label as -1
+        # remove all walls in pipelines/formating.py/Collect
+        if 'wall' not in self._classes:
+          self._category_ids_map['wall'] = -1
+          self._catid_2_cat[-1] = 'wall'
       pass
 
 class BEIKE(BEIKE_CLSINFO):
@@ -91,7 +99,7 @@ class BEIKE(BEIKE_CLSINFO):
                  filter_edges=True,
                  classes = ['wall', ],
                  ):
-        super().__init__(classes)
+        super().__init__(classes, always_load_walls=1)
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
         self.test_mode = test_mode
@@ -371,11 +379,11 @@ class BEIKE(BEIKE_CLSINFO):
       if img is None:
         img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
       for i in range(corners.shape[0]):
-        obj = BEIKE._catid_2_cat[ corner_cat_ids[i] ]
+        obj = self._catid_2_cat[ corner_cat_ids[i] ]
         cv2.circle(img, (corners[i][0], corners[i][1]), 2, colors_corner[obj], -1)
 
       for i in range(lines.shape[0]):
-        obj = BEIKE._catid_2_cat[ line_cat_ids[i] ]
+        obj = self._catid_2_cat[ line_cat_ids[i] ]
         s, e = lines[i]
         cv2.line(img, (s[0], s[1]), (e[0], e[1]), colors_line[obj])
         if obj != 'wall':
@@ -617,7 +625,12 @@ def get_line_valid_by_density(anno_folder, filename, line_ids_check):
     return line_valid
 
 def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None, filter_edges=True):
-      beike_clsinfo = BEIKE_CLSINFO(classes)
+      always_load_walls = 1
+
+      beike_clsinfo = BEIKE_CLSINFO(classes, always_load_walls)
+      if 'wall' not in classes and always_load_walls:
+        classes = classes + ['wall']
+
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
         metadata = json.load(f)
@@ -638,7 +651,7 @@ def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None
             anno['corners'].append( xy )
             #anno['corner_ids'].append( point['id'] )
             #anno['corner_lines'].append( point['lines'] )
-            anno['corner_cat_ids'].append( BEIKE._category_ids_map['wall'] )
+            anno['corner_cat_ids'].append( beike_clsinfo._category_ids_map['wall'] )
             #anno['corner_locked'].append( point['locked'] )
             point_dict[point['id']] = xy
             pass
@@ -651,7 +664,7 @@ def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None
             anno['lines'].append( line_xys )
             anno['line_ids'].append( line['id']  )
             #anno['line_ponit_ids'].append( line['points'] )
-            anno['line_cat_ids'].append( BEIKE._category_ids_map['wall'] )
+            anno['line_cat_ids'].append( beike_clsinfo._category_ids_map['wall'] )
             for ele in BEIKE.edge_atts:
               if ele in line:
                 anno['e_'+ele].append( line[ele] )

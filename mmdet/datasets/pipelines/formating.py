@@ -168,13 +168,9 @@ class Collect(object):
                  keys,
                  meta_keys=('filename', 'ori_shape', 'img_shape', 'pad_shape',
                             'scale_factor', 'flip', 'img_norm_cfg', 'rotate_angle'),
-                 classes=['wall'],
                  ):
         self.keys = keys
         self.meta_keys = meta_keys
-        self.classes = classes
-        from beike_data_utils.beike_utils import BEIKE_CLSINFO
-        self.beike_clsinfo = BEIKE_CLSINFO(self.classes)
         pass
 
     def __call__(self, results):
@@ -192,10 +188,7 @@ class Collect(object):
     def filter_classes(self, data):
         if 'gt_labels' not in data:
           return
-        masks = [data['gt_labels'].data == l for l in self.beike_clsinfo._labels ]
-        mask = masks[0]
-        for m in masks[1:]:
-          mask += m
+        mask = data['gt_labels'].data >= 0
         data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
         data['gt_labels'] = DC(data['gt_labels'].data[mask])
 
