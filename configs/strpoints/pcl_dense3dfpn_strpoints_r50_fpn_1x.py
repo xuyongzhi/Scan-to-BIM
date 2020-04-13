@@ -11,7 +11,7 @@
 import math
 from configs.common import  OBJ_REP, IMAGE_SIZE, SPARSE_BEV
 DATA = 'beike_pcl_2d'
-classes= ['window', 'door']
+classes= ['wall']
 
 voxel_size = [0.02, 0.04, 0.08][1]
 stem_stride = {0.02:2, 0.04:2, 0.08:1}[voxel_size] * 2
@@ -100,7 +100,7 @@ model = dict(
         ),
     bbox_head=dict(
         type='StrPointsHead',
-        num_classes=2,
+        num_classes=1+len(classes),
         in_channels=256,
         feat_channels=256,
         point_feat_channels=256,
@@ -224,7 +224,7 @@ model['backbone']['voxel_size'] = voxel_size
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 500
+total_epochs = 510
 lr_config = dict(
     policy='step',
     warmup='linear',

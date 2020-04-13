@@ -15,8 +15,6 @@ TOPVIEW = 'VerD' # better
 #*******************************************************************************
 from configs.common import  OBJ_REP, IMAGE_SIZE
 DATA = 'beike2d'
-classes= ['window', 'door']
-#classes= ['door']
 classes= ['wall']
 
 _obj_rep = OBJ_REP
@@ -232,5 +230,5 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-workflow = [('train', 1),]
+#workflow = [('train', 1),]
 

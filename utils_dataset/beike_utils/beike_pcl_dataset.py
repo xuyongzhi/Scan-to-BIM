@@ -6,6 +6,7 @@ import glob
 import os
 from collections import defaultdict
 from tools.debug_utils import _show_3d_points_lines_ls
+from beike_data_utils.beike_utils import BEIKE_CLSINFO, load_anno_1scene, raw_anno_to_img
 
 DEBUG_INPUT = 0
 from configs.common import LOAD_VOXELIZED_SPARSE
@@ -32,24 +33,24 @@ class DataConfig:
 
 
 @DATASETS.register_module
-class BeikePclDataset(VoxelDatasetBase):
-  _classes = ['background', 'wall', 'door', 'window', 'other']
-  _category_ids_map = {cat:i for i,cat in enumerate(_classes)}
-  _catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
+class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
+  #_classes = ['background', 'wall', 'door', 'window', 'other']
+  #_category_ids_map = {cat:i for i,cat in enumerate(_classes)}
+  #_catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
 
-  CLASSES = ['wall']
-  CLASSES = ['window']
-  for i,cat in enumerate(_classes):
-    if cat not in CLASSES:
-      del _category_ids_map[cat]
-      del _catid_2_cat[i]
+  #CLASSES = ['wall']
+  #CLASSES = ['window']
+  #for i,cat in enumerate(_classes):
+  #  if cat not in CLASSES:
+  #    del _category_ids_map[cat]
+  #    del _catid_2_cat[i]
 
-  cat_ids = list(_category_ids_map.values())
+  #cat_ids = list(_category_ids_map.values())
 
   CLIP_SIZE = None
   LOCFEAT_IDX = 2
   ROTATION_AXIS = 'z'
-  NUM_LABELS = len(CLASSES)
+  #NUM_LABELS = len(CLASSES)
   IGNORE_LABELS = None
 
   CLIP_BOUND = None
@@ -82,7 +83,7 @@ class BeikePclDataset(VoxelDatasetBase):
                pipeline=None,):
     self.save_sparse_input_for_debug = 0
     self.load_voxlized_sparse = LOAD_VOXELIZED_SPARSE
-    self.classes = classes
+    BEIKE_CLSINFO.__init__(self, classes)
 
     assert voxel_size is not None
     self.filter_edges = filter_edges
@@ -136,7 +137,6 @@ class BeikePclDataset(VoxelDatasetBase):
       mean_pcl_scope: [10.841 10.851  3.392]
       max_pcl_scope: [20.041 15.847  6.531]
     '''
-    from beike_data_utils.beike_utils import load_anno_1scene, raw_anno_to_img
 
     dpaths = [f'ply/{s}.ply' for s in self.scene_list]
     self.data_paths = []
@@ -149,7 +149,10 @@ class BeikePclDataset(VoxelDatasetBase):
     self.img_infos = []
     self.anno_raws = []
     for i in range(n):
-      anno_raw = load_anno_1scene(self.ann_path, self.ann_files[i], self.voxel_zero_offset*self.VOXEL_SIZE, filter_edges=self.filter_edges)
+      anno_raw = load_anno_1scene(self.ann_path, self.ann_files[i],
+                          self._classes,
+                          self.voxel_zero_offset*self.VOXEL_SIZE,
+                          filter_edges=self.filter_edges)
 
       self.anno_raws.append(anno_raw)
       anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})

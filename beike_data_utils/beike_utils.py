@@ -64,20 +64,23 @@ class BEIKE_CLSINFO(object):
   def __init__(self, classes_in, always_load_walls=1):
       classes_order = ['background', 'door', 'wall',  'window', 'other']
       classes = [c for c in classes_order if c in classes_in]
+      if 'background' not in classes:
+        classes = ['background']+ classes
+      n = len(classes)
       self._classes = classes
-      classes = ['background'] + classes
-      self._category_ids_map = {cat:i for i,cat in enumerate(classes)}
-      self._catid_2_cat = {i:cat for i,cat in enumerate(classes)}
-      labels = [*self._category_ids_map.values()]
-      self._labels = [l for l in labels if l!=0]
+      self.CLASSES = classes
+      self.cat_ids = list(range(n))
+      self._category_ids_map = {classes[i]:i for i in range(n)}
+      self._catid_2_cat = {i:classes[i] for i in range(n)}
+      self._labels = self.cat_ids
 
-      if always_load_walls:
+      if always_load_walls and 'wall' not in self._classes:
         # as current data augment always need walls, add walls if it is not
         # included, but set label as -1
         # remove all walls in pipelines/formating.py/Collect
-        if 'wall' not in self._classes:
-          self._category_ids_map['wall'] = -1
-          self._catid_2_cat[-1] = 'wall'
+        self._category_ids_map['wall'] = -1
+        self._catid_2_cat[-1] = 'wall'
+
       pass
 
 class BEIKE(BEIKE_CLSINFO):
