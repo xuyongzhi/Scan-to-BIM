@@ -78,7 +78,7 @@ class BEIKE:
                  img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
                  test_mode=False,
                  filter_edges=True,
-                 classes = ['wall']):
+                 ):
         assert  anno_folder[-5:] == 'json/'
         self.classes = ['wall', 'window', 'door']
         self.anno_folder = anno_folder
@@ -135,7 +135,6 @@ class BEIKE:
           for i in range(n0):
             #self.draw_anno_raw(i, with_img=1)
             self.show_anno_img(i, with_img=1)
-
 
     def unused_fix_unaligned_scenes(self):
       n0 = len(self.img_infos)

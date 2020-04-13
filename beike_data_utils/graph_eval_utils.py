@@ -169,7 +169,8 @@ class GraphEval():
 
             det_category_id = detections[label]['category_id']
             if det_category_id != 1:
-              raise NotImplementedError
+              pass
+              #raise NotImplementedError
             cor_nums_gt_pos_tp, line_nums_gt_pos_tp = self.eval_1img_1cls(img, det_lines_merged, gt_lines, scene_name, det_category_id)
             all_cor_nums_gt_pos_tp[label].append(cor_nums_gt_pos_tp)
             all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
@@ -273,7 +274,14 @@ class GraphEval():
     A gt corner gt_i is successfully detected by det_j, when both of follownig two matches:
       1. det_j is the cloest to gt_i, and the distance is below corner_dis_threshold
       2. gt_i is the cloest to det_j
+
+    nums_gt_pos_tp: [3]
+    detIds_per_gt_2: [n]
     '''
+    if det_corners.shape[0]==0:
+      gt_num = gt_corners.shape[0]
+      return [gt_num, 0, 0], -np.ones(gt_num, dtype=np.int)
+
     diss = np.linalg.norm(gt_corners[:,None,:] - det_corners[None,:,:], axis=2)
     detIds_per_gt_0 = np.argmin(diss, axis=1)
     mindis_per_gt = diss.min(axis=1)
@@ -308,8 +316,14 @@ class GraphEval():
   def save_eval_res_imgs(self, img, det_lines, gt_lines, det_corners, gt_corners,
                         cor_detIds_per_gt, line_detIds_per_gt,
                         cor_nums_gt_pos_tp,  scene_name, det_category_id, obj_wise=0):
-    cor_recall = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[0]
-    cor_precision = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[1]
+    if cor_nums_gt_pos_tp[0] == 0:
+      cor_recall = 1
+    else:
+      cor_recall = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[0]
+    if cor_nums_gt_pos_tp[1] == 0:
+      cor_precision=1
+    else:
+      cor_precision = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[1]
     print(f'\ncor_nums_gt_pos_tp: {cor_nums_gt_pos_tp}')
     print(f'\ncor recall: {cor_recall}\ncor precision: {cor_precision}')
 

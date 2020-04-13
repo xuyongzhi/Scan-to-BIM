@@ -16,7 +16,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import  OBJ_REP, IMAGE_SIZE
 DATA = 'beike2d'
 classes= ['window', 'door']
-classes= ['door']
+#classes= ['door']
 
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
@@ -227,9 +227,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/TPV_r50_fpn'
 load_from = None
-#load_from ='./checkpoints/strpoints_moment_r50_fpn_1x.pth'
-#load_from = f'{work_dir}/best.pth'
-#load_from = f'./work_dirs/T1_r50_fpn_lscope_istopleft_refine_512_VerD_bs1_lr10_RA_Normrawstd/best.pth'
+#load_from ='./checkpoints/beike/Fpn44_Bp32.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]

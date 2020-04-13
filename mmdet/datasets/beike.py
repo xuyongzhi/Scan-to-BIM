@@ -16,7 +16,6 @@ class BeikeDataset(CustomDataset):
         self.beike = BEIKE(ann_folder, img_prefix=self.img_prefix,
                            test_mode=self.test_mode,
                            filter_edges=self.filter_edges,
-                           classes = self.classes,
                            )
         self.cat_ids = self.beike.getCatIds()
         self.cat2label = {

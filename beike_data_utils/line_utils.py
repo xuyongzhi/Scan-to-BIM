@@ -309,7 +309,11 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
     num_cor_uq: m
     '''
     if lines.shape[0] == 0:
-      return np.zeros([0,2]), np.zeros([0,labels.shape[1]]), np.zeros([0,2], dtype=np.int), 0
+      if labels is None:
+        labels_cor = None
+      else:
+        labels_cor = np.zeros([0,labels.shape[1]])
+      return np.zeros([0,2]), labels_cor, np.zeros([0,2], dtype=np.int), 0
 
     lines0 = decode_line_rep(lines, obj_rep)
     if labels is not None:
