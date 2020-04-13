@@ -60,12 +60,23 @@ BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159
                             'wcSLwyAKZafnozTPsaQMyv': (-1,-0.1,-0.05),
                             }
 
+class BEIKE_CLSINFO(object):
+  def __init__(self, classes_in):
+      classes_order = ['background', 'door', 'wall',  'window', 'other']
+      classes = [c for c in classes_order if c in classes_in]
+      self._classes = classes
+      classes = ['background'] + classes
+      self._category_ids_map = {cat:i for i,cat in enumerate(classes)}
+      self._catid_2_cat = {i:cat for i,cat in enumerate(classes)}
+      labels = [*self._category_ids_map.values()]
+      self._labels = [l for l in labels if l!=0]
+      pass
 
-class BEIKE:
-    _classes = ['background', 'wall', 'door', 'window', 'other']
-    _classes = ['background', 'door', 'wall',  'window', 'other']
-    _category_ids_map = {cat:i for i,cat in enumerate(_classes)}
-    _catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
+class BEIKE(BEIKE_CLSINFO):
+    #_classes = ['background', 'wall', 'door', 'window', 'other']
+    #_classes = ['background', 'door', 'wall',  'window', 'other']
+    #_category_ids_map = {cat:i for i,cat in enumerate(_classes)}
+    #_catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
 
     #_category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
     #_catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
@@ -78,9 +89,10 @@ class BEIKE:
                  img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
                  test_mode=False,
                  filter_edges=True,
+                 classes = ['wall', ],
                  ):
+        super().__init__(classes)
         assert  anno_folder[-5:] == 'json/'
-        self.classes = ['wall', 'window', 'door']
         self.anno_folder = anno_folder
         self.test_mode = test_mode
         self.filter_edges = filter_edges
@@ -111,7 +123,8 @@ class BEIKE:
           scene_name = jfn.split('.')[0]
           if scene_name not in self.scene_list:
             continue
-          anno_raw = load_anno_1scene(self.anno_folder, jfn, self.classes, filter_edges=filter_edges)
+          anno_raw = load_anno_1scene(self.anno_folder, jfn,
+                                self._classes, filter_edges=filter_edges)
 
           anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': IMAGE_SIZE}, )
           filename = jfn.split('.')[0]+data_format
@@ -135,6 +148,7 @@ class BEIKE:
           for i in range(n0):
             #self.draw_anno_raw(i, with_img=1)
             self.show_anno_img(i, with_img=1)
+
 
     def unused_fix_unaligned_scenes(self):
       n0 = len(self.img_infos)
@@ -188,128 +202,10 @@ class BEIKE:
       return len(self.img_infos)
 
     def getCatIds(self):
-      return list(BEIKE._category_ids_map.values())
+      return list(self._category_ids_map.values())
 
     def getImgIds(self):
       return list(range(len(self)))
-
-    def unused_load_anno_1scene(self, filename):
-      file_path = os.path.join(self.anno_folder, filename)
-      with open(file_path, 'r') as f:
-        metadata = json.load(f)
-        data = copy.deepcopy(metadata)
-        points = data['points']
-        lines = data['lines']
-        line_items = data['lineItems']
-
-        anno = defaultdict(list)
-        anno['filename'] = filename
-
-        if 'wall' in self.classes:
-          point_dict = {}
-
-          for point in points:
-            xy = np.array([point['x'], point['y']]).reshape(1,2)
-            anno['corners'].append( xy )
-            #anno['corner_ids'].append( point['id'] )
-            #anno['corner_lines'].append( point['lines'] )
-            anno['corner_cat_ids'].append( BEIKE._category_ids_map['wall'] )
-            #anno['corner_locked'].append( point['locked'] )
-            point_dict[point['id']] = xy
-            pass
-
-          for line in lines:
-            point_id_1, point_id_2 = line['points']
-            xy1 = point_dict[point_id_1]
-            xy2 = point_dict[point_id_2]
-            line_xys = np.array([xy1, xy2]).reshape(1,2,2)
-            anno['lines'].append( line_xys )
-            #anno['line_ids'].append( line['id']  )
-            #anno['line_ponit_ids'].append( line['points'] )
-            anno['line_cat_ids'].append( BEIKE._category_ids_map['wall'] )
-            #for ele in ['curve', 'align', 'type', 'edgeComputed', 'thicknessComputed']:
-            #  if ele in line:
-            #    anno['line_'+ele].append( line[ele] )
-            #  else:
-            #    rasie NotImplemented
-            if filename == '7w6zvVsOBAQK4h4Bne7caQ.json':
-              pass
-            pass
-
-        for line_item in line_items:
-          cat = line_item['is']
-          if cat not in self.classes:
-            continue
-          start_pt = np.array([line_item['startPointAt']['x'], line_item['startPointAt']['y']]).reshape(1,2)
-          end_pt = np.array([line_item['endPointAt']['x'], line_item['endPointAt']['y']]).reshape(1,2)
-          cat_id = BEIKE._category_ids_map[cat]
-          line_xy = np.concatenate([start_pt, end_pt], 0).reshape(1,2,2)
-
-          anno['corners'].append( start_pt )
-          anno['corners'].append( end_pt )
-          #anno['corner_ids'].append( line_item['line']+'_start_point' )
-          #anno['corner_ids'].append( line_item['line']+'_end_point' )
-          #anno['corner_lines'].append( line_item['id'] )
-          #anno['corner_lines'].append( line_item['id'] )
-          anno['corner_cat_ids'].append( cat_id )
-          anno['corner_cat_ids'].append( cat_id )
-          #anno['corner_locked'].append( False )
-          #anno['corner_locked'].append( False )
-
-          anno['lines'].append( line_xy )
-          #anno['line_ids'].append( line_item['id']  )
-          #anno['line_ponit_ids'].append( [line_item['line']+'_start_point', line_item['line']+'_end_point' ] )
-          anno['line_cat_ids'].append( cat_id )
-          #for ele in ['curve', 'align', 'type', 'edgeComputed', 'thicknessComputed']:
-          #  if ele in line_item:
-          #    anno['line_'+ele].append( line_item[ele] )
-          #  else:
-          #    rasie NotImplemented
-          #    pass
-
-          pass
-
-        #for ele in ['corners', 'lines', 'corner_ids', 'corner_cat_ids', 'corner_locked', '']:
-        for ele in anno:
-          if len(anno[ele])>0 and (not isinstance(anno[ele][0], str)):
-            if isinstance(anno[ele][0], int):
-              anno[ele] = np.array(anno[ele])
-            else:
-              anno[ele] = np.concatenate(anno[ele], 0)
-
-      anno['corners'] = anno['corners'].astype(np.float32)
-      anno['lines'] = anno['lines'].astype(np.float32)
-
-      lines_leng = np.linalg.norm(anno['lines'][:,0] - anno['lines'][:,1], axis=-1)
-      anno['line_length_min_mean_max'] = [lines_leng.min(), lines_leng.mean(), lines_leng.max()]
-      return anno
-
-    @staticmethod
-    def unused_line_to_bbox(lines):
-      '''
-      input: lings: [n,2,2] [[x0,y0], [x1,y1]]
-      output: bboxes: [n,4]
-
-      x: width
-      y: height
-      original point (x=0,y=0) is left-top
-      bbox format: [bbox_left, bbox_up, bbox_right, bbox_bottom]
-      '''
-
-      n = lines.shape[0]
-      bboxes = np.empty([n,4], dtype=lines.dtype)
-      bboxes[:,[0,1]] = lines.min(axis=1)
-      bboxes[:,[2,3]] = lines.max(axis=1)
-      # aug thickness for 2 pixels
-      #mask = (bboxes[:,2:4] - bboxes[:,0:2]) < 2
-      #bboxes[:,[0,1]] -= mask
-      #bboxes[:,[2,3]] += mask
-
-      bboxes = np.clip(bboxes, a_min=0, a_max=IMAGE_SIZE-1)
-
-      #img = np.zeros([256,256,3])
-      #mmcv.imshow_bboxes(img, bboxes)
-      return bboxes
 
 
     def get_scene_index(self, scene_name):
@@ -721,6 +617,7 @@ def get_line_valid_by_density(anno_folder, filename, line_ids_check):
     return line_valid
 
 def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None, filter_edges=True):
+      beike_clsinfo = BEIKE_CLSINFO(classes)
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
         metadata = json.load(f)
@@ -768,7 +665,7 @@ def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None
             continue
           start_pt = np.array([line_item['startPointAt']['x'], line_item['startPointAt']['y']]).reshape(1,2)
           end_pt = np.array([line_item['endPointAt']['x'], line_item['endPointAt']['y']]).reshape(1,2)
-          cat_id = BEIKE._category_ids_map[cat]
+          cat_id = beike_clsinfo._category_ids_map[cat]
           line_xy = np.concatenate([start_pt, end_pt], 0).reshape(1,2,2)
 
           anno['corners'].append( start_pt )

@@ -173,6 +173,9 @@ class Collect(object):
         self.keys = keys
         self.meta_keys = meta_keys
         self.classes = classes
+        from beike_data_utils.beike_utils import BEIKE_CLSINFO
+        self.beike_clsinfo = BEIKE_CLSINFO(self.classes)
+        pass
 
     def __call__(self, results):
         data = {}
@@ -189,9 +192,7 @@ class Collect(object):
     def filter_classes(self, data):
         if 'gt_labels' not in data:
           return
-        from beike_data_utils.beike_utils import BEIKE
-        valid_labels = [BEIKE._category_ids_map[c] for c in self.classes]
-        masks = [data['gt_labels'].data == l for l in valid_labels ]
+        masks = [data['gt_labels'].data == l for l in self.beike_clsinfo._labels ]
         mask = masks[0]
         for m in masks[1:]:
           mask += m
