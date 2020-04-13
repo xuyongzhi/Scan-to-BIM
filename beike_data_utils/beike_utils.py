@@ -62,8 +62,13 @@ BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159
 
 
 class BEIKE:
-    _category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
-    _catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
+    _classes = ['background', 'wall', 'door', 'window', 'other']
+    _classes = ['background', 'door', 'wall',  'window', 'other']
+    _category_ids_map = {cat:i for i,cat in enumerate(_classes)}
+    _catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
+
+    #_category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
+    #_catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
 
     edge_atts = ['thickness','curve', 'align', 'type', 'edgeComputed', 'thicknessComputed', 'offsetComputed', 'isLoadBearing']
     edge_atts = []

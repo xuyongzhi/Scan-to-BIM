@@ -16,6 +16,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import  OBJ_REP, IMAGE_SIZE
 DATA = 'beike2d'
 classes= ['window', 'door']
+classes= ['door']
 
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
@@ -53,7 +54,7 @@ model = dict(
         norm_cfg=norm_cfg),
     bbox_head=dict(
         type='StrPointsHead',
-        num_classes=2,
+        num_classes=len(classes) + 1,
         in_channels=256,
         feat_channels=256,
         point_feat_channels=256,

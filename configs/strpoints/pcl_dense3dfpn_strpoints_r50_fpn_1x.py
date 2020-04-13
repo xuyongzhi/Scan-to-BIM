@@ -1,6 +1,5 @@
 # model settings
 ''' modified
-  num_classes
   num_points
 '''
 ''' # pedding

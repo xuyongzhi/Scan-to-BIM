@@ -10,9 +10,9 @@ from utils_dataset.gen_sparse_input import update_img_shape_for_pcl
 
 from tools import debug_utils
 import time
+from configs.common import SHOW_TRAIN_RES
 
 RECORD_T = 0
-SHOW_TRAIN_RES = 0
 
 @DETECTORS.register_module
 class SingleStageDetector(BaseDetector):
@@ -149,10 +149,15 @@ class SingleStageDetector(BaseDetector):
           from configs.common import clean_bboxes_out
           _det_bboxes1 = clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
           _det_bboxes = [_det_bboxes1]
+          ngt = len(_gt_bboxes[0])
+          ndt = len(_det_bboxes[0])
+          print(f'gt num={ngt}, det num={ndt}')
 
-          debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
-          debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
+          #debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
+          #debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
           debug_utils._show_lines_ls_points_ls((512,512), [_gt_bboxes[0], _det_bboxes[0]], line_colors=['red','green'])
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         return losses
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
