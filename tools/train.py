@@ -60,6 +60,7 @@ def parse_args():
     parser.add_argument('--corhm', type=int, default=None,
                         help='0: no corner heat map, 1: both corner and line, 2:only corner')
     parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
+    parser.add_argument('--classes', type=str, default=None, help='a for wall, i for window, d for door')
     parser.add_argument('--filter_edges', type=int, default=None,)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
@@ -83,6 +84,16 @@ def update_config(cfg, args, split):
     base_plane = args.base_plane
     data_types_ = args.data_types
     filter_edges = args.filter_edges
+    cls_str = args.classes
+
+    if cls_str is not None:
+      cls_full = {'a':'wall', 'i':'window', 'd':'door'}
+      classes = [cls_full[c] for c in cls_str]
+      cfg['classes'] = classes
+      cfg['model']['bbox_head']['num_classes'] = len(classes)+1
+      for sp in ['train', 'val', 'test']:
+        cfg['data'][sp]['classes'] = classes
+      pass
     classes = cfg['classes']
 
     if filter_edges is not None:
@@ -146,10 +157,9 @@ def update_config(cfg, args, split):
         if 'DATA' in cfg:
           cfg['work_dir'] += '_' + cfg['DATA']
         cls_str = ''.join([c[:2] for c in classes])
-        #cfg['work_dir'] += '_' + cls_str
+        cfg['work_dir'] += '_' + cls_str
         cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
         cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
-
 
         if 'pcl' in dataset:
           if data_types is not None:

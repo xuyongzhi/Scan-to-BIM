@@ -46,7 +46,7 @@ LINE_CLS_WEIGHTS = {'refine':0.7, 'final':0.3}
 # debug *******************************************************************************
 LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][0]
 MIN_BOX_SIZE = 5.0 * IMAGE_SIZE / 1024
-VISUAL_TOPVIEW_INPUT = 1
+VISUAL_TOPVIEW_INPUT = 0
 PRINT_POINT_ASSIGNER = 0
 PRINT_IOU_ASSIGNER = 0
 VISUALIZE_POINT_ASSIGNER = 0

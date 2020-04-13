@@ -202,6 +202,7 @@ def parse_args():
     parser.add_argument('--auto_scale_vs', type=int, default=None,
                         help='0 or 1: auto scale the point cloud to full voxel resolution')
     parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
+    parser.add_argument('--classes', type=str, default=None, help='a for wall, i for window, d for door')
     parser.add_argument('--filter_edges', type=int, default=None,)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:

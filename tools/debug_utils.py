@@ -7,7 +7,7 @@ from mmcv.image import imread, imwrite
 import cv2
 from MinkowskiEngine import SparseTensor
 
-from .color import color_val, get_random_color, label2color
+from .color import color_val, get_random_color, label2color, _label2color
 
 ADD_FRAME = 1
 
@@ -224,6 +224,18 @@ def _show_lines_ls_points_ls(img, lines_ls=None, points_ls=None,
   img = _draw_lines_ls_points_ls(img, lines_ls, points_ls, line_colors, point_colors, out_file, line_thickness, point_thickness, box=box)
   if not only_save:
     mmcv.imshow(img)
+
+def _show_lines_labels(img, lines, labels):
+  min_l = labels.min()
+  max_l = labels.max()
+  lines_ls = []
+  colors = []
+  for l in range(min_l, max_l+1):
+    mask  = labels == l
+    lines_ls.append( lines[mask] )
+    colors.append( _label2color(l) )
+  _show_lines_ls_points_ls( img, lines_ls, line_colors=colors )
+  pass
 
 def _draw_lines_ls_points_ls(img, lines_ls, points_ls=None, line_colors='green', point_colors='red', out_file=None, line_thickness=1, point_thickness=1, box=False):
   if lines_ls is not None:

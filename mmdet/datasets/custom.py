@@ -193,7 +193,7 @@ def show_results_test(results):
     pass
 
 def show_results_train(results):
-  from tools.debug_utils import _show_lines_ls_points_ls, _show_img_with_norm
+  from tools.debug_utils import _show_lines_ls_points_ls, _show_img_with_norm, _show_lines_labels
   print('\ncustom, after data augmentation',results['img_meta'].data['filename'])
   img = results['img'].data.cpu().numpy()
   img = np.moveaxis(img, 0, -1)
@@ -214,7 +214,9 @@ def show_results_train(results):
     rotate_angle = 0
   print(f'flip: {flip}\nrotate_angle: {rotate_angle}')
 
-  _show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
+  #_show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
+  _show_lines_labels(img[:,:,0], gt_bboxes, gt_labels)
   #_show_img_with_norm(img)
   #_show_lines_ls_points_ls(img[:,:,1:])
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass

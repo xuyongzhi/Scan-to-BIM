@@ -17,7 +17,7 @@ from configs.common import  OBJ_REP, IMAGE_SIZE
 DATA = 'beike2d'
 classes= ['window', 'door']
 #classes= ['door']
-#classes= ['wall']
+classes= ['wall']
 
 _obj_rep = OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}

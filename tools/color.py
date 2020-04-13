@@ -26,6 +26,12 @@ def get_random_color():
   col = random.sample(colors, 1)[0]
   return Color[col].value
 
+def _label2color(label):
+  colors = ['red', 'green', 'blue','cyan','yellow','magenta']
+  n = len(colors)
+  k = label % n
+  return colors[k]
+
 def color_val(color):
     """Convert various input to color tuples.
 
