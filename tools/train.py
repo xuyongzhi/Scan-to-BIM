@@ -172,7 +172,6 @@ def update_config(cfg, args, split):
           #  cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
           #if 'TOPVIEW' in cfg:
           #  cfg['work_dir'] += '_' + cfg['TOPVIEW']
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           if 'rotate_ratio' in cfg['train_pipeline'][4]:
             if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
               cfg['work_dir'] += '_NR'
