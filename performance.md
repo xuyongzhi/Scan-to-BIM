@@ -1,5 +1,35 @@
 
 # RES
+## 14 Apr Img
+- wall window door  
+79563a9de0a35b22c28a38f31d3c17b1c823ace9
+TPV_r50_fpn_beike2d_wawido_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX
+
+|split| wall corner | wall edge | door corner |  door edge | window corner | window edge |
+|-|-|-|-|-|-|-| 
+| train | 0.92 - 0.876| 0.887 - 0.739 |0.944 - 0.865 | 0.846 - 0.834| 0.912 - 0.486|0.713 - 0.409 |
+| eval  | 0.826 - 0.78| 0.759 - 0.593| 0.854 - 0.719|0.701 - 0.644 |0.684 - 0.26 |0.467 - 0.187   |
+
+
+- window door  
+79563a9de0a35b22c28a38f31d3c17b1c823ace9
+TPV_r50_fpn_beike2d_wido_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX
+
+|split| door corner |  door edge | window corner | window edge |
+|-|-|-|-|-|
+| train | 0.991 - 0.962 | 0.911 - 0.93 | 0.975 - 0.858 | 0.751 - 0.757  |
+| eval  | 0.902 - 0.753 | 0.785 - 0.699 | 0.632 - 0.367 | 0.388 - 0.253 |
+
+- wall  
+79563a9de0a35b22c28a38f31d3c17b1c823ace9
+TPV_r50_fpn_beike2d_wa_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX  
+
+|split| wall corner |  wall edge  | 
+|-|-|-|
+| train | 0.927 - 0.932 | 0.902 - 0.816 | 
+| eval  | 0.812 - 0.82 | 0.713 - 0.614  |
+
+
 ## 13 Apr 1 File
 d2a3eb0c866844525bd79c65df8b6d744022b309
 - R50_fpn_beike_pcl_2d_wi_bs1_lr10_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4-D1_0K_0K
@@ -118,3 +148,7 @@ Empty gt edges filtered
 |Bp32_Vsz4Stem4| train, line_ave, no rotation    | 0.867 - 0.807  | 0.8 - 0.614  |
 |              | test                            |  0.824 - 0.764 | 0.721 - 0.533  |
 
+```
+| train | | | | | | |
+| eval  | | | | | | |
+```
