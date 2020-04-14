@@ -23,7 +23,7 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_height = 5.12
 
-batch_size = 5
+batch_size = 4
 
 stem_stride_z = 8
 z_stride = 3
@@ -193,7 +193,7 @@ img_norm_cfg = dict(
 lra = 0.01
 
 
-max_footprint_for_scale = 200
+max_footprint_for_scale = 160 # 200
 max_num_points = 20 * 10000
 data = dict(
     imgs_per_gpu=batch_size,

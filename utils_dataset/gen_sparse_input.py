@@ -138,8 +138,10 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
 
-  debug = 0
+  debug = 1
+  voxel_size = 0.04
   if debug and SPARSE_BEV:
+
     coords_batch = sinput.C
     feats_batch = sinput.F
 
@@ -167,7 +169,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       data_aug = img_meta_i['data_aug']
       dynamic_vox_size_aug = img_meta_i['dynamic_vox_size_aug']
       print('\n\nfinal sparse input')
-      footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1]
+      footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1] * (voxel_size*voxel_size)
       print(f'dynamic_vox_size_aug: {dynamic_vox_size_aug}, footprint: {footprint}')
 
       print(f'num voxel: {num_p/1000}K')
@@ -222,7 +224,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       data_aug = img_meta_i['data_aug']
       dynamic_vox_size_aug = img_meta_i['dynamic_vox_size_aug']
       print('\n\nfinal sparse input')
-      footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1]
+      footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1] * (voxel_size*voxel_size)
       print(f'dynamic_vox_size_aug: {dynamic_vox_size_aug}, footprint: {footprint}')
 
       print(f'num voxel: {num_p/1000}K')
@@ -236,7 +238,6 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True, point_normals=[normals])
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
   return sinput
 
