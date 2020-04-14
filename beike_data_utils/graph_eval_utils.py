@@ -40,8 +40,8 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
           res_data['gt_labels'] = [ b.cpu().data.numpy() for b in result['gt_labels']]
 
         detections_all_labels = []
-        for label in range(len(det_result)):
-          det_lines_multi_stages = det_result[label]
+        for label in range(1, len(det_result)+1):
+          det_lines_multi_stages = det_result[label-1]
           det_lines = det_lines_multi_stages
           category_id = dataset.cat_ids[label]
           detection_l = {'det_lines': det_lines, 'category_id': category_id}
@@ -138,14 +138,17 @@ class GraphEval():
         scene_name = os.path.splitext(os.path.basename(filename))[0]
 
         if not is_pcl:
-          gt_lines = load_gt_lines_bk(img_meta, img, self.classes, self.filter_edges)
+          gt_lines, gt_labels = load_gt_lines_bk(img_meta, img, self.classes, self.filter_edges)
         else:
           gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
+          gt_labels = results_datas[i_img]['gt_labels'][0].copy()
           gt_lines[:,:4] = gt_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
 
         num_labels = len(detections)
-        for label in range(num_labels):
-            det_lines_raw = detections[label]['det_lines'].copy()
+        for label in range(1, num_labels+1):
+            label_mask = gt_labels == label
+            gt_lines_l = gt_lines[label_mask]
+            det_lines_raw = detections[label-1]['det_lines'].copy()
             assert det_lines_raw.shape[1] == self.dim_parse.OUT_DIM_FINAL
 
             det_lines = self.dim_parse.clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
@@ -153,27 +156,27 @@ class GraphEval():
               det_lines[:,:4] = det_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
             if debug:
               print('raw prediction')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines], line_colors=['green','red'])
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
 
             det_lines = filter_low_score_det(det_lines, self._score_threshold)
             if debug:
               print(f'score > {self._score_threshold}')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines], line_colors=['green','red'])
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
 
-            labels_i = np.ones(det_lines.shape[0])*label
+            labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
             scores_i = det_lines[:,-1]
             det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, self.dim_parse.OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
             det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
 
             if debug:
               print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines], line_colors=['green','red'])
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
 
-            det_category_id = detections[label]['category_id']
+            det_category_id = detections[label-1]['category_id']
             if det_category_id != 1:
               pass
               #raise NotImplementedError
-            cor_nums_gt_pos_tp, line_nums_gt_pos_tp = self.eval_1img_1cls(img, det_lines_merged, gt_lines, scene_name, det_category_id)
+            cor_nums_gt_pos_tp, line_nums_gt_pos_tp = self.eval_1img_1cls(img, det_lines_merged, gt_lines_l, scene_name, det_category_id)
             all_cor_nums_gt_pos_tp[label].append(cor_nums_gt_pos_tp)
             all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
             pass
@@ -185,8 +188,8 @@ class GraphEval():
       cor = all_cor_nums_gt_pos_tp[label].sum(axis=0)
       line = all_line_nums_gt_pos_tp[label].sum(axis=0)
 
-      corner_recall_precision[label + 1] = [cor[2]/cor[0], cor[2]/cor[1]]
-      line_recall_precision[label + 1] = [line[2]/line[0], line[2]/line[1]]
+      corner_recall_precision[label ] = [cor[2]/cor[0], cor[2]/cor[1]]
+      line_recall_precision[label ] = [line[2]/line[0], line[2]/line[1]]
 
     eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, dataset)
     path = os.path.dirname(out_file)

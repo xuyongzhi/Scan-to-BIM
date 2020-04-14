@@ -788,9 +788,9 @@ def load_gt_lines_bk(img_meta, img, classes, filter_edges):
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']
     lines, _ = rotate_lines_img(lines, img, rotate_angle, DIM_PARSE.OBJ_REP)
-    return lines
+    return lines, labels
   else:
-    return lines
+    return lines, labels
 
 def fix_1_unaligned_scene(scene_name, lines_unaligned, image_size, line_obj_rep):
     '''
