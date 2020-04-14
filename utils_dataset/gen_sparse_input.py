@@ -138,7 +138,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
 
-  debug = 1
+  debug = 0
   voxel_size = 0.04
   if debug and SPARSE_BEV:
 
