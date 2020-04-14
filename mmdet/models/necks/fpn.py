@@ -7,7 +7,8 @@ from ..registry import NECKS
 from ..utils import ConvModule
 
 
-from configs.common import SPARSE_BEV
+from configs.common import DEBUG_CFG
+SPARSE_BEV = DEBUG_CFG.SPARSE_BEV
 from tools.debug_utils import _show_tensor_ls_shapes
 SHOW_NET = 0
 

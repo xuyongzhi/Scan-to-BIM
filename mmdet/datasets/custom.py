@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from .pipelines import Compose
 from .registry import DATASETS
 np.set_printoptions(precision=3, suppress=True)
-from configs.common import VISUAL_TOPVIEW_INPUT
+from configs.common import  DEBUG_CFG
 
 @DATASETS.register_module
 class CustomDataset(Dataset):
@@ -163,7 +163,7 @@ class CustomDataset(Dataset):
         results = self.pipeline(results)
         results['img_meta'].data['input_style'] = self.input_style
 
-        if VISUAL_TOPVIEW_INPUT:
+        if DEBUG_CFG.VISUAL_TOPVIEW_INPUT:
           show_results_train(results)
         return results
 

@@ -2,7 +2,7 @@ from MinkowskiEngine import SparseTensor
 import numpy as np
 import torch
 
-from configs.common import SPARSE_BEV
+from configs.common import DEBUG_CFG
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 
 def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
@@ -134,13 +134,13 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   #coords_batch[:, 1:4] += coord_base
 
   sinput = SparseTensor(feats_batch, coords_batch)
-  if SPARSE_BEV:
+  if DEBUG_CFG.SPARSE_BEV:
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
 
   debug = 0
   voxel_size = 0.04
-  if debug and SPARSE_BEV:
+  if debug and DEBUG_CFG.SPARSE_BEV:
 
     coords_batch = sinput.C
     feats_batch = sinput.F
@@ -188,7 +188,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-  if debug and not SPARSE_BEV:
+  if debug and not DEBUG_CFG.SPARSE_BEV:
     n = coords_batch.shape[0]
     print(f'batch voxe num: {n/1000}K')
 

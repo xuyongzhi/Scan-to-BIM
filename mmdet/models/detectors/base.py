@@ -8,7 +8,8 @@ import os
 import torch
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
+from configs.common import DIM_PARSE
+#OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from beike_data_utils.line_utils import  optimize_graph
 from utils_dataset.gen_sparse_input import prepare_sparse_input, prepare_bev_sparse

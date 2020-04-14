@@ -11,13 +11,13 @@
 '''
 
 TOPVIEW = 'VerD' # better
-#TOPVIEW = 'All'
 #*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE
+from configs.common import DIM_PARSE
+IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 classes= ['wall']
 
-_obj_rep = OBJ_REP
+_obj_rep = DIM_PARSE.OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
 
@@ -168,17 +168,11 @@ test_pipeline = [
             dict(type='Collect', keys=['img']),
         ])
 ]
-if IMAGE_SIZE == 512:
-  batch_size = 7
-  lra = 0.01
-if IMAGE_SIZE == 1024:
-  batch_size = 1
-  lra = 0.005
 
 test_dir=data_root + f'TopView_{TOPVIEW}/test.txt'
 filter_edges=True
 data = dict(
-    imgs_per_gpu=batch_size,
+    imgs_per_gpu=7,
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,
@@ -202,7 +196,7 @@ data = dict(
         classes=classes,
         filter_edges=filter_edges))
 # optimizer
-optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 total_epochs = 810

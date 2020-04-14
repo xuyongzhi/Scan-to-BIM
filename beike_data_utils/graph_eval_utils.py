@@ -1,7 +1,8 @@
 import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from tools.debug_utils import _show_lines_ls_points_ls
-from configs.common import clean_bboxes_out, OBJ_REP, IMAGE_SIZE
+from configs.common import DIM_PARSE
+#clean_bboxes_out, OBJ_REP, IMAGE_SIZE
 from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine, optimize_graph
 from collections import defaultdict
 import os

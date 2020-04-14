@@ -19,7 +19,8 @@ from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lin
 
 import torchvision as tcv
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL
+from configs.common import DIM_PARSE
+#OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -1031,6 +1032,7 @@ class StrPointsHead(nn.Module):
                                      pts_preds_refine[i], pts_preds_init[i],
                                      cls_scores_refine_final[i], ], dim=1)
             assert bbox_preds_refine[i].shape[1] == OBJ_DIM
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             assert init_refine.shape[1] == OBJ_DIM + OUT_EXTAR_DIM
             bbox_preds_refine[i] = init_refine
 

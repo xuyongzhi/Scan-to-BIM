@@ -10,7 +10,8 @@ from utils_dataset.gen_sparse_input import update_img_shape_for_pcl
 
 from tools import debug_utils
 import time
-from configs.common import SHOW_TRAIN_RES
+from configs.common import DEBUG_CFG
+SHOW_TRAIN_RES = DEBUG_CFG.SHOW_TRAIN_RES
 
 RECORD_T = 0
 

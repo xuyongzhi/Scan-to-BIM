@@ -3,7 +3,7 @@ import torch
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
-from configs.common import PRINT_POINT_ASSIGNER, MIN_BOX_SIZE,  CHECK_POINT_ASSIGN, VISUALIZE_POINT_ASSIGNER
+from configs.common import DEBUG_CFG
 DEBUG = 0
 
 class PointAssigner(BaseAssigner):
@@ -105,8 +105,8 @@ class PointAssigner(BaseAssigner):
           pass
         else:
           raise NotImplemented
-        if CHECK_POINT_ASSIGN:
-          if not gt_bboxes_wh.min() > MIN_BOX_SIZE:
+        if DEBUG_CFG.CHECK_POINT_ASSIGN:
+          if not gt_bboxes_wh.min() > DEBUG_CFG.MIN_BOX_SIZE:
             import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
         gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
@@ -141,7 +141,7 @@ class PointAssigner(BaseAssigner):
                 points_gt_dist, self.pos_num, largest=False)
 
             #print(f'min_dist: {min_dist}')
-            if CHECK_POINT_ASSIGN:
+            if DEBUG_CFG.CHECK_POINT_ASSIGN:
               if min_dist.max() > 2:
                 print(f'\n\tmin_dist is too large: {min_dist}\n')
                 import pdb; pdb.set_trace()  # XXX BREAKPOINT
@@ -172,7 +172,7 @@ class PointAssigner(BaseAssigner):
                 assigned_labels[pos_inds] = gt_labels[
                     assigned_gt_inds[pos_inds] - 1]
 
-            if PRINT_POINT_ASSIGNER:
+            if DEBUG_CFG.PRINT_POINT_ASSIGNER:
               pos_dist = assigned_gt_dist[pos_inds]
             #  print(f'pos_dist: {pos_dist}')
         else:
@@ -182,11 +182,11 @@ class PointAssigner(BaseAssigner):
             num_gts, assigned_gt_inds, None, labels=assigned_labels,
             env='PointAssigner', img_meta=img_meta)
 
-        if PRINT_POINT_ASSIGNER:
+        if DEBUG_CFG.PRINT_POINT_ASSIGNER:
           assign_res.dg_add_pos_dist(pos_dist)
           print('\tPointAssigner\t' + str(assign_res))
 
-        if VISUALIZE_POINT_ASSIGNER:
+        if DEBUG_CFG.VISUALIZE_POINT_ASSIGNER:
           #if (not assign_res.num_pos_inds == num_gts):
             from  tools.debug_utils import _show_lines_ls_points_ls
             import numpy as np

@@ -15,7 +15,7 @@ import time
 import mmcv
 import glob
 
-from configs.common import OBJ_DIM, OBJ_REP, IMAGE_SIZE
+from configs.common import DIM_PARSE
 from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines, gen_corners_from_lines_np
 from tools.debug_utils import get_random_color, _show_img_with_norm, _show_lines_ls_points_ls
 np.set_printoptions(precision=3, suppress=True)
@@ -137,7 +137,7 @@ class BEIKE(BEIKE_CLSINFO):
           anno_raw = load_anno_1scene(self.anno_folder, jfn,
                                 self._classes, filter_edges=filter_edges)
 
-          anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': IMAGE_SIZE}, )
+          anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, )
           filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
                       'ann': anno_img,
@@ -166,7 +166,7 @@ class BEIKE(BEIKE_CLSINFO):
       for i in range(n0):
         sn = self.img_infos[i]['filename'].split('.')[0]
         self.img_infos[i]['ann']['bboxes'] = fix_1_unaligned_scene(sn, \
-                                self.img_infos[i]['ann']['bboxes'], IMAGE_SIZE)
+                                self.img_infos[i]['ann']['bboxes'], DIM_PARSE.IMAGE_SIZE)
 
     def rm_bad_scenes(self):
       valid_ids = []
@@ -258,15 +258,15 @@ class BEIKE(BEIKE_CLSINFO):
       anno = self.img_infos[idx]['ann']
       bboxes = anno['bboxes']
       labels = anno['labels']
-      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, OBJ_REP)
+      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, DIM_PARSE.OBJ_REP)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
 
 
       if not with_img:
-        img = np.zeros((IMAGE_SIZE, IMAGE_SIZE, 3), dtype=np.uint8)
-        img = (IMAGE_SIZE, IMAGE_SIZE)
+        img = np.zeros((DIM_PARSE.IMAGE_SIZE, DIM_PARSE.IMAGE_SIZE, 3), dtype=np.uint8)
+        img = (DIM_PARSE.IMAGE_SIZE, DIM_PARSE.IMAGE_SIZE)
       else:
         img = self.load_data(scene_name)[:,:,0]
         img = img *10
@@ -274,11 +274,11 @@ class BEIKE(BEIKE_CLSINFO):
 
       if (np.array(lines_transfer) != 0).any():
         angle, cx, cy = lines_transfer
-        bboxes = transfer_lines(bboxes, OBJ_REP, img.shape[:2], angle, (cx,cy))
+        bboxes = transfer_lines(bboxes, DIM_PARSE.OBJ_REP, img.shape[:2], angle, (cx,cy))
 
       if rotate_angle != 0:
         bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
-                                      OBJ_REP, check_by_cross=False)
+                                      DIM_PARSE.OBJ_REP, check_by_cross=False)
 
       if WRITE_ANNO_IMG:
         anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
@@ -377,10 +377,10 @@ class BEIKE(BEIKE_CLSINFO):
       line_cat_ids = anno['line_cat_ids']
       #print(f'line_cat_ids: {line_cat_ids}')
 
-      corners, lines, _ = meter_2_pixel('topview', {'img_size': IMAGE_SIZE}, corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
+      corners, lines, _ = meter_2_pixel('topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, corners, lines, pcl_scope=anno['pcl_scope'], floor=True)
 
       if img is None:
-        img = np.zeros([IMAGE_SIZE, IMAGE_SIZE, 3], dtype=np.uint8)
+        img = np.zeros([DIM_PARSE.IMAGE_SIZE, DIM_PARSE.IMAGE_SIZE, 3], dtype=np.uint8)
       for i in range(corners.shape[0]):
         obj = self._catid_2_cat[ corner_cat_ids[i] ]
         cv2.circle(img, (corners[i][0], corners[i][1]), 2, colors_corner[obj], -1)
@@ -424,7 +424,7 @@ class BEIKE(BEIKE_CLSINFO):
       anno = self.img_infos[idx]['ann']
       bboxes = anno['bboxes']
       labels = anno['labels']
-      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, OBJ_REP)
+      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, DIM_PARSE.OBJ_REP)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
@@ -433,7 +433,7 @@ class BEIKE(BEIKE_CLSINFO):
 
       density_sum_mean = []
       for i in range(0, bboxes.shape[0]):
-        inside_i = getOrientedLineRectSubPix(img, bboxes[i], OBJ_REP)
+        inside_i = getOrientedLineRectSubPix(img, bboxes[i], DIM_PARSE.OBJ_REP)
         density_sum_mean_i = [inside_i.sum(), inside_i.mean()]
         density_sum_mean.append( density_sum_mean_i )
         if 0:
@@ -493,18 +493,18 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     corners_pt = None
   else:
     if anno_style == 'topview':
-      corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
+      corners_pt = ((corners - min_xy) * DIM_PARSE.IMAGE_SIZE / max_range).astype(np.float32)
     if anno_style == 'voxelization':
       corners_pt = (corners) / voxel_size
 
-    if not( corners_pt.min() > -PCL_LINE_BOUND_PIXEL and corners_pt.max() < IMAGE_SIZE+PCL_LINE_BOUND_PIXEL ):
+    if not( corners_pt.min() > -PCL_LINE_BOUND_PIXEL and corners_pt.max() < DIM_PARSE.IMAGE_SIZE+PCL_LINE_BOUND_PIXEL ):
         scene_name = scene.split('.')[0]
         print('meter_2_pixel corner scope error', scene)
         print(corners_pt.min())
         print(corners_pt.max())
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
-    corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
+    corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
 
@@ -557,17 +557,17 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
     corners_pt = None
   else:
     if anno_style == 'topview':
-      corners_pt = ((corners - min_xy) * IMAGE_SIZE / max_range).astype(np.float32)
+      corners_pt = ((corners - min_xy) * DIM_PARSE.IMAGE_SIZE / max_range).astype(np.float32)
     if anno_style == 'voxelization':
       corners_pt = (corners - min_xy) / voxel_size
-    if not( corners_pt.min() > -1 and corners_pt.max() < IMAGE_SIZE ):
+    if not( corners_pt.min() > -1 and corners_pt.max() < DIM_PARSE.IMAGE_SIZE ):
           scene_name = scene.split('.')[0]
           if scene_name not in UNALIGNED_SCENES:
             print(scene)
             print(corners_pt.min())
             print(corners_pt.max())
             pass
-    corners_pt = np.clip(corners_pt, a_min=0, a_max=IMAGE_SIZE-1)
+    corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
 
@@ -580,7 +580,7 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       else:
         corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
                                            pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
-      lines_pt_ordered = encode_line_rep(lines_pt, OBJ_REP)
+      lines_pt_ordered = encode_line_rep(lines_pt, DIM_PARSE.OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()
       labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)
@@ -591,11 +591,11 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       anno_img['min_line_size'] = min_line_size
 
 
-      anno_img['bboxes_ignore'] = np.empty([0,OBJ_DIM], dtype=np.float32)
+      anno_img['bboxes_ignore'] = np.empty([0,DIM_PARSE.OBJ_DIM], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
       bboxes = anno_img['bboxes'][:,:4]
-      assert bboxes.max() < IMAGE_SIZE
+      assert bboxes.max() < DIM_PARSE.IMAGE_SIZE
 
       for ele in BEIKE.edge_attributions:
         anno_img[ele] = anno_raw[ele]
@@ -777,12 +777,12 @@ def load_gt_lines_bk(img_meta, img, classes, filter_edges):
   processed_dir = os.path.dirname(os.path.dirname(filename))
   json_dir = os.path.join(processed_dir, 'json/')
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json', classes, filter_edges=filter_edges)
-  anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': IMAGE_SIZE},)
+  anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': DIM_PARSE.IMAGE_SIZE},)
   lines = anno_img['bboxes']
   #_show_lines_ls_points_ls(img[:,:,0], [lines])
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']
-    lines, _ = rotate_lines_img(lines, img, rotate_angle, OBJ_REP)
+    lines, _ = rotate_lines_img(lines, img, rotate_angle, DIM_PARSE.OBJ_REP)
     return lines
   else:
     return lines
@@ -811,7 +811,7 @@ def fix_1_unaligned_scene(scene_name, lines_unaligned, image_size, line_obj_rep)
 
 def _UnUsed_gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')
-  den_image_path = os.path.join(data_path, f'images/public100_{IMAGE_SIZE}')
+  den_image_path = os.path.join(data_path, f'images/public100_{DIM_PARSE.IMAGE_SIZE}')
   norm_image_path = den_image_path
 
   if not os.path.exists(den_image_path):
@@ -931,7 +931,7 @@ def draw_img_lines(img, lines):
 
 def gen_images_from_npy(data_path):
   npy_path = os.path.join(data_path, 'seperate_room_data/test')
-  den_image_path = os.path.join(data_path, f'images/public100_{IMAGE_SIZE}')
+  den_image_path = os.path.join(data_path, f'images/public100_{DIM_PARSE.IMAGE_SIZE}')
   norm_image_path = den_image_path
 
   if not os.path.exists(den_image_path):
@@ -982,7 +982,7 @@ def main(data_path):
 
 
 if __name__ == '__main__':
-  data_path = f'/home/z/Research/mmdetection/data/beike/processed_{IMAGE_SIZE}'
+  data_path = f'/home/z/Research/mmdetection/data/beike/processed_{DIM_PARSE.IMAGE_SIZE}'
   main(data_path)
   #get_scene_pcl_scopes(data_path)
   #cal_topview_npy_mean_std(data_path, base='TopView_All', normnorm_method='abs')

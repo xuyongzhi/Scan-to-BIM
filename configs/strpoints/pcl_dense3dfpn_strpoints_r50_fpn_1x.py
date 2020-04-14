@@ -9,7 +9,7 @@
   transform_method
 '''
 import math
-from configs.common import  OBJ_REP, IMAGE_SIZE, SPARSE_BEV
+from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
 classes= ['wall']
 
@@ -35,7 +35,7 @@ for zs in z_strides:
   z_out_dims.append( z_out_dims[-1]/zs )
 z_out_dims = tuple([int(math.ceil( d )) for d in z_out_dims])
 #*******************************************************************************
-_obj_rep = OBJ_REP
+_obj_rep = DIM_PARSE.OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
 
@@ -57,7 +57,7 @@ if DATA == 'beike_pcl_2d':
   dataset_type = 'BeikePclDataset'
   data_root = f'data/beike/processed_512/'
   ann_file = data_root + 'json/'
-  if not SPARSE_BEV:
+  if not DEBUG_CFG.SPARSE_BEV:
     in_channels = 9
   else:
     in_channels = 4

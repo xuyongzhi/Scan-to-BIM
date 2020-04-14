@@ -19,7 +19,8 @@ from beike_data_utils.line_utils import decode_line_rep_th
 
 import torchvision as tcv
 
-from configs.common import OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL
+from configs.common import DIM_PARSE
+#OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False

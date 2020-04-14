@@ -9,7 +9,7 @@ from tools.debug_utils import _show_3d_points_lines_ls
 from beike_data_utils.beike_utils import BEIKE_CLSINFO, load_anno_1scene, raw_anno_to_img
 
 DEBUG_INPUT = 0
-from configs.common import LOAD_VOXELIZED_SPARSE
+from configs.common import DEBUG_CFG
 
 class DataConfig:
     return_transformation=True
@@ -82,7 +82,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
                classes = ['wall'],
                pipeline=None,):
     self.save_sparse_input_for_debug = 0
-    self.load_voxlized_sparse = LOAD_VOXELIZED_SPARSE
+    self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
     BEIKE_CLSINFO.__init__(self, classes)
 
     assert voxel_size is not None

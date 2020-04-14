@@ -21,7 +21,7 @@ import time
 RECORD_T = 0
 SHOW_NET = 0
 
-from configs.common import VISUAL_RESNET_OUT, SPARSE_BEV
+from configs.common import DEBUG_CFG
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -141,7 +141,7 @@ class Bottleneck(nn.Module):
         self.gen_attention = gen_attention
         self.with_gen_attention = gen_attention is not None
 
-        if SPARSE_BEV:
+        if DEBUG_CFG.SPARSE_BEV:
           stride = (stride, stride, 1)
           kernel_2 = (3,3,1)
         else:
@@ -309,7 +309,7 @@ def make_vox_res_layer(block,
                    max_planes=2048):
     downsample = None
     if stride != 1 or inplanes != min(max_planes,planes * block.expansion):
-        if SPARSE_BEV:
+        if DEBUG_CFG.SPARSE_BEV:
           stride_ds = (stride,stride,1)
         else:
           stride_ds = (stride, stride, z_stride)
@@ -478,7 +478,7 @@ class Sparse3DResNet(nn.Module):
         self.block, stage_blocks = self.arch_settings[depth]
         self.stage_blocks = stage_blocks[:num_stages]
         self.basic_planes = basic_planes
-        if not SPARSE_BEV:
+        if not DEBUG_CFG.SPARSE_BEV:
           self.inplanes = basic_planes * 2
         else:
           self.inplanes = basic_planes
@@ -551,7 +551,7 @@ class Sparse3DResNet(nn.Module):
         if self.stem_stride == 1:
           s0, s1 = 1, 1
 
-        if not SPARSE_BEV:
+        if not DEBUG_CFG.SPARSE_BEV:
           kernels = [(3,3,5),   (3,3,5), (3,3,3)]
           strides = [(s0,s0,2), (1,1,2), (s1,s1,2)]
           paddings = [(1,1,0), (1,1,0), (1,1,0)]
@@ -585,7 +585,7 @@ class Sparse3DResNet(nn.Module):
           self.norm1s.append(norm1)
 
         self.relu = ME.MinkowskiReLU(inplace=True)
-        if not SPARSE_BEV:
+        if not DEBUG_CFG.SPARSE_BEV:
           self.maxpool = mink_max_pool(kernel_size=3, stride=(s1, s1, 2), padding=(1,1,0))
         else:
           self.maxpool = mink_max_pool(kernel_size=(3,3,1), stride=(s1,s1,1), padding=1)
@@ -694,7 +694,7 @@ class Sparse3DResNet(nn.Module):
           outs_dense.append(dense_out)
           pass
 
-        if VISUAL_RESNET_OUT:
+        if DEBUG_CFG.VISUAL_RESNET_OUT:
           debug_utils._show_sparse_coords(outs[0], gt_bboxes)
           for i in range(len(outs)):
             debug_utils._show_feats(outs_dense[i][...,0], gt_bboxes, self.stem_stride * 2**(i))

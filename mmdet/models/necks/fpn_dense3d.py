@@ -8,7 +8,8 @@ from ..utils import ConvModule
 import math
 from ..utils import build_conv_layer, build_norm_layer
 
-from configs.common import SPARSE_BEV
+from configs.common import DEBUG_CFG
+SPARSE_BEV = DEBUG_CFG.SPARSE_BEV
 from tools.debug_utils import _show_tensor_ls_shapes
 SHOW_NET = 0
 

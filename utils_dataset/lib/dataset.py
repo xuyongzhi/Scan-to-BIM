@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 import MinkowskiEngine as ME
 
 from beike_data_utils.line_utils import m_transform_lines
-from configs.common import OBJ_REP
+from configs.common import  DIM_PARSE
 
 from plyfile import PlyData
 from . import transforms as t
@@ -316,7 +316,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     img_meta['data_aug']['rotate_angles'] = rotate_angles
     img_meta['data_aug']['scale_rate'] = scale_rate
     if is_include_gt_bboxes:
-      gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, OBJ_REP)
+      gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, DIM_PARSE.OBJ_REP)
 
     if debug and 0:
       scale = 3
