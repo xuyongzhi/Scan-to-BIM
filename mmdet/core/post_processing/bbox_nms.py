@@ -27,7 +27,11 @@ def multiclass_nms(multi_bboxes,
         tuple: (bboxes, labels), tensors of shape (k, 5) and (k, 1). Labels
             are 0-based.
     """
-    assert  multi_bboxes.shape[1] == DIM_PARSE.NMS_IN_DIM
+    num_classes_inc_bg = multi_scores.shape[1] # include bg
+    dim_parse = DIM_PARSE(num_classes_inc_bg)
+    nms_in_dim = dim_parse.NMS_IN_DIM
+
+    assert  multi_bboxes.shape[1] == nms_in_dim
     num_classes = multi_scores.shape[1]
     bboxes, labels = [], []
     nms_cfg_ = nms_cfg.copy()
@@ -38,10 +42,10 @@ def multiclass_nms(multi_bboxes,
         if not cls_inds.any():
             continue
         # get bboxes and scores of this class
-        if multi_bboxes.shape[1] == DIM_PARSE.NMS_IN_DIM:
+        if multi_bboxes.shape[1] == nms_in_dim:
             _bboxes = multi_bboxes[cls_inds, :]
         else:
-            _bboxes = multi_bboxes[cls_inds, i * DIM_PARSE.NMS_IN_DIM:(i + 1) * DIM_PARSE.NMS_IN_DIM]
+            _bboxes = multi_bboxes[cls_inds, i * nms_in_dim:(i + 1) * nms_in_dim]
         _scores = multi_scores[cls_inds, i]
         if score_factors is not None:
             _scores *= score_factors[cls_inds]
@@ -61,7 +65,7 @@ def multiclass_nms(multi_bboxes,
             bboxes = bboxes[inds]
             labels = labels[inds]
     else:
-        bboxes = multi_bboxes.new_zeros((0, DIM_PARSE.NMS_IN_DIM+1))
+        bboxes = multi_bboxes.new_zeros((0, nms_in_dim+1))
         labels = multi_bboxes.new_zeros((0, ), dtype=torch.long)
 
     return bboxes, labels

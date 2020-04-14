@@ -2,7 +2,6 @@ import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from tools.debug_utils import _show_lines_ls_points_ls
 from configs.common import DIM_PARSE
-#clean_bboxes_out, OBJ_REP, IMAGE_SIZE
 from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine, optimize_graph
 from collections import defaultdict
 import os
@@ -44,7 +43,6 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         for label in range(len(det_result)):
           det_lines_multi_stages = det_result[label]
           det_lines = det_lines_multi_stages
-          #det_lines = clean_bboxes_out(det_lines_multi_stages, 'final')
           category_id = dataset.cat_ids[label]
           detection_l = {'det_lines': det_lines, 'category_id': category_id}
           detections_all_labels.append(detection_l)
@@ -79,6 +77,7 @@ class GraphEval():
     self.classes = classes
     self.filter_edges = filter_edges
     self._score_threshold = score_threshold
+    self.dim_parse = DIM_PARSE(len(classes)+1)
     pass
 
   def __str__(self):
@@ -147,7 +146,9 @@ class GraphEval():
         num_labels = len(detections)
         for label in range(num_labels):
             det_lines_raw = detections[label]['det_lines'].copy()
-            det_lines = clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
+            assert det_lines_raw.shape[1] == self.dim_parse.OUT_DIM_FINAL
+
+            det_lines = self.dim_parse.clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
             if is_pcl:
               det_lines[:,:4] = det_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
             if debug:
@@ -161,7 +162,7 @@ class GraphEval():
 
             labels_i = np.ones(det_lines.shape[0])*label
             scores_i = det_lines[:,-1]
-            det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
+            det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, self.dim_parse.OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
             det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
 
             if debug:
@@ -230,8 +231,8 @@ class GraphEval():
     num_gt = gt_lines.shape[0]
 
     det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:5],\
-                                          None, OBJ_REP)
-    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, OBJ_REP)
+                                          None, self.dim_parse.OBJ_REP)
+    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, self.dim_parse.OBJ_REP)
 
     cor_nums_gt_pos_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
 

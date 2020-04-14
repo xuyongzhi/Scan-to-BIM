@@ -8,6 +8,7 @@ import cv2
 from MinkowskiEngine import SparseTensor
 
 from .color import color_val, get_random_color, label2color, _label2color
+from configs.common import DEBUG_CFG
 
 ADD_FRAME = 1
 
@@ -271,7 +272,6 @@ def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color=
     lines: [n,5/6]
     color: 'red'
     '''
-    from configs.common import OBJ_LEGEND
     from beike_data_utils.line_utils import decode_line_rep
     assert lines.ndim == 2
     assert lines.shape[1]==5 or lines.shape[1]==6
@@ -295,7 +295,7 @@ def _draw_lines(img, lines, color, line_thickness=1, font_scale=0.5, text_color=
 
         #label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
         label_text = ''
-        if OBJ_LEGEND == 'score':
+        if DEBUG_CFG.OBJ_LEGEND == 'score':
           if scores is not None:
             label_text += '{:.01f}'.format(scores[i]) # score
         else:
@@ -326,7 +326,6 @@ def _show_det_lines(img, lines, labels, class_names=None, score_thr=0,
   Use lines[:,-1] as score when scores is None, otherwise use scores as the score for filtering lines.
   Always show lines[:,-1] in the image.
   '''
-  from configs.common import OBJ_LEGEND
   assert lines.ndim == 2
   assert lines.shape[1] == 6
   assert labels.ndim == 1
@@ -457,7 +456,6 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
   Use lines[:,-1] as score when scores is None, otherwise use scores as the score for filtering lines.
   Always show lines[:,-1] in the image.
   '''
-  from configs.common import OBJ_LEGEND
   assert lines.ndim == 2
   assert lines.shape[1] == 6 or lines.shape[1] == 5
   assert labels.ndim == 1
@@ -503,7 +501,7 @@ def show_det_lines(img, lines, labels, class_names=None, score_thr=0,
     label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
     label_text = ''
     if len(line) == 6:
-      if OBJ_LEGEND == 'score':
+      if DEBUG_CFG.OBJ_LEGEND == 'score':
         label_text += '{:.01f}'.format(line[-1]) # score
       else:
         label_text += '{:.01f}'.format(line[-2]) # rotation

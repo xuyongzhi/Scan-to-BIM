@@ -779,6 +779,11 @@ def load_gt_lines_bk(img_meta, img, classes, filter_edges):
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json', classes, filter_edges=filter_edges)
   anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': DIM_PARSE.IMAGE_SIZE},)
   lines = anno_img['bboxes']
+  labels = anno_img['labels']
+  mask = labels >= 0
+
+  lines = lines[mask]
+  labels = labels[mask]
   #_show_lines_ls_points_ls(img[:,:,0], [lines])
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']

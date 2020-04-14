@@ -20,7 +20,6 @@ from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lin
 import torchvision as tcv
 
 from configs.common import DIM_PARSE
-#OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, POINTS_DIM, OUT_CORNER_HM_ONLY, parse_bboxes_out, LINE_CLS_WEIGHTS, OUT_DIM_FINAL, OUT_DIM_BOX_INDEPENDENT_FINAL
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -30,6 +29,7 @@ class StrPointsHead(nn.Module):
     """StrPoint head.
 
     Args:
+        num_classes: include background
         in_channels (int): Number of channels in the input feature map.
         feat_channels (int): Number of channels of the feature map.
         point_feat_channels (int): Number of channels of points features.
@@ -84,6 +84,7 @@ class StrPointsHead(nn.Module):
                  move_points_to_center = False,
                  ):
         super(StrPointsHead, self).__init__()
+        self.dim_parse = DIM_PARSE(num_classes)
         self.move_points_to_center = move_points_to_center
         self.in_channels = in_channels
         self.num_classes = num_classes
@@ -990,7 +991,7 @@ class StrPointsHead(nn.Module):
         s_refine = cls_scores[i]['refine']
         if with_final:
           s_final = cls_scores[i]['final']
-          s = s_refine * LINE_CLS_WEIGHTS['refine']  + s_final * LINE_CLS_WEIGHTS['final']
+          s = s_refine * self.dim_parse.LINE_CLS_WEIGHTS['refine']  + s_final * self.dim_parse.LINE_CLS_WEIGHTS['final']
 
           sff = torch.cat([cls_scores[i]['refine'], cls_scores[i]['final']], dim=1)
           cls_scores_refine_final.append(sff)
@@ -1021,7 +1022,7 @@ class StrPointsHead(nn.Module):
         ]
         num_levels = len(cls_scores)
 
-        if OUT_EXTAR_DIM > 0:
+        if self.dim_parse.OUT_EXTAR_DIM > 0:
           for i in range(num_levels):
             bbox_preds_init = [
                 self.points2bbox(pts_pred_init)
@@ -1031,9 +1032,8 @@ class StrPointsHead(nn.Module):
             init_refine = torch.cat([bbox_preds_refine[i], bbox_preds_init[i],
                                      pts_preds_refine[i], pts_preds_init[i],
                                      cls_scores_refine_final[i], ], dim=1)
-            assert bbox_preds_refine[i].shape[1] == OBJ_DIM
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
-            assert init_refine.shape[1] == OBJ_DIM + OUT_EXTAR_DIM
+            assert bbox_preds_refine[i].shape[1] == self.dim_parse.OBJ_DIM
+            assert init_refine.shape[1] == self.dim_parse.OBJ_DIM + self.dim_parse.OUT_EXTAR_DIM
             bbox_preds_refine[i] = init_refine
 
         mlvl_points = [
@@ -1079,14 +1079,14 @@ class StrPointsHead(nn.Module):
                           nms=True):
         assert len(cls_scores) == len(bbox_preds) == len(mlvl_points)
         obj_dim = bbox_preds[0].shape[0]
-        assert obj_dim == OBJ_DIM + OUT_EXTAR_DIM
+        assert obj_dim == self.dim_parse.NMS_IN_DIM
         mlvl_bboxes = []
         mlvl_scores = []
         for i_lvl, (cls_score, bbox_pred, points) in enumerate(
                 zip(cls_scores, bbox_preds, mlvl_points)):
             assert cls_score.size()[-2:] == bbox_pred.size()[-2:]
-            cls_score = cls_score.permute(1, 2,
-                                          0).reshape(-1, self.cls_out_channels)
+            cls_score = cls_score.permute(1, 2, 0).\
+                                  reshape(-1, self.cls_out_channels)
             if self.use_sigmoid_cls:
                 scores = cls_score.sigmoid()
             else:
@@ -1102,7 +1102,7 @@ class StrPointsHead(nn.Module):
                 points = points[topk_inds, :]
                 bbox_pred = bbox_pred[topk_inds, :]
                 scores = scores[topk_inds, :]
-            bbox_pos_center = points[:, :2].repeat(1, OBJ_DIM//2)
+            bbox_pos_center = points[:, :2].repeat(1, self.dim_parse.OBJ_DIM//2)
             bboxes = bbox_pred[:,:4] * self.point_strides[i_lvl]+ bbox_pos_center
             x1 = bboxes[:, 0].clamp(min=0, max=img_shape[1])
             y1 = bboxes[:, 1].clamp(min=0, max=img_shape[0])
@@ -1110,16 +1110,17 @@ class StrPointsHead(nn.Module):
             y2 = bboxes[:, 3].clamp(min=0, max=img_shape[0])
             bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
 
-            if OBJ_DIM == 5:
+            if self.dim_parse.OBJ_DIM == 5:
               bboxes = torch.cat([bboxes, bbox_pred[:,4:5]], dim=1)
 
-            if OUT_EXTAR_DIM > 0:
-              assert OUT_EXTAR_DIM == 43
-              _bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_ave, _, _,_,_,_ = parse_bboxes_out(bbox_pred, 'before_nms')
+            if self.dim_parse.OUT_EXTAR_DIM > 0:
+              _bboxes_refine, bboxes_init, points_refine, points_init, \
+                    score_refine, score_final, score_ave, _, _,_,_,_ = \
+                    self.dim_parse.parse_bboxes_out(bbox_pred, 'before_nms')
               #bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
               bboxes_init[:,:4] = bboxes_init[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
 
-              bbox_pos_center = points[:, :2].repeat(1, POINTS_DIM//2)
+              bbox_pos_center = points[:, :2].repeat(1, self.dim_parse.POINTS_DIM//2)
               bn = bboxes.shape[0]
               # key_points store in y-first, but box in x-first.
               # change key-points to x-first
@@ -1138,7 +1139,7 @@ class StrPointsHead(nn.Module):
                   score_refine = score_refine.softmax(-1)
                   score_final = score_final.softmax(-1)
               bboxes = torch.cat([bboxes, bboxes_init, key_points, score_refine, score_final], dim=1) # [5,5,36]
-              assert bboxes.shape[1] == OUT_DIM_BOX_INDEPENDENT_FINAL - 1
+              assert bboxes.shape[1] == self.dim_parse.NMS_IN_DIM
               pass
 
             mlvl_bboxes.append(bboxes)
@@ -1157,7 +1158,7 @@ class StrPointsHead(nn.Module):
             det_bboxes, det_labels = multiclass_nms(mlvl_bboxes, mlvl_scores,
                                                     cfg.score_thr, cfg.nms,
                                                     cfg.max_per_img)
-            assert det_bboxes.shape[1] == OUT_DIM_BOX_INDEPENDENT_FINAL
+            assert det_bboxes.shape[1] == self.dim_parse.NMS_OUT_DIM
             return det_bboxes, det_labels
         else:
             return mlvl_bboxes, mlvl_scores
@@ -1289,7 +1290,10 @@ class StrPointsHead(nn.Module):
 
 def cal_composite_score(line_preds):
       assert line_preds.shape[1] == OUT_DIM_FINAL - 1
-      bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final, score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center, _ = parse_bboxes_out(line_preds, 'before_cal_score_composite')
+      bboxes_refine, bboxes_init, points_refine, points_init, score_refine, \
+        score_final, score_line_ave, corner0_score, corner1_score, \
+        corner0_center, corner1_center, _ = \
+        parse_bboxes_out(line_preds, 'before_cal_score_composite')
       corner_score_min = torch.min(corner0_score, corner1_score) * 0.7 + torch.max(corner0_score, corner1_score) * 0.3
       score_composite = score_refine * 0.4 + score_final * 0.2 + corner_score_min * 0.4
       line_preds = torch.cat([line_preds, score_composite], dim=1)
