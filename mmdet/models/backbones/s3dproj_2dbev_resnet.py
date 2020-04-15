@@ -613,6 +613,8 @@ class S3dProj_BevResNet(nn.Module):
           t0 = time.time()
         bev = self.project(x)
         x = bev
+        if RECORD_T:
+          t1 = time.time()
 
         if SHOW_NET:
           _show_tensor_ls_shapes([x], 'bev in')
@@ -625,20 +627,26 @@ class S3dProj_BevResNet(nn.Module):
             if i in self.out_indices:
                 outs.append(x)
         if RECORD_T:
-          t3 = time.time()
-          print(f'\tresnet forward. conv1:{t1-t0:.3f} maxpool:{t2-t1:.3f} reslayers:{t3-t2:.3f}')
+          t2 = time.time()
+          print(f'\tresnet forward. proj:{t1-t0:.3f} reslayers:{t2-t1:.3f}')
 
         if SHOW_NET:
           _show_tensor_ls_shapes(outs, 'res out')
         return tuple(outs)
 
     def project(self, x):
+        if RECORD_T:
+          t0 = time.time()
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.relu(x)
+        if RECORD_T:
+          t1 = time.time()
         x = self.maxpool(x)
         if SHOW_NET:
           debug_utils._show_sparse_ls_shapes([x], 'stem')
+        if RECORD_T:
+          t2 = time.time()
 
         for i, layer_name in enumerate(self.prj_layers):
             proj_layer = getattr(self, layer_name)
@@ -647,6 +655,9 @@ class S3dProj_BevResNet(nn.Module):
               debug_utils._show_sparse_ls_shapes([x], f'prj {i}')
         bev_dense, bev_min, bev_stride = x.dense()
         x = bev_dense.max(-1)[0]
+        if RECORD_T:
+          t3 = time.time()
+          print(f'\tresnet forward. conv1:{t1-t0:.3f} max: {t2-t1:.3f} prjlayers:{t3-t2:.3f}')
         return x
 
     def train(self, mode=True):

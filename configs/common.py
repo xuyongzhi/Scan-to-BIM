@@ -128,7 +128,7 @@ class DEBUG_CFG:
 
   OBJ_LEGEND = ['score', 'rotation'][0]
 
-  LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][0]
+  LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][1]
   MIN_BOX_SIZE = 5.0 * DIM_PARSE.IMAGE_SIZE / 1024
   VISUAL_TOPVIEW_INPUT = 0
   PRINT_POINT_ASSIGNER = 0
