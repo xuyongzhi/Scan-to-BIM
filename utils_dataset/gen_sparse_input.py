@@ -2,7 +2,8 @@ from MinkowskiEngine import SparseTensor
 import numpy as np
 import torch
 
-from configs.common import DEBUG_CFG
+from configs.common import DEBUG_CFG, DIM_PARSE
+OBJ_REP = DIM_PARSE.OBJ_REP
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 
 def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
@@ -71,7 +72,6 @@ def debug_sparse_bev(bev_sparse, img_meta, gt_bboxes):
       _show_lines_ls_points_ls(norm_img, [lines2d])
 
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
-      from configs.common import OBJ_REP
       bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=30, thickness=1)
       _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True, point_normals=[normals])
@@ -181,7 +181,6 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       #_show_lines_ls_points_ls(density, [lines2d])
 
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
-      from configs.common import OBJ_REP
       bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=30, thickness=1)
       _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True, point_normals=[normals])
@@ -213,7 +212,6 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
 
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
-      from configs.common import OBJ_REP
       bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=30, thickness=1)
 
       min_points = points.min(axis=0)
