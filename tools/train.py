@@ -254,6 +254,8 @@ def update_config(cfg, args, split):
         pass
 
 def get_file_list_flag(img_list_file):
+  if 'stanford' in img_list_file:
+    return ''
   flist = np.loadtxt(img_list_file, dtype=str)
   n = flist.size
   if n==1:

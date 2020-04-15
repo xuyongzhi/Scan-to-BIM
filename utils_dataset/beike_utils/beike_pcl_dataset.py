@@ -72,7 +72,6 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
                img_prefix='train',
                test_mode=False,
                voxel_size=None,
-               voxel_zero_offset=0,
                auto_scale_vs = True,
                max_num_points = None,
                max_footprint_for_scale = None,
@@ -94,7 +93,6 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
       self.data_root = os.path.dirname( ann_file )
     self.test_mode = test_mode
     self.VOXEL_SIZE = voxel_size
-    self.voxel_zero_offset = voxel_zero_offset
     self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size
@@ -151,7 +149,6 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
     for i in range(n):
       anno_raw = load_anno_1scene(self.ann_path, self.ann_files[i],
                           self._classes,
-                          self.voxel_zero_offset*self.VOXEL_SIZE,
                           filter_edges=self.filter_edges)
 
       self.anno_raws.append(anno_raw)

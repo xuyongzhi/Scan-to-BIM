@@ -6,6 +6,8 @@ import glob
 import os
 from collections import defaultdict
 
+from beike_data_utils.beike_utils import  raw_anno_to_img
+
 @DATASETS.register_module
 class StanfordPclDataset(VoxelDatasetBase):
   _classes = ['clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -38,10 +40,19 @@ class StanfordPclDataset(VoxelDatasetBase):
                pipeline=None,
                img_prefix=None,
                voxel_size=0.05,
-               voxel_resolution=[512,512,256]):
+               auto_scale_vs = True,
+               max_num_points = None,
+               max_footprint_for_scale = None,
+               augment_data = None,
+               data_types = ['color', 'norm', 'xyz'],
+               filter_edges = True,
+               classes = ['wall'],
+               ):
     self.data_root = ann_file
     self.VOXEL_SIZE = voxel_size
-    self.voxel_resolution = voxel_resolution
+    self.max_footprint_for_scale = max_footprint_for_scale
+    self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size
+    img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
     assert img_prefix in ['train', 'test']
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
@@ -51,6 +62,7 @@ class StanfordPclDataset(VoxelDatasetBase):
     self._set_group_flag()
     print(f'\n Area {img_prefix}: load {len(self)} files for areas {self.area_list}\n')
     VoxelDatasetBase.__init__(self, phase, self.data_paths, self.data_config)
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
   def _set_group_flag(self):
@@ -69,11 +81,11 @@ class StanfordPclDataset(VoxelDatasetBase):
       ann_file = self.data_paths[i].replace('ply', 'npy')
       ann_file = os.path.join(self.data_root, ann_file )
       anno_3d = load_bboxes(ann_file)
+      #anno_2d = raw_anno_to_img(anno_3d, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
       anno_2d = anno3d_to_anno_topview(anno_3d)
 
       img_meta = dict(filename = anno_3d['filename'],
-                      input_style='pcl',
-                      pad_shape=self.voxel_resolution)
+                      input_style='pcl',)
 
       img_info = dict(
         img_meta = img_meta,
@@ -127,13 +139,17 @@ class DataConfig:
 
 
 def anno3d_to_anno_topview(anno_3d):
-  from beike_data_utils.beike_utils import meter_2_pixel
+  #from beike_data_utils.beike_utils import meter_2_pixel
   bboxes3d = anno_3d['bboxes_3d']
   room_scope = bboxes3d[-1].reshape(2,3)
   bbox_cat_ids = anno_3d['bbox_cat_ids']
   assert StanfordPclDataset._catid_2_cat[bbox_cat_ids[-1]] == 'room'
   bboxes2d = bboxes3d[:,[0,1,3,4]].reshape(-1,2,2)
-  _, bboxes2d_pt = meter_2_pixel(None, bboxes2d, room_scope)
+  #_, bboxes2d_pt = meter_2_pixel(None, bboxes2d, room_scope)
+
+  # normalize zero
+
+  bboxes2d_pt = bboxes2d
 
   num_box = bboxes3d.shape[0]
   rotation = np.zeros([num_box,1], dtype=bboxes2d_pt.dtype)

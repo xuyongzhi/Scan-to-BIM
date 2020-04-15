@@ -627,7 +627,7 @@ def get_line_valid_by_density(anno_folder, filename, line_ids_check):
     line_valid = line_density_sum > 0
     return line_valid
 
-def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None, filter_edges=True):
+def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
       always_load_walls = 1
 
       beike_clsinfo = BEIKE_CLSINFO(classes, always_load_walls)
@@ -744,9 +744,9 @@ def load_anno_1scene(anno_folder, filename, classes,  pcl_scope_zero_offset=None
       anno['corners'] = fix_1_unaligned_scene(scene_name, tmp, scene_size, 'std_2p')[:,0,:]
 
       # make min lines >= 0
-      if pcl_scope_zero_offset is not None:
-        anno['lines'] += pcl_scope_zero_offset
-        anno['corners'] += pcl_scope_zero_offset
+      #if pcl_scope_zero_offset is not None:
+      #  anno['lines'] += pcl_scope_zero_offset
+      #  anno['corners'] += pcl_scope_zero_offset
       min_lines = anno['lines'].min()
       #print(f'{filename}\t\t{min_lines}')
       #assert anno['lines'].min() >= 0, f'min lines={min_lines}'
