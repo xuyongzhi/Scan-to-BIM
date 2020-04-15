@@ -161,6 +161,12 @@ def update_config(cfg, args, split):
         cfg['work_dir'] += '_bs' + str(cfg['data']['imgs_per_gpu'] * gpus)
         cfg['work_dir'] += '_lr' + str(int(cfg['optimizer']['lr']*1000))
 
+        loss_w_init = cfg['model']['bbox_head']['loss_bbox_init']['loss_weight']
+        loss_w_refine = cfg['model']['bbox_head']['loss_bbox_refine']['loss_weight']
+        lwi = int(loss_w_init * 10)
+        lwr = int(loss_w_refine * 10)
+        cfg['work_dir'] += f'_LsW{lwi}{lwr}'
+
         if 'pcl' in dataset:
           if data_types is not None:
             cfg['work_dir'] += '_' + data_types_

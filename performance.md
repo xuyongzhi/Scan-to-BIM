@@ -1,5 +1,21 @@
 
 # RES
+## 15 Apr Img
+- 
+14728cbf9d641c99ee0fa4185170e4ad9a8058d4
+15Apr_Img/TPV_r50_fpn_beike2d_wa_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp64-D90_0K_zX
+
+|split| wall corner |  wall edge  | 
+|-|-|-|
+| train | 0.927 - 0.932 | 0.902 - 0.816 | 
+| eval  | 0.812 - 0.82 | 0.713 - 0.614  |
+|split| wall corner |  wall edge  | 
+|-|-|-|
+| train | 0.935 - 0.948 | 0.911 - 0.846 | 
+| eval  | 0.794 - 0.836 | 0.721 - 0.646  |
+
+Test accuracy is still much lower than 12 Apr. The model in 12Apr test on current version still achieve the same acc.
+
 ## 14 Apr Img
 - wall window door  
 79563a9de0a35b22c28a38f31d3c17b1c823ace9
@@ -43,7 +59,7 @@ d2a3eb0c866844525bd79c65df8b6d744022b309
 
     : 500 - 0.0345
 
-## 12 Apr Img
+## 12 Apr Img (BEST)
 4640796996946f34798d2480e8d97799615cbdac
 TPV_r50_fpn_refine_final_beike2d_bs7_lr10_512_VerD_RA_Normrawstd_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
 | eval set | corner prec-recall| line prec-recall |
