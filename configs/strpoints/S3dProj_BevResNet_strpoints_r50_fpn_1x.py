@@ -229,6 +229,8 @@ resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
 
-checkpoint_config = dict(interval=100)
-workflow = [('train', 1),]
+if 1:
+  total_epochs = 2010
+  checkpoint_config = dict(interval=100)
+  workflow = [('train', 1),]
 
