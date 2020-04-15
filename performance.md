@@ -5,10 +5,7 @@
 14728cbf9d641c99ee0fa4185170e4ad9a8058d4
 15Apr_Img/TPV_r50_fpn_beike2d_wa_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp64-D90_0K_zX
 
-|split| wall corner |  wall edge  | 
-|-|-|-|
-| train | 0.927 - 0.932 | 0.902 - 0.816 | 
-| eval  | 0.812 - 0.82 | 0.713 - 0.614  |
+
 |split| wall corner |  wall edge  | 
 |-|-|-|
 | train | 0.935 - 0.948 | 0.911 - 0.846 | 

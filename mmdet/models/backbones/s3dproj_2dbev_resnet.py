@@ -655,6 +655,7 @@ class S3dProj_BevResNet(nn.Module):
               debug_utils._show_sparse_ls_shapes([x], f'prj {i}')
         bev_dense, bev_min, bev_stride = x.dense()
         x = bev_dense.max(-1)[0]
+        x = x.permute(0,1,3,2)
         if RECORD_T:
           t3 = time.time()
           print(f'\tresnet forward. conv1:{t1-t0:.3f} max: {t2-t1:.3f} prjlayers:{t3-t2:.3f}')
