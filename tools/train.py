@@ -237,7 +237,8 @@ def update_config(cfg, args, split):
         # backup config
         aim_path = os.path.join(cfg['work_dir'], '_'+os.path.basename(cfg.filename))
         if not os.path.exists(cfg['work_dir']):
-          os.makedirs(cfg['work_dir'])
+          mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+          #os.makedirs(cfg['work_dir'])
           shutil.copy(cfg.filename, aim_path)
           shutil.copy(os.path.join(cur_path,'run.sh'), os.path.join(cfg['work_dir'], '_run.sh'))
           import git
@@ -289,7 +290,7 @@ def main():
         init_dist(args.launcher, **cfg.dist_params)
 
     # create work_dir
-    mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+    #mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
     # init the logger before other steps
     timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     log_file = osp.join(cfg.work_dir, '{}.log'.format(timestamp))
