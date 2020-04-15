@@ -219,8 +219,9 @@ def update_config(cfg, args, split):
 
         if 'pcl' in dataset:
           vsz = int(100 * cfg['data'][split]['voxel_size'])
-          stem_stride = cfg['model']['backbone']['stem_stride']
-          cfg['work_dir'] += f'_Vsz{vsz}Stem{stem_stride}'
+          #stem_stride = cfg['model']['backbone']['stem_stride']
+          #cfg['work_dir'] += f'_Vsz{vsz}Stem{stem_stride}'
+          cfg['work_dir'] += f'_Vsz{vsz}'
 
         if 0 and 'move_points_to_center' in cfg['model']['bbox_head'] and cfg['model']['bbox_head']['move_points_to_center']:
           cfg['work_dir'] += f'_Mc'
