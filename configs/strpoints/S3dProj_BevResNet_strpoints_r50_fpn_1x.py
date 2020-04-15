@@ -178,7 +178,7 @@ lra = 0.01
 max_footprint_for_scale = 160 # 200
 max_num_points = 20 * 10000
 data = dict(
-    imgs_per_gpu=5,
+    imgs_per_gpu=7,
     workers_per_gpu=3,
     train=dict(
         type=dataset_type,
@@ -223,13 +223,13 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/R50_fpn'
+work_dir = f'./work_dirs/PR50_fpn'
 load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
 
-if 1:
+if 0:
   total_epochs = 2010
   checkpoint_config = dict(interval=100)
   workflow = [('train', 1),]
