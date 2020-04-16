@@ -24,6 +24,7 @@ def single_gpu_test(model, data_loader, show=False):
     model.eval()
     results = []
     dataset = data_loader.dataset
+    num_imgs = len(dataset)
     prog_bar = mmcv.ProgressBar(len(dataset))
     for i, data in enumerate(data_loader):
         with torch.no_grad():
@@ -31,7 +32,7 @@ def single_gpu_test(model, data_loader, show=False):
         results.append(result)
 
         if show:
-            model.module.show_result(data, result)
+            model.module.show_result(data, result, num_imgs=num_imgs)
 
         is_image = data['img_meta'][0].__class__.__name__ == 'DataContainer'
         is_pcl = not is_image

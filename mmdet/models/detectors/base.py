@@ -312,8 +312,9 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
             filename = img_meta['filename'].split('.')[0]
             scene_name = os.path.basename(filename).replace('.npy', '')
-            out_dir_out = f'./line_det_{DEBUG_CFG.OBJ_LEGEND}_res/final/'
-            out_dir_middle = f'./line_det_{DEBUG_CFG.OBJ_LEGEND}_res/middle/'
+            nstr = str(self.num_imgs) if self.num_imgs is not None else ''
+            out_dir_out = f'./line_det_{DEBUG_CFG.OBJ_LEGEND}_res_{nstr}/final/'
+            out_dir_middle = f'./line_det_{DEBUG_CFG.OBJ_LEGEND}_res_{nstr}/middle/'
             if not os.path.exists(out_dir_out):
               os.makedirs(out_dir_out)
             if not os.path.exists(out_dir_middle):
@@ -350,9 +351,10 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 if self.dim_parse.OUT_EXTAR_DIM == 0 or DEBUG_CFG.OBJ_LEGEND == 'rotation':
                   break
 
-    def show_result(self, data, result, dataset=None, score_thr=0.3):
+    def show_result(self, data, result, dataset=None, score_thr=0.3, num_imgs=None):
         num_classes = len(data['img_meta'][0]['classes'])+1
         self.dim_parse = DIM_PARSE(num_classes)
+        self.num_imgs = num_imgs
 
         if DEBUG_CFG.OUT_CORNER_HM_ONLY:
           self.show_corner_hm(data, result, dataset, score_thr)
