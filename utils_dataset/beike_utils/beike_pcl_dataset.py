@@ -59,7 +59,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
   # Augmentation arguments
   ROTATION_AUGMENTATION_BOUND = \
       ((-np.pi * 0, np.pi *0), (-np.pi * 0, np.pi * 0), (-np.pi, np.pi))
-  TRANSLATION_AUGMENTATION_RATIO_BOUND = ((-0.1, 0.1), (-0.1, 0.1), (-0.05*0, 0.05*0))
+  TRANSLATION_AUGMENTATION_RATIO_BOUND = ((0,0), (0,0), (0,0))
   ELASTIC_DISTORT_PARAMS = None
 
   AUGMENT_COORDS_TO_FEATS = True

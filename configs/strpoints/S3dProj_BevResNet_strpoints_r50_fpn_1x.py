@@ -184,7 +184,7 @@ if DATA == 'beike_pcl_2d':
   max_num_points = 20 * 10000
 if DATA == 'stanford_pcl_2d':
   max_footprint_for_scale = 30 # 200
-  max_num_points = 2 * 10000
+  max_num_points = 5 * 10000
 
 data = dict(
     imgs_per_gpu=batch_size,

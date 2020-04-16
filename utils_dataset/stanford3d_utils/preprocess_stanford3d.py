@@ -245,7 +245,7 @@ def get_scene_pcl_scopes():
 if __name__ == '__main__':
   #Stanford3DDatasetConverter.convert_to_ply(STANFORD_3D_IN_PATH, STANFORD_3D_OUT_PATH)
   #generate_splits(STANFORD_3D_OUT_PATH)
-  #gen_bboxes()
+  gen_bboxes()
   #get_scene_pcl_scopes()
-  get_surface_normal()
+  #get_surface_normal()
 

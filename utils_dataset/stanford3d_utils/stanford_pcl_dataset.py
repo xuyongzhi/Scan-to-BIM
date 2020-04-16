@@ -7,7 +7,10 @@ import os
 from collections import defaultdict
 
 from beike_data_utils.beike_utils import  raw_anno_to_img
+from ..beike_utils.beike_pcl_dataset import DataConfig
 from configs.common import DEBUG_CFG
+from tools.debug_utils import _show_lines_ls_points_ls
+from tools import debug_utils
 
 @DATASETS.register_module
 class StanfordPclDataset(VoxelDatasetBase):
@@ -24,17 +27,19 @@ class StanfordPclDataset(VoxelDatasetBase):
   NUM_LABELS = 14
   IGNORE_LABELS = (10,)  # remove stairs, following SegCloud
 
-  CLIP_BOUND = 4  # [-N, N]
+  CLIP_BOUND = None  # [-N, N]
   TEST_CLIP_BOUND = None
 
   # Augmentation arguments
   ROTATION_AUGMENTATION_BOUND = \
-      ((-np.pi / 32, np.pi / 32), (-np.pi / 32, np.pi / 32), (-np.pi, np.pi))
-  TRANSLATION_AUGMENTATION_RATIO_BOUND = ((-0.2, 0.2), (-0.2, 0.2), (-0.05, 0.05))
+      ((-np.pi * 0, np.pi *0), (-np.pi * 0, np.pi * 0), (-np.pi, np.pi))
+  TRANSLATION_AUGMENTATION_RATIO_BOUND = ((0,0), (0,0), (0,0))
 
   AUGMENT_COORDS_TO_FEATS = True
-  NUM_IN_CHANNEL = 6
+  NUM_IN_CHANNEL = 9
   NORMALIZATION = True
+
+  UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9', 'Area_4/hallway_14']
 
   def __init__(self,
                ann_file='data/stanford/',
@@ -61,7 +66,7 @@ class StanfordPclDataset(VoxelDatasetBase):
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
     phase = img_prefix
-    self.data_config = DataConfig(phase)
+    self.data_config = DataConfig(phase, augment_data)
     self.load_anno()
     self._set_group_flag()
     print(f'\n Area {img_prefix}: load {len(self)} files for areas {self.area_list}\n')
@@ -81,6 +86,8 @@ class StanfordPclDataset(VoxelDatasetBase):
     data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
     self.data_paths = [p.split(self.data_root)[1] for p in data_paths]
 
+    #self.data_paths = ['Area_6/hallway_1.ply']
+
     #data_roots = [f.replace('ply', 'npy') for f in pcl_files]
     n = len(self.data_paths)
     self.img_infos = []
@@ -91,9 +98,15 @@ class StanfordPclDataset(VoxelDatasetBase):
       #anno_2d = raw_anno_to_img(anno_3d, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
       anno_2d = anno3d_to_anno_topview(anno_3d)
 
+      raw_dynamic_vox_size = (anno_3d['pcl_scope'][1] - anno_3d['pcl_scope'][0]) / self.VOXEL_SIZE
+      raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
+      raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
+
       img_meta = dict(filename = anno_3d['filename'],
                       pcl_scope = anno_3d['pcl_scope'],
                       input_style='pcl',
+                      raw_dynamic_vox_size = raw_dynamic_vox_size,
+                      voxel_size = self.VOXEL_SIZE,
                       data_aug = {},
                       )
 
@@ -122,6 +135,7 @@ class StanfordPclDataset(VoxelDatasetBase):
 
     pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
     coords -= pcl_scope[0:1]
+    #debug_utils._show_3d_points_bboxes_ls(points_ls=[coords])
     return coords, feats, labels, None
 
   def _augment_coords_to_feats(self, coords, feats, labels=None):
@@ -144,25 +158,39 @@ class StanfordPclDataset(VoxelDatasetBase):
     return feats[:, self.data_channel_inds]
 
 
-class DataConfig:
-    return_transformation=False
-    data_aug_color_trans_ratio=0.05
-    data_aug_color_jitter_std=0.005
-    ignore_label=255
-    limit_numpoints=0
-    elastic_distortion = False
+def aligned_3dbboxes_TO_oriented_line(bboxes3d):
+  '''
+  bboxes3d: [n,6] 6: x0,y0,z0, z1,y1,z1
+  lines3d:  [n,8] 8: x2,y2,x3,y3, theta, thickness, z0,z1
 
-    def __init__(self, phase):
-      assert phase in ['train', 'test']
-      self.phase = phase
-      if phase == 'train':
-        self.augment_data = True
-        self.shuffle = True
-        self.repeat = True
-      else:
-        self.augment_data = False
-        self.shuffle = False
-        self.repeat = False
+  (x2,y2) and (x3,y3) are center of two corners
+  '''
+  size = np.abs(bboxes3d[:,3:] - bboxes3d[:,:3])
+
+  lines3d = []
+  n = bboxes3d.shape[0]
+  for i in range(n):
+    bboxes3d_i = bboxes3d[i:i+1]
+    z0 = bboxes3d_i[:,2]
+    z1 = bboxes3d_i[:,5]
+    zeros = z0 * 0
+    if size[i][1] > size[i][0]:
+      # x is the short axis
+      x2 = x3 = bboxes3d_i[:, [0,3]].mean(axis=1)
+      y2 = bboxes3d_i[:, [1, 4]].min(axis=1)
+      y3 = bboxes3d_i[:, [1, 4]].max(axis=1)
+      thickness = bboxes3d_i[:,3] - bboxes3d_i[:,0]
+      lines3d_i = np.concatenate([x2,y2,x3,y3,zeros, thickness,z0,z1], axis=0)[None,:]
+    else:
+      # y is the short axis
+      y2 = y3 = bboxes3d_i[:, [1,4]].mean(axis=1)
+      x2 = bboxes3d_i[:, [0, 3]].min(axis=1)
+      x3 = bboxes3d_i[:, [0, 3]].max(axis=1)
+      thickness = bboxes3d_i[:,4] - bboxes3d_i[:,1]
+      lines3d_i = np.concatenate([x2,y2,x3,y3,zeros, thickness,z0,z1], axis=0)[None,:]
+    lines3d.append(lines3d_i)
+  lines3d = np.concatenate( lines3d, axis=0 )
+  return lines3d
 
 
 def anno3d_to_anno_topview(anno_3d):
@@ -171,16 +199,15 @@ def anno3d_to_anno_topview(anno_3d):
   room_scope = bboxes3d[-1].reshape(2,3)
   bbox_cat_ids = anno_3d['bbox_cat_ids']
   assert StanfordPclDataset._catid_2_cat[bbox_cat_ids[-1]] == 'room'
-  bboxes2d = bboxes3d[:,[0,1,3,4]].reshape(-1,2,2)
-  #_, bboxes2d_pt = meter_2_pixel(None, bboxes2d, room_scope)
 
-  # normalize zero
+  lines3d = aligned_3dbboxes_TO_oriented_line(bboxes3d)
+  lines2d = lines3d[:,:5]
 
-  bboxes2d_pt = bboxes2d
+  bboxes2d_pt = lines2d
 
-  num_box = bboxes3d.shape[0]
-  rotation = np.zeros([num_box,1], dtype=bboxes2d_pt.dtype)
-  bboxes2d_pt = np.concatenate([bboxes2d_pt.reshape(-1,4), rotation], axis=1)
+  #debug_utils._show_3d_points_bboxes_ls(bboxes_ls = [bboxes3d])
+  vs = 1/0.04*2
+  #debug_utils._show_lines_ls_points_ls( (512,512), lines_ls=[bboxes2d_pt*vs], box=True, line_colors='random' )
 
   if 0:
     _bboxes2d_pt, _bbox_cat_ids = remove_categories(bboxes2d_pt, bbox_cat_ids, ['room'])
@@ -190,7 +217,7 @@ def anno3d_to_anno_topview(anno_3d):
       _bboxes2d_pt, _bbox_cat_ids = keep_categories(bboxes2d_pt, bbox_cat_ids, [cat])
       if _bboxes2d_pt.shape[0] == 0:
         continue
-      _show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [_bboxes2d_pt], line_colors='random', box=True)
+      _show_lines_ls_points_ls((512, 512), [_bboxes2d_pt], line_colors='random', box=True)
 
   bboxes2d_pt, bbox_cat_ids = keep_categories(bboxes2d_pt, bbox_cat_ids, ['wall'])
 

@@ -128,7 +128,8 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
   else:
     center = [0,0,0]
   center = [0,0,0]
-  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6 * 1, origin=center)
+  fsize = points_ls[0].max() * 0.2
+  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=fsize, origin=center)
   if ADD_FRAME:
     show_ls.append(mesh_frame)
 
@@ -358,7 +359,7 @@ def _show_det_lines(img, lines, labels, class_names=None, score_thr=0,
 #-------------------------------------------------------------------------------
 
 
-
+# -------------------------------------------------------------------------------
 def imshow_bboxes_random_colors(img, bboxes):
     color_lib = ['red', 'green', 'blue', 'cyan', 'yellow', 'magenta']
     ids = np.randint(len(color_lib))

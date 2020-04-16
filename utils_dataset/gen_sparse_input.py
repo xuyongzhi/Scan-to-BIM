@@ -214,7 +214,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
 
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
-      bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=30, thickness=1)
+      bboxes3d_pixel = lines2d_to_bboxes3d(lines2d, OBJ_REP, height=50, thickness=1)
 
       min_points = points.min(axis=0)
       max_points = points.max(axis=0)
