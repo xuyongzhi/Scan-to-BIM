@@ -7,6 +7,7 @@ import os
 from collections import defaultdict
 
 from beike_data_utils.beike_utils import  raw_anno_to_img
+from configs.common import DEBUG_CFG
 
 @DATASETS.register_module
 class StanfordPclDataset(VoxelDatasetBase):
@@ -48,10 +49,13 @@ class StanfordPclDataset(VoxelDatasetBase):
                filter_edges = True,
                classes = ['wall'],
                ):
+    self.save_sparse_input_for_debug = 0
     self.data_root = ann_file
     self.VOXEL_SIZE = voxel_size
+    self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size
+    self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
     img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
     assert img_prefix in ['train', 'test']
     self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
@@ -62,7 +66,10 @@ class StanfordPclDataset(VoxelDatasetBase):
     self._set_group_flag()
     print(f'\n Area {img_prefix}: load {len(self)} files for areas {self.area_list}\n')
     VoxelDatasetBase.__init__(self, phase, self.data_paths, self.data_config)
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
+    self.data_types = data_types
+    all_inds = dict(color=[0,1,2], norm=[3,4,5], xyz=[6,7,8])
+    self.data_channel_inds = np.array([all_inds[dt] for dt in self.data_types]).reshape(-1)
     pass
 
   def _set_group_flag(self):
@@ -85,11 +92,14 @@ class StanfordPclDataset(VoxelDatasetBase):
       anno_2d = anno3d_to_anno_topview(anno_3d)
 
       img_meta = dict(filename = anno_3d['filename'],
-                      input_style='pcl',)
+                      pcl_scope = anno_3d['pcl_scope'],
+                      input_style='pcl',
+                      data_aug = {},
+                      )
 
       img_info = dict(
         img_meta = img_meta,
-        gt_bboxes = anno_2d['bboxes'],
+        gt_bboxes_raw = anno_2d['bboxes'],
         gt_labels = anno_2d['labels']
       )
       self.img_infos.append(img_info)
@@ -97,12 +107,21 @@ class StanfordPclDataset(VoxelDatasetBase):
 
   def load_ply(self, index):
     filepath = self.data_root / self.data_paths[index]
-    plydata = PlyData.read(filepath)
-    data = plydata.elements[0].data
-    coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
-    feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
-    labels = np.array(data['label'], dtype=np.int32)
-    instance = np.array(data['instance'], dtype=np.int32)
+    coords, feats, labels, _ = load_1_ply(filepath)
+    normpath = str(filepath).replace('.ply', '-norm.npy')
+    norm = np.load(normpath)
+    feats = np.concatenate([feats, norm], axis=1)
+
+    np0 = coords.shape[0]
+    if self.max_num_points is not None and  np0 > self.max_num_points:
+      inds = np.random.choice(np0, self.max_num_points, replace=False)
+      inds.sort()
+      coords = coords[inds]
+      feats = feats[inds]
+      labels = labels[inds]
+
+    pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
+    coords -= pcl_scope[0:1]
     return coords, feats, labels, None
 
   def _augment_coords_to_feats(self, coords, feats, labels=None):
@@ -112,9 +131,17 @@ class StanfordPclDataset(VoxelDatasetBase):
     norm_coords = coords - coords_center
     feats = np.concatenate((feats, norm_coords), 1)
     return coords, feats, labels
+
   def _normalization(self, feats):
     feats[:,:3] = feats[:,:3] / 255. - 0.5
     return feats
+
+  def select_data_types(self, feats):
+    '''
+    do this at the last step
+    '''
+    assert feats.shape[1] == 9
+    return feats[:, self.data_channel_inds]
 
 
 class DataConfig:
@@ -194,6 +221,13 @@ def load_bboxes(pcl_file):
   anno['filename'] = filename
   anno['bboxes_3d'] = bboxes
   anno['bbox_cat_ids'] = bbox_cat_ids
+
+  scope_fn = anno_file.replace('.npy', '-scope.txt')
+  scope = np.loadtxt(scope_fn)
+  anno['pcl_scope'] = scope
+
+  bboxes[:, :3] -= scope[0:1]
+  bboxes[:, 3:6] -= scope[0:1]
   return anno
 
 
@@ -217,55 +251,13 @@ def keep_categories(bboxes, cat_ids, kp_cat_list):
   return bboxes[remain_mask], cat_ids[remain_mask]
 
 
-def test(config):
-  """Test point cloud data loader.
-  """
-  from torch.utils.data import DataLoader
-  from utils_data3d.lib.utils import Timer
-  import open3d as o3d
-
-  def make_pcd(coords, feats):
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(coords[:, :3].float().numpy())
-    pcd.colors = o3d.utility.Vector3dVector(feats[:, :3].numpy() / 255)
-    return pcd
-
-  timer = Timer()
-  DatasetClass = StanfordArea5Dataset
-  transformations = [
-      t.RandomHorizontalFlip(DatasetClass.ROTATION_AXIS, DatasetClass.IS_TEMPORAL),
-      t.ChromaticAutoContrast(),
-      t.ChromaticTranslation(config.data_aug_color_trans_ratio),
-      t.ChromaticJitter(config.data_aug_color_jitter_std),
-  ]
-
-  dataset = DatasetClass(
-      config,
-      prevoxel_transform=t.ElasticDistortion(DatasetClass.ELASTIC_DISTORT_PARAMS),
-      input_transform=t.Compose(transformations),
-      augment_data=True,
-      cache=True,
-      elastic_distortion=True)
-
-  data_loader = DataLoader(
-      dataset=dataset,
-      collate_fn=t.cfl_collate_fn_factory(limit_numpoints=False),
-      batch_size=1,
-      shuffle=True)
-
-  # Start from index 1
-  iter = data_loader.__iter__()
-  for i in range(100):
-    timer.tic()
-    coords, feats, labels = iter.next()
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    pcd = make_pcd(coords, feats)
-    o3d.visualization.draw_geometries([pcd])
-    print(timer.toc())
+def load_1_ply(filepath):
+    plydata = PlyData.read(filepath)
+    data = plydata.elements[0].data
+    coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
+    feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
+    labels = np.array(data['label'], dtype=np.int32)
+    instance = np.array(data['instance'], dtype=np.int32)
+    return coords, feats, labels, None
 
 
-if __name__ == '__main__':
-  from utils_data3d.config import get_config
-  config = get_config()
-
-  test(config)

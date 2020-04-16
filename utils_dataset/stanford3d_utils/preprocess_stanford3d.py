@@ -4,8 +4,8 @@ import os
 
 from tqdm import tqdm
 
-from utils_data3d.lib.pc_utils import save_point_cloud,  points_to_bbox
-from tools.debug_utils import _show_pcd
+from utils_dataset.lib.pc_utils import save_point_cloud,  points_to_bbox
+from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls
 
 import MinkowskiEngine as ME
 
@@ -200,7 +200,52 @@ def gen_bboxes():
       pass
   pass
 
+
+def load_1_ply(filepath):
+    from plyfile import PlyData
+    plydata = PlyData.read(filepath)
+    data = plydata.elements[0].data
+    coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
+    feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
+    labels = np.array(data['label'], dtype=np.int32)
+    instance = np.array(data['instance'], dtype=np.int32)
+    return coords, feats, labels, None
+
+
+
+def get_surface_normal():
+  from tools.debug_utils import _make_pcd
+  path = '/home/z/Research/mmdetection/data/stanford'
+  files = glob.glob(path+'/*/*.ply')
+  for fn in files:
+    points, _, _, _ = load_1_ply(fn)
+    pcd = _make_pcd(points)
+    pcd.estimate_normals(fast_normal_computation = True)
+    norm = np.asarray(pcd.normals)
+    #o3d.visualization.draw_geometries( [pcd] )
+    norm_fn = fn.replace('.ply', '-norm.npy')
+    np.save( norm_fn, norm )
+    print('save:  ', norm_fn)
+
+def get_scene_pcl_scopes():
+  path = '/home/z/Research/mmdetection/data/stanford'
+  files = glob.glob(path+'/*/*.ply')
+  for fn in files:
+    points, _, _, _ = load_1_ply(fn)
+    min_points = points.min(0)
+    max_points = points.max(0)
+    scope_i = np.vstack([min_points, max_points])
+    scope_fn = fn.replace('.ply', '-scope.txt')
+    np.savetxt( scope_fn, scope_i)
+    print('save:  ', scope_fn)
+  pass
+
+
+
 if __name__ == '__main__':
   #Stanford3DDatasetConverter.convert_to_ply(STANFORD_3D_IN_PATH, STANFORD_3D_OUT_PATH)
   #generate_splits(STANFORD_3D_OUT_PATH)
-  gen_bboxes()
+  #gen_bboxes()
+  #get_scene_pcl_scopes()
+  get_surface_normal()
+

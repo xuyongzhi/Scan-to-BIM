@@ -297,7 +297,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
       coords, feats, labels = self.prevoxel_transform(coords, feats, labels)
 
     if debug and 0:
-      scale = 3
+      scale = 1
       print('\n\ncoords min:', coords.min(0))
       print('coords max:', coords.max(0))
       print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
@@ -318,7 +318,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if is_include_gt_bboxes:
       gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, DIM_PARSE.OBJ_REP)
 
-    if debug and 0:
+    if debug and 1:
       scale = 3
       print('\n\ncoords min:', coords.min(0))
       print('coords max:', coords.max(0))

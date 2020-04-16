@@ -11,6 +11,7 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
+DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
@@ -178,11 +179,16 @@ img_norm_cfg = dict(
 lra = 0.01
 
 
-max_footprint_for_scale = 180 # 200
-max_num_points = 20 * 10000
+if DATA == 'beike_pcl_2d':
+  max_footprint_for_scale = 180 # 200
+  max_num_points = 20 * 10000
+if DATA == 'stanford_pcl_2d':
+  max_footprint_for_scale = 30 # 200
+  max_num_points = 2 * 10000
+
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=3,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,

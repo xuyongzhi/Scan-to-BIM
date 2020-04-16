@@ -247,7 +247,8 @@ def update_config(cfg, args, split):
           git_label = str(repo.head.commit)
           with open(os.path.join(cfg['work_dir'], git_label ), 'w'):
             pass
-          shutil.copy(img_list_file,
+          if 'stanford' not in img_prefix:
+            shutil.copy(img_list_file,
                       os.path.join(cfg['work_dir'], os.path.basename(img_prefix)))
           pass
         #print(cfg['work_dir'])
