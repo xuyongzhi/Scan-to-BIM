@@ -27,6 +27,7 @@ def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, resca
     debug_sparse_bev(bev_sparse, img_meta, gt_bboxes)
   return bev_sparse
 
+
 def debug_sparse_bev(bev_sparse, img_meta, gt_bboxes):
     coords_batch = bev_sparse.C
     feats_batch = bev_sparse.F
@@ -126,6 +127,7 @@ def get_pcl_topview(sinput, gt_bboxes):
       pass
 
   return bev_sparse
+
 
 def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
   coords_batch, feats_batch = img
@@ -234,7 +236,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       scale = 1
       #_show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
 
-      _show_3d_points_bboxes_ls([points], None, [ bboxes3d_pixel ],
+      _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True, point_normals=[normals])
       pass
   return sinput

@@ -14,7 +14,9 @@ DATA = 'beike_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
-stem_stride = 4
+stem_stride = 2
+
+batch_size = {2:3, 4:7}[stem_stride]
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
@@ -70,6 +72,7 @@ model = dict(
         style='pytorch',
         basic_planes=bbp,
         max_planes=max_planes,
+        stem_stride=stem_stride,
         max_zdim=max_zdim),
     neck=dict(
         type='FPN',
@@ -175,10 +178,10 @@ img_norm_cfg = dict(
 lra = 0.01
 
 
-max_footprint_for_scale = 160 # 200
+max_footprint_for_scale = 180 # 200
 max_num_points = 20 * 10000
 data = dict(
-    imgs_per_gpu=7,
+    imgs_per_gpu=batch_size,
     workers_per_gpu=3,
     train=dict(
         type=dataset_type,

@@ -29,6 +29,7 @@ def get_padding_same_featsize(kernel):
     padding = int((kernel-1)/2)
   return padding
 
+
 class BasicBlock(nn.Module):
     expansion = 1
 
@@ -428,12 +429,14 @@ class S3dProj_BevResNet(nn.Module):
                  zero_init_residual=True,
                  basic_planes=64,
                  max_planes=2048,
+                 stem_stride=4,
                  max_zdim=124,
                  ):
         super(S3dProj_BevResNet, self).__init__()
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
         self.max_zdim = max_zdim
+        self.stem_stride = stem_stride
         self.depth = depth
         self.num_stages = num_stages
         assert num_stages >= 1 and num_stages <= 4
@@ -521,7 +524,10 @@ class S3dProj_BevResNet(nn.Module):
         self.norm1_name, norm1 = build_norm_layer(self.s3d_norm_cfg, self.basic_planes, postfix=1)
         self.add_module(self.norm1_name, norm1)
         self.relu = ME.MinkowskiReLU(inplace=True)
-        self.maxpool = mink_max_pool(kernel_size=3, stride=2, padding=1)
+        if self.stem_stride == 4:
+          self.maxpool = mink_max_pool(kernel_size=3, stride=2, padding=1)
+        elif self.stem_stride == 2:
+          self.maxpool = mink_max_pool(kernel_size=3, stride=(1,1,2), padding=(0,0,1))
         pass
 
     def _make_project_layers(self):
