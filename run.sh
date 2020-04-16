@@ -5,7 +5,7 @@
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_std.py
 
 
@@ -18,11 +18,11 @@ CP=./work_dirs/${wkdir}/best.pth
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=3
+BS=7
 DATA_TYPES=cnx
-FILTER_EDGES=0
-CLS=aid
-#CLS=a
+FILTER_EDGES=1
+#CLS=aid
+CLS=a
 #CLS=i
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS  

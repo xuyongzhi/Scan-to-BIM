@@ -220,7 +220,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/TPV_r50_fpn'
 load_from = None
-#load_from ='./checkpoints/beike/Apr12_Fpn44_Bp32.pth'
+load_from ='./checkpoints/beike/Apr12_Fpn44_Bp32.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]

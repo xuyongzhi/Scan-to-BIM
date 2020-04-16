@@ -8,10 +8,21 @@
 -
 
 ## 15 Apr Img
-- 
+-  wall 
+
+7044d7f454ffd5f919ad5b6eebdb13a493339599
+15Apr_Img/TPV_r50_fpn_beike2d_wa_bs7_lr10_LsW510_RAR2P1N1_Rfiou844_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
+
+|split| wall corner |  wall edge  | 
+|-|-|-|
+| train | 0.922 - 0.956| 0.895 - 0.862 | 
+| eval  | 0.845 - 0.809 |  0.752 - 0.625  |
+
+Test accuracy is still much lower than 12 Apr. The model in 12Apr test on current version still achieve the same acc.
+-  wall 
+
 14728cbf9d641c99ee0fa4185170e4ad9a8058d4
 15Apr_Img/TPV_r50_fpn_beike2d_wa_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp64-D90_0K_zX
-
 
 |split| wall corner |  wall edge  | 
 |-|-|-|
@@ -19,6 +30,39 @@
 | eval  | 0.794 - 0.836 | 0.721 - 0.646  |
 
 Test accuracy is still much lower than 12 Apr. The model in 12Apr test on current version still achieve the same acc.
+
+-  wall 
+
+Test model of 12 Apr
+14728cbf9d641c99ee0fa4185170e4ad9a8058d4
+TPV_r50_fpn_beike2d_wa_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX------From12Apr
+
+|split| wall corner |  wall edge  | 
+|-|-|-|
+| train | 0.938 - 0.937 | 0.912 - 0.826 | 
+| eval  | 0.857 - 0.826 | 0.748 - 0.617  |
+
+- door
+
+a6df5db8431b2deac4146cc81408555ca341c524
+TPV_r50_fpn_beike2d_do_bs7_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX
+
+|split| door corner |  door edge  | 
+|-|-|-|
+| train | 0.995 - 0.951 | 0.913 - 0.918 | 
+| eval  | 0.92 - 0.712 | 0.831 - 0.671  |
+
+
+-  window
+
+a6df5db8431b2deac4146cc81408555ca341c524
+TPV_r50_fpn_beike2d_wi_bs7_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX
+
+|split| window corner |  window edge  | 
+|-|-|-|
+| train | 0.974 - 0.86 | 0.751 - 0.757 | 
+| eval  | 0.725 - 0.44 |  0.44 - 0.293 |
+
 
 ## 14 Apr Img
 - wall window door  
