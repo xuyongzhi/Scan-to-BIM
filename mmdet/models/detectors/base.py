@@ -226,10 +226,11 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         is_pcl_input = isinstance(data['img_meta'][0], dict)
         if is_pcl_input:
           boader_aug = 20
+          draw_scale = 2
 
           img_metas = data['img_meta']
           pcls = [data['img'][0][:,1:]]
-          w, h = img_metas[0]['dynamic_vox_size_aug'][:2] + boader_aug * 2
+          w, h = img_metas[0]['dynamic_vox_size_aug'][:2] * draw_scale + boader_aug * 2
           img_shape = (h,w,3)
           imgs = [np.zeros(img_shape, dtype=np.int8)]
         else:
@@ -279,6 +280,11 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                       self.dim_parse.parse_bboxes_out(bboxes, 'final')
 
                 if is_pcl_input:
+                  bboxes_refine[:,:4] *= draw_scale
+                  bboxes_init[:,:4]  *= draw_scale
+                  points_init  *= draw_scale
+                  points_refine  *= draw_scale
+
                   bboxes_refine[:,:4] += boader_aug
                   bboxes_init[:,:4] += boader_aug
                   points_init += boader_aug
@@ -338,8 +344,9 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 else:
                   out_dir = out_dir_middle
                 out_file_i = out_dir + scene_name + '_' + name_
+                key_points = None
                 show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='random',thickness=1, show=0,
-                          out_file=out_file_i, key_points=None, scores=scores_filter)
+                          out_file=out_file_i, key_points=key_points, point_color='random', scores=scores_filter)
                 if show_points:
                   if  name_ == 'init.png':
                     key_points = key_points_init

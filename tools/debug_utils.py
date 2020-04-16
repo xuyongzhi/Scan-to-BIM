@@ -8,7 +8,7 @@ import cv2
 from MinkowskiEngine import SparseTensor
 
 from .color import color_val, get_random_color, label2color, _label2color
-from configs.common import DEBUG_CFG
+from configs.common import DEBUG_CFG, DIM_PARSE
 
 ADD_FRAME = 1
 
@@ -326,6 +326,7 @@ def _show_det_lines(img, lines, labels, class_names=None, score_thr=0,
   Use lines[:,-1] as score when scores is None, otherwise use scores as the score for filtering lines.
   Always show lines[:,-1] in the image.
   '''
+  from beike_data_utils.line_utils import  gen_corners_from_lines_np
   assert lines.ndim == 2
   assert lines.shape[1] == 6
   assert labels.ndim == 1
@@ -343,9 +344,15 @@ def _show_det_lines(img, lines, labels, class_names=None, score_thr=0,
     labels = labels[inds]
     if key_points is not None:
       key_points = key_points[inds, :]
+
+  if key_points is None:
+    corners_, _, _,_ = gen_corners_from_lines_np(lines[:,:5], None, DIM_PARSE.OBJ_REP)
+    key_points = corners_
+
   key_points_ls = [key_points] if key_points is not None else None
   _show_lines_ls_points_ls(img, [lines], key_points_ls, [line_color],
-        [point_color], line_thickness=thickness, out_file=out_file, only_save=1)
+        [point_color], line_thickness=thickness, point_thickness=2,
+        out_file=out_file, only_save=1)
   pass
 
 #-------------------------------------------------------------------------------
