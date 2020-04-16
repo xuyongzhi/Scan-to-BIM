@@ -345,7 +345,8 @@ def _show_det_lines(img, lines, labels, class_names=None, score_thr=0,
       key_points = key_points[inds, :]
   key_points_ls = [key_points] if key_points is not None else None
   _show_lines_ls_points_ls(img, [lines], key_points_ls, [line_color],
-        [point_color], line_thickness=thickness, out_file=out_file, only_save=True)
+        [point_color], line_thickness=thickness, out_file=out_file, only_save=1)
+  pass
 
 #-------------------------------------------------------------------------------
 

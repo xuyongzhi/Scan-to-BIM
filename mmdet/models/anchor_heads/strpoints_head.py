@@ -19,7 +19,7 @@ from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lin
 
 import torchvision as tcv
 
-from configs.common import DIM_PARSE
+from configs.common import DIM_PARSE, DEBUG_CFG
 
 LINE_CONSTRAIN_LOSS = True
 DEBUG = False
@@ -1159,6 +1159,8 @@ class StrPointsHead(nn.Module):
                                                     cfg.score_thr, cfg.nms,
                                                     cfg.max_per_img)
             assert det_bboxes.shape[1] == self.dim_parse.NMS_OUT_DIM
+            if DEBUG_CFG.SHOW_NMS_OUT:
+              show_nms_out(det_bboxes, det_labels, self.num_classes)
             return det_bboxes, det_labels
         else:
             return mlvl_bboxes, mlvl_scores
@@ -1326,3 +1328,13 @@ def show_pred(bbox_pred, bbox_gt, bbox_weights, flag):
 
   show_lines(bbox_gt, (IMAGE_SIZE, IMAGE_SIZE), lines_ref=bbox_pred, name=flag+'.png')
   pass
+
+def show_nms_out(det_bboxes, det_labels, num_classes):
+  dim_parse = DIM_PARSE(num_classes)
+  bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final,\
+    score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center,\
+    score_composite =\
+      dim_parse.parse_bboxes_out(det_bboxes, 'nms_out')
+  debug_utils._show_lines_ls_points_ls((512,512), [bboxes_refine.cpu().data.numpy()])
+  pass
+

@@ -82,6 +82,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
                pipeline=None,):
     self.save_sparse_input_for_debug = 0
     self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
+    self.classes = classes
     BEIKE_CLSINFO.__init__(self, classes)
 
     assert voxel_size is not None
@@ -163,6 +164,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
                       voxel_size = self.VOXEL_SIZE,
                       scale_factor = 1,
                       raw_dynamic_vox_size = raw_dynamic_vox_size,
+                      classes = self.classes,
                       data_aug={})
 
       img_info = dict(

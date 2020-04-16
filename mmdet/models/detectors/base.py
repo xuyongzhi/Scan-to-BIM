@@ -8,11 +8,11 @@ import os
 import torch
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
-from configs.common import DIM_PARSE
-#OBJ_DIM, OBJ_REP, OUT_EXTAR_DIM, OUT_DIM_FINAL, OUT_CORNER_HM_ONLY, parse_bboxes_out, OBJ_LEGEND
+from configs.common import DIM_PARSE, DEBUG_CFG
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from beike_data_utils.line_utils import  optimize_graph
 from utils_dataset.gen_sparse_input import prepare_sparse_input, prepare_bev_sparse
+from tools.debug_utils import _show_lines_ls_points_ls
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -213,18 +213,24 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
 
     def show_result_graph(self, data, result, dataset=None, score_thr=0.5):
+        num_classes = len(data['img_meta'][0]['classes'])+1
+        self.dim_parse = DIM_PARSE(num_classes)
+
         bbox_result = result['det_bboxes']
         if bbox_result[0].shape[0] > 0:
-            assert bbox_result[0].shape[1] == OUT_DIM_FINAL
+            assert bbox_result[0].shape[1] == self.dim_parse.OUT_DIM_FINAL
         else:
           print('no box detected')
           return
 
         is_pcl_input = isinstance(data['img_meta'][0], dict)
         if is_pcl_input:
+          boader_aug = 20
+
           img_metas = data['img_meta']
           pcls = [data['img'][0][:,1:]]
-          img_shape = img_metas[0]['img_shape']
+          w, h = img_metas[0]['dynamic_vox_size_aug'][:2] + boader_aug * 2
+          img_shape = (h,w,3)
           imgs = [np.zeros(img_shape, dtype=np.int8)]
         else:
           img_metas = data['img_meta'][0].data[0]
@@ -244,12 +250,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 ' of class names, not {}'.format(type(dataset)))
 
         for img, img_meta in zip(imgs, img_metas):
-            h = img_meta['img_shape'][0]
-            w = img_meta['img_shape'][1]
-            if img.shape[-1] == 4:
-              img_show = np.repeat(img[:h, :w, 0:1], 3, axis=2)
-            else:
-              img_show = img[:h, :w, :3]
+            img_show = img[:,:, :3]
 
             bboxes = np.vstack(bbox_result)
             # draw bounding boxes
@@ -271,13 +272,21 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
               continue
 
 
-            if OUT_EXTAR_DIM > 0:
+            if self.dim_parse.OUT_EXTAR_DIM > 0:
                 bboxes_refine, bboxes_init, points_refine, points_init,\
                   score_refine, score_final, score_ave, corner0_score,\
                   corner1_score, corner0_center, corner1_center, score_composite = \
-                      parse_bboxes_out(bboxes, 'final')
+                      self.dim_parse.parse_bboxes_out(bboxes, 'final')
 
-                lines_graph, score_graph, labels_graph = optimize_graph(bboxes_refine, score_composite, labels, OBJ_REP)
+                if is_pcl_input:
+                  bboxes_refine[:,:4] += boader_aug
+                  bboxes_init[:,:4] += boader_aug
+                  points_init += boader_aug
+                  points_refine += boader_aug
+
+                #_show_lines_ls_points_ls((512,512), [bboxes_refine])
+
+                lines_graph, score_graph, labels_graph = optimize_graph(bboxes_refine, score_composite, labels, self.dim_parse.OBJ_REP, opt_graph_cor_dis_thr=10)
                 lines_graph = np.concatenate([lines_graph, score_graph], axis=1)
 
                 #scores_filter = np.squeeze(score_ave)
@@ -303,8 +312,8 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
             filename = img_meta['filename'].split('.')[0]
             scene_name = os.path.basename(filename).replace('.npy', '')
-            out_dir_out = f'./line_det_{OBJ_LEGEND}_res/final/'
-            out_dir_middle = f'./line_det_{OBJ_LEGEND}_res/middle/'
+            out_dir_out = f'./line_det_{DEBUG_CFG.OBJ_LEGEND}_res/final/'
+            out_dir_middle = f'./line_det_{DEBUG_CFG.OBJ_LEGEND}_res/middle/'
             if not os.path.exists(out_dir_out):
               os.makedirs(out_dir_out)
             if not os.path.exists(out_dir_middle):
@@ -338,15 +347,18 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                   out_file_i = out_dir + scene_name + '_' + name_ + '_P.png'
                   show_fun(img_show, bboxes_, labels, class_names=class_names, score_thr=score_thr, line_color='green',thickness=2, show=0,
                           out_file=out_file_i, key_points=key_point, scores=scores)
-                if OUT_EXTAR_DIM == 0 or OBJ_LEGEND == 'rotation':
+                if self.dim_parse.OUT_EXTAR_DIM == 0 or DEBUG_CFG.OBJ_LEGEND == 'rotation':
                   break
 
     def show_result(self, data, result, dataset=None, score_thr=0.3):
-        if OUT_CORNER_HM_ONLY:
+        num_classes = len(data['img_meta'][0]['classes'])+1
+        self.dim_parse = DIM_PARSE(num_classes)
+
+        if DEBUG_CFG.OUT_CORNER_HM_ONLY:
           self.show_corner_hm(data, result, dataset, score_thr)
           return
 
-        if OBJ_REP == 'lscope_istopleft':
+        if self.dim_parse.OBJ_REP == 'lscope_istopleft':
           self.show_result_graph(data, result, dataset, score_thr)
           return
 
@@ -355,7 +367,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         else:
             bbox_result, segm_result = result, None
         if bbox_result[0].shape[0] > 0:
-            assert bbox_result[0].shape[1] == OUT_DIM_FINAL
+            assert bbox_result[0].shape[1] == self.dim_parse.OUT_DIM_FINAL
         else:
           print('no box detected')
           return

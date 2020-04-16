@@ -74,13 +74,15 @@ class DIM_PARSE:
     self.OUT_DIM_FINAL = self.NMS_OUT_DIM + self.CORNER_DIM + self.COMPOSITE_SCORE
 
   def parse_bboxes_out(self, bboxes_out, stage):
-    assert stage in ['before_nms', 'before_cal_score_composite', 'final']
+    assert stage in ['before_nms', 'nms_out', 'before_cal_score_composite', 'final']
     if isinstance(bboxes_out, torch.Tensor):
       assert bboxes_out.dim() == 2
     else:
       assert bboxes_out.ndim == 2
     if stage == 'before_nms':
       assert bboxes_out.shape[1] == self.NMS_IN_DIM
+    if stage == 'nms_out':
+      assert bboxes_out.shape[1] == self.NMS_OUT_DIM
     elif stage == 'before_cal_score_composite':
       assert bboxes_out.shape[1] == self.OUT_DIM_FINAL -1
     elif stage == 'final':
@@ -89,7 +91,7 @@ class DIM_PARSE:
     outs = {}
     for key in self.OUT_ORDER:
       s, e = self.OUT_ORDER[key]
-      if bboxes_out.shape[1] < e:
+      if bboxes_out.shape[1] < e or s == e:
         outs[key] = None
       else:
         outs[key] = bboxes_out[:, s:e]
@@ -136,6 +138,7 @@ class DEBUG_CFG:
   VISUALIZE_POINT_ASSIGNER = 0
   VISUALIZE_IOU_ASSIGNER = 0
   SHOW_TRAIN_RES = 0
+  SHOW_NMS_OUT = 0
 
   CHECK_POINT_ASSIGN = False
   VISUAL_RESNET_OUT = 0
