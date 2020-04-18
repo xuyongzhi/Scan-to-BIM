@@ -4,8 +4,11 @@ import os
 
 from tqdm import tqdm
 
-from utils_dataset.lib.pc_utils import save_point_cloud,  points_to_bbox
-from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
+from utils_dataset.lib.pc_utils import save_point_cloud
+from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls, _show_lines_ls_points_ls
+from tools import debug_utils
+from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 
 import MinkowskiEngine as ME
 
@@ -32,6 +35,7 @@ STANFORD_3D_TO_SEGCLOUD_LABEL = {
     0: 12,
 }
 
+DEBUG=0
 
 class Stanford3DDatasetConverter:
 
@@ -140,9 +144,135 @@ def generate_splits(stanford_out_path):
       f.write('\n'.join(files))
 
 
+
+def aligned_points_to_bbox(points, out_np=False):
+  assert points.ndim == 2
+  assert points.shape[1] == 3
+  points_ = o3d.utility.Vector3dVector(points)
+  bbox = o3d.geometry.AxisAlignedBoundingBox.create_from_points(points_)
+  #rMatrix = bbox.R
+  #print(rMatrix)
+
+  #rotvec = R_to_Vec(rMatrix)
+  #rMatrix_Check_v = o3d.geometry.get_rotation_matrix_from_axis_angle(rotvec)
+  #errM = np.matmul(rMatrix, rMatrix_Check_v.transpose())
+  #rotvec_c = R_to_Vec(rMatrix_Check_v)
+  #if not  np.max(np.abs(( rotvec - rotvec_c ))) < 1e-6:
+  #  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  #  pass
+
+  #euler = R_to_Euler(rMatrix)
+  #rMatrix_Check_e = o3d.geometry.get_rotation_matrix_from_zyx(euler)
+
+  if 1:
+    mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6, origin=bbox.get_center())
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = points_
+    o3d.visualization.draw_geometries([bbox, pcd, mesh_frame])
+
+  if not out_np:
+    return bbox
+  else:
+    min_bound = bbox.min_bound
+    max_bound = bbox.max_bound
+    bbox_np = np.concatenate([min_bound, max_bound], axis=0)
+  return bbox_np
+
+def points_to_oriented_bbox(points, voxel_size=0.002):
+  '''
+  points: [n,3]
+  boxes3d: [n,8] RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+  '''
+  import cv2
+  assert points.ndim == 2
+  assert points.shape[1] == 3
+  aug = 10
+
+  xyz_min = points.min(0)
+  xyz_max = points.max(0)
+  scope = xyz_max - xyz_min
+  points = points - xyz_min
+
+  point_inds = points / voxel_size
+  point_inds = np.round(point_inds).astype(np.int)[:,:2] + aug
+
+  img_size = point_inds.max(0)[[1,0]]+1 + aug*2
+
+  img = np.zeros(img_size, dtype=np.uint8)
+  # NOTE: x, y is inversed between 3d points and 2d img
+  #img[point_inds[:,0],  point_inds[:,1]] = 255
+
+  box2d = cv2.minAreaRect(point_inds)
+  box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
+  # The original angle from cv2.minAreaRect denotes the rotation from ref-x
+  # to body-x. It is it positive for clock-wise.
+  # make x the long dim
+  if box2d[0,2] < box2d[0,3]:
+    box2d[:,[2,3]] = box2d[:,[3,2]]
+    box2d[:,-1] = 90+box2d[:,-1]
+  box2d[:,-1] *= np.pi / 180
+
+  #_show_objs_ls_points_ls(img, [box2d], obj_rep='RoBox2D_CenSizeAngle', points_ls=[point_inds])
+
+  box2d_st = OBJ_REPS_PARSE.encode_obj(box2d, obj_rep_in = 'RoBox2D_CenSizeAngle',
+                     obj_rep_out = 'RoBox2D_UpRight_xyxy_sin2a_thick')
+  #_show_objs_ls_points_ls(img, [box2d_st], obj_rep='RoBox2D_UpRight_xyxy_sin2a_thick', points_ls=[point_inds])
+
+  box3d = np.concatenate([box2d_st, xyz_min[None,2:], xyz_max[None,2:]], axis=1)
+  box3d[:, [0,1,2,3, 5,]] *= voxel_size
+  box3d[:, [0,1]] += xyz_min[None, [0,1]]
+  box3d[:, [2,3]] += xyz_min[None, [0,1]]
+  return box3d
+
+
+def unused_points_to_bbox(points, out_np=False):
+  from beike_data_utils.geometric_utils import R_to_Vec, R_to_Euler
+  assert points.ndim == 2
+  assert points.shape[1] == 3
+  zmax = points[:,2].max()
+  zmin = points[:,2].min()
+  zmean = (zmax+zmin)/2
+  bev_points = points.copy()
+  bevz = bev_points[:,2].copy()
+  bev_points[:,2] = zmean
+  bev_points[:,2][bevz>zmean+0.5] = zmax
+  bev_points[:,2][bevz<=zmean-0.5] = zmin
+  pvec = o3d.utility.Vector3dVector(bev_points)
+  bbox = o3d.geometry.OrientedBoundingBox.create_from_points(pvec)
+  rMatrix = bbox.R
+  print(rMatrix)
+
+  rotvec = R_to_Vec(rMatrix)
+  rMatrix_Check_v = o3d.geometry.get_rotation_matrix_from_axis_angle(rotvec)
+  errM = np.matmul(rMatrix, rMatrix_Check_v.transpose())
+  rotvec_c = R_to_Vec(rMatrix_Check_v)
+  if not  np.max(np.abs(( rotvec - rotvec_c ))) < 1e-6:
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+
+  euler = R_to_Euler(rMatrix)
+  rMatrix_Check_e = o3d.geometry.get_rotation_matrix_from_zyx(euler)
+
+  if 1:
+    mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.6, origin=bbox.get_center())
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = pvec
+    o3d.visualization.draw_geometries([bbox, pcd, mesh_frame])
+
+  if not out_np:
+    return bbox
+  else:
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    min_bound = bbox.min_bound
+    max_bound = bbox.max_bound
+    bbox_np = np.concatenate([min_bound, max_bound], axis=0)
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  return bbox_np
+
 def gen_bboxes():
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
+  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_2/storage_9.ply')]
   for plyf in ply_files:
       bbox_file = plyf.replace('ply', 'npy')
       plydata = PlyData.read(plyf)
@@ -177,7 +307,7 @@ def gen_bboxes():
           coords_cat_ins = coords_cat[mask_ins]
           if cat_name != 'clutter':
             #show_pcd(coords_cat_ins)
-            bbox = points_to_bbox(coords_cat_ins, out_np=True)[None,:]
+            bbox = points_to_oriented_bbox(coords_cat_ins)
             bboxes[cat_name].append(bbox)
         pass
       for cat in bboxes:
@@ -196,7 +326,20 @@ def gen_bboxes():
 
       colors = instances.astype(np.int32)
       colors = feats
-      #_show_pcd([coords], [colors], [bboxes['wall']])
+
+  #walls = OBJ_REPS_PARSE.encode_obj(bboxes['wall'], 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'RoBox3D_CenSizeAngle')
+  #print(walls)
+
+  #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+  #print( bboxes['wall'])
+  #bboxes['wall'][:,:5],_,_ = GraphUtils.optimize_graph(bboxes['wall'][:,:5], obj_rep='RoLine2D_UpRight_xyxy_sin2a', opt_graph_cor_dis_thr=0.2)
+  #print( bboxes['wall'])
+  #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+
+  if 0:
+    for cat in bboxes:
+      print(cat)
+      _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
       pass
   pass
 
@@ -210,7 +353,6 @@ def load_1_ply(filepath):
     labels = np.array(data['label'], dtype=np.int32)
     instance = np.array(data['instance'], dtype=np.int32)
     return coords, feats, labels, None
-
 
 
 def get_surface_normal():

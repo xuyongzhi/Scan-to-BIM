@@ -7,6 +7,17 @@
 - 2
 -
 
+## 16 Apr Img
+
+-  wall , Fine tune based on model trained in 12 Apr
+
+13edfa29d1de9bd911a07869fabbc4b65d0f203d
+TPV_r50_fpn_beike2d_wa_bs7_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX-----FineTune_From12Apr
+|split| wall corner |  wall edge  | 
+|-|-|-|
+| train | 0.944 - 0.973 | 0.923 - 0.924 | 
+| eval  | 0.829 - 0.832 |  0.729 - 0.658  |
+
 ## 15 Apr Img
 -  wall 
 
@@ -33,7 +44,7 @@ Test accuracy is still much lower than 12 Apr. The model in 12Apr test on curren
 
 -  wall 
 
-Test model of 12 Apr
+Test the model trained on 12 Apr.
 14728cbf9d641c99ee0fa4185170e4ad9a8058d4
 TPV_r50_fpn_beike2d_wa_bs7_lr10_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX------From12Apr
 

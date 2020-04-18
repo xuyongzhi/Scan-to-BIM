@@ -43,16 +43,13 @@ if DATA == 'stanford_pcl_2d':
   dataset_type = 'StanfordPclDataset'
   data_root = f'data/stanford/'
   ann_file = data_root
-  in_channels = 6
+  in_channels = 9
 
 if DATA == 'beike_pcl_2d':
   dataset_type = 'BeikePclDataset'
   data_root = f'data/beike/processed_512/'
   ann_file = data_root + 'json/'
-  if not DEBUG_CFG.SPARSE_BEV:
-    in_channels = 9
-  else:
-    in_channels = 4
+  in_channels = 9
 
 #*******************************************************************************
 max_planes = 1024
@@ -188,7 +185,7 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -232,13 +229,16 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/PR50_fpn'
+if DATA == 'beike_pcl_2d':
+  work_dir = f'./work_dirs/BR50_fpn'
+if DATA == 'stanford_pcl_2d':
+  work_dir = f'./work_dirs/SR50_fpn'
 load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
 
-if 0:
+if 1:
   total_epochs = 2010
   checkpoint_config = dict(interval=100)
   workflow = [('train', 1),]

@@ -39,6 +39,7 @@ class StanfordPclDataset(VoxelDatasetBase):
   NUM_IN_CHANNEL = 9
   NORMALIZATION = True
 
+  EASY = ['Area_1/office_16']
   UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9', 'Area_4/hallway_14']
 
   def __init__(self,
@@ -87,6 +88,7 @@ class StanfordPclDataset(VoxelDatasetBase):
     self.data_paths = [p.split(self.data_root)[1] for p in data_paths]
 
     #self.data_paths = ['Area_6/hallway_1.ply']
+    #self.data_paths = [f+'.ply' for f in self.EASY]
 
     #data_roots = [f.replace('ply', 'npy') for f in pcl_files]
     n = len(self.data_paths)

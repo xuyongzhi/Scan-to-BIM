@@ -68,6 +68,7 @@ def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
 
 
 #-3d------------------------------------------------------------------------------
+
 def _show_sparse_coords(x, gt_bboxes=None):
   C = x.C.cpu().data.numpy()
   F = x.F.cpu().data.numpy()
@@ -123,14 +124,15 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
       bboxes_o3d = _make_bboxes_o3d(bboxes, box_oriented, b_colors[i])
       show_ls = show_ls + bboxes_o3d
 
-  if points_ls is not None:
-    center = points_ls[0][:,:3].mean(axis=0)
-  else:
-    center = [0,0,0]
-  center = [0,0,0]
-  fsize = points_ls[0].max() * 0.2
-  mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=fsize, origin=center)
   if ADD_FRAME:
+    if points_ls is not None:
+      center = points_ls[0][:,:3].mean(axis=0)
+      center = points_ls[0].min(0)
+      fsize = (points_ls[0].max() - points_ls[0].min())*0.1
+    else:
+      center = [0,0,0]
+      fsize = (0,0,0)
+    mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=fsize, origin=center)
     show_ls.append(mesh_frame)
 
   o3d.visualization.draw_geometries( show_ls )
@@ -185,7 +187,9 @@ def _make_pcd(points, colors=None, normals=None):
     return pcd
 
 
-#-2d------------------------------------------------------------------------------
+
+#-2d line ------------------------------------------------------------------------------
+
 def _get_color(color_str):
   assert isinstance( color_str, str), print(color_str)
   if color_str == 'random':

@@ -2,6 +2,16 @@
 import torch, math
 import numpy as np
 
+'''
+Angle order:
+
+1. clock wise is positive in all my functions, same as opencv
+2. cross: positive for anti-clock wise
+3. opencv cv2.minAreaRect:  positive for anti-clock wise
+
+All angle used in this file is in unit of radian
+'''
+
 def limit_period(val, offset, period):
   '''
     [0, pi]: offset=0, period=pi
@@ -38,6 +48,22 @@ def angle_with_x(vec_start, scope_id=0, debug=0):
 def angle_with_x_np(vec_start, scope_id):
   angle = angle_with_x(torch.from_numpy(vec_start), scope_id)
   return angle.data.numpy()
+
+def vec_from_angle_with_x_np(angle):
+  '''
+  angle: [n]
+  vec: [n,2]
+  '''
+  assert angle.ndim == 1
+  x = np.cos(angle)[:,None]
+  y = -np.sin(angle)[:,None]
+  vec = np.concatenate([x,y], axis=1)
+
+  check = 1
+  if check:
+    angle_c = angle_with_x_np(vec, 2)
+    assert all(np.abs(angle - angle_c) < 1e-3)
+  return vec
 
 def sin2theta(vec_start_0, vec_end_0):
   '''

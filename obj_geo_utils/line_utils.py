@@ -7,6 +7,10 @@ from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _sh
 import torch
 
 
+
+
+#--------------------------------------------------------------------------------
+
 def encode_line_rep(lines, obj_rep):
   '''
   lines: [n,4] or [n,2,2]
