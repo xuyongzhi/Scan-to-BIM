@@ -5,23 +5,23 @@
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/pcl_dense3dfpn_strpoints_r50_fpn_1x.py
-#CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_std.py
 
 
-wkdir=TPV_r50_fpn_beike2d_wa_bs7_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
+wkdir=PR50_fpn_beike_pcl_2d_wa_bs3_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem2_Vsz4-D90_0K_zX
 CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_pcl_dense3dfpn_strpoints_r50_fpn_1x.py
-CONFIG=./work_dirs/${wkdir}/_strpoints_r50_fpn_1x.py
+CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=7
+BS=3
 DATA_TYPES=cnx
-FILTER_EDGES=1
-#CLS=aid
+FILTER_EDGES=0
+CLS=aid
 CLS=a
 #CLS=i
 
