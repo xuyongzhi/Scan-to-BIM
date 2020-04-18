@@ -186,6 +186,10 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       print(f'points scope: {min_points} - {max_points}')
       print(f'lines scope: {min_lines} - {max_lines}')
       print(f'data aug:\n {data_aug}\n')
+
+      scale = 1
+      _show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
+      _show_lines_ls_points_ls((512,512), [lines2d*scale])
       _show_3d_points_objs_ls([points], [colors], [bboxes3d], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass

@@ -19,6 +19,7 @@ from . import transforms as t
 from .dataloader import InfSampler
 from .voxelizer import Voxelizer
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
+from tools.visual_utils import _show_3d_points_objs_ls
 
 DEBUG = 0
 
@@ -318,7 +319,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if is_include_gt_bboxes:
       gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, DIM_PARSE.OBJ_REP)
 
-    if debug and 1:
+    if debug and 0:
       scale = 3
       print('\n\ncoords min:', coords.min(0))
       print('coords max:', coords.max(0))
@@ -370,6 +371,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
       print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
       #print(gt_bboxes)
       _show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
+      _show_3d_points_objs_ls([coords], objs_ls=[gt_bboxes], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
       pass
 
     return_args = [coords, feats, labels, img_info]

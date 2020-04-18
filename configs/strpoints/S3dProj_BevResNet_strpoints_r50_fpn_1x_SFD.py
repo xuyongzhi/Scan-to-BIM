@@ -11,11 +11,11 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
-#DATA = 'stanford_pcl_2d'
+DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
-stem_stride = 4
+stem_stride = 2
 
 batch_size = {2:3, 4:7}[stem_stride]
 
@@ -185,7 +185,7 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=3,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,

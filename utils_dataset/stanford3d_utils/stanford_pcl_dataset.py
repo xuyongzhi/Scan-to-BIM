@@ -277,6 +277,7 @@ def load_bboxes(pcl_file):
     show_bboxes(bboxes_3d)
   return anno
 
+
 def show_bboxes(bboxes_3d):
     #_show_3d_points_objs_ls(None, None, [bboxes_3d],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
     bboxes_show = bboxes_3d.copy()
@@ -286,6 +287,7 @@ def show_bboxes(bboxes_3d):
     _show_objs_ls_points_ls( (512,512), [bboxes_show[:,:5]], obj_rep='RoLine2D_UpRight_xyxy_sin2a' )
     #_show_objs_ls_points_ls( (512,512), [bboxes_show[:,:6]], obj_rep='RoBox2D_UpRight_xyxy_sin2a_thick' )
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
 
 def remove_categories(bboxes, cat_ids, rm_cat_list):
   n = bboxes.shape[0]
