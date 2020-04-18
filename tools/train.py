@@ -87,7 +87,7 @@ def update_config(cfg, args, split):
     cls_str = args.classes
 
     if cls_str is not None:
-      cls_full = {'a':'wall', 'i':'window', 'd':'door'}
+      cls_full = {'a':'wall', 'i':'window', 'd':'door', 'c':'column', 'b':'beam'}
       classes = [cls_full[c] for c in cls_str]
       cfg['classes'] = classes
       cfg['model']['bbox_head']['num_classes'] = len(classes)+1

@@ -5,6 +5,7 @@ from .geometry_utils import sin2theta_np, angle_with_x_np, vec_from_angle_with_x
 import cv2
 from tools import debug_utils
 import torch
+from obj_geo_utils.geometry_utils import limit_period_np
 
 class OBJ_REPS_PARSE:
   '''
@@ -72,6 +73,16 @@ class OBJ_REPS_PARSE:
       zs = np.abs(z1-z0)
       box3d = np.concatenate([box2d[:,:2], zc, box2d[:,2:4], zs, box2d[:,4:5]], axis=1)
       return box3d
+
+    elif obj_rep_in == 'RoBox3D_CenSizeAngle'  and obj_rep_out == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1':
+      # RoBox2D_CenSizeAngle
+      box2d = bboxes[:, [0,1, 3,4, 6]]
+      z0 = bboxes[:, 2:3] - bboxes[:, 5:6]/2
+      z1 = bboxes[:, 2:3] + bboxes[:, 5:6]/2
+      line2d = OBJ_REPS_PARSE.encode_obj(box2d, 'RoBox2D_CenSizeAngle', 'RoBox2D_UpRight_xyxy_sin2a_thick')
+      line3d = np.concatenate([line2d, z0, z1], axis=1)
+      return line3d
+
     assert False, f'Not implemented:\nobj_rep_in: {obj_rep_in}\nobj_rep_out: {obj_rep_out}'
 
   @staticmethod
@@ -87,8 +98,14 @@ class OBJ_REPS_PARSE:
     check=1
     if check:
       bboxes_c = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(line2d_2p)
-      err = bboxes - bboxes_c
-      assert np.max(np.abs(err)) < 1e-3, err
+      err0 = bboxes - bboxes_c
+      err0[:,3] = limit_period_np(err0[:,3] , 0.5, np.pi)
+      err = np.max(np.abs(err0))
+      if err > 1e-3:
+        print(err0)
+        print(err)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
       pass
     return line2d_2p
 

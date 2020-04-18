@@ -20,6 +20,14 @@ def limit_period(val, offset, period):
   '''
   return val - torch.floor(val / period + offset) * period
 
+def limit_period_np(val, offset, period):
+  '''
+    [0, pi]: offset=0, period=pi
+    [-pi/2, pi/2]: offset=0.5, period=pi
+    [-pi, 0]: offset=1, period=pi
+  '''
+  return val - np.floor(val / period + offset) * period
+
 def angle_dif(val0, val1, aim_scope_id):
     '''
       aim_scope_id 0:[-pi/2, pi/2]

@@ -4,6 +4,7 @@ import os
 
 from tqdm import tqdm
 
+from obj_geo_utils.geometry_utils import limit_period_np
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from utils_dataset.lib.pc_utils import save_point_cloud
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls, _show_lines_ls_points_ls
@@ -211,6 +212,7 @@ def points_to_oriented_bbox(points, voxel_size=0.002):
     box2d[:,[2,3]] = box2d[:,[3,2]]
     box2d[:,-1] = 90+box2d[:,-1]
   box2d[:,-1] *= np.pi / 180
+  box2d[:,-1] = limit_period_np(box2d[:,-1], 0.5, np.pi) # limit_period
 
   #_show_objs_ls_points_ls(img, [box2d], obj_rep='RoBox2D_CenSizeAngle', points_ls=[point_inds])
 
@@ -274,7 +276,12 @@ def gen_bboxes():
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_2/storage_9.ply')]
   for plyf in ply_files:
-      bbox_file = plyf.replace('ply', 'npy')
+      bbox_file = plyf.replace('.ply', '-boxes.npy')
+      print('\n\n\t',bbox_file, '\n\n')
+      if os.path.exists(bbox_file):
+        pass
+        #continue
+
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
       coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
@@ -319,28 +326,31 @@ def gen_bboxes():
       min_pcl = np.floor(min_pcl*10)/10
       max_pcl = coords.max(axis=0)
       max_pcl = np.ceil(max_pcl*10)/10
+      mean_pcl = (min_pcl + max_pcl) / 2
       pcl_scope = np.concatenate([min_pcl, max_pcl], axis=0)
-      bboxes['room'] = pcl_scope[None,:]
+      room = np.concatenate([ mean_pcl, max_pcl-min_pcl, np.array([0]) ], axis=0)
+
+      bboxes['room'] = OBJ_REPS_PARSE.encode_obj( room[None,:], 'RoBox3D_CenSizeAngle', 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' )
 
       np.save(bbox_file, bboxes)
 
       colors = instances.astype(np.int32)
       colors = feats
 
-  #walls = OBJ_REPS_PARSE.encode_obj(bboxes['wall'], 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'RoBox3D_CenSizeAngle')
-  #print(walls)
+      #walls = OBJ_REPS_PARSE.encode_obj(bboxes['wall'], 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'RoBox3D_CenSizeAngle')
+      #print(walls)
 
-  #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-  #print( bboxes['wall'])
-  #bboxes['wall'][:,:5],_,_ = GraphUtils.optimize_graph(bboxes['wall'][:,:5], obj_rep='RoLine2D_UpRight_xyxy_sin2a', opt_graph_cor_dis_thr=0.2)
-  #print( bboxes['wall'])
-  #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+      #print( bboxes['wall'])
+      #bboxes['wall'][:,:5],_,_ = GraphUtils.optimize_graph(bboxes['wall'][:,:5], obj_rep='RoLine2D_UpRight_xyxy_sin2a', opt_graph_cor_dis_thr=0.2)
+      #print( bboxes['wall'])
+      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
 
-  if 0:
-    for cat in bboxes:
-      print(cat)
-      _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-      pass
+      if 0:
+        for cat in bboxes:
+          print(cat)
+          _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+          pass
   pass
 
 
@@ -387,7 +397,7 @@ def get_scene_pcl_scopes():
 if __name__ == '__main__':
   #Stanford3DDatasetConverter.convert_to_ply(STANFORD_3D_IN_PATH, STANFORD_3D_OUT_PATH)
   #generate_splits(STANFORD_3D_OUT_PATH)
-  gen_bboxes()
+  #gen_bboxes()
   #get_scene_pcl_scopes()
-  #get_surface_normal()
+  get_surface_normal()
 

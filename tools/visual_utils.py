@@ -11,7 +11,7 @@ from .color import color_val, get_random_color, label2color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-ADD_FRAME = 1
+ADD_FRAME = 0
 
 #-2d general------------------------------------------------------------------------------
 
@@ -19,7 +19,7 @@ def _show_objs_ls_points_ls(img,
                             objs_ls=None,
                             obj_rep='RoLine2D_UpRight_xyxy_sin2a',
                             points_ls=None,
-                            obj_colors='green',
+                            obj_colors='random',
                             point_colors='red',
                             out_file=None,
                             obj_thickness=1,
@@ -264,7 +264,10 @@ def _show_sparse_coords(x, gt_bboxes=None):
 
 def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
              objs_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_colors='random', thickness=0.1):
-  bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'RoBox3D_CenSizeAngle') for o in objs_ls]
+  if objs_ls is not None:
+    bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'RoBox3D_CenSizeAngle') for o in objs_ls]
+  else:
+    bboxes_ls = None
   _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, obj_colors, box_oriented=True)
 
 def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
@@ -299,8 +302,8 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
       center = points_ls[0].min(0)
       fsize = (points_ls[0].max() - points_ls[0].min())*0.1
     else:
-      center = [0,0,0]
-      fsize = (1,1,1)
+      center =  (0,0,0)
+      fsize = 1.0
     mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=fsize, origin=center)
     show_ls.append(mesh_frame)
 

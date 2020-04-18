@@ -5,6 +5,7 @@ import torch
 from configs.common import DEBUG_CFG, DIM_PARSE
 OBJ_REP = DIM_PARSE.OBJ_REP
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
+from tools.visual_utils import _show_3d_points_objs_ls
 
 def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
   batch_size, c, h, w = img.shape
@@ -139,10 +140,55 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   if DEBUG_CFG.SPARSE_BEV:
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
-
   debug = 0
   voxel_size = 0.04
-  if debug and DEBUG_CFG.SPARSE_BEV:
+  if debug:
+    n = coords_batch.shape[0]
+    print(f'batch voxe num: {n/1000}k')
+
+    batch_size = coords_batch[:,0].max()+1
+    for i in range(batch_size):
+      print(f'example {i}/{batch_size}')
+      batch_mask = coords_batch[:,0] == i
+      points = coords_batch[batch_mask][:, 1:].cpu().data.numpy()
+      colors = feats_batch[batch_mask][:, :3].cpu().data.numpy()
+      colors = colors+0.5
+      normals = feats_batch[batch_mask][:, 3:6].cpu().data.numpy()
+      num_p = points.shape[0]
+
+      img_meta_i = img_meta[i]
+      voxel_size = img_meta_i['voxel_size']
+      raw_dynamic_vox_size = img_meta_i['raw_dynamic_vox_size']
+
+      mask_i = sinput.C[:,0] == i
+      ci = sinput.C[mask_i]
+
+      lines2d = gt_bboxes[i].cpu().data.numpy()
+      nl = lines2d.shape[0]
+      tz = np.array([[5, 0, 30]]*nl)
+      bboxes3d = np.concatenate([lines2d,tz], axis=1)
+
+      min_points = points.min(axis=0)
+      max_points = points.max(axis=0)
+      min_lines = lines2d[:,:4].reshape(-1,2).min(axis=0)
+      max_lines = lines2d[:,:4].reshape(-1,2).max(axis=0)
+
+      data_aug = img_meta_i['data_aug']
+      dynamic_vox_size_aug = img_meta_i['dynamic_vox_size_aug']
+      print('\n\nfinal sparse input')
+      footprint = dynamic_vox_size_aug[0] * dynamic_vox_size_aug[1] * (voxel_size*voxel_size)
+      print(f'dynamic_vox_size_aug: {dynamic_vox_size_aug}, footprint: {footprint}')
+
+      print(f'num voxel: {num_p/1000}K')
+      print(img_meta[i]['filename'])
+      print(f'points scope: {min_points} - {max_points}')
+      print(f'lines scope: {min_lines} - {max_lines}')
+      print(f'data aug:\n {data_aug}\n')
+      _show_3d_points_objs_ls([points], [colors], [bboxes3d], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
+  if 0 and DEBUG_CFG.SPARSE_BEV:
 
     coords_batch = sinput.C
     feats_batch = sinput.F
@@ -189,9 +235,9 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-  if debug and not DEBUG_CFG.SPARSE_BEV:
+  if 0 and not DEBUG_CFG.SPARSE_BEV:
     n = coords_batch.shape[0]
-    print(f'batch voxe num: {n/1000}K')
+    print(f'batch voxe num: {n/1000}k')
 
     batch_size = coords_batch[:,0].max()+1
     for i in range(batch_size):
@@ -207,8 +253,8 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       voxel_size = img_meta_i['voxel_size']
       raw_dynamic_vox_size = img_meta_i['raw_dynamic_vox_size']
 
-      mask_i = sinput.C[:,0] == i
-      Ci = sinput.C[mask_i]
+      mask_i = sinput.c[:,0] == i
+      ci = sinput.c[mask_i]
 
       lines2d = gt_bboxes[i].cpu().data.numpy()
 
@@ -238,6 +284,8 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       _show_3d_points_bboxes_ls([points], [colors], [ bboxes3d_pixel ],
                   b_colors = 'red', box_oriented=True, point_normals=[normals])
+
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
   return sinput
 
