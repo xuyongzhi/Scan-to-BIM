@@ -1,5 +1,35 @@
 
 # RES
+## 17 Pcl
+- wall 
+
+1c1e3c53b9ddbfa0c707014d548dc29a725dd50d
+PR50_fpn_beike_pcl_2d_wa_bs3_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem2_Vsz4-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | 0.89 - 0.82  |  0.826 - 0.64   |
+| eval  | 0.854 - 0.748 | 0.775 - 0.566 |
+
+- window
+
+1c1e3c53b9ddbfa0c707014d548dc29a725dd50d
+17Apr_Pcl/PR50_fpn_beike_pcl_2d_wi_bs3_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem2_Vsz4-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | 0.72 - 0.379| 0.46 - 0.258   |
+| eval  | 0.5 - 0.253 | 0.231 - 0.12 |
+
+## 16 Pcl
+5d8c11e482bca3406c74a506f7374931e9103672
+PR50_fpn_beike_pcl_2d_wa_bs7_lr50_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | 0.89 - 0.83  |  0.83 - 0.656   |
+| eval  |  0.874 - 0.748 | 0.786 - 0.577 |
+
 ## 15 Pcl 1File
 14aa03cd55711d3047cdab6cedba693151b9ce82  
 - wall: 260-0.1, 325-0.02,  2000-0.0108

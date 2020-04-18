@@ -128,8 +128,10 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
     self.data_channel_inds = np.array([all_inds[dt] for dt in self.data_types]).reshape(-1)
     pass
 
+
   def _set_group_flag(self):
     self.flag = np.zeros(len(self), dtype=np.uint8)
+
 
   def load_anno(self):
     '''
@@ -159,6 +161,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
       raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
       img_meta = dict(filename = anno_raw['filename'],
                       input_style='pcl',
+                      is_pcl = True,
                       pcl_scope = anno_raw['pcl_scope'],
                       line_length_min_mean_max = anno_raw['line_length_min_mean_max'],
                       voxel_size = self.VOXEL_SIZE,
@@ -185,7 +188,6 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
     print(f'mean_pcl_scope: {self.mean_pcl_scope}')
     print(f'max_pcl_scope: {self.max_pcl_scope}')
     pass
-
 
   def load_ply(self, index):
     filepath = self.data_root / self.data_paths[index]
@@ -229,10 +231,12 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
     feats = np.concatenate((feats, norm_coords), 1)
     return coords, feats, labels
 
+
   def _normalization(self, feats):
     assert feats.shape[1] == 9
     feats[:,:3] = feats[:,:3] / 255. - 0.5
     return feats
+
 
   def select_data_types(self, feats):
     '''
@@ -263,6 +267,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
     print(f'save sparse vox input: {svi_file}')
     pass
 
+
   def load_sparse_input(self, index, is_rotate=1):
     import pickle
 
@@ -282,6 +287,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
     with open(svi_file, 'rb') as f:
       return_args = pickle.load(f)
     return return_args
+
 
 def test():
   beikepcl = BeikePclDataset(ann_file='/home/z/Research/mmdetection/data/beike/processed_512')

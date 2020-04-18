@@ -345,7 +345,10 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     feats = self.select_data_types(feats)
 
     if is_include_gt_bboxes:
-      img_info['gt_bboxes'] = gt_bboxes
+      gt_labels = img_info['gt_labels']
+      mask = gt_labels > 0
+      img_info['gt_bboxes'] = gt_bboxes[mask]
+      img_info['gt_labels'] = gt_labels[mask]
 
     img_meta['dynamic_vox_size_aug'] = coords.max(0)+1
     img_info['img_meta'] = img_meta

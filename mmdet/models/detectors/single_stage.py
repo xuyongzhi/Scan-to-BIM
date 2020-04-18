@@ -89,14 +89,18 @@ class SingleStageDetector(BaseDetector):
         return outs
 
     def update_dynamic_shape(self, x, img_metas):
-        is_pcl =  'input_type' in img_metas[0] and img_metas[0]['input_type'] == 'pcl'
-        if not is_pcl:
+        input_style = img_metas[0]['input_style']
+        assert input_style in ['pcl', 'bev_sparse', 'img']
+
+        if not input_style == 'pcl':
           return
         feat_sizes = [ np.array([*xi.shape[2:]]) for xi in x]
         for img_meta in img_metas:
           img_meta['stem_stride'] = self.stem_stride
           img_meta['feat_sizes'] = feat_sizes
           img_meta['dynamic_img_shape'] = feat_sizes[0] * self.stem_stride
+
+        update_img_shape_for_pcl(x, img_metas[0], self.point_strides)
 
     def forward_train(self,
                       img,
@@ -147,8 +151,9 @@ class SingleStageDetector(BaseDetector):
           bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
           det_bboxes, det_labels = bbox_list[0]
           _det_bboxes0 = det_bboxes.cpu().data.numpy()
-          from configs.common import clean_bboxes_out
-          _det_bboxes1 = clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
+          from configs.common import DIM_PARSE
+          dim_parse = DIM_PARSE( len(img_metas[0]['classes'])+1 )
+          _det_bboxes1 = dim_parse.clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
           _det_bboxes = [_det_bboxes1]
           ngt = len(_gt_bboxes[0])
           ndt = len(_det_bboxes[0])
@@ -164,7 +169,7 @@ class SingleStageDetector(BaseDetector):
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
         x = self.extract_feat(img, gt_bboxes)
         self.update_dynamic_shape(x, img_meta)
-        update_img_shape_for_pcl(x, img_meta[0], self.point_strides)
+        #update_img_shape_for_pcl(x, img_meta[0], self.point_strides)
         outs = self.bbox_head(x)
         bbox_inputs = outs + (img_meta, self.test_cfg, rescale)
         bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
