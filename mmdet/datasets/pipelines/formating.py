@@ -192,7 +192,7 @@ class Collect(object):
         data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
         data['gt_labels'] = DC(data['gt_labels'].data[mask])
 
-def filter_classes(gt_bboxes, gt_labels):
+def unused_filter_classes(gt_bboxes, gt_labels):
     valid_labels = [self.beike._category_ids_map[c] for c in self.classes]
     masks = [results['gt_labels'].data == l for l in valid_labels ]
     mask = masks[0]
