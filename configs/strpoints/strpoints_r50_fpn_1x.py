@@ -199,7 +199,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 810
+total_epochs = 1010
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -220,7 +220,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/TPV_r50_fpn'
 load_from = None
-load_from ='./checkpoints/beike/Apr12_Fpn44_Bp32.pth'
+#load_from ='./checkpoints/beike/Apr12_Fpn44_Bp32.pth'
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
