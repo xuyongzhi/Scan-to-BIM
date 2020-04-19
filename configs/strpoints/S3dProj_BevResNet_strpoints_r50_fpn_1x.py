@@ -18,9 +18,9 @@ voxel_size = 0.04
 stem_stride = {'beike_pcl_2d': 4, 'stanford_pcl_2d':2}[DATA]
 
 if DATA == 'beike_pcl_2d':
-  batch_size = {2:3, 4:7}[stem_stride]
+  batch_size = {2:3, 4:6}[stem_stride]
 elif DATA == 'stanford_pcl_2d':
-  batch_size = {2:3, 4:7}[stem_stride]
+  batch_size = {2:3, 4:6}[stem_stride]
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
@@ -190,7 +190,7 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,

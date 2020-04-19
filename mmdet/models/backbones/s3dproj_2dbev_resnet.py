@@ -17,7 +17,7 @@ import numpy as np
 
 from tools import debug_utils, visual_utils
 import time
-RECORD_T = 1
+RECORD_T = 0
 SHOW_NET = 0
 from tools.debug_utils import _show_tensor_ls_shapes, _show_sparse_ls_shapes
 from configs.common import DEBUG_CFG
