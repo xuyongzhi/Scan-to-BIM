@@ -141,7 +141,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
   assert gt_labels[0].min() > 0
-  debug = 1
+  debug = 0
   voxel_size = 0.04
 
   if debug:
@@ -305,4 +305,8 @@ def update_img_shape_for_pcl(x, img_meta, point_strides):
   img_meta['feat_sizes'] = [np.array( [*xi.size()[2:]] ) for xi in x]
   img_meta['pad_shape'] = img_meta['feat_sizes'][0] * point_strides[0]
   img_meta['img_shape'] = img_meta['pad_shape']
+
+  if 0:
+    for e in ['raw_dynamic_vox_size', 'dynamic_vox_size_aug', 'dynamic_img_shape', 'pad_shape', 'img_shape']:
+      print(f'{e}: {img_meta[e]}')
   pass

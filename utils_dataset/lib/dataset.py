@@ -348,7 +348,9 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if is_include_gt_bboxes:
       gt_labels = img_info['gt_labels']
       mask = gt_labels > 0
-      img_info['gt_bboxes'] = gt_bboxes[mask]
+      gt_bboxes = gt_bboxes[mask]
+      gt_bboxes[:,:4] += self.bev_pad_pixels
+      img_info['gt_bboxes'] = gt_bboxes
       img_info['gt_labels'] = gt_labels[mask]
 
     img_meta['dynamic_vox_size_aug'] = coords.max(0)+1

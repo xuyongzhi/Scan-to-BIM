@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.utils.checkpoint as cp
 from mmcv.cnn import constant_init, kaiming_init
@@ -16,7 +17,7 @@ import numpy as np
 
 from tools import debug_utils, visual_utils
 import time
-RECORD_T = 0
+RECORD_T = 1
 SHOW_NET = 0
 from tools.debug_utils import _show_tensor_ls_shapes, _show_sparse_ls_shapes
 from configs.common import DEBUG_CFG
@@ -432,10 +433,12 @@ class S3dProj_BevResNet(nn.Module):
                  max_planes=2048,
                  stem_stride=4,
                  max_zdim=124,
+                 bev_pad_pixels=0,
                  ):
         super(S3dProj_BevResNet, self).__init__()
         if depth not in self.arch_settings:
             raise KeyError('invalid depth {} for resnet'.format(depth))
+        self.bev_pad_pixels = bev_pad_pixels
         self.max_zdim = max_zdim
         self.stem_stride = stem_stride
         self.depth = depth
@@ -512,7 +515,7 @@ class S3dProj_BevResNet(nn.Module):
         return getattr(self, self.norm1_name)
 
     def _make_stem_layer(self, in_channels):
-        kernel = (3,3,5)
+        kernel = (3,3,3)
         padding = get_padding_same_featsize(kernel)
         self.conv1 = build_conv_layer(
             self.s3d_conv_cfg,
@@ -536,10 +539,10 @@ class S3dProj_BevResNet(nn.Module):
         self.prj_stage_blocks = (2,)*5
 
         z_strides = (2,) * 5
-        kernels = ( (3,3,3), (1,1,3), (3,3,3), (1,1,3), (3,3,3) )
+        kernels = ( (3,3,3), (3,3,3), (1,1,3), (3,3,3), (1,1,3) )
         dilations = (1,1,1,1,1)
         inplanes = self.basic_planes
-        self.prj_planes = [self.basic_planes * r for r in (2,2,2,4,4)]
+        self.prj_planes = [self.basic_planes * r for r in (2,2,4,4,4)]
 
         assert np.product(z_strides) * 4 >= self.max_zdim
         self.prj_layers = []
@@ -648,6 +651,7 @@ class S3dProj_BevResNet(nn.Module):
         return tuple(outs)
 
     def project(self, x):
+        in_shape = (x.C.max(0)[0]+1)[[2,1]]
         if RECORD_T:
           t0 = time.time()
         x = self.conv1(x)
@@ -669,6 +673,15 @@ class S3dProj_BevResNet(nn.Module):
         bev_dense, bev_min, bev_stride = x.dense()
         x = bev_dense.max(-1)[0]
         x = x.permute(0,1,3,2)
+
+        stem_shape = x.shape[2:]
+        shape_err = in_shape/4.0 - torch.Tensor([*stem_shape])
+        assert torch.abs(shape_err).max() < 4, f'stemp stride may be incorrect'
+
+        if self.bev_pad_pixels != 0:
+          p = int(np.ceil(self.bev_pad_pixels / self.stem_stride))
+          x = nn.functional.pad(x, (p,p,p,p), mode='constant', value=0)
+          pass
         if RECORD_T:
           t3 = time.time()
           print(f'\tresnet forward. conv1:{t1-t0:.3f} max: {t2-t1:.3f} prjlayers:{t3-t2:.3f}')

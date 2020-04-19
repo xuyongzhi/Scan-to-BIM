@@ -15,9 +15,12 @@ DATA = 'beike_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
-stem_stride = 4
+stem_stride = {'beike_pcl_2d': 4, 'stanford_pcl_2d':2}[DATA]
 
-batch_size = {2:3, 4:7}[stem_stride]
+if DATA == 'beike_pcl_2d':
+  batch_size = {2:3, 4:7}[stem_stride]
+elif DATA == 'stanford_pcl_2d':
+  batch_size = {2:3, 4:7}[stem_stride]
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
@@ -26,6 +29,7 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_height = 5.12
 max_zdim = max_height / voxel_size
+bev_pad_pixels = stem_stride * 2
 #*******************************************************************************
 _obj_rep = DIM_PARSE.OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
@@ -71,6 +75,7 @@ model = dict(
         basic_planes=bbp,
         max_planes=max_planes,
         stem_stride=stem_stride,
+        bev_pad_pixels=bev_pad_pixels,
         max_zdim=max_zdim),
     neck=dict(
         type='FPN',
@@ -185,7 +190,7 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=3,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -197,6 +202,7 @@ data = dict(
         max_footprint_for_scale=max_footprint_for_scale,
         filter_edges=True,
         classes = classes,
+        bev_pad_pixels = bev_pad_pixels,
         pipeline=None),
     val=None,
     test=None,
@@ -240,6 +246,6 @@ workflow = [('train', 1), ('val', 1)]
 
 if 0:
   total_epochs = 2010
-  checkpoint_config = dict(interval=100)
+  checkpoint_config = dict(interval=1)
   workflow = [('train', 1),]
 

@@ -54,6 +54,7 @@ class StanfordPclDataset(VoxelDatasetBase):
                max_footprint_for_scale = None,
                augment_data = None,
                data_types = ['color', 'norm', 'xyz'],
+               bev_pad_pixels = 0,
                filter_edges = True,
                classes = ['wall'],
                ):
@@ -61,6 +62,7 @@ class StanfordPclDataset(VoxelDatasetBase):
     self.data_root = ann_file
     self.VOXEL_SIZE = voxel_size
     self.classes = classes
+    self.bev_pad_pixels = bev_pad_pixels
     self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size

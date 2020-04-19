@@ -77,6 +77,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
                max_footprint_for_scale = None,
                augment_data = None,
                data_types = ['color', 'norm', 'xyz'],
+               bev_pad_pixels = 0,
                filter_edges = True,
                classes = ['wall'],
                pipeline=None,):
@@ -86,6 +87,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
     BEIKE_CLSINFO.__init__(self, classes)
 
     assert voxel_size is not None
+    self.bev_pad_pixels = bev_pad_pixels
     self.filter_edges = filter_edges
     self.ann_path = ann_file
     if ann_file[-1] == '/':
