@@ -143,8 +143,13 @@ class SingleStageDetector(BaseDetector):
                   debug_utils._show_tensor_ls_shapes([outs[i][j][key]], f'single_stage forward_train - outs {i},{j},{key}')
               else:
                 assert outs[i][j] is None
-
         if SHOW_TRAIN_RES:
+          self.show_train_res(gt_bboxes, img_metas, outs, score_threshold=(0.3,1))
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+        return losses
+
+    def show_train_res(self, gt_bboxes, img_metas, outs, score_threshold):
           _gt_bboxes = [g.cpu().data.numpy() for g in gt_bboxes][0:1]
           rescale = False
           bbox_inputs = outs + (img_metas, self.test_cfg, rescale)
@@ -159,12 +164,14 @@ class SingleStageDetector(BaseDetector):
           ndt = len(_det_bboxes[0])
           print(f'gt num={ngt}, det num={ndt}')
 
+          mask0 = _det_bboxes[0][:,5] >= score_threshold[0]
+          mask1 = _det_bboxes[0][:,5] <= score_threshold[1]
+          mask =  mask0 * mask1
+
           #debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
           #debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
-          debug_utils._show_lines_ls_points_ls((512,512), [_gt_bboxes[0], _det_bboxes[0]], line_colors=['red','green'])
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          debug_utils._show_lines_ls_points_ls((512,512), [_gt_bboxes[0], _det_bboxes[0][mask]], line_colors=['red','green'])
           pass
-        return losses
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
         x = self.extract_feat(img, gt_bboxes)

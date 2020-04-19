@@ -1,6 +1,16 @@
 
 # RES
 ## 17 Pcl
+- window
+
+8025772770c3608b60ac3a10ec51ea2d3992e91f
+BR50_fpn_beike_pcl_2d_wi_bs7_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4_Vsz4-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | 0.926 - 0.533 | 0.738 - 0.454  |
+| eval  | 0.661 - 0.273 | 0.406 - 0.173 |
+
 - wall 
 
 1c1e3c53b9ddbfa0c707014d548dc29a725dd50d
@@ -21,7 +31,7 @@ PR50_fpn_beike_pcl_2d_wa_bs3_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32
 | train | 0.72 - 0.379| 0.46 - 0.258   |
 | eval  | 0.5 - 0.253 | 0.231 - 0.12 |
 
-## 16 Pcl
+## 16 Pcl (BEST)
 5d8c11e482bca3406c74a506f7374931e9103672
 PR50_fpn_beike_pcl_2d_wa_bs7_lr50_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4-D90_0K_zX
 

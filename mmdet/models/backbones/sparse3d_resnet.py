@@ -694,7 +694,7 @@ class Sparse3DResNet(nn.Module):
           outs_dense.append(dense_out)
           pass
 
-        if DEBUG_CFG.VISUAL_RESNET_OUT:
+        if DEBUG_CFG.VISUAL_RESNET_FEAT_OUT:
           debug_utils._show_sparse_coords(outs[0], gt_bboxes)
           for i in range(len(outs)):
             debug_utils._show_feats(outs_dense[i][...,0], gt_bboxes, self.stem_stride * 2**(i))

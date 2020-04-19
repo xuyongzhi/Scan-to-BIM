@@ -262,6 +262,7 @@ def _show_sparse_coords(x, gt_bboxes=None):
       _show_3d_points_lines_ls([Ci], [Fi], lines_ls = [gt_bboxes[i]])
 
 
+#-3d general------------------------------------------------------------------------------
 def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
              objs_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_colors='random', thickness=0.1):
   if objs_ls is not None:
@@ -359,4 +360,26 @@ def _make_pcd(points, colors=None, normals=None):
       pcd.normals = o3d.utility.Vector3dVector(normals)
     return pcd
 
+
+#-feature------------------------------------------------------------------------------
+def _show_feats(feats, gt_bboxes, stride):
+  '''
+  feats: [batch_size, c, h, w]
+  gt_bboxes: []*batch_size
+  '''
+  feats = F.interpolate(feats, scale_factor=stride, mode='bilinear')
+  feats =  feats.cpu().data.numpy()
+  gt_bboxes =  [gt.cpu().data.numpy() for gt in gt_bboxes]
+
+  batch_size = feats.shape[0]
+  for i in range(batch_size):
+    img = np.moveaxis(feats[i], [0,1,2], [2,0,1])
+    cn = img.shape[2]
+    img0 = img[:,:,:cn//3].sum(2)[:,:,None]
+    img1 = img[:,:,cn//3:cn//2*2].sum(2)[:,:,None]
+    img2 = img[:,:,cn//3*2:].sum(2)[:,:,None]
+    img_3 = np.concatenate([img0, img1, img2], axis=2)
+    gt = gt_bboxes[i]
+    _show_objs_ls_points_ls( img_3, [gt], obj_rep='RoLine2D_UpRight_xyxy_sin2a', obj_colors='yellow' )
+    pass
 

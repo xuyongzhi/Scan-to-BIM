@@ -126,22 +126,26 @@ class DIM_PARSE:
 
 
 class DEBUG_CFG:
-  LOAD_GT_IN_TEST = True
-
-  OBJ_LEGEND = ['score', 'rotation'][0]
-
+  # debug in input
   LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][0]
   MIN_BOX_SIZE = 5.0 * DIM_PARSE.IMAGE_SIZE / 1024
   VISUAL_TOPVIEW_INPUT = 0
+
+  # training debug inside net
+  LOAD_GT_IN_TEST = True
+  VISUAL_RESNET_FEAT_OUT = 1
+  SHOW_TRAIN_RES = 0
   PRINT_POINT_ASSIGNER = 0
   PRINT_IOU_ASSIGNER = 0
   VISUALIZE_POINT_ASSIGNER = 0
   VISUALIZE_IOU_ASSIGNER = 0
-  SHOW_TRAIN_RES = 0
   SHOW_NMS_OUT = 0
-
   CHECK_POINT_ASSIGN = False
-  VISUAL_RESNET_OUT = 0
+
+  # debug in test
+  OBJ_LEGEND = ['score', 'rotation'][0]
+
+
   SPARSE_BEV = 0
 
   OUT_CORNER_HM_ONLY = 0

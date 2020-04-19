@@ -54,6 +54,9 @@ def angle_with_x(vec_start, scope_id=0, debug=0):
   return angle_from_vecs_to_vece(vec_x, vec_start, scope_id, debug)
 
 def angle_with_x_np(vec_start, scope_id):
+  # Note: for 3d coordinate, it is positive for clock wise.
+  # But for img, it is positive for anti-clock wise, because y-axis of img
+  # points to bottom
   angle = angle_with_x(torch.from_numpy(vec_start), scope_id)
   return angle.data.numpy()
 

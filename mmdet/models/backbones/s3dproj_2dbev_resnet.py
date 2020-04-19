@@ -14,11 +14,12 @@ from ..utils.mink_vox_common import mink_max_pool
 from MinkowskiEngine import SparseTensor
 import numpy as np
 
-from tools import debug_utils
+from tools import debug_utils, visual_utils
 import time
 RECORD_T = 0
 SHOW_NET = 0
 from tools.debug_utils import _show_tensor_ls_shapes, _show_sparse_ls_shapes
+from configs.common import DEBUG_CFG
 
 
 def get_padding_same_featsize(kernel):
@@ -638,6 +639,12 @@ class S3dProj_BevResNet(nn.Module):
 
         if SHOW_NET:
           _show_tensor_ls_shapes(outs, 'res out')
+
+        if DEBUG_CFG.VISUAL_RESNET_FEAT_OUT:
+          for i in range(len(outs)):
+            visual_utils._show_feats(outs[i], gt_bboxes, self.stem_stride * 2**(i))
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         return tuple(outs)
 
     def project(self, x):

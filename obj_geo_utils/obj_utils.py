@@ -63,7 +63,8 @@ class OBJ_REPS_PARSE:
       if obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a':
         # to RoBox2D_UpRight_xyxy_sin2a_thick
         bboxes = np.concatenate([bboxes, bboxes[:,0:1]*0], axis=1)
-        return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes)
+        bboxes_csa =  OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes)
+        return bboxes_csa
 
     elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'RoBox3D_CenSizeAngle':
       box2d = OBJ_REPS_PARSE.encode_obj(bboxes[:,:6], 'RoBox2D_UpRight_xyxy_sin2a_thick', 'RoBox2D_CenSizeAngle')
@@ -117,6 +118,9 @@ class OBJ_REPS_PARSE:
     vec = corner1 - corner0
     length = np.linalg.norm(vec, axis=1)[:,None]
     angle = angle_with_x_np(vec, scope_id=2)[:,None]
+    # Because axis-y of img points to bottom for img, it is positive for
+    # anti-clock wise. Change to positive for clock-wise
+    angle = -angle
     bboxes_CLA = np.concatenate([center, length, angle], axis=1)
     return bboxes_CLA
 
@@ -139,8 +143,10 @@ class OBJ_REPS_PARSE:
     thickness = bboxes[:,5:6]
     lines_2p = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_2p(bboxes[:,:5])
     lines_CenLengthAngle = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
-    boxes = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
-    return boxes
+    boxes_csa = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
+    err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]*1.0
+    assert np.abs(err).max() < 1e-4
+    return boxes_csa
 
   @staticmethod
   def Line2p_TO_UpRight_xyxy_sin2a(bboxes):

@@ -5,7 +5,7 @@ import torch
 from configs.common import DEBUG_CFG, DIM_PARSE
 OBJ_REP = DIM_PARSE.OBJ_REP
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
-from tools.visual_utils import _show_3d_points_objs_ls
+from tools.visual_utils import _show_3d_points_objs_ls, _show_objs_ls_points_ls
 
 def prepare_bev_sparse(img, img_meta=None, gt_bboxes=None, gt_labels=None, rescale=None):
   batch_size, c, h, w = img.shape
@@ -141,7 +141,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
   assert gt_labels[0].min() > 0
-  debug = 0
+  debug = 1
   voxel_size = 0.04
 
   if debug:
@@ -167,7 +167,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
 
       lines2d = gt_bboxes[i].cpu().data.numpy()
       nl = lines2d.shape[0]
-      tz = np.array([[5, 0, 30]]*nl)
+      tz = np.array([[3, 0, 50]]*nl)
       bboxes3d = np.concatenate([lines2d,tz], axis=1)
 
       min_points = points.min(axis=0)
@@ -188,10 +188,12 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       print(f'data aug:\n {data_aug}\n')
 
       scale = 1
-      _show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
-      _show_lines_ls_points_ls((512,512), [lines2d*scale])
+      print('line: ', lines2d)
+      #_show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
+      #_show_lines_ls_points_ls((512,512), [lines2d*scale])
+      #_show_objs_ls_points_ls((512,512), [lines2d*scale], 'RoLine2D_UpRight_xyxy_sin2a')
+      #_show_objs_ls_points_ls((512,512), [lines2d*scale], 'RoLine2D_UpRight_xyxy_sin2a', [points*scale])
       _show_3d_points_objs_ls([points], [colors], [bboxes3d], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
   if 0 and DEBUG_CFG.SPARSE_BEV:
