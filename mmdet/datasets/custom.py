@@ -39,7 +39,7 @@ class CustomDataset(Dataset):
                  pipeline,
                  data_root=None,
                  img_prefix='',
-                 input_style='',
+                 input_style='img',
                  seg_prefix=None,
                  proposal_file=None,
                  test_mode=False,
