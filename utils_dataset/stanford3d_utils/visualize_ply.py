@@ -29,9 +29,10 @@ def load_bboxes(pcl_file):
   bboxes = []
   bbox_cat_ids = []
   for cat in bboxes_dict:
-    classes = ['door']
-    classes = ['window']
-    classes = ['beam', 'wall', 'column']
+    classes = ['beam', 'wall', 'column', 'window', 'door']
+    classes = ['beam', 'wall', 'column', 'window', ]
+    #classes = ['door']
+    #classes = ['window']
     if cat not in classes:
       continue
     bboxes.append( bboxes_dict[cat] )
@@ -63,16 +64,20 @@ def load_bboxes(pcl_file):
   #show_bboxes(bboxes_3d)
   return anno
 
-def show_bboxes(bboxes_3d, points=None):
+def show_bboxes(bboxes_3d, points=None, feats=None):
+    num_p = points.shape[0]
+    choices = np.random.choice(num_p, 2*10000)
+    #points = points[choices]
     #_show_3d_points_objs_ls(None, None, [bboxes_3d],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
     bboxes_show = bboxes_3d.copy()
     voxel_size = 0.02
     bboxes_show[:,:4] /= voxel_size
     bboxes_show[:,:4] += 10
     points_ls = [points] if points is not None else None
+    feats_ls = [feats] if feats is not None else None
     #_show_objs_ls_points_ls( (512,512), [bboxes_show[:,:5]], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
     #_show_objs_ls_points_ls( (512,512), [bboxes_show[:,:6]], obj_rep='RoBox2D_UpRight_xyxy_sin2a_thick' )
-    _show_3d_points_objs_ls(points_ls, objs_ls=[bboxes_3d])
+    _show_3d_points_objs_ls(points_ls, feats_ls, objs_ls=[bboxes_3d])
 
 def main():
   path = '/DS/Stanford3D/aligned_processed_instance/Area_2/'
@@ -80,7 +85,7 @@ def main():
   for f in files:
     coords, feats, labels, _ = load_1_ply(f)
     anno = load_bboxes(f)
-    show_bboxes(anno['bboxes_3d'], coords)
+    show_bboxes(anno['bboxes_3d'], coords, feats)
   pass
 
 if __name__ == '__main__':

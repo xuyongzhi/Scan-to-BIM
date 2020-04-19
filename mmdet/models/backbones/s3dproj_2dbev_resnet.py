@@ -675,7 +675,7 @@ class S3dProj_BevResNet(nn.Module):
         x = x.permute(0,1,3,2)
 
         stem_shape = x.shape[2:]
-        shape_err = in_shape/4.0 - torch.Tensor([*stem_shape])
+        shape_err = in_shape/self.stem_stride - torch.Tensor([*stem_shape])
         assert torch.abs(shape_err).max() < 4, f'stemp stride may be incorrect'
 
         if self.bev_pad_pixels != 0:

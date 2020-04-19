@@ -11,7 +11,7 @@ from .color import color_val, get_random_color, label2color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-ADD_FRAME = 0
+ADD_FRAME = 1
 
 #-2d general------------------------------------------------------------------------------
 

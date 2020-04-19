@@ -21,8 +21,8 @@ BS=1
 DATA_TYPES=cnx
 FILTER_EDGES=0
 CLS=aid
-CLS=acb
-CLS=a
+CLS=abcdi
+#CLS=a
 #CLS=i
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS  

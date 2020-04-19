@@ -141,7 +141,7 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
     sinput = get_pcl_topview(sinput, gt_bboxes)
 
   assert gt_labels[0].min() > 0
-  debug = 0
+  debug = 1
   voxel_size = 0.04
 
   if debug:
@@ -186,9 +186,9 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       print(f'points scope: {min_points} - {max_points}')
       print(f'lines scope: {min_lines} - {max_lines}')
       print(f'data aug:\n {data_aug}\n')
+      print(f'labels: {gt_labels}')
 
       scale = 1
-      print('line: ', lines2d)
       #_show_lines_ls_points_ls((512,512), [lines2d*scale], [points*scale])
       #_show_lines_ls_points_ls((512,512), [lines2d*scale])
       #_show_objs_ls_points_ls((512,512), [lines2d*scale], 'RoLine2D_UpRight_xyxy_sin2a')

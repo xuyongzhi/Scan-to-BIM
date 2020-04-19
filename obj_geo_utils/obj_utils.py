@@ -49,7 +49,18 @@ class OBJ_REPS_PARSE:
       return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_2p(bboxes)
 
     elif obj_rep_in == 'RoBox2D_CenSizeAngle' and obj_rep_out == 'RoBox2D_UpRight_xyxy_sin2a_thick':
-      return OBJ_REPS_PARSE.CenSizeAngle_TO_UpRight_xyxy_sin2a_thick(bboxes)
+      bboxes = OBJ_REPS_PARSE.make_x_long_dim(bboxes, 'RoBox2D_CenSizeAngle')
+      bboxes_s2t = OBJ_REPS_PARSE.CenSizeAngle_TO_UpRight_xyxy_sin2a_thick(bboxes)
+      check = 1
+      if check:
+        bboxes_c = OBJ_REPS_PARSE.encode_obj(bboxes_s2t, 'RoBox2D_UpRight_xyxy_sin2a_thick', 'RoBox2D_CenSizeAngle')
+        err = bboxes_c - bboxes
+        err[:,-1] = limit_period_np(err[:,-1], 0.5, np.pi)
+        err = np.abs(err).max()
+        if not (err.size==0 or np.abs(err).max() < 1e-3):
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+      return bboxes_s2t
 
     elif obj_rep_in == 'RoLine2D_CenterLengthAngle' and obj_rep_out == 'RoLine2D_2p':
       return OBJ_REPS_PARSE.CenterLengthAngle_TO_RoLine2D_2p(bboxes)
@@ -77,6 +88,8 @@ class OBJ_REPS_PARSE:
 
     elif obj_rep_in == 'RoBox3D_CenSizeAngle'  and obj_rep_out == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1':
       # RoBox2D_CenSizeAngle
+      bboxes = OBJ_REPS_PARSE.make_x_long_dim(bboxes, 'RoBox3D_CenSizeAngle')
+      bboxes = OBJ_REPS_PARSE.make_x_long_dim(bboxes, 'RoBox3D_CenSizeAngle')
       box2d = bboxes[:, [0,1, 3,4, 6]]
       z0 = bboxes[:, 2:3] - bboxes[:, 5:6]/2
       z1 = bboxes[:, 2:3] + bboxes[:, 5:6]/2
@@ -86,12 +99,27 @@ class OBJ_REPS_PARSE:
 
     assert False, f'Not implemented:\nobj_rep_in: {obj_rep_in}\nobj_rep_out: {obj_rep_out}'
 
+
+  @staticmethod
+  def make_x_long_dim(bboxes, obj_rep):
+    assert obj_rep in ['RoBox2D_CenSizeAngle', 'RoBox3D_CenSizeAngle']
+    if obj_rep == 'RoBox2D_CenSizeAngle':
+      xi, yi, ai = 2, 3, 4
+    if obj_rep == 'RoBox3D_CenSizeAngle':
+      xi, yi, ai = 3, 4, 6
+    switch = (bboxes[:,yi] > bboxes[:,xi]).astype(bboxes.dtype)
+    bboxes[:,ai] = limit_period_np( bboxes[:,ai] + switch * np.pi / 2, 0.5, np.pi )
+    bboxes[:,[xi,yi]] = bboxes[:,[xi,yi]] * (1-switch) + bboxes[:,[yi,xi]] * switch
+    return bboxes
+
   @staticmethod
   def CenterLengthAngle_TO_RoLine2D_2p(bboxes):
     center = bboxes[:,:2]
     length = bboxes[:,2:3]
     angle = bboxes[:,3]
     vec = vec_from_angle_with_x_np(angle)
+    # due to y points to bottom, to make clock-wise positive:
+    vec[:,1] *= -1
     corner0 = center - vec * length /2
     corner1 = center + vec * length /2
     line2d_2p = np.concatenate([corner0, corner1], axis=1)
@@ -102,7 +130,7 @@ class OBJ_REPS_PARSE:
       err0 = bboxes - bboxes_c
       err0[:,3] = limit_period_np(err0[:,3] , 0.5, np.pi)
       err = np.max(np.abs(err0))
-      if err > 1e-3:
+      if not (err.size==0 or np.abs(err).max() < 1e-3):
         print(err0)
         print(err)
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
@@ -126,6 +154,12 @@ class OBJ_REPS_PARSE:
 
   @staticmethod
   def CenSizeAngle_TO_UpRight_xyxy_sin2a_thick(bboxes):
+    '''
+    In the input , x either y can be the longer one.
+    If y is the longer one, angle = angle + 90.
+    To make x the longer one.
+    '''
+    bboxes = OBJ_REPS_PARSE.make_x_long_dim(bboxes, 'RoBox2D_CenSizeAngle')
     center = bboxes[:,:2]
     size = bboxes[:,2:4]
     angle = bboxes[:,4:5]
@@ -136,6 +170,11 @@ class OBJ_REPS_PARSE:
     line2d_2p = OBJ_REPS_PARSE.CenterLengthAngle_TO_RoLine2D_2p(line2d_angle)
     line2d_sin2 = OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(line2d_2p)
     line2d_sin2tck = np.concatenate([line2d_sin2, thickness], axis=1)
+
+    err = np.sin(angle*2) - line2d_sin2tck[:, -2]
+    if not (err.size==0 or np.abs(err).max() < 1e-3):
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
     return line2d_sin2tck
 
   @staticmethod
@@ -145,7 +184,9 @@ class OBJ_REPS_PARSE:
     lines_CenLengthAngle = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
     boxes_csa = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
     err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]*1.0
-    assert np.abs(err).max() < 1e-4
+    if not (err.size==0 or np.abs(err).max() < 1e-3):
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
     return boxes_csa
 
   @staticmethod

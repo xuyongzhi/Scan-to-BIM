@@ -274,13 +274,13 @@ def unused_points_to_bbox(points, out_np=False):
 def gen_bboxes():
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
-  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_2/storage_9.ply')]
+  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
   for plyf in ply_files:
       bbox_file = plyf.replace('.ply', '-boxes.npy')
       print('\n\n\t',bbox_file, '\n\n')
       if os.path.exists(bbox_file):
-        pass
-        #continue
+        #pass
+        continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
@@ -397,7 +397,7 @@ def get_scene_pcl_scopes():
 if __name__ == '__main__':
   #Stanford3DDatasetConverter.convert_to_ply(STANFORD_3D_IN_PATH, STANFORD_3D_OUT_PATH)
   #generate_splits(STANFORD_3D_OUT_PATH)
-  #gen_bboxes()
+  gen_bboxes()
   #get_scene_pcl_scopes()
-  get_surface_normal()
+  #get_surface_normal()
 
