@@ -11,7 +11,7 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
-DATA = 'stanford_pcl_2d'
+#DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
@@ -245,7 +245,7 @@ auto_resume = True
 workflow = [('train', 5), ('val', 1)]
 
 if 0:
-  total_epochs = 2010
-  checkpoint_config = dict(interval=1)
+  total_epochs = 1010
+  checkpoint_config = dict(interval=50)
   workflow = [('train', 1),]
 

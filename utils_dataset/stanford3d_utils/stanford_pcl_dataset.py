@@ -13,6 +13,8 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 
+SMALL_DATA = False
+
 @DATASETS.register_module
 class StanfordPclDataset(VoxelDatasetBase):
   _classes = ['clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -92,7 +94,8 @@ class StanfordPclDataset(VoxelDatasetBase):
     data_paths = [p.split(self.data_root)[1] for p in data_paths]
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
-    #data_paths = [f+'.ply' for f in self.EASY]
+    if SMALL_DATA:
+      data_paths = [f+'.ply' for f in self.EASY]
 
     data_paths.sort()
     self.data_paths = data_paths
@@ -116,6 +119,7 @@ class StanfordPclDataset(VoxelDatasetBase):
                       raw_dynamic_vox_size = raw_dynamic_vox_size,
                       voxel_size = self.VOXEL_SIZE,
                       classes = self.classes,
+                      scale_factor = 1,
                       data_aug = {},
                       )
 
