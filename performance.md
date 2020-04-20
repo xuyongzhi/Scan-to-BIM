@@ -1,9 +1,39 @@
 
 # RES
 ## 20 Apr Img
+    **Fine tune from 16Apr**
 - test 12 Apr
 0d6d91b44ed32a796b173fd6bcd549971d320bc3
-Test the trained model on 12 Apr achieve the same acc.
+Test the trained model on 12 Apr achieve the same acc. Test again at 4640796996946f34798d2480e8d97799615cbdac, did not get the good acc.
+
+- wall door
+
+    e7bca064f792a472c33125b9f6f56bc96f44bcdb
+    TPV_r50_fpn_beike2d_wado_bs7_lr20_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
+
+|split| wall corner |  wall edge | door corner | door edge |
+|-|-|-|-|-|
+| train | 0.943 - 0.934 |0.915 - 0.846  |0.886 - 0.786 | 0.778 - 0.748  |
+| eval  | 0.819 - 0.838  |0.745 - 0.66  |0.881 - 0.712  | 0.766 - 0.671 |
+
+-window
+
+e7bca064f792a472c33125b9f6f56bc96f44bcdb
+TPV_r50_fpn_beike2d_wi_bs7_lr20_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train |0.976 - 0.758 | 0.767 - 0.675 |
+| eval  |0.614 - 0.425 | 0.455 - 0.342 |
+
+- wall window door
+
+    e7bca064f792a472c33125b9f6f56bc96f44bcdb
+    TPV_r50_fpn_beike2d_wawido_bs7_lr20_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
+|split| wall corner | wall edge | door corner |  door edge | window corner | window edge |
+|-|-|-|-|-|-|-| 
+| train | 0.949 - 0.931 | 0.924 - 0.846 | 0.899 - 0.79 | 0.79 - 0.757 | 0.857 - 0.36| 0.741 - 0.32 |
+| eval  | 0.85 - 0.805 | 0.756 - 0.633 | 0.904 - 0.705 | 0.75 - 0.658 | 0.706 - 0.247 |0.407 - 0.151 |
 
 ## 20 Apr Pcl
 - wall
@@ -15,7 +45,7 @@ BR50_fpn_beike_pcl_2d_wa_bs6_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32
 | train | 0.864 - 0.825 | 0.809 - 0.649 |
 | eval  | 0.866 - 0.764 | 0.815 - 0.585 |
 
-- wall window
+- wall door
 
 08854fed08d4e7cca13562126df056560b21d044
 BR50_fpn_beike_pcl_2d_wado_bs6_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4_Vsz4-D90_0K_zX
@@ -320,6 +350,15 @@ Empty gt edges filtered
 |              | test                            |  0.824 - 0.764 | 0.721 - 0.533  |
 
 ```
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | |  |
+| eval  | |  |
+
+
+|split| wall corner | wall edge | door corner |  door edge | window corner | window edge |
+|-|-|-|-|-|-|-| 
 | train | | | | | | |
 | eval  | | | | | | |
 ```

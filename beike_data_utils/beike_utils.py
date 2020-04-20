@@ -793,11 +793,12 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
       return anno
 
 def load_gt_lines_bk(img_meta, img, classes, filter_edges):
+  beike_clsinfo = BEIKE_CLSINFO(classes)
   filename = img_meta['filename']
   scene_name = os.path.basename(filename).replace('.npy', '')
   processed_dir = os.path.dirname(os.path.dirname(filename))
   json_dir = os.path.join(processed_dir, 'json/')
-  anno_raw = load_anno_1scene(json_dir, scene_name+'.json', classes, filter_edges=filter_edges)
+  anno_raw = load_anno_1scene(json_dir, scene_name+'.json', beike_clsinfo._classes, filter_edges=filter_edges)
   anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': DIM_PARSE.IMAGE_SIZE},)
   lines = anno_img['bboxes']
   labels = anno_img['labels']
