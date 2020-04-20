@@ -172,8 +172,8 @@ test_pipeline = [
 test_dir=data_root + f'TopView_{TOPVIEW}/test.txt'
 filter_edges=True
 data = dict(
-    imgs_per_gpu=7,
-    workers_per_gpu=0,
+    imgs_per_gpu=9,
+    workers_per_gpu=3,
     train=dict(
         type=dataset_type,
         ann_file=data_root + 'json/',
@@ -199,13 +199,13 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 510
+total_epochs = 410
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[int(total_epochs*0.7), int(total_epochs*0.85)])
+    step=[int(total_epochs*0.4), int(total_epochs*0.7)])
 checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
