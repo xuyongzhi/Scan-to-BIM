@@ -29,7 +29,7 @@ if DATA == 'beike_pcl_2d':
 elif DATA == 'stanford_pcl_2d':
   max_height = 5.12
 max_zdim = max_height / voxel_size
-bev_pad_pixels = stem_stride * 2
+bev_pad_pixels = stem_stride * 0
 #*******************************************************************************
 _obj_rep = DIM_PARSE.OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
