@@ -20,8 +20,8 @@ BS=6
 DATA_TYPES=cnx
 FILTER_EDGES=0
 CLS=a
-CLS=aid
-CLS=ad
+#CLS=aid
+#CLS=ad
 #CLS=abcdi
 #CLS=i
 

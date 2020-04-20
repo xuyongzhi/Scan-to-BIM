@@ -141,7 +141,10 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         should be double nested (i.e.  List[Tensor], List[List[dict]]), with
         the outer list indicating test time augmentations.
         """
-        input_style = img_meta[0]['input_style']
+        if isinstance( img_meta[0], list):
+          input_style = img_meta[0][0]['input_style']
+        else:
+          input_style = img_meta[0]['input_style']
         assert input_style in ['pcl', 'bev_sparse', 'img']
         if input_style == 'bev_sparse':
           img = prepare_bev_sparse(img, img_meta, **kwargs)

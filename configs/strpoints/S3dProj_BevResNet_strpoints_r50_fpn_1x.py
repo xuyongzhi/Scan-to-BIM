@@ -11,7 +11,7 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
-#DATA = 'stanford_pcl_2d'
+DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
@@ -20,7 +20,7 @@ stem_stride = {'beike_pcl_2d': 4, 'stanford_pcl_2d':2}[DATA]
 if DATA == 'beike_pcl_2d':
   batch_size = {2:3, 4:6}[stem_stride]
 elif DATA == 'stanford_pcl_2d':
-  batch_size = {2:3, 4:6}[stem_stride]
+  batch_size = {2:6, 4:10}[stem_stride]
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]

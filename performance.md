@@ -1,5 +1,27 @@
 
 # RES
+
+## 18 Img
+- wall
+
+8c3b0982a74cc081d1617ed3ce4980abe64195b9
+TPV_r50_fpn_beike2d_wa_bs7_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train |  0.923 - 0.924| 0.895 - 0.801  |
+| eval  | 0.794 - 0.823 | 0.711 - 0.596 |
+
+
+## 19 Apr Pcl
+96ad53f1a6ff0f1a4a44567a0338ba251e346ddf
+BR50_fpn_beike_pcl_2d_wa_bs6_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4_Vsz4-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | 0.862 - 0.812 | 0.8 - 0.628  |
+| eval  | 0.864 - 0.748 | 0.773 - 0.572 |
+
 ## 17 Pcl
 - window
 
@@ -47,7 +69,7 @@ PR50_fpn_beike_pcl_2d_wa_bs7_lr50_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32
 - 2
 -
 
-## 16 Apr Img
+## 16 Apr Img (BEST)
 
 -  wall , Fine tune based on model trained in 12 Apr
 
