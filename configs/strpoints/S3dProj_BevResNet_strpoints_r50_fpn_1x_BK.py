@@ -11,7 +11,7 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
-DATA = 'stanford_pcl_2d'
+#DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
