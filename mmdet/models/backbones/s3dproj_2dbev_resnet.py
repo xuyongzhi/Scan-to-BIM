@@ -515,7 +515,7 @@ class S3dProj_BevResNet(nn.Module):
         return getattr(self, self.norm1_name)
 
     def _make_stem_layer(self, in_channels):
-        kernel = (3,3,3)
+        kernel = (3,3,5)
         padding = get_padding_same_featsize(kernel)
         self.conv1 = build_conv_layer(
             self.s3d_conv_cfg,
@@ -539,7 +539,7 @@ class S3dProj_BevResNet(nn.Module):
         self.prj_stage_blocks = (2,)*5
 
         z_strides = (2,) * 5
-        kernels = ( (3,3,3), (3,3,3), (1,1,3), (3,3,3), (1,1,3) )
+        kernels = ( (3,3,3), (3,3,3), (3,3,3), (3,3,3), (3,3,3) )
         dilations = (1,1,1,1,1)
         inplanes = self.basic_planes
         self.prj_planes = [self.basic_planes * r for r in (2,2,4,4,4)]

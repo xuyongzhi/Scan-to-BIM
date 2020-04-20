@@ -1,7 +1,32 @@
 
 # RES
+## 20 Apr Img
+- test 12 Apr
+0d6d91b44ed32a796b173fd6bcd549971d320bc3
+Test the trained model on 12 Apr achieve the same acc.
 
-## 18 Img
+## 20 Apr Pcl
+- wall
+08854fed08d4e7cca13562126df056560b21d044
+BR50_fpn_beike_pcl_2d_wa_bs6_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4_Vsz4-D90_0K_zX
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | 0.864 - 0.825 | 0.809 - 0.649 |
+| eval  | 0.866 - 0.764 | 0.815 - 0.585 |
+
+- wall window
+
+08854fed08d4e7cca13562126df056560b21d044
+BR50_fpn_beike_pcl_2d_wado_bs6_lr10_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4_Vsz4-D90_0K_zX
+
+|split| wall corner |  wall edge | door corner | door edge |
+|-|-|-|-|-|
+| train | 0.875 - 0.818 | 0.819 - 0.637 | 0.91 - 0.618 | 0.819 - 0.584 |
+| eval  | 0.817 - 0.731 | 0.772 - 0.548 | 0.9 - 0.616 | 0.804 - 0.562 |
+
+
+## 19 Img
 - wall
 
 8c3b0982a74cc081d1617ed3ce4980abe64195b9
@@ -11,6 +36,15 @@ TPV_r50_fpn_beike2d_wa_bs7_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_
 |-|-|-|
 | train |  0.923 - 0.924| 0.895 - 0.801  |
 | eval  | 0.794 - 0.823 | 0.711 - 0.596 |
+
+-wall widow door
+8c3b0982a74cc081d1617ed3ce4980abe64195b9
+TPV_r50_fpn_beike2d_wawido_bs7_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX
+
+|split| wall corner | wall edge | door corner |  door edge | window corner | window edge |
+|-|-|-|-|-|-|-| 
+| train | 0.914 - 0.848| 0.873 - 0.702 |0.923 - 0.821 | 0.828 - 0.783| 0.906 - 0.376|0.736 - 0.319 |
+| eval  | 0.829 - 0.764| 0.741 - 0.577 | 0.893 - 0.685| 0.783 - 0.644 |0.788 - 0.273 | 0.536 - 0.2 |
 
 
 ## 19 Apr Pcl
@@ -69,7 +103,7 @@ PR50_fpn_beike_pcl_2d_wa_bs7_lr50_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32
 - 2
 -
 
-## 16 Apr Img (BEST)
+## 16 Apr Img 
 
 -  wall , Fine tune based on model trained in 12 Apr
 
