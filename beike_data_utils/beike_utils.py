@@ -62,7 +62,7 @@ BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159
 
 class BEIKE_CLSINFO(object):
   def __init__(self, classes_in, always_load_walls=1):
-      classes_order = ['background', 'door', 'wall',  'window', 'other']
+      classes_order = ['background', 'wall', 'door', 'window', 'other']
       classes = [c for c in classes_order if c in classes_in]
       if 'background' not in classes:
         classes = ['background']+ classes
@@ -444,8 +444,15 @@ class BEIKE(BEIKE_CLSINFO):
 
       line_density_sum_mean_file = os.path.join(self.line_density_sum_mean_dir, self.img_infos[idx]['filename'] )
       line_ids = np.array( self.img_infos[idx]['ann_raw']['line_ids'])
-      res =  ( density_sum_mean[:,0], density_sum_mean[:,1], line_ids)
-      np.save( line_density_sum_mean_file, res, allow_pickle=True )
+      line_cat_ids = self.img_infos[idx]['ann_raw']['line_cat_ids']
+
+      res_cats = {}
+      for label in range(  labels.min(),  labels.max()+1 ):
+        cat = self._catid_2_cat[label]
+        mask_l = labels == label
+        res_cats[cat] = ( density_sum_mean[mask_l], line_ids[mask_l] )
+      #res =  ( density_sum_mean[:,0], density_sum_mean[:,1], line_ids)
+      np.save( line_density_sum_mean_file, res_cats, allow_pickle=True )
       print(line_density_sum_mean_file)
       return density_sum_mean
       pass
@@ -617,14 +624,26 @@ def load_pcl_scope(anno_folder):
       #pcl_scopes[fid][1] = np.ceil(pcl_scopes[fid][1] * 10)/10 + offset_aug
     return pcl_scopes
 
-def get_line_valid_by_density(anno_folder, filename, line_ids_check):
+def get_line_valid_by_density(anno_folder, filename, line_ids_check, classes):
     line_density_dir = anno_folder.replace('json', 'line_density_sum_mean')
     file_path = os.path.join(line_density_dir, filename.replace('json', 'npy'))
-    line_density_sum, line_density_mean, line_ids = np.load(file_path, allow_pickle=True).tolist()
-    assert line_ids_check == line_ids
+    line_density_res_cats = np.load(file_path, allow_pickle=True).tolist()
 
-    line_density_sum = np.array(line_density_sum).astype(np.float32)
-    line_valid = line_density_sum > 0
+    line_density_cats = []
+    line_ids_cats = []
+    for cat in classes:
+      if cat == 'background':
+        continue
+      line_density_cats.append( line_density_res_cats[cat][0] )
+      line_ids_cats.append( line_density_res_cats[cat][1] )
+    line_density_cats = np.concatenate(line_density_cats, 0).astype(np.float32)
+    line_ids_cats = np.concatenate(line_ids_cats, 0)
+    #line_density_sum, line_density_mean, line_ids = np.load(file_path, allow_pickle=True).tolist()
+    line_ids_check = np.array(line_ids_check)
+    ids_mask = line_ids_check == line_ids_cats
+    assert np.all(ids_mask)
+
+    line_valid = line_density_cats[:,0] > 0
     return line_valid
 
 def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
@@ -632,7 +651,7 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
 
       beike_clsinfo = BEIKE_CLSINFO(classes, always_load_walls)
       if 'wall' not in classes and always_load_walls:
-        classes = classes + ['wall']
+        classes =  ['wall'] + classes
 
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
@@ -722,6 +741,7 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
 
       anno['corners'] = anno['corners'].astype(np.float32)
       anno['lines'] = anno['lines'].astype(np.float32)
+      anno['line_ids'] = np.array(anno['line_ids'])
 
       lines_leng = np.linalg.norm(anno['lines'][:,0] - anno['lines'][:,1], axis=-1)
       anno['line_length_min_mean_max'] = [lines_leng.min(), lines_leng.mean(), lines_leng.max()]
@@ -743,13 +763,14 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
       tmp = np.repeat( anno['corners'][:,None,:], 2, axis=1 )
       anno['corners'] = fix_1_unaligned_scene(scene_name, tmp, scene_size, 'std_2p')[:,0,:]
 
-      # make min lines >= 0
-      #if pcl_scope_zero_offset is not None:
-      #  anno['lines'] += pcl_scope_zero_offset
-      #  anno['corners'] += pcl_scope_zero_offset
-      min_lines = anno['lines'].min()
-      #print(f'{filename}\t\t{min_lines}')
-      #assert anno['lines'].min() >= 0, f'min lines={min_lines}'
+      # order by anno['line_cat_ids']
+      line_cat_ids = anno['line_cat_ids']
+      order = []
+      for i in range( line_cat_ids.min(), line_cat_ids.max()+1 ):
+        order.append( np.where( line_cat_ids == i )[0] )
+      order = np.concatenate(order)
+      for ele in ['line_ids', 'lines', 'line_cat_ids']:
+            anno[ele] = anno[ele][order]
 
       if 0:
         if not( anno['corners'].min() > -PCL_LINE_BOUND_METER and anno['corners'].min() < 1 ):
@@ -766,7 +787,7 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
           pass
 
       if filter_edges:
-        line_valid = get_line_valid_by_density(anno_folder, filename, anno['line_ids'])
+        line_valid = get_line_valid_by_density(anno_folder, filename, anno['line_ids'], classes)
         for ele in ['lines','line_cat_ids']:
           anno[ele] = anno[ele][line_valid]
       return anno
@@ -964,17 +985,25 @@ def gen_images_from_npy(data_path):
 
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
-  #topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
+  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
   #scenes = BAD_SCENE_TRANSFERS_PCL
 
-  beike = BEIKE(ANNO_PATH, topview_path, filter_edges=0)
+  classes = ['wall', 'door', 'window', ]
+  classes = ['wall', 'window','door',  ]
+  classes = [ 'door',  ]
+  classes = [ 'window', 'door', ]
+  classes = [ 'window', ]
+  beike = BEIKE(ANNO_PATH, topview_path,
+                classes = classes,
+                filter_edges=1)
   #beike.find_unscanned_edges()
 
-  for s in scenes:
-    beike.show_scene_anno(s, True, 0)
+  if 0:
+    for s in scenes:
+      beike.show_scene_anno(s, True, 0)
 
 
   #for s in UNALIGNED_SCENES:
