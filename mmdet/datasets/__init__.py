@@ -9,8 +9,8 @@ from .voc import VOCDataset
 from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
 from .beike import BeikeDataset
-from utils_dataset.stanford3d_utils.stanford_pcl_dataset import StanfordPclDataset
-from utils_dataset.beike_utils.beike_pcl_dataset import BeikePclDataset
+from .stanford_3d import StanfordPclDataset
+from .beike_3d import BeikePclDataset
 
 __all__ = [
     'CustomDataset', 'XMLDataset', 'CocoDataset', 'VOCDataset',

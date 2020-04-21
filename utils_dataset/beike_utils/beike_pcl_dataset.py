@@ -1,5 +1,4 @@
 from mmdet.datasets.custom_pcl import VoxelDatasetBase
-from mmdet.datasets.registry import DATASETS
 from plyfile import PlyData
 import numpy as np
 import glob
@@ -32,8 +31,7 @@ class DataConfig:
         self.repeat = False
 
 
-@DATASETS.register_module
-class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
+class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
   #_classes = ['background', 'wall', 'door', 'window', 'other']
   #_category_ids_map = {cat:i for i,cat in enumerate(_classes)}
   #_catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
@@ -291,7 +289,7 @@ class BeikePclDataset(VoxelDatasetBase, BEIKE_CLSINFO):
 
 
 def test():
-  beikepcl = BeikePclDataset(ann_file='/home/z/Research/mmdetection/data/beike/processed_512')
+  beikepcl = BeikePcl(ann_file='/home/z/Research/mmdetection/data/beike/processed_512')
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 

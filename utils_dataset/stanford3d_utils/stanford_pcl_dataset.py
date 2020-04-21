@@ -1,5 +1,4 @@
 from mmdet.datasets.custom_pcl import VoxelDatasetBase
-from mmdet.datasets.registry import DATASETS
 from plyfile import PlyData
 import numpy as np
 import glob
@@ -41,8 +40,7 @@ class Stanford_CLSINFO(object):
       pass
 
 
-@DATASETS.register_module
-class StanfordPclDataset(VoxelDatasetBase, Stanford_CLSINFO):
+class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
   CLIP_SIZE = None
   LOCFEAT_IDX = 2
   ROTATION_AXIS = 'z'
@@ -230,33 +228,9 @@ def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
 
 
 def anno3d_to_anno_topview(anno_3d, classes):
-  ##from beike_data_utils.beike_utils import meter_2_pixel
-  #bboxes_3d = anno_3d['bboxes_3d']
-  #room_scope = bboxes_3d[-1].reshape(2,3)
   bbox_cat_ids = anno_3d['bbox_cat_ids']
-  #assert StanfordPclDataset._catid_2_cat[bbox_cat_ids[-1]] == 'room'
-
-  #lines3d = aligned_3dbboxes_TO_oriented_line(bboxes_3d)
-  #lines2d = lines3d[:,:5]
-
-  #bboxes_2d_pt = lines2d
-
-  ##debug_utils._show_3d_points_bboxes_ls(bboxes_ls = [bboxes_3d])
-  #vs = 1/0.04*2
-  ##debug_utils._show_lines_ls_points_ls( (512,512), lines_ls=[bboxes_2d_pt*vs], box=True, line_colors='random' )
-
-  #if 0:
-  #  _bboxes_2d_pt, _bbox_cat_ids = remove_categories(bboxes_2d_pt, bbox_cat_ids, ['room'])
-  #  #_show_lines_ls_points_ls((IMAGE_SIZE,IMAGE_SIZE), [_bboxes_2d_pt], line_colors='random', box=True)
-  #  for cat in StanfordPclDataset._classes:
-  #    print(cat)
-  #    _bboxes_2d_pt, _bbox_cat_ids = keep_categories(bboxes_2d_pt, bbox_cat_ids, [cat])
-  #    if _bboxes_2d_pt.shape[0] == 0:
-  #      continue
-  #    _show_lines_ls_points_ls((512, 512), [_bboxes_2d_pt], line_colors='random', box=True)
 
   bboxes_2d = anno_3d['bboxes_2d']
-  #bboxes_2d, bbox_cat_ids = keep_categories(bboxes_2d, bbox_cat_ids, classes)
 
   anno_2d = {}
   anno_2d['filename'] = anno_3d['filename']
@@ -323,7 +297,7 @@ def remove_categories(bboxes, cat_ids, rm_cat_list):
   n = bboxes.shape[0]
   remain_mask = np.ones(n) == 1
   for cat in rm_cat_list:
-    rm_id = StanfordPclDataset._category_ids_map[cat]
+    rm_id = self._category_ids_map[cat]
     mask = cat_ids == rm_id
     remain_mask[mask] = False
   return bboxes[remain_mask], cat_ids[remain_mask]
@@ -333,7 +307,7 @@ def keep_categories(bboxes, cat_ids, kp_cat_list):
   n = bboxes.shape[0]
   remain_mask = np.ones(n) == 0
   for cat in kp_cat_list:
-    rm_id = StanfordPclDataset._category_ids_map[cat]
+    rm_id = self._category_ids_map[cat]
     mask = cat_ids == rm_id
     remain_mask[mask] = True
   return bboxes[remain_mask], cat_ids[remain_mask]
