@@ -5,12 +5,12 @@
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
 CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
-#CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_BK.py
+CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_BK.py
 
 
-wkdir=SR50_fpn_stanford_pcl_2d_wa_bs3_lr20_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem2_Vsz4_Fe
+wkdir=KR50_fpn_beike_pcl_2d_wa_bs6_lr20_LsW510_cnx_DaugR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Vsz4Stem4_Vsz4_Fe-D90_0K_zX
 CP=./work_dirs/${wkdir}/best.pth
-CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
+CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x_BK.py
 #CONFIG=./work_dirs/${wkdir}/_strpoints_r50_fpn_1x.py
 
 
@@ -22,7 +22,8 @@ DATA_TYPES=cnx
 FILTER_EDGES=1
 CLS=a
 
-ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS  --resume $CP 
+#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS 
+#--resume $CP 
 
 #./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS  
 #CLS=abcd
@@ -34,4 +35,4 @@ ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 #STYLE=--show
 
-#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS
+ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS

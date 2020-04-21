@@ -1,7 +1,7 @@
 # xyz
 import numpy as np
 import mmcv
-from .geometric_utils import sin2theta_np, angle_with_x_np
+from .geometry_utils import sin2theta_np, angle_with_x_np
 import cv2
 from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls, _draw_lines_ls_points_ls
 import torch

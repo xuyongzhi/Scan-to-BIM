@@ -40,6 +40,7 @@ class Stanford_CLSINFO(object):
 
       pass
 
+
 @DATASETS.register_module
 class StanfordPclDataset(VoxelDatasetBase, Stanford_CLSINFO):
   CLIP_SIZE = None

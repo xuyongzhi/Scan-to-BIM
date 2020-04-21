@@ -15,9 +15,12 @@ import time
 import mmcv
 import glob
 
+
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from configs.common import DIM_PARSE
 from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines, gen_corners_from_lines_np
 from tools.debug_utils import get_random_color, _show_img_with_norm, _show_lines_ls_points_ls
+from tools.visual_utils import _show_objs_ls_points_ls
 np.set_printoptions(precision=3, suppress=True)
 
 
@@ -448,6 +451,61 @@ class BEIKE(BEIKE_CLSINFO):
       print(line_density_sum_mean_file)
       return density_sum_mean
       pass
+
+    def find_connection(self,):
+      self.connection_dir = self.anno_folder.replace('json', 'connections')
+      if not os.path.exists(self.connection_dir):
+        os.makedirs( self.connection_dir )
+      for i in range(len(self)):
+        self.find_connection_1_scene(i)
+
+    def find_connection_1_scene(self, idx, connect_threshold = 3):
+      anno = self.img_infos[idx]['ann']
+      bboxes = anno['bboxes']
+      labels = anno['labels']
+      corners_per_line = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
+      #corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, DIM_PARSE.OBJ_REP)
+
+
+      n = bboxes.shape[0]
+      corners_per_line = corners_per_line.reshape(n,2,2)
+      # note: the order of two corners is not consistant
+      corners_dif0 = corners_per_line[:,None,:,None,:] - corners_per_line[None,:,None,:,:]
+      corners_dif1 = np.linalg.norm( corners_dif0, axis=-1 )
+      corners_dif = corners_dif1.min(axis=-1).min(axis=-1)
+      np.fill_diagonal(corners_dif, 100)
+      connect_mask = corners_dif < connect_threshold
+
+      xinds, yinds = np.where(connect_mask)
+      connection = np.concatenate([xinds[:,None], yinds[:,None]], axis=1).astype(np.uint8)
+      connections = []
+      for i in range(n):
+        connections.append([])
+      for i in range(connection.shape[0]):
+        x,y = connection[i]
+        connections[x].append(y)
+
+      #scene_name = self.img_infos[idx]['filename'].split('.')[0]
+      connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'].replace('.npy', '.txt') )
+      #img = self.load_data(scene_name)[:,:,0]
+      #_show_lines_ls_points_ls(img, [bboxes])
+      #BEIKE.show_connection(bboxes, connection)
+      np.savetxt(connection_file, connection, fmt='%u')
+      print('\n\t', connection_file)
+      pass
+
+    @staticmethod
+    def show_connection(bboxes, connection):
+      n = bboxes.shape[0]
+      for i in range(n):
+        mask = connection[:,0] == i
+        inds = connection[:,1][mask]
+        connected = bboxes[inds]
+        _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], connected],
+                                'RoLine2D_UpRight_xyxy_sin2a',
+                                obj_colors=['yellow', 'green', 'red'] )
+        pass
+
 
 def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
   '''
@@ -986,13 +1044,15 @@ def main(data_path):
 
   classes = ['wall', 'door', 'window', ]
   classes = ['wall', 'window','door',  ]
-  classes = [ 'door',  ]
-  classes = [ 'window', 'door', ]
-  classes = [ 'window', ]
+  #classes = [ 'door',  ]
+  #classes = [ 'window', 'door', ]
+  #classes = [ 'window', ]
+  classes = [ 'wall', ]
   beike = BEIKE(ANNO_PATH, topview_path,
                 classes = classes,
                 filter_edges=1)
   #beike.find_unscanned_edges()
+  beike.find_connection()
 
   if 0:
     for s in scenes:
