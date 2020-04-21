@@ -84,14 +84,6 @@ class BEIKE_CLSINFO(object):
       pass
 
 class BEIKE(BEIKE_CLSINFO):
-    #_classes = ['background', 'wall', 'door', 'window', 'other']
-    #_classes = ['background', 'door', 'wall',  'window', 'other']
-    #_category_ids_map = {cat:i for i,cat in enumerate(_classes)}
-    #_catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
-
-    #_category_ids_map = {'wall':1, 'door':2, 'window':3, 'other':4}
-    #_catid_2_cat = {1:'wall', 2:'door', 3:'window', 4:'other'}
-
     edge_atts = ['thickness','curve', 'align', 'type', 'edgeComputed', 'thicknessComputed', 'offsetComputed', 'isLoadBearing']
     edge_atts = []
     edge_attributions =  ['e_'+a for a in edge_atts]

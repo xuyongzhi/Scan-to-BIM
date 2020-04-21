@@ -202,7 +202,7 @@ class GraphEval():
   def get_eval_res_str(self, corner_recall_precision, line_recall_precision, dataset):
     rotate = False
     dset_name = dataset.__class__.__name__
-    if dset_name == 'BeikePclDataset':
+    if dset_name == 'BeikePclDataset' or dset_name == 'StanfordPclDataset':
       img_meta = dataset[0][3]['img_meta']
       data_aug = img_meta['data_aug']
       rotate_angles = data_aug['rotate_angles']

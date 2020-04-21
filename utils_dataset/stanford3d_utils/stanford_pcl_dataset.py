@@ -13,17 +13,35 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 
-SMALL_DATA = False
+SMALL_DATA = 0
+
+
+class Stanford_CLSINFO(object):
+  def __init__(self, classes_in, always_load_walls=1):
+      classes_order = [ 'clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
+                        'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
+      classes = [c for c in classes_order if c in classes_in]
+      if 'background' not in classes:
+        classes = ['background']+ classes
+      n = len(classes)
+      self._classes = classes
+      self.CLASSES = classes
+      self.cat_ids = list(range(n))
+      self._category_ids_map = {classes[i]:i for i in range(n)}
+      self._catid_2_cat = {i:classes[i] for i in range(n)}
+      self._labels = self.cat_ids
+
+      if always_load_walls and 'wall' not in self._classes:
+        # as current data augment always need walls, add walls if it is not
+        # included, but set label as -1
+        # remove all walls in pipelines/formating.py/Collect
+        self._category_ids_map['wall'] = -1
+        self._catid_2_cat[-1] = 'wall'
+
+      pass
 
 @DATASETS.register_module
-class StanfordPclDataset(VoxelDatasetBase):
-  _classes = ['clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
-              'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
-  _category_ids_map = {cat:i for i,cat in enumerate(_classes)}
-  _catid_2_cat = {i:cat for i,cat in enumerate(_classes)}
-
-  CLASSES = _classes
-
+class StanfordPclDataset(VoxelDatasetBase, Stanford_CLSINFO):
   CLIP_SIZE = None
   LOCFEAT_IDX = 2
   ROTATION_AXIS = 'z'
@@ -59,11 +77,12 @@ class StanfordPclDataset(VoxelDatasetBase):
                bev_pad_pixels = 0,
                filter_edges = True,
                classes = ['wall'],
+               test_mode = False,
                ):
+    Stanford_CLSINFO.__init__(self, classes)
     self.save_sparse_input_for_debug = 0
     self.data_root = ann_file
     self.VOXEL_SIZE = voxel_size
-    self.classes = classes
     self.bev_pad_pixels = bev_pad_pixels
     self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
@@ -105,9 +124,9 @@ class StanfordPclDataset(VoxelDatasetBase):
     self.img_infos = []
     for i in range(n):
       pcl_file = os.path.join(self.data_root, self.data_paths[i])
-      anno_3d = load_bboxes( pcl_file )
+      anno_3d = load_bboxes( pcl_file, self._category_ids_map )
       #anno_2d = raw_anno_to_img(anno_3d, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
-      anno_2d = anno3d_to_anno_topview(anno_3d, self.classes)
+      anno_2d = anno3d_to_anno_topview(anno_3d, self._classes)
 
       raw_dynamic_vox_size = (anno_3d['pcl_scope'][1] - anno_3d['pcl_scope'][0]) / self.VOXEL_SIZE
       raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
@@ -118,7 +137,7 @@ class StanfordPclDataset(VoxelDatasetBase):
                       input_style='pcl',
                       raw_dynamic_vox_size = raw_dynamic_vox_size,
                       voxel_size = self.VOXEL_SIZE,
-                      classes = self.classes,
+                      classes = self._classes,
                       scale_factor = 1,
                       data_aug = {},
                       )
@@ -236,7 +255,7 @@ def anno3d_to_anno_topview(anno_3d, classes):
   #    _show_lines_ls_points_ls((512, 512), [_bboxes_2d_pt], line_colors='random', box=True)
 
   bboxes_2d = anno_3d['bboxes_2d']
-  bboxes_2d, bbox_cat_ids = keep_categories(bboxes_2d, bbox_cat_ids, classes)
+  #bboxes_2d, bbox_cat_ids = keep_categories(bboxes_2d, bbox_cat_ids, classes)
 
   anno_2d = {}
   anno_2d['filename'] = anno_3d['filename']
@@ -247,19 +266,23 @@ def anno3d_to_anno_topview(anno_3d, classes):
   return anno_2d
 
 
-def load_bboxes(pcl_file):
+def load_bboxes(pcl_file, _category_ids_map):
   anno_file = pcl_file.replace('.ply', '-boxes.npy')
   scope_file = pcl_file.replace('.ply', '-scope.txt')
   anno = defaultdict(list)
 
   bboxes_dict = np.load(anno_file, allow_pickle=True).tolist()
+  if 'clutter' in bboxes_dict:
+    bboxes_dict['background'] = bboxes_dict['clutter']
+    del bboxes_dict['clutter']
   bboxes = []
   bbox_cat_ids = []
   for cat in bboxes_dict:
-    bboxes.append( bboxes_dict[cat] )
-    num_box = bboxes_dict[cat].shape[0]
-    cat_ids = StanfordPclDataset._category_ids_map[cat] * np.ones([num_box], dtype=np.int64)
-    bbox_cat_ids.append( cat_ids )
+    if cat in _category_ids_map:
+      bboxes.append( bboxes_dict[cat] )
+      num_box = bboxes_dict[cat].shape[0]
+      cat_ids = _category_ids_map[cat] * np.ones([num_box], dtype=np.int64)
+      bbox_cat_ids.append( cat_ids )
   bboxes_3d = np.concatenate(bboxes, axis=0)
 
   scope = np.loadtxt(scope_file)
