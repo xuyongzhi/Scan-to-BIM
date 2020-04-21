@@ -1,7 +1,7 @@
 # xyz 17 Apr
 import numpy as np
 import mmcv
-from .geometry_utils import sin2theta_np, angle_with_x_np, vec_from_angle_with_x_np
+from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, vec_from_angle_with_x_np
 import cv2
 from tools import debug_utils
 import torch
@@ -186,6 +186,7 @@ class OBJ_REPS_PARSE:
     err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]*1.0
     if not (err.size==0 or np.abs(err).max() < 1e-3):
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      assert False, "Something is wrong. 1) the obj encoding, 2) the input not right"
       pass
     return boxes_csa
 
@@ -393,3 +394,21 @@ def merge_corners(corners_0, scores_0=None, opt_graph_cor_dis_thr=3):
     labels_merged = corners_1[:,2]
   corners_merged = corners_1[:,:2]
   return corners_merged, scores_merged, labels_merged
+
+
+def test():
+  from tools.debug_utils import _show_lines_ls_points_ls
+  bboxes_UpRight_xyxy_sin2a_thick = np.array([ [120.902, 344.609, 402.904, 345.328,  -0.51 ,   0. ]] )
+  boxes_CenSizeAngle = np.array( [[ 261.903, 344.968, 282.002,   0.   ,  -0.003 ]] )
+  _show_lines_ls_points_ls( (512,512),[ bboxes_UpRight_xyxy_sin2a_thick] )
+  bboxes_csa = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle( bboxes_UpRight_xyxy_sin2a_thick )
+  bboxes_sin2 = OBJ_REPS_PARSE.CenSizeAngle_TO_UpRight_xyxy_sin2a_thick( boxes_CenSizeAngle )
+  print( bboxes_csa )
+  print(bboxes_sin2)
+
+
+if __name__ == '__main__':
+  test()
+
+
+

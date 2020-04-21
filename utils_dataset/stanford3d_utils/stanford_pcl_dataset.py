@@ -16,10 +16,10 @@ SMALL_DATA = 0
 
 
 class Stanford_CLSINFO(object):
+  classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
+                    'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
   def __init__(self, classes_in, always_load_walls=1):
-      classes_order = [ 'clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
-                        'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
-      classes = [c for c in classes_order if c in classes_in]
+      classes = [c for c in self.classes_order if c in classes_in]
       if 'background' not in classes:
         classes = ['background']+ classes
       n = len(classes)
@@ -28,7 +28,7 @@ class Stanford_CLSINFO(object):
       self.cat_ids = list(range(n))
       self._category_ids_map = {classes[i]:i for i in range(n)}
       self._catid_2_cat = {i:classes[i] for i in range(n)}
-      self._labels = self.cat_ids
+      self._point_labels = self.cat_ids
 
       if always_load_walls and 'wall' not in self._classes:
         # as current data augment always need walls, add walls if it is not
@@ -65,9 +65,10 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
 
   def __init__(self,
                ann_file='data/stanford/',
-               pipeline=None,
                img_prefix='data/stanford/ply/train.txt',
-               voxel_size=0.05,
+               classes = ['wall'],
+               pipeline=None,
+               voxel_size=0.04,
                auto_scale_vs = True,
                max_num_points = None,
                max_footprint_for_scale = None,
@@ -75,7 +76,6 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
                data_types = ['color', 'norm', 'xyz'],
                bev_pad_pixels = 0,
                filter_edges = True,
-               classes = ['wall'],
                test_mode = False,
                ):
     Stanford_CLSINFO.__init__(self, classes)
@@ -85,7 +85,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
     self.bev_pad_pixels = bev_pad_pixels
     self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
-    self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size
+    self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size if max_footprint_for_scale is not None else None
     self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
     img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
     assert img_prefix in ['train', 'test']
@@ -143,53 +143,130 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
 
       img_info = dict(
         img_meta = img_meta,
-        gt_bboxes_raw = anno_2d['bboxes'],
+        gt_bboxes_2d_raw = anno_2d['bboxes'],
         gt_labels = anno_2d['labels'],
-        gt_bboxes_3d = anno_3d['bboxes_3d'],
+        gt_bboxes_3d_raw = anno_3d['bboxes_3d'],
+        gt_lines_thick_2d_raw = anno_3d['lines_thick_2d'],
       )
       self.img_infos.append(img_info)
     pass
 
   def load_ply(self, index):
     filepath = self.data_root / self.data_paths[index]
-    coords, feats, labels, _ = load_1_ply(filepath)
+    coords, colors_norms, point_labels, _ = load_1_ply(filepath)
     normpath = str(filepath).replace('.ply', '-norm.npy')
     norm = np.load(normpath)
-    feats = np.concatenate([feats, norm], axis=1)
+    colors_norms = np.concatenate([colors_norms, norm], axis=1)
 
     np0 = coords.shape[0]
     if self.max_num_points is not None and  np0 > self.max_num_points:
       inds = np.random.choice(np0, self.max_num_points, replace=False)
       inds.sort()
       coords = coords[inds]
-      feats = feats[inds]
-      labels = labels[inds]
+      colors_norms = colors_norms[inds]
+      point_labels = point_labels[inds]
 
     pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
     coords -= pcl_scope[0:1]
 
-    bboxes_3d = self.img_infos[index]['gt_bboxes_3d']
+    #bboxes_3d = self.img_infos[index]['gt_bboxes_3d_raw']
     #_show_3d_points_objs_ls([coords], None, [bboxes_3d], 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-    return coords, feats, labels, None
+    return coords, colors_norms, point_labels, None
 
-  def _augment_coords_to_feats(self, coords, feats, labels=None):
+  def _augment_coords_to_colors_norms(self, coords, colors_norms, point_labels=None):
     # Center x,y
     coords_center = coords.mean(0, keepdims=True)
     coords_center[0, 2] = 0
     norm_coords = coords - coords_center
-    feats = np.concatenate((feats, norm_coords), 1)
-    return coords, feats, labels
+    colors_norms = np.concatenate((colors_norms, norm_coords), 1)
+    return coords, colors_norms, point_labels
 
-  def _normalization(self, feats):
-    feats[:,:3] = feats[:,:3] / 255. - 0.5
-    return feats
+  def _normalization(self, colors_norms):
+    colors_norms[:,:3] = colors_norms[:,:3] / 255. - 0.5
+    return colors_norms
 
-  def select_data_types(self, feats):
+  def select_data_types(self, colors_norms):
     '''
     do this at the last step
     '''
-    assert feats.shape[1] == 9
-    return feats[:, self.data_channel_inds]
+    assert colors_norms.shape[1] == 9
+    return colors_norms[:, self.data_channel_inds]
+
+
+  def show_topview_gts(self, voxel_size_prj=0.01):
+    for i in range(len(self)):
+      self.show_topview_gt_1scene(i, voxel_size_prj)
+
+  def show_topview_gt_1scene(self, index, voxel_size_prj):
+    ply_filename = self.img_infos[index]['img_meta']['filename']
+    topview_file = ply_filename.replace('.ply', '-topview.npy')
+    topview = np.load(topview_file, allow_pickle=True)
+    gt_bboxes_2d_raw = self.img_infos[index]['gt_bboxes_2d_raw']
+    gt_bboxes = gt_bboxes_2d_raw.copy()
+    gt_bboxes[:,:4] /= voxel_size_prj
+
+    density = topview[:,:,0].astype(np.uint8)
+    _show_objs_ls_points_ls( density, [gt_bboxes], 'RoLine2D_UpRight_xyxy_sin2a' )
+    _show_objs_ls_points_ls( (1024,1024), [gt_bboxes], 'RoLine2D_UpRight_xyxy_sin2a' )
+    pass
+
+  def gen_topviews(self, voxel_size_prj=0.01):
+    for i in range(len(self)):
+      self.gen_topview_1scene(i, voxel_size_prj)
+
+  def gen_topview_1scene(self, index, voxel_size_prj):
+    coords, colors_norms, point_labels, _ = self.load_ply(index)
+    points = coords.copy()
+    #points = np.concatenate([coords, colors_norms], axis=1)
+    n = coords.shape[0]
+
+    coords = np.round(coords / voxel_size_prj).astype(np.int32)[:,:2]
+    inds, unique_inds, unique_inverse, density =  np.unique(coords, return_index=True, return_inverse=True, return_counts=True, axis=0)
+    max_density = density.max()
+    ref_full_density = max_density / 2
+    m = inds.shape[0]
+
+    norms_mean = np.zeros([m, 3])
+    for i in range(n):
+      j = unique_inverse[i]
+      norms_mean[j]  += colors_norms[i, 3:6]
+
+    norms_mean /= density[:,None]
+
+    min_coords = coords.min(0)
+    assert np.all(min_coords == np.array([0,0]))
+    max_coords = coords.max(0)
+    # the first dim is y, and the second is x
+    img_size = (max_coords[1]+1, max_coords[0]+1, 4)
+    topview = np.zeros(img_size, dtype=np.float32)
+    topview[inds[:,1], inds[:,0], 0] = density / ref_full_density * 255
+    topview[inds[:,1], inds[:,0], 1:4] =  norms_mean
+
+    ply_filename = self.img_infos[index]['img_meta']['filename']
+    out_file = ply_filename.replace('.ply', '-density.png')
+    _show_objs_ls_points_ls(topview[:,:,0], out_file = out_file, only_save=True, obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+    norm_img = (np.abs(topview[:,:,1:4])*255).astype(np.uint8)
+    out_file = ply_filename.replace('.ply', '-norm.png')
+    _show_objs_ls_points_ls(norm_img, out_file = out_file, only_save=True, obj_rep='RoLine2D_UpRight_xyxy_sin2a' )
+
+
+    topview_file = ply_filename.replace('.ply', '-topview.npy')
+    np.save(topview_file, topview)
+
+
+    #gt_bboxes_3d_raw = self.img_infos[index]['gt_bboxes_3d_raw']
+    #_show_3d_points_objs_ls([points], objs_ls=[gt_bboxes_3d_raw], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+
+    gt_labels = self.img_infos[index]['gt_labels']
+    gt_bboxes_2d_raw = self.img_infos[index]['gt_lines_thick_2d_raw']
+    gt_bboxes_2d = gt_bboxes_2d_raw.copy()
+    gt_bboxes_2d[:,:4] /= voxel_size_prj
+    gt_bboxes_2d[:,5] /= voxel_size_prj
+    out_file = ply_filename.replace('.ply', '-gt.png')
+    _show_objs_ls_points_ls( topview[:,:,0], [gt_bboxes_2d], obj_colors=[gt_labels], obj_rep='RoBox2D_UpRight_xyxy_sin2a_thick', out_file=out_file, only_save=1 )
+
+    print('\n\t', topview_file)
+    pass
 
 
 def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
@@ -230,12 +307,10 @@ def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
 def anno3d_to_anno_topview(anno_3d, classes):
   bbox_cat_ids = anno_3d['bbox_cat_ids']
 
-  bboxes_2d = anno_3d['bboxes_2d']
-
   anno_2d = {}
   anno_2d['filename'] = anno_3d['filename']
   anno_2d['labels'] = bbox_cat_ids
-  anno_2d['bboxes'] = bboxes_2d
+  anno_2d['bboxes'] = anno_3d['lines_2d']
 
   #show_bboxes(anno_3d['bboxes_3d'])
   return anno_2d
@@ -266,14 +341,15 @@ def load_bboxes(pcl_file, _category_ids_map):
   bboxes_3d[:, :2] -= scope[0:1,:2]
   bboxes_3d[:, 2:4] -= scope[0:1,:2]
 
-  # RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1  to   RoLine2D_UpRight_xyxy_sin2a
-  bboxes_2d = bboxes_3d[:, :5]
   bbox_cat_ids = np.concatenate(bbox_cat_ids)
 
   filename = pcl_file
+  # bboxes_3d: RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+  # lines_2d: RoLine2D_UpRight_xyxy_sin2a
   anno['filename'] = filename
   anno['bboxes_3d'] = bboxes_3d
-  anno['bboxes_2d'] = bboxes_2d
+  anno['lines_2d'] = bboxes_3d[:, :5]
+  anno['lines_thick_2d'] = bboxes_3d[:, :6]
   anno['bbox_cat_ids'] = bbox_cat_ids
 
   show = 0
@@ -317,9 +393,23 @@ def load_1_ply(filepath):
     plydata = PlyData.read(filepath)
     data = plydata.elements[0].data
     coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
-    feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
-    labels = np.array(data['label'], dtype=np.int32)
+    colors_norms = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
+    point_labels = np.array(data['label'], dtype=np.int32)
     instance = np.array(data['instance'], dtype=np.int32)
-    return coords, feats, labels, None
+    return coords, colors_norms, point_labels, None
 
+
+def main():
+  ann_file = '/home/z/Research/mmdetection/data/stanford/'
+  img_prefix = './train.txt'
+  img_prefix = './test.txt'
+  classes = Stanford_CLSINFO.classes_order
+  sfd_dataset = StanfordPcl( ann_file, img_prefix, voxel_size=0.02, classes = classes)
+  sfd_dataset.gen_topviews()
+  #sfd_dataset.show_topview_gts()
+
+  pass
+
+if __name__ == '__main__':
+   main()
 

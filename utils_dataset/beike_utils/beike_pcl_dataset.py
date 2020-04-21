@@ -175,7 +175,7 @@ class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
       if True:
         gt_bboxes = anno_2d['bboxes']
         #img_info['gt_bboxes'] = gt_bboxes
-        img_info['gt_bboxes_raw'] =  gt_bboxes
+        img_info['gt_bboxes_2d_raw'] =  gt_bboxes
         img_info['gt_labels'] = anno_2d['labels']
       self.img_infos.append(img_info)
 
@@ -212,7 +212,7 @@ class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
     point_labels = np.zeros([feats.shape[0]], dtype=np.int32)
 
     if DEBUG_INPUT:
-      gt_bboxes = self.img_infos[index]['gt_bboxes_raw']
+      gt_bboxes = self.img_infos[index]['gt_bboxes_2d_raw']
       from configs.common import OBJ_REP
       from beike_data_utils.line_utils import lines2d_to_bboxes3d
       #bboxes3d = lines2d_to_bboxes3d(gt_bboxes, OBJ_REP, height=2.5, thickness=0.1)

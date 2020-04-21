@@ -91,7 +91,7 @@ def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, font_scale=0.5,
     '''
     img: [h,w,3]
     objs: [n,5/6]  of RoBox2D_CenSizeAngle
-    color: 'red'
+    color: 'red' or labels of objs
     '''
     assert objs.ndim == 2
     assert objs.shape[1]==5 or objs.shape[1]==6
@@ -103,8 +103,14 @@ def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, font_scale=0.5,
     rotations = objs[:,4]
     text_color = _get_color(text_color)
 
-    boxes = []
     n = objs.shape[0]
+    if isinstance(color, np.ndarray) and len(color) == n:
+      colors = _label2color(color)
+    else:
+      assert isinstance(colors, str)
+      colors = [_get_color(color) for i in range(n)]
+
+    boxes = []
     for i in range(n):
         center, size, angle = objs[i][:2], objs[i][2:4], objs[i][4]
         angle *= 180 / np.pi
@@ -115,7 +121,7 @@ def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, font_scale=0.5,
 
 
         #s, e = np.round(objs[i]).astype(np.int32)
-        c = _get_color(color)
+        c = colors[i]
         #cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, thickness=obj_thickness)
 
         ##label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)

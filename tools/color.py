@@ -26,11 +26,12 @@ def get_random_color():
   col = random.sample(colors, 1)[0]
   return Color[col].value
 
-def _label2color(label):
+def _label2color(labels):
   colors = ['red', 'green', 'blue','cyan','yellow','magenta']
   n = len(colors)
-  k = label % n
-  return colors[k]
+  color_strs = [colors[ int(k%n) ] for k in labels]
+  color_values = [color_val(c) for c in color_strs]
+  return color_values
 
 def color_val(color):
     """Convert various input to color tuples.
@@ -82,5 +83,6 @@ COLOR_MAP_RGB = (
 IGNORE_COLOR = (0, 0, 0)
 
 def label2color(labels):
-  labels = labels.astype(np.int32)
-  return COLOR_MAP_RGB[labels]
+  labels = labels.astype(np.int32).tolist()
+  colors= [COLOR_MAP_RGB[i] for i in labels ]
+  return colors
