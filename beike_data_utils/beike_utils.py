@@ -87,11 +87,15 @@ class BEIKE(BEIKE_CLSINFO):
                  test_mode=False,
                  filter_edges=True,
                  classes = ['wall', ],
+                 is_save_connection = False,
                  ):
         super().__init__(classes, always_load_walls=1)
         assert  anno_folder[-5:] == 'json/'
         self.anno_folder = anno_folder
         self.test_mode = test_mode
+        self.is_save_connection = is_save_connection
+        if is_save_connection:
+          filter_edges = False
         self.filter_edges = filter_edges
         self.split_file = img_prefix
         self.scene_list = np.loadtxt(self.split_file,str).tolist()
@@ -121,7 +125,8 @@ class BEIKE(BEIKE_CLSINFO):
           if scene_name not in self.scene_list:
             continue
           anno_raw = load_anno_1scene(self.anno_folder, jfn,
-                                self._classes, filter_edges=filter_edges)
+                                self._classes, filter_edges=filter_edges,
+                                is_save_connection = self.is_save_connection)
 
           anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, )
           filename = jfn.split('.')[0]+data_format
@@ -463,14 +468,14 @@ class BEIKE(BEIKE_CLSINFO):
       wall_connect_wall_mask = find_wall_wall_connection(walls, connect_threshold)
       window_in_wall_mask = find_wall_wd_connection(walls, windows)
       door_in_wall_mask = find_wall_wd_connection(walls, doors)
-      connections = dict( wall_connect_wall_mask = wall_connect_wall_mask,
-                         window_in_wall_mask = window_in_wall_mask,
-                         door_in_wall_mask = door_in_wall_mask )
+      connections = dict( wall = wall_connect_wall_mask,
+                          window = window_in_wall_mask,
+                          door = door_in_wall_mask )
 
-      connect_mask = np.concatenate([wall_connect_wall_mask, door_in_wall_mask, window_in_wall_mask ], axis=0).astype(np.uint8)
+      #connect_mask = np.concatenate([wall_connect_wall_mask, door_in_wall_mask, window_in_wall_mask ], axis=0).astype(np.uint8)
 
-      connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'].replace('.npy','.txt') )
-      np.savetxt(connection_file, connect_mask, fmt='%d')
+      connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'] )
+      np.save(connection_file, connections, allow_pickle=True)
       print('\n\t', connection_file)
       pass
 
@@ -710,7 +715,7 @@ def get_line_valid_by_density(anno_folder, filename, line_ids_check, classes):
     line_valid = line_density_cats[:,0] > 0
     return line_valid
 
-def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
+def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True, is_save_connection=False):
       always_load_walls = 1
 
       beike_clsinfo = BEIKE_CLSINFO(classes, always_load_walls)
@@ -850,14 +855,16 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
 
-      anno['connections'] = load_connections_1scene(anno_folder, filename, classes)
+      if not is_save_connection:
+        anno['connections'] = load_connections_1scene(anno_folder, filename, classes)
 
       if filter_edges:
         wall_num = np.sum(anno['line_cat_ids'] == beike_clsinfo._category_ids_map['wall'])
         line_valid = get_line_valid_by_density(anno_folder, filename, anno['line_ids'], classes)
         for ele in ['lines','line_cat_ids']:
           anno[ele] = anno[ele][line_valid]
-        anno['connections'] = anno['connections'][line_valid][:, line_valid[:wall_num]]
+        if not  self.is_save_connection:
+          anno['connections'] = anno['connections'][line_valid][:, line_valid[:wall_num]]
         pass
       return anno
 
@@ -871,8 +878,10 @@ def show_connection(bboxes, connections):
 
 def load_connections_1scene(anno_folder, filename, classes):
   connection_dir = anno_folder.replace('json', 'connections')
-  connect_file = os.path.join(connection_dir, filename.replace('.json', '.txt'))
-  connections = np.loadtxt(connect_file, dtype=np.bool)
+  connect_file = os.path.join(connection_dir, filename.replace('.json', '.npy'))
+  connections_dict = np.load(connect_file, allow_pickle=True).tolist()
+  connections = [connections_dict[c] for c in classes if c!='background']
+  connections = np.concatenate(connections, axis=0)
   return connections
 
 def load_gt_lines_bk(img_meta, img, classes, filter_edges):
@@ -1070,22 +1079,27 @@ def gen_images_from_npy(data_path):
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
   #scenes = BAD_SCENE_TRANSFERS_PCL
 
   classes = ['wall', 'door', 'window', ]
-  classes = ['wall', 'window','door',  ]
   #classes = [ 'door',  ]
   #classes = [ 'window', 'door', ]
   #classes = [ 'window', ]
   #classes = [ 'wall', ]
+  is_save_connection = 0
+  if is_save_connection:
+    classes = ['wall', 'door', 'window', ]
   beike = BEIKE(ANNO_PATH, topview_path,
                 classes = classes,
-                filter_edges=1 )
+                filter_edges= 0,
+                is_save_connection=is_save_connection,
+                )
   #beike.find_unscanned_edges()
-  #beike.find_connection()
+  if is_save_connection:
+    beike.find_connection()
 
   if 0:
     for s in scenes:
