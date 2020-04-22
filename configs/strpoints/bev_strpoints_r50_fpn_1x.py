@@ -228,7 +228,7 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/TPV_r50_fpn'
+work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn'
 load_from = None
 #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 resume_from = None
