@@ -14,7 +14,7 @@ from obj_geo_utils.line_operations import rotate_lines_img
 from tools.visual_utils import _show_objs_ls_points_ls
 
 @PIPELINES.register_module
-class LineResize(object):
+class ResizeImgLine(object):
     """Resize images & bbox & mask.
 
     This transform resizes the input image to some scale. Bboxes and masks are
@@ -599,9 +599,15 @@ class PadToSameHW_ForRotation(object):
         min_corners = gt_bboxes[:,:4].reshape(-1,2).min(0).astype(np.int32)
         min_border = 2
         border_pad = np.clip(min_border - min_corners, a_min=0, a_max=None)
+        border_pad_x = border_pad[0]
+        border_pad_y = border_pad[1]
 
         h0, w0 = results['img'].shape[:2]
-        h1 = w1 = max(results['img'].shape[:2])
+        h1 = border_pad_y + h0
+        w1 = border_pad_x + w0
+        hw = max(h1,w1)
+        hw += hw%2
+        h1 = w1 = hw
 
         hpad0 = max((h1-h0)//2, border_pad[1])
         hpad1 = max(h1-h0-hpad0, 0)
@@ -618,6 +624,9 @@ class PadToSameHW_ForRotation(object):
         results['pad_shape'] = padded_img.shape
         results['gt_bboxes'] = gt_bboxes
         assert results['gt_bboxes'][:,:4].min() > 0
+        if padded_img.shape[:2] != (hw,hw):
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], 'RoLine2D_UpRight_xyxy_sin2a')
         pass
 

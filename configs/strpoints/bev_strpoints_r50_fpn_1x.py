@@ -15,7 +15,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-#DATA = 'stanford2d'
+DATA = 'stanford2d'
 classes= ['wall']
 
 _obj_rep = DIM_PARSE.OBJ_REP
@@ -142,7 +142,7 @@ train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
-    dict(type='LineResize', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
+    dict(type='ResizeImgLine', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
     dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
@@ -154,11 +154,11 @@ test_pipeline = [
     dict(type='LoadAnnotations', with_bbox=True),
     dict(
         type='MultiScaleFlipAug',
-        img_scale=(512,512),
+        img_scale=(IMAGE_SIZE, IMAGE_SIZE),
         flip=False,
         transforms=[
             dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
-            dict(type='LineResize', keep_ratio=True, obj_dim=_obj_dim),
+            dict(type='ResizeImgLine', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
             dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
@@ -182,7 +182,7 @@ elif DATA == 'stanford2d':
   img_prefix_test = 'test'
 
 data = dict(
-    imgs_per_gpu=9,
+    imgs_per_gpu=7,
     workers_per_gpu=0,
     train=dict(
         type=dataset_type,

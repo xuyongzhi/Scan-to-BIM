@@ -50,6 +50,7 @@ class Stanford_Ann(object):
   LONG = ['Area_1/hallway_2']
   UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
                'Area_4/hallway_14', 'Area_3/office_7']
+  SAMPLES1 = ['Area_4/office_22']
 
   def __init__(self, input_style, data_root, phase):
     assert input_style in ['pcl', 'bev']
@@ -68,7 +69,8 @@ class Stanford_Ann(object):
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
       #data_paths = [f+'.ply' for f in self.EASY]
-      data_paths = [f+'.ply' for f in self.LONG]
+      #data_paths = [f+'.ply' for f in self.LONG]
+      data_paths = [f+'.ply' for f in self.SAMPLES1]
 
     data_paths.sort()
     self.data_paths = data_paths
