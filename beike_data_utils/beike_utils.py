@@ -91,7 +91,8 @@ class BEIKE(BEIKE_CLSINFO):
     edge_atts = []
     edge_attributions =  ['e_'+a for a in edge_atts]
 
-    def __init__(self, anno_folder='data/beike/processed_512/json/',
+    def __init__(self,
+                 anno_folder='data/beike/processed_512/json/',
                  img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
                  test_mode=False,
                  filter_edges=True,

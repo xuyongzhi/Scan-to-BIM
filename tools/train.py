@@ -105,14 +105,14 @@ def update_config(cfg, args, split):
       if rotate is not None:
         assert rotate == 1 or rotate == 0
         if split == 'train':
-          assert cfg[f'train_pipeline'][4]['type'] == 'RandomRotate'
-          cfg[f'train_pipeline'][4]['rotate_ratio'] *= rotate
-          cfg['data']['train']['pipeline'][4]['rotate_ratio'] *= rotate
-          cfg['data']['val']['pipeline'][4]['rotate_ratio'] *= rotate
+          assert cfg[f'train_pipeline'][5]['type'] == 'RandomRotate'
+          cfg[f'train_pipeline'][5]['rotate_ratio'] *= rotate
+          cfg['data']['train']['pipeline'][5]['rotate_ratio'] *= rotate
+          cfg['data']['val']['pipeline'][5]['rotate_ratio'] *= rotate
         elif split == 'test':
-          assert cfg['test_pipeline'][2]['transforms'][2]['type'] == 'RandomRotate'
-          cfg['test_pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
-          cfg['data']['test']['pipeline'][2]['transforms'][2]['rotate_ratio'] *= rotate
+          assert cfg['test_pipeline'][2]['transforms'][3]['type'] == 'RandomRotate'
+          cfg['test_pipeline'][2]['transforms'][3]['rotate_ratio'] *= rotate
+          cfg['data']['test']['pipeline'][2]['transforms'][3]['rotate_ratio'] *= rotate
           pass
 
     if 'pcl' in dataset:
@@ -232,8 +232,8 @@ def update_config(cfg, args, split):
         img_prefix = cfg['data']['train']['img_prefix']
         cur_path = os.path.abspath('.')
         img_list_file = os.path.join(cur_path, img_prefix)
-        data_flag = get_file_list_flag(img_list_file)
-        cfg['work_dir'] += data_flag
+        #data_flag = get_file_list_flag(img_list_file)
+        #cfg['work_dir'] += data_flag
 
         # backup config
         aim_path = os.path.join(cfg['work_dir'], '_'+os.path.basename(cfg.filename))
@@ -247,9 +247,9 @@ def update_config(cfg, args, split):
           git_label = str(repo.head.commit)
           with open(os.path.join(cfg['work_dir'], git_label ), 'w'):
             pass
-          if 'stanford' not in img_prefix:
-            shutil.copy(img_list_file,
-                      os.path.join(cfg['work_dir'], os.path.basename(img_prefix)))
+          #if 'stanford' not in img_prefix:
+          #  shutil.copy(img_list_file,
+          #            os.path.join(cfg['work_dir'], os.path.basename(img_prefix)))
           pass
         #print(cfg['work_dir'])
         pass
@@ -294,7 +294,7 @@ def main():
         init_dist(args.launcher, **cfg.dist_params)
 
     # create work_dir
-    #mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+    mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
     # init the logger before other steps
     timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     log_file = osp.join(cfg.work_dir, '{}.log'.format(timestamp))

@@ -4,8 +4,9 @@
 #export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_BK.py
+CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_BK.py
 
 
 wkdir=TPV_r50_fpn_beike2d_wa_bs6_lr10_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32-D90_0K_zX
@@ -17,10 +18,10 @@ CP=./work_dirs/${wkdir}/best.pth
 LR=0.02
 ROTATE=1
 BASE_PLANE=32
-BS=5
+BS=1
 DATA_TYPES=cnx
 FILTER_EDGES=1
-CLS=a
+CLS=adi
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS 
 #--resume $CP 

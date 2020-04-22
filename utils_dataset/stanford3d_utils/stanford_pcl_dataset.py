@@ -36,9 +36,88 @@ class Stanford_CLSINFO(object):
         # remove all walls in pipelines/formating.py/Collect
         self._category_ids_map['wall'] = -1
         self._catid_2_cat[-1] = 'wall'
-
       pass
 
+  def getCatIds(self):
+      return list(self._category_ids_map.values())
+
+  def getImgIds(self):
+      return list(range(len(self)))
+
+
+class Stanford_Ann(object):
+  EASY = ['Area_1/office_16']
+  LONG = ['Area_1/hallway_2']
+  UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
+               'Area_4/hallway_14', 'Area_3/office_7']
+
+  def __init__(self, input_style, data_root, phase):
+    assert input_style in ['pcl', 'bev']
+    assert phase in ['train', 'test']
+    self.input_style = input_style
+    self.area_list = [1,2,3,4,6] if phase == 'train' else [5]
+    self.data_root = data_root
+    self.load_anno()
+    pass
+
+  def load_anno(self):
+    data_paths = glob.glob(os.path.join(self.data_root, "*/*.ply"))
+    data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
+    data_paths = [p.split(self.data_root)[1] for p in data_paths]
+
+    #data_paths = [f+'.ply' for f in self.UNALIGNED]
+    if SMALL_DATA:
+      #data_paths = [f+'.ply' for f in self.EASY]
+      data_paths = [f+'.ply' for f in self.LONG]
+
+    data_paths.sort()
+    self.data_paths = data_paths
+
+    #data_roots = [f.replace('ply', 'npy') for f in pcl_files]
+    n = len(self.data_paths)
+    self.img_infos = []
+    for i in range(n):
+      pcl_file = os.path.join(self.data_root, self.data_paths[i])
+      ann_filename = pcl_file.replace('.ply', '-boxes.npy')
+      bev_filename = pcl_file.replace('.ply', '-topview.npy')
+      anno_3d = load_bboxes( pcl_file, self._category_ids_map )
+      #anno_2d = raw_anno_to_img(anno_3d, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
+      anno_2d = anno3d_to_anno_topview(anno_3d, self._classes, self.input_style)
+
+
+
+      if self.input_style == 'bev':
+          img_info = {'filename': bev_filename,
+                      'ann': anno_2d,
+                      'ann_raw': anno_3d}
+
+      if self.input_style == 'pcl':
+          raw_dynamic_vox_size = (anno_3d['pcl_scope'][1] - anno_3d['pcl_scope'][0]) / self.VOXEL_SIZE
+          raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
+          raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
+
+          img_meta = dict(filename = anno_3d['filename'],
+                          pcl_scope = anno_3d['pcl_scope'],
+                          input_style=self.input_style,
+                          classes = self._classes,
+                          scale_factor = 1,
+                          data_aug = {},
+                          )
+          img_meta['voxel_size'] = self.VOXEL_SIZE
+          img_meta['raw_dynamic_vox_size'] = raw_dynamic_vox_size
+
+          img_info = dict(
+            img_meta = img_meta,
+            gt_bboxes_2d_raw = anno_2d['bboxes'],
+            gt_labels = anno_2d['labels'],
+            gt_bboxes_3d_raw = anno_3d['bboxes_3d'],
+            gt_lines_thick_2d_raw = anno_3d['lines_thick_2d'],
+          )
+      self.img_infos.append(img_info)
+    pass
+
+  def __len__(self):
+    return len(self.img_infos)
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
   CLIP_SIZE = None
@@ -59,9 +138,6 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
   NUM_IN_CHANNEL = 9
   NORMALIZATION = True
 
-  EASY = ['Area_1/office_16']
-  UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
-               'Area_4/hallway_14', 'Area_3/office_7']
 
   def __init__(self,
                ann_file='data/stanford/',
@@ -79,21 +155,19 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
                test_mode = False,
                ):
     Stanford_CLSINFO.__init__(self, classes)
+    data_root = ann_file
+    phase = img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
+    Stanford_Ann.__init__(self, 'bev', data_root, phase)
+
     self.save_sparse_input_for_debug = 0
-    self.data_root = ann_file
     self.VOXEL_SIZE = voxel_size
     self.bev_pad_pixels = bev_pad_pixels
     self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size if max_footprint_for_scale is not None else None
     self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
-    img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
-    assert img_prefix in ['train', 'test']
-    self.area_list = [1,2,3,4,6] if img_prefix == 'train' else [5]
     #phase = DatasetPhase.Train if img_prefix == 'train' else DatasetPhase.Test
-    phase = img_prefix
     self.data_config = DataConfig(phase, augment_data)
-    self.load_anno()
     self._set_group_flag()
     print(f'\n Area {img_prefix}: load {len(self)} files for areas {self.area_list}\n')
     VoxelDatasetBase.__init__(self, phase, self.data_paths, self.data_config)
@@ -106,50 +180,6 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
   def _set_group_flag(self):
     self.flag = np.zeros(len(self), dtype=np.uint8)
 
-  def load_anno(self):
-    data_paths = glob.glob(os.path.join(self.data_root, "*/*.ply"))
-    data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
-    data_paths = [p.split(self.data_root)[1] for p in data_paths]
-
-    #data_paths = [f+'.ply' for f in self.UNALIGNED]
-    if SMALL_DATA:
-      data_paths = [f+'.ply' for f in self.EASY]
-
-    data_paths.sort()
-    self.data_paths = data_paths
-
-    #data_roots = [f.replace('ply', 'npy') for f in pcl_files]
-    n = len(self.data_paths)
-    self.img_infos = []
-    for i in range(n):
-      pcl_file = os.path.join(self.data_root, self.data_paths[i])
-      anno_3d = load_bboxes( pcl_file, self._category_ids_map )
-      #anno_2d = raw_anno_to_img(anno_3d, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
-      anno_2d = anno3d_to_anno_topview(anno_3d, self._classes)
-
-      raw_dynamic_vox_size = (anno_3d['pcl_scope'][1] - anno_3d['pcl_scope'][0]) / self.VOXEL_SIZE
-      raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
-      raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
-
-      img_meta = dict(filename = anno_3d['filename'],
-                      pcl_scope = anno_3d['pcl_scope'],
-                      input_style='pcl',
-                      raw_dynamic_vox_size = raw_dynamic_vox_size,
-                      voxel_size = self.VOXEL_SIZE,
-                      classes = self._classes,
-                      scale_factor = 1,
-                      data_aug = {},
-                      )
-
-      img_info = dict(
-        img_meta = img_meta,
-        gt_bboxes_2d_raw = anno_2d['bboxes'],
-        gt_labels = anno_2d['labels'],
-        gt_bboxes_3d_raw = anno_3d['bboxes_3d'],
-        gt_lines_thick_2d_raw = anno_3d['lines_thick_2d'],
-      )
-      self.img_infos.append(img_info)
-    pass
 
   def load_ply(self, index):
     filepath = self.data_root / self.data_paths[index]
@@ -269,6 +299,18 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
     pass
 
 
+class Stanford_BEV(Stanford_CLSINFO, Stanford_Ann):
+    def __init__(self,
+                 anno_folder='data/stanford/',
+                 img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
+                 test_mode=False,
+                 filter_edges=True,
+                 classes = ['wall', ],
+                 ):
+        Stanford_CLSINFO.__init__(self, classes, always_load_walls=1)
+        phase = img_prefix
+        Stanford_Ann.__init__(self, 'bev', anno_folder, phase)
+
 def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
   '''
   bboxes_3d: [n,6] 6: x0,y0,z0, z1,y1,z1
@@ -304,13 +346,17 @@ def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
   return lines3d
 
 
-def anno3d_to_anno_topview(anno_3d, classes):
+def anno3d_to_anno_topview(anno_3d, classes, input_style):
   bbox_cat_ids = anno_3d['bbox_cat_ids']
 
   anno_2d = {}
   anno_2d['filename'] = anno_3d['filename']
   anno_2d['labels'] = bbox_cat_ids
   anno_2d['bboxes'] = anno_3d['lines_2d']
+
+  if input_style == 'bev':
+    voxel_size_prj=0.01
+    anno_2d['bboxes'][:, :4] /= voxel_size_prj
 
   #show_bboxes(anno_3d['bboxes_3d'])
   return anno_2d

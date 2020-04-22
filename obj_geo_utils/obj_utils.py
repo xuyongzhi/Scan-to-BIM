@@ -183,8 +183,8 @@ class OBJ_REPS_PARSE:
     lines_2p = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_2p(bboxes[:,:5])
     lines_CenLengthAngle = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
     boxes_csa = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
-    err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]*1.0
-    if not (err.size==0 or np.abs(err).max() < 1e-3):
+    err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]
+    if not (err.size==0 or np.abs(err).max() < 1e-1):
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       assert False, "Something is wrong. 1) the obj encoding, 2) the input not right"
       pass

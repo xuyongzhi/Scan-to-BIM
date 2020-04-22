@@ -107,7 +107,7 @@ def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, font_scale=0.5,
     if isinstance(color, np.ndarray) and len(color) == n:
       colors = _label2color(color)
     else:
-      assert isinstance(colors, str)
+      assert isinstance(color, str)
       colors = [_get_color(color) for i in range(n)]
 
     boxes = []

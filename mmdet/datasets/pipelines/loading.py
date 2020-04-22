@@ -187,11 +187,14 @@ class LoadTopviewFromFile(object):
                                 results['img_info']['filename'])
         else:
             filename = results['img_info']['filename']
-        data = np.load(filename, allow_pickle=True).tolist()
-        density = np.expand_dims( data['topview_image'], axis=2)
-        mean_norm = data['topview_mean_normal']
-
-        img = np.concatenate([density, mean_norm], axis=2).astype(np.float32)
+        if 'beike' in filename:
+          data = np.load(filename, allow_pickle=True).tolist()
+          density = np.expand_dims( data['topview_image'], axis=2)
+          mean_norm = data['topview_mean_normal']
+          img = np.concatenate([density, mean_norm], axis=2).astype(np.float32)
+        elif 'stanford' in filename:
+          img = np.load(filename)
+          pass
 
         if self.to_float32:
             img = img.astype(np.float32)

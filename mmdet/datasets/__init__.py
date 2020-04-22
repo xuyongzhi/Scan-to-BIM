@@ -10,6 +10,7 @@ from .wider_face import WIDERFaceDataset
 from .xml_style import XMLDataset
 from .beike import BeikeDataset
 from .stanford_3d import StanfordPclDataset
+from .stanford_2d import Stanford_2D_Dataset
 from .beike_3d import BeikePclDataset
 
 __all__ = [
