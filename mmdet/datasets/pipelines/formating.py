@@ -52,7 +52,10 @@ class ImageToTensor(object):
 
     def __call__(self, results):
         for key in self.keys:
-            results[key] = to_tensor(results[key].transpose(2, 0, 1))
+            if results[key].ndim == 3:
+              results[key] = to_tensor(results[key].transpose(2, 0, 1))
+            else:
+              results[key] = to_tensor(results[key])
         return results
 
     def __repr__(self):
@@ -188,9 +191,14 @@ class Collect(object):
     def filter_classes(self, data):
         if 'gt_labels' not in data:
           return
-        mask = data['gt_labels'].data >= 0
-        data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
-        data['gt_labels'] = DC(data['gt_labels'].data[mask])
+        if isinstance(data['gt_labels'], np.ndarray):
+          mask = data['gt_labels'] >= 0
+          data['gt_bboxes'] = data['gt_bboxes'][mask]
+          data['gt_labels'] = data['gt_labels'][mask]
+        else:
+          mask = data['gt_labels'].data >= 0
+          data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
+          data['gt_labels'] = DC(data['gt_labels'].data[mask])
 
 def unused_filter_classes(gt_bboxes, gt_labels):
     valid_labels = [self.beike._category_ids_map[c] for c in self.classes]

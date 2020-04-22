@@ -863,7 +863,7 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True, is_save
         line_valid = get_line_valid_by_density(anno_folder, filename, anno['line_ids'], classes)
         for ele in ['lines','line_cat_ids']:
           anno[ele] = anno[ele][line_valid]
-        if not  self.is_save_connection:
+        if not  is_save_connection:
           anno['connections'] = anno['connections'][line_valid][:, line_valid[:wall_num]]
         pass
       return anno

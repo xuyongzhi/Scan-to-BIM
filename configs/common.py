@@ -129,10 +129,11 @@ class DEBUG_CFG:
   # debug in input
   LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][0]
   MIN_BOX_SIZE = 5.0 * DIM_PARSE.IMAGE_SIZE / 1024
+  # mmdet/datasets$/custom.py
   VISUAL_TOPVIEW_INPUT = 0
 
   # training debug inside net
-  LOAD_GT_IN_TEST = True
+  LOAD_GTS_IN_TEST = True
   VISUAL_RESNET_FEAT_OUT = 0
   SHOW_TRAIN_RES = 0
   PRINT_POINT_ASSIGNER = 0

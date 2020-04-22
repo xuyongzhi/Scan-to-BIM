@@ -6,8 +6,11 @@ from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPe
 from collections import defaultdict
 import os
 import numpy as np
+from tools.visual_utils import _show_objs_ls_points_ls
 
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
+    assert results[0]['gt_bboxes'] is not None
+
     filter_edges = data_test_cfg['filter_edges']
     classes = data_test_cfg['classes']
     num_imgs = len(results)
@@ -16,10 +19,16 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     for i_img, data in enumerate(data_loader):
         #is_pcl = 'input_style' in data['img_meta'][0] and data['img_meta'][0]['input_style'] == 'pcl'
         is_image = data['img_meta'][0].__class__.__name__ == 'DataContainer'
+
         is_pcl = not is_image
         if not is_pcl:
-          img_i = data['img'][0][0].permute(1,2,0).cpu().data.numpy()
+          #img_i = data['img'][0][0].permute(1,2,0).cpu().data.numpy()
           img_meta_i = data['img_meta'][0].data[0][0]
+          mean = img_meta_i['img_norm_cfg']['std']
+          std = img_meta_i['img_norm_cfg']['std']
+
+          img_i = results[i_img]['img'][0].permute(1,2,0).cpu().data.numpy()
+          img_i = (img_i * std) + mean
         else:
           img_meta_i = data['img_meta'][0]
           img_shape = img_meta_i['dynamic_vox_size_aug'][[1,0,2]]
@@ -36,8 +45,15 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         result = results[i_img]
         det_result = result['det_bboxes']
         if result['gt_bboxes']:
+          if isinstance(result['gt_bboxes'], list):
+            # test mode
+            result['gt_bboxes'] = result['gt_bboxes'][0]
+            result['gt_labels'] = result['gt_labels'][0]
           res_data['gt_bboxes'] = [ b.cpu().data.numpy() for b in result['gt_bboxes']]
           res_data['gt_labels'] = [ b.cpu().data.numpy() for b in result['gt_labels']]
+
+          #_show_objs_ls_points_ls(img_i, [res_data['gt_bboxes'][0]], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+          pass
 
         detections_all_labels = []
         for label in range(1, len(det_result)+1):
@@ -126,9 +142,6 @@ class GraphEval():
         is_pcl = 'input_style' in img_meta and img_meta['input_style'] == 'pcl'
         if not is_pcl:
           img = res_data['img']
-          img_mean = img_meta['img_norm_cfg']['mean']
-          img_std = img_meta['img_norm_cfg']['std']
-          img = img * img_std + img_mean
         else:
           img_shape = res_data['img']
           img_shape[:2] = img_shape[:2] * self._pcl_img_scale_ratio + self._pcl_img_size_aug * 2
@@ -138,11 +151,16 @@ class GraphEval():
         scene_name = os.path.splitext(os.path.basename(filename))[0]
 
         if not is_pcl:
-          gt_lines, gt_labels = load_gt_lines_bk(img_meta, img, self.classes, self.filter_edges)
+          #gt_lines, gt_labels = load_gt_lines_bk(img_meta, img, self.classes, self.filter_edges)
+          gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
+          gt_labels = results_datas[i_img]['gt_labels'][0].copy()
         else:
           gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
           gt_labels = results_datas[i_img]['gt_labels'][0].copy()
           gt_lines[:,:4] = gt_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
+
+        #_show_objs_ls_points_ls(img, [gt_lines], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+        pass
 
         num_labels = len(detections)
         for label in range(1, num_labels+1):

@@ -160,10 +160,10 @@ test_pipeline = [
             dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
             dict(type='ResizeImgLine', keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
-            dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
+            dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
-            dict(type='ImageToTensor', keys=['img']),
-            dict(type='Collect', keys=['img']),
+            dict(type='ImageToTensor', keys=['img', 'gt_bboxes', 'gt_labels']),
+            dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
         ])
 ]
 
@@ -175,6 +175,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
+  img_prefix_test = img_prefix_train
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
   ann_file = 'data/stanford/'
@@ -230,6 +231,7 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn'
 load_from = None
+load_from = './checkpoints/beike/Apr12_Fpn44_Bp32.pth'
 #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 resume_from = None
 auto_resume = True

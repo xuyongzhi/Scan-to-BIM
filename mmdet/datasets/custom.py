@@ -171,7 +171,7 @@ class CustomDataset(Dataset):
         img_info = self.img_infos[idx]
         results = dict(img_info=img_info)
         from configs.common import DEBUG_CFG
-        if DEBUG_CFG.LOAD_GT_IN_TEST:
+        if DEBUG_CFG.LOAD_GTS_IN_TEST:
           ann_info = self.get_ann_info(idx)
           results['ann_info'] = ann_info
         if self.proposals is not None:
@@ -180,17 +180,26 @@ class CustomDataset(Dataset):
         results = self.pipeline(results)
         results['img_meta'][0].data['input_style'] = self.input_style
 
-        #show_results_test(results)
+        if DEBUG_CFG.LOAD_GTS_IN_TEST:
+          assert 'gt_bboxes' in results
+
+        if DEBUG_CFG.VISUAL_TOPVIEW_INPUT:
+          show_results_test(results)
         return  results
 
 def show_results_test(results):
-  imgs = results['img']
-  for img in imgs:
-    img = img.data.cpu().numpy()
-    img = np.moveaxis(img, 0, -1)
-    mmcv.imshow(img[:,:,0:1])
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    pass
+  from tools.visual_utils import _show_objs_ls_points_ls
+  img_meta = results['img_meta'][0].data
+  mean = img_meta['img_norm_cfg']['mean']
+  std = img_meta['img_norm_cfg']['std']
+  img = results['img'][0].permute(1,2,0).cpu().data.numpy()
+  gt_bboxes = results['gt_bboxes'][0].data.cpu().data.numpy()
+  gt_labels = results['gt_labels'][0].data.cpu().data.numpy()
+  img = (img  * std) + mean
+  _show_objs_ls_points_ls(img, [gt_bboxes], obj_rep='RoLine2D_UpRight_xyxy_sin2a', obj_colors=[gt_labels])
+
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
 
 def show_results_train(results):
   from tools.visual_utils import _show_objs_ls_points_ls

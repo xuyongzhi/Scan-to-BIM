@@ -18,6 +18,7 @@ from beike_data_utils.graph_eval_utils import save_res_graph, eval_graph
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
 from tools.train import update_config
+from tools.visual_utils import _show_objs_ls_points_ls
 
 
 def single_gpu_test(model, data_loader, show=False):

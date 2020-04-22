@@ -9,6 +9,7 @@ from .base import BaseDetector
 from utils_dataset.gen_sparse_input import update_img_shape_for_pcl
 
 from tools import debug_utils
+from tools.visual_utils import _show_objs_ls_points_ls
 import time
 from configs.common import DEBUG_CFG
 SHOW_TRAIN_RES = DEBUG_CFG.SHOW_TRAIN_RES
@@ -174,6 +175,7 @@ class SingleStageDetector(BaseDetector):
           pass
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
+        #_show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0][0].cpu().data.numpy()], 'RoLine2D_UpRight_xyxy_sin2a')
         x = self.extract_feat(img, gt_bboxes)
         self.update_dynamic_shape(x, img_meta)
         #update_img_shape_for_pcl(x, img_meta[0], self.point_strides)
@@ -189,7 +191,8 @@ class SingleStageDetector(BaseDetector):
         #debug_utils.show_shapes(x, 'single_stage simple_test x')
         #debug_utils.show_shapes(outs, 'single_stage simple_test outs')
         #return bbox_results[0]
-        results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels)
+        results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels, img = img)
+        #_show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0][0].cpu().data.numpy()], 'RoLine2D_UpRight_xyxy_sin2a')
         return results
 
     def aug_test(self, imgs, img_metas, rescale=False):
