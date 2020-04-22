@@ -15,7 +15,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-DATA = 'stanford2d'
+#DATA = 'stanford2d'
 classes= ['wall']
 
 _obj_rep = DIM_PARSE.OBJ_REP
@@ -183,7 +183,7 @@ elif DATA == 'stanford2d':
 
 data = dict(
     imgs_per_gpu=7,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,

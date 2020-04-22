@@ -42,16 +42,6 @@ lost_gt_scenes = ['vYlCbx-H_v_uvacuiMq0no']
 BAD_SCENES = []
 WRITE_ANNO_IMG = 0
 
-#BAD_SCENE_TRANSFERS_1024 = {'7w6zvVsOBAQK4h4Bne7caQ': (-44,-208,-153),
-#                            'IDZkUGse-74FIy2OqM2u_Y': (30,-97,58),
-#                            'B9Abt6B78a0j2eRcygHjqC': (44,-52,93),
-#                            'Akkq4Ch_48pVUAum3ooSnK': (2,9,0),
-#                            'w2BaBfwjX0iN2cMjvpUNfa': (2,10,3),
-#                            'yY5OzetjnLred7G8oOzZr1': (-2,-7,0),
-#                            'wIGxjDDGkPk3udZW4vo-ic': (-1,7,5),
-#                            'vZIjhovtYde9e2qUjMzvz3': (-1, 5, 0)}
-#
-
 BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159 - 0.5),
                             'IDZkUGse-74FIy2OqM2u_Y': (30, -0.788 - 0.45, 0.681 + 0.08),
                             'B9Abt6B78a0j2eRcygHjqC': (44, -0.521 + 0.1, 0.928 + 0.1),
@@ -454,6 +444,7 @@ class BEIKE(BEIKE_CLSINFO):
       pass
 
     def find_connection(self,):
+      assert self.filter_edges == False
       self.connection_dir = self.anno_folder.replace('json', 'connections')
       if not os.path.exists(self.connection_dir):
         os.makedirs( self.connection_dir )
@@ -461,13 +452,54 @@ class BEIKE(BEIKE_CLSINFO):
         self.find_connection_1_scene(i)
 
     def find_connection_1_scene(self, idx, connect_threshold = 3):
+      print(self.img_infos[idx]['filename'])
       anno = self.img_infos[idx]['ann']
       bboxes = anno['bboxes']
       labels = anno['labels']
+      assert self._classes == ['background', 'wall', 'door', 'window']
+      walls = bboxes[self._category_ids_map['wall'] == labels]
+      windows = bboxes[self._category_ids_map['window'] == labels]
+      doors = bboxes[self._category_ids_map['door'] == labels]
+      wall_connect_wall_mask = find_wall_wall_connection(walls, connect_threshold)
+      window_in_wall_mask = find_wall_wd_connection(walls, windows)
+      door_in_wall_mask = find_wall_wd_connection(walls, doors)
+      connections = dict( wall_connect_wall_mask = wall_connect_wall_mask,
+                         window_in_wall_mask = window_in_wall_mask,
+                         door_in_wall_mask = door_in_wall_mask )
+
+      connect_mask = np.concatenate([wall_connect_wall_mask, door_in_wall_mask, window_in_wall_mask ], axis=0).astype(np.uint8)
+
+      connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'].replace('.npy','.txt') )
+      np.savetxt(connection_file, connect_mask, fmt='%d')
+      print('\n\t', connection_file)
+      pass
+
+
+def find_wall_wd_connection(walls, windows):
+  from obj_geo_utils.geometry_utils import  points_in_lines
+  #windows = windows[3:4]
+  #walls = walls[-1:]
+  #_show_objs_ls_points_ls((512,512), [walls, windows], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['red', 'green'])
+  walls_2p = OBJ_REPS_PARSE.encode_obj( walls, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p' ).reshape(-1,2,2)
+  window_centroids = OBJ_REPS_PARSE.encode_obj( windows, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p' ).reshape(-1,2,2).mean(axis=1)
+  win_in_wall_mask = points_in_lines(window_centroids, walls_2p, threshold_dis=10, one_point_in_max_1_line=True)
+  win_ids, wall_ids_per_win = np.where(win_in_wall_mask)
+
+  nw = windows.shape[0]
+  if not (np.all(win_ids == np.arange(nw)) and win_ids.shape[0] == nw):
+    print(f'win_ids: {win_ids}, nw={nw}')
+    missed_win_ids = [i for i in range(windows.shape[0]) if i not in win_ids]
+    _show_objs_ls_points_ls((512,512), [walls, windows[missed_win_ids] ], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green'])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+  if 0:
+    for i,j in zip(win_ids, wall_ids_per_win):
+      _show_objs_ls_points_ls((512,512), [walls, walls[j:j+1], windows[i:i+1] ], 'RoLine2D_UpRight_xyxy_sin2a', [window_centroids[i:i+1]], obj_colors=['white', 'green', 'red'])
+      pass
+  return win_in_wall_mask
+
+def find_wall_wall_connection(bboxes, connect_threshold):
       corners_per_line = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
-      #corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, DIM_PARSE.OBJ_REP)
-
-
       n = bboxes.shape[0]
       corners_per_line = corners_per_line.reshape(n,2,2)
       # note: the order of two corners is not consistant
@@ -485,28 +517,7 @@ class BEIKE(BEIKE_CLSINFO):
       for i in range(connection.shape[0]):
         x,y = connection[i]
         connections[x].append(y)
-
-      #scene_name = self.img_infos[idx]['filename'].split('.')[0]
-      connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'].replace('.npy', '.txt') )
-      #img = self.load_data(scene_name)[:,:,0]
-      #_show_lines_ls_points_ls(img, [bboxes])
-      #BEIKE.show_connection(bboxes, connection)
-      np.savetxt(connection_file, connection, fmt='%u')
-      print('\n\t', connection_file)
-      pass
-
-    @staticmethod
-    def show_connection(bboxes, connection):
-      n = bboxes.shape[0]
-      for i in range(n):
-        mask = connection[:,0] == i
-        inds = connection[:,1][mask]
-        connected = bboxes[inds]
-        _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], connected],
-                                'RoLine2D_UpRight_xyxy_sin2a',
-                                obj_colors=['yellow', 'green', 'red'] )
-        pass
-
+      return connect_mask
 
 def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
   '''
@@ -645,6 +656,7 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
 
       anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
+      anno_img['connections'] = anno_raw['connections']
 
       anno_img['min_line_size'] = min_line_size
 
@@ -658,6 +670,7 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       for ele in BEIKE.edge_attributions:
         anno_img[ele] = anno_raw[ele]
       #assert bboxes.min() >= 0
+      #show_connection( anno_img['bboxes'], anno_img['connections'] )
       return anno_img
 
 
@@ -837,11 +850,30 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True):
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
 
+      anno['connections'] = load_connections_1scene(anno_folder, filename, classes)
+
       if filter_edges:
+        wall_num = np.sum(anno['line_cat_ids'] == beike_clsinfo._category_ids_map['wall'])
         line_valid = get_line_valid_by_density(anno_folder, filename, anno['line_ids'], classes)
         for ele in ['lines','line_cat_ids']:
           anno[ele] = anno[ele][line_valid]
+        anno['connections'] = anno['connections'][line_valid][:, line_valid[:wall_num]]
+        pass
       return anno
+
+def show_connection(bboxes, connections):
+  n = bboxes.shape[0]
+  for i in range(n):
+    cids = np.where(connections[i])[0]
+    #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green',])
+    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green', 'red'])
+  pass
+
+def load_connections_1scene(anno_folder, filename, classes):
+  connection_dir = anno_folder.replace('json', 'connections')
+  connect_file = os.path.join(connection_dir, filename.replace('.json', '.txt'))
+  connections = np.loadtxt(connect_file, dtype=np.bool)
+  return connections
 
 def load_gt_lines_bk(img_meta, img, classes, filter_edges):
   beike_clsinfo = BEIKE_CLSINFO(classes)
@@ -1038,7 +1070,7 @@ def gen_images_from_npy(data_path):
 def main(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
   #scenes = BAD_SCENE_TRANSFERS_PCL
@@ -1048,12 +1080,12 @@ def main(data_path):
   #classes = [ 'door',  ]
   #classes = [ 'window', 'door', ]
   #classes = [ 'window', ]
-  classes = [ 'wall', ]
+  #classes = [ 'wall', ]
   beike = BEIKE(ANNO_PATH, topview_path,
                 classes = classes,
-                filter_edges=1)
+                filter_edges=1 )
   #beike.find_unscanned_edges()
-  beike.find_connection()
+  #beike.find_connection()
 
   if 0:
     for s in scenes:

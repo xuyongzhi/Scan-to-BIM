@@ -1,5 +1,17 @@
 
 # RES
+## 22 Apr Img 1 File
+- stanford
+2198a9dea50e9ea57576c4391460b9412d95a223
+sTPV_r50_fpn_stanford2d_wa_bs1_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe
+177-0.1, 255-0.01, 800-0.0003
+- beike
+bTPV_r50_fpn_beike2d_wa_bs1_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe
+332-0.1, 800-0.0260
+
+
+
+
 ## 20 Apr Img
     **Fine tune from 16Apr**
 - test 12 Apr

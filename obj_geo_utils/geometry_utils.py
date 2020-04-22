@@ -213,6 +213,126 @@ def R_to_Vec(rMatrix):
   #M1 = r1.as_matrix()
   return rotvec
 
+def points_in_lines(points, lines, threshold_dis=0.03, one_point_in_max_1_line=False):
+  '''
+  points:[n,2/3]
+  lines:[m,2,2/3]
+  dis: [n,m]
+  out: [n,m]
+
+  (1)vertial dis=0
+  (2) angle>90 OR corner dis=0
+  '''
+  assert points.ndim == 2
+  assert lines.ndim == 3
+  assert lines.shape[1] == 2
+  assert points.shape[1] == lines.shape[2]
+  epsion = points.max() * 1e-4
+
+  num_p = points.shape[0]
+  num_l = lines.shape[0]
+  d = points.shape[1]
+
+  pc_distances0 = points.reshape([num_p,1,1,d]) - lines.reshape([1,num_l,2,d])
+  pc_distances = np.linalg.norm(pc_distances0, axis=-1).min(2)
+
+  pl_distances = vertical_dis_points_lines(points, lines)
+
+  tmp_l = np.tile( lines.reshape([1,num_l,2,d]), (num_p,1,1,1) )
+  tmp_p = np.tile( points.reshape([num_p,1,1,d]), (1,num_l,1,1) )
+  dirs0 = tmp_l - tmp_p
+  dirs1 = dirs0.reshape([num_l*num_p, 2,d])
+  angles0 = angle_of_2lines(dirs1[:,0,:], dirs1[:,1,:])
+  angles = angles0.reshape([num_p, num_l])
+
+
+  mask_pc = pc_distances <= threshold_dis
+  mask_pl = pl_distances <= threshold_dis
+
+  mask_a = angles > np.pi/2
+  in_line_mask = mask_a  * mask_pl
+  #in_line_mask = (mask_a + mask_pc) * mask_pl
+
+  if one_point_in_max_1_line:
+    tmp = pl_distances + (1-in_line_mask)*2000
+    min_mask = tmp < tmp.min(1, keepdims=True) + 1e-3
+    in_line_mask *= min_mask
+
+  debug = 1
+  if debug:
+    final_pl_dis = pl_distances[in_line_mask]
+    print(final_pl_dis)
+  return in_line_mask
+
+def vertical_dis_points_lines(points, lines):
+  '''
+  points:[n,3]
+  lines:[m,2,3]
+  dis: [n,m]
+  '''
+  dis = []
+  pn = points.shape[0]
+  for i in range(pn):
+    dis.append( vertical_dis_1point_lines(points[i], lines).reshape([1,-1]) )
+  dis = np.concatenate(dis, 0)
+  return dis
+
+def vertical_dis_1point_lines(point, lines):
+  '''
+  point:[2/3]
+  lines:[m,2,2/3]
+  dis: [m]
+  '''
+  assert point.ndim == 1
+  assert lines.ndim == 3
+  assert lines.shape[1:] == (2,3) or lines.shape[1:] == (2,2)
+  # use lines[:,0,:] as ref
+  point = point.reshape([1,-1])
+  ln = lines.shape[0]
+  direc_p = point - lines[:,0,:]
+  direc_l = lines[:,1,:] - lines[:,0,:]
+  angles = angle_of_2lines(direc_p, direc_l, scope_id=0)
+  dis = np.sin(angles) * np.linalg.norm(direc_p, axis=1)
+  mask = np.isnan(dis)
+  dis[mask] = 0
+  return dis
+
+def angle_of_2lines(line0, line1, scope_id=0):
+  '''
+    line0: [n,2/3]
+    line1: [n,2/3]
+    zero as ref
+
+   scope_id=0: [0,pi]
+            1: (-pi/2, pi/2]
+
+   angle: [n]
+  '''
+  assert line0.ndim == line1.ndim == 2
+  assert (line0.shape[0] == line1.shape[0]) or line0.shape[0]==1 or line1.shape[0]==1
+  assert line0.shape[1] == line1.shape[1] # 2 or 3
+
+  norm0 = np.linalg.norm(line0, axis=1, keepdims=True)
+  norm1 = np.linalg.norm(line1, axis=1, keepdims=True)
+  #assert norm0.min() > 1e-4 and norm1.min() > 1e-4 # return nan
+  line0 = line0 / norm0
+  line1 = line1 / norm1
+  cos = np.sum(line0 * line1, axis=1)
+  # sometimes cos can be a bit > 1
+  ref = np.clip(np.abs(cos), a_min=1, a_max=None)
+  cos /= ref
+  assert np.all(np.abs(cos)<=1)
+  angle = np.arccos( cos )
+
+  if scope_id == 0:
+    pass
+  elif scope_id == 1:
+    # (-pi/2, pi/2]: offset=0.5, period=pi
+    angle = limit_period(angle, 0.5, np.pi)
+  else:
+    raise NotImplementedError
+  assert not np.any(np.isnan(angle))
+  return angle
 
 class OBJ_DEF():
   @staticmethod
