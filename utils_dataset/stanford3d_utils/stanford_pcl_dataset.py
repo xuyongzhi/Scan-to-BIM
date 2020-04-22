@@ -12,7 +12,7 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 
-SMALL_DATA = 1
+SMALL_DATA = 0
 
 
 class Stanford_CLSINFO(object):
