@@ -1,4 +1,4 @@
-# model settings
+# mdel settings
 ''' modified
   num_classes
   num_points
@@ -183,7 +183,7 @@ elif DATA == 'stanford2d':
 
 data = dict(
     imgs_per_gpu=7,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -209,7 +209,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 410
+total_epochs = 810
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -234,5 +234,6 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-#workflow = [('train', 1),]
+if 0:
+  workflow = [('train', 1),]
 

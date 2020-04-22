@@ -1,4 +1,4 @@
-# model settings
+# mdel settings
 ''' modified
   num_classes
   num_points
@@ -9,18 +9,18 @@
   img_norm_cfg
   transform_method
 '''
-import math
 
-voxel_size = [0.04, 0.08][0]
-
-stem_stride = 2
-batch_size = 4
+TOPVIEW = 'VerD' # better
 #*******************************************************************************
-from configs.common import  OBJ_REP, IMAGE_SIZE, TRAIN_NUM, DATA
-_obj_rep = OBJ_REP
+from configs.common import DIM_PARSE
+IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
+DATA = 'beike2d'
+#DATA = 'stanford2d'
+classes= ['wall']
+
+_obj_rep = DIM_PARSE.OBJ_REP
 _all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
 _obj_dim = _all_obj_rep_dims[_obj_rep]
-
 
 if _obj_rep == 'box_scope':
   _transform_method = 'moment'
@@ -29,43 +29,24 @@ elif _obj_rep == 'line_scope':
 elif _obj_rep == 'lscope_istopleft':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
-if DATA == 'stanford_pcl_2d':
-  dataset_type = 'StanfordPclDataset'
-  data_root = f'data/stanford/'
-  ann_file = data_root
-  in_channels = 6
-
-if DATA == 'beike_pcl_2d':
-  dataset_type = 'BeikePclDataset'
-  data_root = f'data/beike/processed_512/'
-  ann_file = data_root
-  in_channels = 9
-
-backbone_type = 'VoxDenseResNet'
-
-#*******************************************************************************
-
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
-point_strides_all = [(2**i)*stem_stride for i in range(4)]
-bbp = 32
 model = dict(
     type='StrPointsDetector',
     pretrained=None,
     backbone=dict(
-        type=backbone_type,
+        type='ResNet',
         depth=50,
-        in_channels=in_channels,
+        in_channels=4,
         num_stages=4,
-        out_indices=( 0, 1, 2,),
+        out_indices=( 0, 1, 2, 3),
         frozen_stages=-1,
         style='pytorch',
-        stem_stride=stem_stride,
-        basic_planes=bbp,
-        max_planes=1024),
+        basic_planes=64,
+        max_planes=2048),
     neck=dict(
         type='FPN',
-        in_channels=[ bbp*4, bbp*8, bbp*16],
+        in_channels=[ 256, 512, 1024, 2048],
         out_channels=256,
         start_level=0,
         add_extra_convs=True,
@@ -73,14 +54,14 @@ model = dict(
         norm_cfg=norm_cfg),
     bbox_head=dict(
         type='StrPointsHead',
-        num_classes=2,
+        num_classes=len(classes) + 1,
         in_channels=256,
         feat_channels=256,
         point_feat_channels=256,
         stacked_convs=3,
         num_points=9,
         gradient_mul=0.1,
-        point_strides=point_strides_all,
+        point_strides=[4, 8, 16, 32],
         point_base_scale=1,
         norm_cfg=norm_cfg,
         loss_cls=dict(
@@ -94,8 +75,9 @@ model = dict(
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
         transform_method=_transform_method,
         dcn_zero_base=False,
-        corner_hm = True,
+        corner_hm = False,
         corner_hm_only = False,
+        move_points_to_center = 0,
         )
     )
         #transform_method='minmax'))
@@ -140,11 +122,6 @@ test_cfg = dict(
     score_thr=0.2,
     nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
     max_per_img=100)
-
-# dataset settings
-
-
-
 #img_norm_cfg = dict(
 #    mean=[  0, 0,0,0],
 #    std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
@@ -161,51 +138,85 @@ img_norm_cfg = dict(
 #    mean=[4.753, 11.142, 11.044, 25.969],
 #    std=[ 16.158, 36.841, 36.229, 46.637], to_rgb=False, method='abs255')
 
+train_pipeline = [
+    dict(type='LoadTopviewFromFile'),
+    dict(type='LoadAnnotations', with_bbox=True),
+    dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
+    dict(type='ResizeImgLine', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
+    dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
+    dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
+    dict(type='NormalizeTopview', **img_norm_cfg),
+    dict(type='DefaultFormatBundle'),
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+]
+test_pipeline = [
+    dict(type='LoadTopviewFromFile'),
+    dict(type='LoadAnnotations', with_bbox=True),
+    dict(
+        type='MultiScaleFlipAug',
+        img_scale=(IMAGE_SIZE, IMAGE_SIZE),
+        flip=False,
+        transforms=[
+            dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
+            dict(type='ResizeImgLine', keep_ratio=True, obj_dim=_obj_dim),
+            dict(type='RandomLineFlip', obj_rep=_obj_rep),
+            dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
+            dict(type='NormalizeTopview', **img_norm_cfg),
+            dict(type='ImageToTensor', keys=['img']),
+            dict(type='Collect', keys=['img']),
+        ])
+]
 
-lra = 0.01
+filter_edges=True
+# dataset settings
+if DATA == 'beike2d':
+  dataset_type = 'BeikeDataset'
+  data_root = f'data/beike/processed_{IMAGE_SIZE}/'
+  ann_file = data_root + 'json/'
+  img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
+  img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
+elif DATA == 'stanford2d':
+  dataset_type = 'Stanford_2D_Dataset'
+  ann_file = 'data/stanford/'
+  img_prefix_train = 'train'
+  img_prefix_test = 'test'
 
-if DATA == 'beike_pcl_2d':
-  # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
-  max_scene_size = [20.48, 20.48, 7.68]
-elif DATA == 'stanford_pcl_2d':
-  max_scene_size = [10.24, 10.24, 5.12]
-
-max_footprint_for_scale = 150
-max_num_points = 20 * 10000
 data = dict(
-    imgs_per_gpu=batch_size,
+    imgs_per_gpu=7,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
-        img_prefix='train',
-        voxel_size=voxel_size,
-        augment_data=True,
-        max_num_points=max_num_points,
-        max_footprint_for_scale=max_footprint_for_scale,
-        pipeline=None),
-    val=None,
-    test=None,
-)
-data['val'] = data['train'].copy()
-data['val']['img_prefix'] = 'test'
-data['test'] = data['val'].copy()
-
-
-model['backbone']['voxel_size'] = voxel_size
-
+        img_prefix=img_prefix_train,
+        pipeline=train_pipeline,
+        classes=classes,
+        filter_edges=filter_edges),
+    val=dict(
+        type=dataset_type,
+        ann_file=ann_file,
+        img_prefix=img_prefix_test,
+        pipeline=train_pipeline,
+        classes=classes,
+        filter_edges=filter_edges),
+    test=dict(
+        type=dataset_type,
+        ann_file=ann_file,
+        img_prefix=img_prefix_test,
+        pipeline=test_pipeline,
+        classes=classes,
+        filter_edges=filter_edges))
 # optimizer
-optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1000
+total_epochs = 810
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[int(total_epochs*0.7), int(total_epochs*0.85)])
-checkpoint_config = dict(interval=10)
+    step=[int(total_epochs*0.4), int(total_epochs*0.7)])
+checkpoint_config = dict(interval=20)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -217,10 +228,12 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/R50_fpn'
+work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn'
 load_from = None
+#load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 resume_from = None
 auto_resume = True
-workflow = [('train', 1), ('val', 1)]
-workflow = [('train', 1),]
+workflow = [('train', 5), ('val', 1)]
+if 0:
+  workflow = [('train', 1),]
 
