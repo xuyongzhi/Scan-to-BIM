@@ -117,6 +117,7 @@ class SingleStageDetector(BaseDetector):
         '''
         if RECORD_T:
           t0 = time.time()
+        #_show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0].cpu().data.numpy()], 'RoLine2D_UpRight_xyxy_sin2a')
         x = self.extract_feat(img, gt_bboxes)
         self.update_dynamic_shape(x, img_metas)
         #debug_utils._show_tensor_ls_shapes(x, 'single_stage forward_train - features')
@@ -145,19 +146,20 @@ class SingleStageDetector(BaseDetector):
               else:
                 assert outs[i][j] is None
         if SHOW_TRAIN_RES:
-          self.show_train_res(gt_bboxes, img_metas, outs, score_threshold=(0.3,1))
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          self.show_train_res(img, gt_bboxes, img_metas, outs, score_threshold=(0.3,1))
           pass
         return losses
 
-    def show_train_res(self, gt_bboxes, img_metas, outs, score_threshold):
+    def show_train_res(self, img, gt_bboxes, img_metas, outs, score_threshold):
+          from configs.common import DIM_PARSE
+          img = img[0].permute(1,2,0).cpu().data.numpy()
           _gt_bboxes = [g.cpu().data.numpy() for g in gt_bboxes][0:1]
           rescale = False
           bbox_inputs = outs + (img_metas, self.test_cfg, rescale)
           bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
           det_bboxes, det_labels = bbox_list[0]
           _det_bboxes0 = det_bboxes.cpu().data.numpy()
-          from configs.common import DIM_PARSE
+          assert not 'background' in img_metas[0]['classes']
           dim_parse = DIM_PARSE( len(img_metas[0]['classes'])+1 )
           _det_bboxes1 = dim_parse.clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
           _det_bboxes = [_det_bboxes1]
@@ -172,9 +174,14 @@ class SingleStageDetector(BaseDetector):
           #debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
           #debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
           debug_utils._show_lines_ls_points_ls((512,512), [_gt_bboxes[0], _det_bboxes[0][mask]], line_colors=['red','green'])
+          _show_objs_ls_points_ls(img, [_gt_bboxes[0]], 'RoLine2D_UpRight_xyxy_sin2a')
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
+        from configs.common import DIM_PARSE
+        if DEBUG_CFG.DISABLE_RESCALE:
+          rescale = False
         #_show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0][0].cpu().data.numpy()], 'RoLine2D_UpRight_xyxy_sin2a')
         x = self.extract_feat(img, gt_bboxes)
         self.update_dynamic_shape(x, img_meta)
@@ -187,12 +194,12 @@ class SingleStageDetector(BaseDetector):
             for det_bboxes, det_labels in bbox_list
         ]
 
-        #debug_utils.show_shapes(img, 'single_stage simple_test img')
-        #debug_utils.show_shapes(x, 'single_stage simple_test x')
-        #debug_utils.show_shapes(outs, 'single_stage simple_test outs')
-        #return bbox_results[0]
         results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels, img = img)
-        #_show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0][0].cpu().data.numpy()], 'RoLine2D_UpRight_xyxy_sin2a')
+        if 0:
+          dim_parse = DIM_PARSE( len(img_meta[0]['classes'])+1 )
+          det_bboxes = dim_parse.clean_bboxes_out( bbox_results[0][0],'final', 'line_ave' )[:,:5]
+          _show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0][0].cpu().data.numpy(), det_bboxes], 'RoLine2D_UpRight_xyxy_sin2a')
+          _show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0][0].cpu().data.numpy(), ], 'RoLine2D_UpRight_xyxy_sin2a')
         return results
 
     def aug_test(self, imgs, img_metas, rescale=False):

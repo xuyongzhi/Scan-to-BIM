@@ -58,6 +58,7 @@ class LoadAnnotations(object):
             results['gt_bboxes_ignore'] = gt_bboxes_ignore
             results['bbox_fields'].append('gt_bboxes_ignore')
         results['bbox_fields'].append('gt_bboxes')
+        results['classes'] = ann_info['classes']
         return results
 
     def _load_labels(self, results):

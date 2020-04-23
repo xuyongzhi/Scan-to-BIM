@@ -162,6 +162,7 @@ class CustomDataset(Dataset):
         self.pre_pipeline(results)
         results = self.pipeline(results)
         results['img_meta'].data['input_style'] = self.input_style
+        assert not 'background' in results['img_meta'].data['classes']
 
         if DEBUG_CFG.VISUAL_TOPVIEW_INPUT:
           show_results_train(results)

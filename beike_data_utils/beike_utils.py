@@ -129,6 +129,7 @@ class BEIKE(BEIKE_CLSINFO):
                                 is_save_connection = self.is_save_connection)
 
           anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, )
+          anno_img['classes'] = [c for c in classes if c!='background']
           filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
                       'ann': anno_img,

@@ -170,7 +170,8 @@ class Collect(object):
     def __init__(self,
                  keys,
                  meta_keys=('filename', 'ori_shape', 'img_shape', 'pad_shape',
-                            'scale_factor', 'flip', 'img_norm_cfg', 'rotate_angle'),
+                            'scale_factor', 'flip', 'img_norm_cfg',
+                            'rotate_angle', 'classes'),
                  ):
         self.keys = keys
         self.meta_keys = meta_keys
@@ -199,6 +200,7 @@ class Collect(object):
           mask = data['gt_labels'].data >= 0
           data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
           data['gt_labels'] = DC(data['gt_labels'].data[mask])
+
 
 def unused_filter_classes(gt_bboxes, gt_labels):
     valid_labels = [self.beike._category_ids_map[c] for c in self.classes]

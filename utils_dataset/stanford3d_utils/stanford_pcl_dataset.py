@@ -313,6 +313,7 @@ class Stanford_BEV(Stanford_CLSINFO, Stanford_Ann):
         phase = img_prefix
         Stanford_Ann.__init__(self, 'bev', anno_folder, phase)
 
+
 def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
   '''
   bboxes_3d: [n,6] 6: x0,y0,z0, z1,y1,z1
@@ -349,12 +350,14 @@ def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
 
 
 def anno3d_to_anno_topview(anno_3d, classes, input_style):
+  anno_3d['classes'] = classes
   bbox_cat_ids = anno_3d['bbox_cat_ids']
 
   anno_2d = {}
   anno_2d['filename'] = anno_3d['filename']
   anno_2d['labels'] = bbox_cat_ids
   anno_2d['bboxes'] = anno_3d['lines_2d']
+  anno_2d['classes'] = [c for c in classes if c!='background']
 
   if input_style == 'bev':
     voxel_size_prj=0.01

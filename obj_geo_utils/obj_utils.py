@@ -30,7 +30,7 @@ class OBJ_REPS_PARSE:
     assert bboxes.shape[1] == OBJ_REPS_PARSE._obj_dims[obj_rep], f'obj_rep={obj_rep}, shape={bboxes.shape[1]}'
 
   @staticmethod
-  def encode_obj(bboxes, obj_rep_in, obj_rep_out):
+  def encode_obj(bboxes, obj_rep_in, obj_rep_out, check_sin2=1):
     '''
     bboxes: [n,4] or [n,2,2]
     bboxes_out : [n,4/5]
@@ -70,11 +70,11 @@ class OBJ_REPS_PARSE:
 
     elif obj_rep_out == 'RoBox2D_CenSizeAngle':
       if obj_rep_in == 'RoBox2D_UpRight_xyxy_sin2a_thick':
-        return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes)
+        return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2)
       if obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a':
         # to RoBox2D_UpRight_xyxy_sin2a_thick
         bboxes = np.concatenate([bboxes, bboxes[:,0:1]*0], axis=1)
-        bboxes_csa =  OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes)
+        bboxes_csa =  OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2)
         return bboxes_csa
 
     elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'RoBox3D_CenSizeAngle':
@@ -178,16 +178,22 @@ class OBJ_REPS_PARSE:
     return line2d_sin2tck
 
   @staticmethod
-  def UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes):
+  def UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2=True):
     thickness = bboxes[:,5:6]
     lines_2p = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_2p(bboxes[:,:5])
     lines_CenLengthAngle = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
     boxes_csa = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
     err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]
-    if not (err.size==0 or np.abs(err).max() < 2e-1):
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      assert False, "Something is wrong. 1) the obj encoding, 2) the input not right"
-      pass
+    max_errr = np.abs(err).max()
+    check_sin2 = 0
+    if check_sin2:
+      if not (err.size==0 or max_err < 2e-1):
+        i = np.abs(err).argmax()
+        box_sin2_i = bboxes[i]
+        box_csa_i = boxes_csa[i]
+        print(f'box_sin2: {box_sin2_i}\nbox_csa_i: {box_csa_i}')
+        assert False, "Something is wrong. 1) the obj encoding, 2) the input not right"
+        pass
     return boxes_csa
 
   @staticmethod

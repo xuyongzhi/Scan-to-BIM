@@ -159,7 +159,9 @@ class GraphEval():
           gt_labels = results_datas[i_img]['gt_labels'][0].copy()
           gt_lines[:,:4] = gt_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
 
-        #_show_objs_ls_points_ls(img, [gt_lines], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+        if debug and 0:
+          print('gt')
+          _show_objs_ls_points_ls(img, [gt_lines], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
         pass
 
         num_labels = len(detections)
@@ -172,7 +174,7 @@ class GraphEval():
             det_lines = self.dim_parse.clean_bboxes_out(det_lines_raw, stage='final', out_type=out_type)
             if is_pcl:
               det_lines[:,:4] = det_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
-            if debug:
+            if debug and 0:
               print('raw prediction')
               _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
 
@@ -180,6 +182,8 @@ class GraphEval():
             if debug:
               print(f'score > {self._score_threshold}')
               _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
 
             labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
             scores_i = det_lines[:,-1]

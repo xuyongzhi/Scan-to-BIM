@@ -133,6 +133,7 @@ class DEBUG_CFG:
   VISUAL_TOPVIEW_INPUT = 0
 
   # training debug inside net
+  DISABLE_RESCALE = True      # single_stage.py/simple_test
   LOAD_GTS_IN_TEST = True
   VISUAL_RESNET_FEAT_OUT = 0
   SHOW_TRAIN_RES = 0
