@@ -12,7 +12,7 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 
-SMALL_DATA = 1
+SMALL_DATA = 0
 
 class Stanford_CLSINFO(object):
   classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -367,7 +367,7 @@ def anno3d_to_anno_topview(anno_3d, classes, input_style):
 
 
 def load_bboxes(pcl_file, _category_ids_map):
-  anno_file = pcl_file.replace('.ply', '-boxes.npy')
+  anno_file = pcl_file.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
   scope_file = pcl_file.replace('.ply', '-scope.txt')
   anno = defaultdict(list)
 
