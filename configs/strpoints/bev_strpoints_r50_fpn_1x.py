@@ -230,12 +230,12 @@ log_config = dict(
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn'
-load_from = None
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/Apr12_Fpn44_Bp32.pth'
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr22_SFD_wa_Bp32.pth'
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]

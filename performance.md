@@ -1,5 +1,19 @@
 
 # RES
+## 23 Bk Img
+- wall door  
+
+4be5ee7a9a4599704c1269d3b65a8d20e44c1532  
+bTPV_r50_fpn_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe  
+train loss: 0.9  
+eval loss: 1.35  
+
+|split| wall corner | wall edge | door corner |  door edge |
+|-|-|-|-|-|
+| train | 0.931 - 0.955 | 0.907 - 0.866 | 0.921 - 0.924 |0.82 - 0.895 |
+| eval  | 0.782 - 0.842 | 0.72 - 0.649 | 0.878 - 0.74 | 0.714 - 0.685 |
+
+
 ## 22 Apr Img 1 File
 - stanford
 2198a9dea50e9ea57576c4391460b9412d95a223
@@ -367,6 +381,11 @@ Empty gt edges filtered
 |-|-|-|
 | train | |  |
 | eval  | |  |
+
+|split| wall corner | wall edge | door corner |  door edge |
+|-|-|-|-|-|
+| train | | | | |
+| eval  | | | | |
 
 
 |split| wall corner | wall edge | door corner |  door edge | window corner | window edge |
