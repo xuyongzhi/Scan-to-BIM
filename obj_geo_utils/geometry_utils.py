@@ -51,6 +51,9 @@ def angle_with_x(vec_start, scope_id=0, debug=0):
   vec_x = vec_start.clone().detach()
   vec_x[:,0] = 1
   vec_x[:,1:] = 0
+  if torch.isnan(vec_start).any() or torch.isnan(vec_x).any():
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
   return angle_from_vecs_to_vece(vec_x, vec_start, scope_id, debug)
 
 def angle_with_x_np(vec_start, scope_id):
@@ -192,7 +195,10 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
     angle = limit_period(angle, 0, math.pi*2)
   else:
     raise NotImplementedError
-  assert not torch.isnan(angle).any()
+  if torch.isnan(angle).any():
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    assert False
+    pass
   return angle
 
 def R_to_Euler(rMatrix):

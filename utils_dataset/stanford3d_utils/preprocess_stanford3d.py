@@ -9,7 +9,7 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from utils_dataset.lib.pc_utils import save_point_cloud
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls, _show_lines_ls_points_ls
 from tools import debug_utils
-from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_as_img
 
 import MinkowskiEngine as ME
 
@@ -37,6 +37,8 @@ STANFORD_3D_TO_SEGCLOUD_LABEL = {
 }
 
 DEBUG=0
+
+Instance_Bad_Scenes = ['Area_1/hallway_7', 'Area_6/office_9', 'Area_4/lobby_1']
 
 class Stanford3DDatasetConverter:
 
@@ -275,12 +277,19 @@ def gen_bboxes():
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
-  for plyf in ply_files:
-      bbox_file = plyf.replace('.ply', '-boxes.npy')
-      print('\n\n\t',bbox_file, '\n\n')
+  scenes = ['Area_1/office_31']
+  scenes = ['Area_6/hallway_3', 'Area_4/hallway_12']
+  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+  # The first 72 is checked
+  for l, plyf in enumerate( ply_files ):
+      bbox_file = plyf.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
+      bbox_dir = os.path.dirname(bbox_file)
+      if not os.path.exists(bbox_dir):
+        os.makedirs(bbox_dir)
+      print(f'\n\n\t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
-        #pass
-        continue
+        pass
+        #continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
@@ -332,12 +341,14 @@ def gen_bboxes():
 
       bboxes['room'] = OBJ_REPS_PARSE.encode_obj( room[None,:], 'RoBox3D_CenSizeAngle', 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' )
 
+      bboxes['wall'] = optimize_walls(bboxes['wall'])
+
       np.save(bbox_file, bboxes)
+      print(f'\n save {bbox_file}')
 
       colors = instances.astype(np.int32)
       colors = feats
 
-      #walls = OBJ_REPS_PARSE.encode_obj(bboxes['wall'], 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'RoBox3D_CenSizeAngle')
       #print(walls)
 
       #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
@@ -350,9 +361,28 @@ def gen_bboxes():
         for cat in bboxes:
           print(cat)
           _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
   pass
 
+def optimize_walls(walls_3d_line):
+    '''
+    RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+    '''
+    bottom_corners = OBJ_REPS_PARSE.encode_obj(walls_3d_line, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'Bottom_Corners').reshape(-1,3)
+    #_show_3d_points_objs_ls([bottom_corners], objs_ls = [walls_3d_line],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+
+    walls_2d_line = walls_3d_line[:,:5]
+
+    #_show_3d_points_objs_ls(objs_ls=[walls_2d_line], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+    walls_2d_line_new, _, _, valid_mask = GraphUtils.optimize_graph(walls_2d_line, opt_graph_cor_dis_thr=0.15, min_length=0.22)
+    #_show_3d_points_objs_ls(objs_ls=[walls_2d_line_new], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+
+    walls_3d_line_new = np.concatenate( [walls_2d_line_new, walls_3d_line[valid_mask][:,5:8]], axis=1 )
+    bottom_corners_new = OBJ_REPS_PARSE.encode_obj(walls_3d_line_new, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'Bottom_Corners').reshape(-1,3)
+    #_show_3d_points_objs_ls([bottom_corners_new], objs_ls = [walls_3d_line_new],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    return walls_3d_line_new
+    pass
 
 def load_1_ply(filepath):
     from plyfile import PlyData

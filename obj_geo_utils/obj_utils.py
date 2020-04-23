@@ -21,6 +21,7 @@ class OBJ_REPS_PARSE:
 
     'RoBox3D_CenSizeAngle': 7,
     'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1': 8,
+    'Bottom_Corners': 3+3,
   }
   _obj_reps = _obj_dims.keys()
 
@@ -85,6 +86,15 @@ class OBJ_REPS_PARSE:
       zs = np.abs(z1-z0)
       box3d = np.concatenate([box2d[:,:2], zc, box2d[:,2:4], zs, box2d[:,4:5]], axis=1)
       return box3d
+
+    elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'Bottom_Corners':
+      line_2p = OBJ_REPS_PARSE.encode_obj(bboxes[:,:5], 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
+      thick = bboxes[:,5:6]
+      z0 = bboxes[:,6:7]
+      z1 = bboxes[:,7:8]
+      height = z1-z0
+      bottom_corners = np.concatenate([line_2p[:,:2], z0, line_2p[:,2:4], z0], axis=1)
+      return bottom_corners
 
     elif obj_rep_in == 'RoBox3D_CenSizeAngle'  and obj_rep_out == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1':
       # RoBox2D_CenSizeAngle
@@ -230,10 +240,20 @@ class GraphUtils:
   @staticmethod
   def optimize_graph(lines_in, scores=None, labels=None,
                      obj_rep='RoLine2D_UpRight_xyxy_sin2a',
-                     opt_graph_cor_dis_thr=0):
+                     opt_graph_cor_dis_thr=0, min_length=0.1):
     '''
       lines_in: [n,5]
     '''
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    assert opt_graph_cor_dis_thr>0
+
+    # filter short lines
+    line_length = np.linalg.norm(lines_in[:,2:4] - lines_in[:,:2], axis=1)
+    valid_line_mask = line_length > min_length
+    del_lines = lines_in[valid_line_mask==False]
+    lines_in = lines_in[valid_line_mask]
+
+    #
     if obj_rep != 'RoLine2D_UpRight_xyxy_sin2a':
       lines_in = OBJ_REPS_PARSE.encode_obj(lines_in, obj_rep_in, 'RoLine2D_UpRight_xyxy_sin2a')
     num_line = lines_in.shape[0]
@@ -253,41 +273,64 @@ class GraphUtils:
       corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
     corners_merged, cor_scores_merged, cor_labels_merged = merge_corners(
             corners_labs, scores_cor, opt_graph_cor_dis_thr=opt_graph_cor_dis_thr)
-    corners_merged = round_positions(corners_merged, 100)
+    corners_merged = round_positions(corners_merged, 1000)
     corners_merged_per_line = corners_merged[corIds_per_line]
+
+    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', obj_rep)
+
+
     if scores is None and labels is None:
       line_labels_merged = None
       line_scores_merged = None
     else:
       line_labels_merged = cor_labels_merged[corIds_per_line][:,0].astype(np.int32)
       line_scores_merged = cor_scores_merged[corIds_per_line].mean(axis=1)[:,None]
+      line_labels_merged = line_labels_merged[valid_line_mask]
+      line_scores_merged = line_scores_merged[valid_line_mask]
 
-    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', obj_rep)
 
-    #lines_merged = lines_merged[0:5]
-    #line_scores_merged = line_scores_merged[0:5]
-    #line_labels_merged = line_labels_merged[0:5]
-
-    if 1:
+    debug = 0
+    if debug:
       corners_uq, unique_indices, inds_inverse = np.unique(corners_merged, axis=0, return_index=True, return_inverse=True)
       num_cor_org = corners_in.shape[0]
       num_cor_merged = corners_uq.shape[0]
-      print(f'\ncorner num: {num_cor_org} -> {num_cor_merged}')
+      deleted_inds = [i for i in range(num_cor_org) if i not in unique_indices]
+      #deleted_corners = corners_in[deleted_inds]
+      deleted_corners = corners_merged[deleted_inds]
 
-      #_show_lines_ls_points_ls((512,512), [lines_in], [corners_merged], ['white'], 'random')
-      #_show_lines_ls_points_ls((512,512), [lines_in, lines_merged], [], ['white','green'])
+      dn = del_lines.shape[0]
+      length_deled = line_length[ valid_line_mask==False ]
+      print(f'\n\n\tcorner num: {num_cor_org} -> {num_cor_merged}\n')
+      print(f'del lines: {dn}')
+      print(f'del length: {length_deled}')
 
-      #det_corners, cor_scores, det_cor_ids_per_line, num_cor_uq_merged_check = gen_corners_from_lines_np(lines_merged, line_labels_merged, 'lscope_istopleft', flag='debug')
-      #print(f'num_cor_uq_merged_check: {num_cor_uq_merged_check}')
+      show = 1
 
-      check_lines = OBJ_REPS_PARSE.encode_obj(lines_merged, obj_rep, 'RoLine2D_2p')
-      check_corners = check_lines.reshape(-1,2,2)
-      cor_err = corners_merged_per_line - check_corners
-      cor_loc_check = np.abs(cor_err).max() < 1e-3
-      print(f'cor_loc_check: {cor_loc_check}')
-      print(lines_merged[0:5])
+      if show:
+        data = ['2d', '3d'][1]
+        if data=='2d':
+          w, h = np.ceil(corners_in.max(0)+50).astype(np.int32)
+          _show_objs_ls_points_ls( (h,w), [lines_in, lines_merged], obj_colors=['green', 'red'], obj_thickness=[3,2],
+                      points_ls=[corners_in, corners_merged], point_colors=['green', 'red'], point_thickness=[3,2] )
+        else:
+          if dn>0:
+            _show_3d_points_objs_ls(
+              objs_ls = [lines_in, del_lines], obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+              obj_colors=['red','blue'], thickness=5,)
 
-    return lines_merged, line_scores_merged, line_labels_merged
+          print('\nCompare org and merged')
+          _show_3d_points_objs_ls( points_ls=[deleted_corners],
+            objs_ls = [lines_in, lines_merged], obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+            obj_colors=['blue', 'red'], thickness=[3,2],)
+
+          print('\nMerged result')
+          _show_3d_points_objs_ls( points_ls=[deleted_corners],
+            objs_ls = [lines_merged], obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+            obj_colors='random', thickness=5,)
+
+        pass
+
+    return lines_merged, line_scores_merged, line_labels_merged, valid_line_mask
 
   @staticmethod
   def gen_corners_from_lines_np(lines, labels=None, obj_rep='RoLine2D_UpRight_xyxy_sin2a', flag=''):

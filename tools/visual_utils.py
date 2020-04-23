@@ -11,7 +11,7 @@ from .color import color_val, get_random_color, label2color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-ADD_FRAME = 1
+ADD_FRAME = 0
 
 #-2d general------------------------------------------------------------------------------
 
@@ -272,6 +272,22 @@ def _show_sparse_coords(x, gt_bboxes=None):
 def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
              objs_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_colors='random', thickness=0.1):
   if objs_ls is not None:
+    if obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+      if points_ls is not None:
+        for i in range(len(points_ls)):
+          n = points_ls[i].shape[0]
+          z = np.zeros([n,1])
+          points_ls[i] = np.concatenate([points_ls[i], z], axis=1)
+
+      if objs_ls is not None:
+        for i in range(len(objs_ls)):
+          n = objs_ls[i].shape[0]
+          tzz = np.ones([n,3])
+          tzz[:,0] = 0.01
+          tzz[:,1] = 0
+          tzz[:,2] = 0.01
+          objs_ls[i] = np.concatenate([objs_ls[i], tzz], axis=1)
+      obj_rep = 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1'
     bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'RoBox3D_CenSizeAngle') for o in objs_ls]
   else:
     bboxes_ls = None
@@ -367,6 +383,15 @@ def _make_pcd(points, colors=None, normals=None):
     return pcd
 
 
+def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1'):
+    lines2d = bboxes3d[:,:5]
+    voxel_size = 0.004
+    lines2d[:,:4] /= voxel_size
+    scope_min = lines2d[:,:4].reshape(-1,2).min(0, keepdims=True)
+    lines2d[:,:4] = (lines2d[:,:4].reshape(-1,2) - scope_min).reshape(-1,4)
+    scope_max = lines2d[:,:4].reshape(-1,2).max(0, keepdims=True)
+    w, h = np.ceil(scope_max +10).astype(np.int32)[0]
+    _show_objs_ls_points_ls( (h,w), [lines2d], 'RoLine2D_UpRight_xyxy_sin2a', points_ls)
 #-feature------------------------------------------------------------------------------
 def _show_feats(feats, gt_bboxes, stride):
   '''

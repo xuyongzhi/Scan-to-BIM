@@ -14,7 +14,6 @@ from tools import debug_utils
 
 SMALL_DATA = 1
 
-
 class Stanford_CLSINFO(object):
   classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
                     'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
