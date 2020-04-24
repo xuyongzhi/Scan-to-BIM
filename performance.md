@@ -1,5 +1,20 @@
 
 # RES
+
+## 24 Bk Img
+- wall door  
+
+f2282b351ffe6708c4292c75a0ac73d6f27620e0  
+test__00f466e917de538fc9b28591cfb1b24d99d754e6  
+bTPV_r50_fpn_beike2d_wado_bs5_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe  
+train loss: 0.9  
+eval loss: 1.35  
+
+|split| wall corner | wall edge | door corner |  door edge |
+|-|-|-|-|-|
+| train | 0.953 - 0.964 | 0.926 - 0.898| 0.928 - 0.912 | 0.819 - 0.879 |
+| eval  | 0.837 - 0.848 | 0.76 - 0.671 | 0.846 - 0.753  |0.757 - 0.726 |
+
 ## 23 Bk Img
 - wall door  
 
