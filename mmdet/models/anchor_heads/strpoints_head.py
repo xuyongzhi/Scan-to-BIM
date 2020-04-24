@@ -83,7 +83,7 @@ class StrPointsHead(nn.Module):
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
                  move_points_to_center = False,
                  relation_cfg=dict(
-                    enable = 1,
+                    enable = 0,
                     stage = ['refine', 'final'][0],
                     score_threshold = 0.2,
                     max_relation_num = 120, ),

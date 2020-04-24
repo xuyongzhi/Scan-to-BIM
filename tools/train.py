@@ -62,6 +62,7 @@ def parse_args():
     parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
     parser.add_argument('--classes', type=str, default=None, help='a for wall, i for window, d for door')
     parser.add_argument('--filter_edges', type=int, default=None,)
+    parser.add_argument('--relation', type=int, default=None,)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -85,6 +86,7 @@ def update_config(cfg, args, split):
     data_types_ = args.data_types
     filter_edges = args.filter_edges
     cls_str = args.classes
+    relation = args.relation
 
     if cls_str is not None:
       cls_full = {'a':'wall', 'i':'window', 'd':'door', 'c':'column', 'b':'beam'}
@@ -146,6 +148,9 @@ def update_config(cfg, args, split):
       assert corner_hm ==0 or corner_hm==1 or corner_hm ==2
       cfg['model']['bbox_head']['corner_hm'] = corner_hm!=0
       cfg['model']['bbox_head']['corner_hm_only'] = corner_hm==2
+
+    if relation is not None:
+        cfg['model']['bbox_head']['relation_cfg']['enable'] = relation == 1
 
 
     # update work_dir
@@ -228,6 +233,9 @@ def update_config(cfg, args, split):
 
         if cfg['data']['train']['filter_edges']:
           cfg['work_dir'] += f'_Fe'
+
+        if cfg['model']['bbox_head']['relation_cfg']['enable']:
+          cfg['work_dir'] += f'_Rel'
 
         img_prefix = cfg['data']['train']['img_prefix']
         cur_path = os.path.abspath('.')
