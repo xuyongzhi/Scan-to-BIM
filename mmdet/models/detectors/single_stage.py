@@ -128,8 +128,8 @@ class SingleStageDetector(BaseDetector):
         if RECORD_T:
           t2 = time.time()
         losses = self.bbox_head.loss( *outs,
-            gt_bboxes=gt_bboxes, gt_labels=gt_labels, img_metas=img_metas,
-            cfg=self.train_cfg,  gt_bboxes_ignore=gt_bboxes_ignore)
+            gt_bboxes=gt_bboxes, gt_labels=gt_labels, gt_relations=gt_relations,
+            img_metas=img_metas, cfg=self.train_cfg,  gt_bboxes_ignore=gt_bboxes_ignore)
         if RECORD_T:
           t3 = time.time()
           print(f'\textract feat:{t1-t0:.3f} head:{t2-t1:.3f}, loss:{t3-t2:.3f}')

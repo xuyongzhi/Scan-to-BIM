@@ -165,6 +165,8 @@ def point_target_single(flat_proposals,
 
     gt_inds = assign_result.gt_inds
     gt_inds_per_pos = gt_inds[pos_inds]
+    assert gt_inds_per_pos.min() >= 1
+    gt_inds_per_pos -= 1
 
     if len(pos_inds) > 0:
         pos_gt_bboxes = sampling_result.pos_gt_bboxes

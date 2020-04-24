@@ -83,8 +83,18 @@ class StrPointsHead(nn.Module):
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
                  move_points_to_center = False,
                  get_edge_relation = True,
+                 relation_stage = ['init', 'refine', 'final'][1],
+                 relation_score_threshold = 0.6,
+                 loss_relation=dict(
+                     type='FocalLoss',
+                     use_sigmoid=True,
+                     gamma=2.0,
+                     alpha=0.25,
+                     loss_weight=1.0,),
                  ):
         super(StrPointsHead, self).__init__()
+        self.wall_label = 1
+
         self.dim_parse = DIM_PARSE(num_classes)
         self.move_points_to_center = move_points_to_center
         self.in_channels = in_channels
@@ -135,9 +145,16 @@ class StrPointsHead(nn.Module):
         dcn_base_offset = np.stack([dcn_base_y, dcn_base_x], axis=1).reshape(
             (-1))
         self.dcn_base_offset = torch.tensor(dcn_base_offset).view(1, -1, 1, 1)
-        self.corner_hm = corner_hm
+
         self.get_edge_relation = get_edge_relation
+        if get_edge_relation:
+            self.relation_stage = relation_stage
+            self.relation_score_threshold = relation_score_threshold
+            self.loss_relation = build_loss(loss_relation)
+
+        self.corner_hm = corner_hm
         self.corner_hm_only = corner_hm_only
+
         self.loss_centerness = build_loss(loss_centerness)
         self.loss_cor_ofs = build_loss(loss_cor_ofs)
         self._init_layers()
@@ -450,6 +467,8 @@ class StrPointsHead(nn.Module):
 
         if self.get_edge_relation:
           rel_feats = self.forward_single_relation_feats(x)
+        else:
+          rel_feats = None
 
         if self.corner_hm and stride == self.point_strides[0]:
           corner_outs = self.forward_single_corner(x, scale_learn)
@@ -472,9 +491,15 @@ class StrPointsHead(nn.Module):
           rel_feat = rel_layer(x)
         return rel_feat
 
-    def forward_single_relation_cls(self, scores, pts, rel_feats, wall_id=0, score_threshold=0.3):
+    def forward_single_relation_cls(self, scores, rel_feats):
       batch_size = scores.shape[0]
-      wall_score_mask = scores[:,wall_id,:] > score_threshold
+      if self.use_sigmoid_cls:
+        scores = scores.sigmoid()
+        wall_id = self.wall_label - 1
+      else:
+        scores = scores.softmax(-1)
+        wall_id = self.wall_label
+      wall_score_mask = scores[:,wall_id,:] > self.relation_score_threshold
       rel_cls_all = []
       high_score_inds_all = []
       for i in range(batch_size):
@@ -518,29 +543,27 @@ class StrPointsHead(nn.Module):
         # forward per level
         outs =  multi_apply(self.forward_single, feats, self.point_strides, self.scales)
 
-        cls_out = outs[0]
-        pts_refine_out = outs[2]
-        rel_feats_out = outs[4]
+        if self.get_edge_relation:
+          cls_out = outs[0]
+          num_levels = len(cls_out)
+          rel_stage = self.relation_stage
+          assert rel_stage in ['init', 'refine', 'final']
+          batch_size = cls_out[0][rel_stage].shape[0]
+          rel_feats_out = outs[4]
 
-        num_levels = len(cls_out)
-        batch_size = cls_out[0]['refine'].shape[0]
+          cls_channel = cls_out[0][rel_stage].shape[1]
+          rel_feat_channel = rel_feats_out[0].shape[1]
 
-        cls_channel = cls_out[0]['refine'].shape[1]
-        pts_channel = pts_refine_out[0].shape[1]
-        rel_feat_channel = rel_feats_out[0].shape[1]
+          cls_flat = [cls_out[l][rel_stage].view(batch_size, cls_channel, -1) for l in range(num_levels)]
+          cls_flat = torch.cat(cls_flat, dim=2)
 
-        cls_refine_flat = [cls_out[l]['refine'].view(batch_size, cls_channel, -1) for l in range(num_levels)]
-        cls_refine_flat = torch.cat(cls_refine_flat, dim=2)
+          rel_feats_flat = [rel_feats_out[l].view(batch_size, rel_feat_channel, -1) for l in range(num_levels)]
+          rel_feats_flat = torch.cat(rel_feats_flat, dim=2)
+          relations_scores, high_score_inds = self.forward_single_relation_cls(cls_flat, rel_feats_flat)
 
-        pts_refine_flat = [pts_refine_out[l].view(batch_size, pts_channel, -1) for l in range(num_levels)]
-        pts_refine_flat = torch.cat(pts_refine_flat, dim=2)
-
-        rel_feats_flat = [rel_feats_out[l].view(batch_size, rel_feat_channel, -1) for l in range(num_levels)]
-        rel_feats_flat = torch.cat(rel_feats_flat, dim=2)
-        relations_scores, high_score_inds = self.forward_single_relation_cls(cls_refine_flat, pts_refine_flat, rel_feats_flat)
-
-        outs = outs[:-1]
-        outs += ( relations_scores, high_score_inds, )
+          outs = outs[:-1] + ( relations_scores, high_score_inds, )
+        else:
+          outs = outs[:-1] + ( None, None, )
         return outs
 
     def get_points(self, featmap_sizes, img_metas):
@@ -766,6 +789,7 @@ class StrPointsHead(nn.Module):
              high_score_inds,
              gt_bboxes,
              gt_labels,
+             gt_relations,
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
@@ -828,11 +852,13 @@ class StrPointsHead(nn.Module):
             flag='refine')
         (labels_list_refine, label_weights_list_refine, bbox_gt_list_refine,
          candidate_list_refine, bbox_weights_list_refine, num_total_pos_refine,
-         num_total_neg_refine, _, _) = cls_reg_targets_refine
+         num_total_neg_refine, pos_inds_list_refine,
+         gt_inds_per_pos_list_refine) = cls_reg_targets_refine
         num_total_samples_refine = (
             num_total_pos_refine +
             num_total_neg_refine if self.sampling else num_total_pos_refine)
 
+        #self.debug_pos_scores(cls_scores, pos_inds_list_refine)
         #-----------------------------------------------------------------------
         if 'final' in self.cls_types:
           center_list, valid_flag_list = self.get_points(featmap_sizes,
@@ -853,7 +879,8 @@ class StrPointsHead(nn.Module):
               flag='final')
           (labels_list_final, label_weights_list_final, bbox_gt_list_final,
           candidate_list_final, bbox_weights_list_final, num_total_pos_final,
-          num_total_neg_final, _, _) = cls_reg_targets_final
+          num_total_neg_final, pos_inds_list_final, gt_inds_per_pos_list_final)\
+              = cls_reg_targets_final
           num_total_samples_finale = (
               num_total_pos_final +
               num_total_neg_final if self.sampling else num_total_pos_final)
@@ -905,6 +932,26 @@ class StrPointsHead(nn.Module):
           for lc in losses_cls:
             loss_dict_all['loss_cls_'+c].append( lc[c] )
 
+
+        #-----------------------------------------------------------------------
+        # relation loss
+        if self.get_edge_relation:
+            if self.relation_stage == 'refine':
+                pos_inds_list = pos_inds_list_refine
+                gt_inds_per_pos_list = gt_inds_per_pos_list_refine
+            num_flat = sum([cs['refine'].shape[2:].numel() for cs in cls_scores])
+            num_flats = (num_flat, ) * len(gt_labels)
+            loss_relation_wall, = multi_apply(
+                self.obj_relation_cls_loss,
+                num_flats,
+                relations_scores,
+                high_score_inds,
+                gt_relations,
+                pos_inds_list,
+                gt_inds_per_pos_list,
+                gt_labels )
+            loss_dict_all['loss_relation'] = loss_relation_wall
+
         #-----------------------------------------------------------------------
         # target for corner
         if self.corner_hm:
@@ -917,8 +964,63 @@ class StrPointsHead(nn.Module):
 
         return loss_dict_all
 
-    def edge_relation_loss(self,):
-        pass
+    def obj_relation_cls_loss(self, num_flat, relations_scores, high_score_inds,
+                    gt_relations, pos_inds, gt_inds_per_pos, gt_labels ):
+        '''
+        Valid sample for relation classification: in both high_score_inds and pos_inds
+        '''
+        relations_scores  = relations_scores.squeeze(0).squeeze(0)
+        # remain only wall in positive detection
+        labels_pos = gt_labels[gt_inds_per_pos]
+        pos_wall_mask = labels_pos == self.wall_label
+        wall_pos_inds = pos_inds[pos_wall_mask]
+        wall_num = wall_pos_inds.shape[0]
+        gt_inds_per_pos = gt_inds_per_pos[pos_wall_mask]
+
+        # remain only wall in gt
+        gt_wall_mask = gt_labels == self.wall_label
+        wall_gt_relations = gt_relations[gt_wall_mask,:]
+        gt_wall_num = wall_gt_relations.shape[0]
+        assert wall_gt_relations.shape[1] == gt_wall_num
+
+        # find the inds in both high_score_inds and pos_inds
+        tmp1 = torch.zeros([num_flat], dtype=torch.int32)
+        tmp1[high_score_inds] = 1
+        tmp2 = torch.zeros([num_flat], dtype=torch.int32)
+        tmp2[wall_pos_inds] = 1
+        tmp3 = tmp1 + tmp2
+        valid_inds = torch.nonzero(tmp3 == 2).squeeze(1)
+        tmp4 = tmp3[high_score_inds]
+        valid_inds_in_highscore = torch.nonzero(tmp4 == 2).squeeze(1)
+        tmp5 = tmp3[wall_pos_inds]
+        valid_inds_in_pos = torch.nonzero(tmp5 == 2).squeeze(1)
+
+        npos = pos_inds.shape[0]
+        npos_wall = wall_pos_inds.shape[0]
+        nhscore = high_score_inds.shape[0]
+        nvalid = valid_inds_in_highscore.shape[0]
+        #print(f'\n\n gt num: {gt_labels.shape[0]}\n wall gt num: {gt_wall_num}')
+        #print(f'npos: {npos}\n wall pos: {npos_wall}\n nhscore: {nhscore}\n nvalid: {nvalid}\n')
+
+        # get the final relations_scores for loss computation
+        valid_relations_scores = relations_scores[valid_inds_in_highscore,:][:,valid_inds_in_highscore]
+        valid_relations_scores = valid_relations_scores.view(-1,1)
+
+        # get the relation gt
+        gt_inds_per_valid = gt_inds_per_pos[valid_inds_in_pos]
+        gt_relations_valid = wall_gt_relations[gt_inds_per_valid, :][:,gt_inds_per_valid]
+        gt_relation_labels = gt_relations_valid.view(-1).to(torch.long)
+
+        #gt_relation_labels[:] = 1
+        valid_relations_scores[:] = -10
+
+        # cal loss
+        loss_relation_wall = self.loss_relation(
+            valid_relations_scores,
+            gt_relation_labels,
+            weight=None,
+            avg_factor=None,)
+        return (loss_relation_wall, )
 
     def corner_loss(self, corner_outs, gt_bboxes,
                     gt_labels, img_metas,cfg, gt_bboxes_ignore):
@@ -979,6 +1081,19 @@ class StrPointsHead(nn.Module):
         }
         #loss_dict_all['loss_cor_ofs'] = losses_ofs
         return loss_dict_all
+
+    def debug_pos_scores(self, cls_scores, pos_inds_list_refine):
+        # debug: score of positive
+        batch_size, num_classes = cls_scores[0]['refine'].shape[:2]
+        cls_scores_flat = [cs['refine'].view(batch_size, num_classes, -1) for cs in cls_scores]
+        cls_scores_flat = torch.cat(cls_scores_flat, axis=-1)
+        if self.use_sigmoid_cls:
+          cls_scores_flat = cls_scores_flat.sigmoid()
+        else:
+          cls_scores_flat = cls_scores_flat.softmax(-1)
+        scores_pos = cls_scores_flat[0, :, pos_inds_list_refine[0]]
+        scores_pos_wall = scores_pos[0]
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
     def loss_single_corner(self, cor_score, cor_centerness, cor_ofs, labels,
                     label_weights, cor_centerness_gt, cor_ofs_gt, cor_reg_weights, stride,
