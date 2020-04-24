@@ -185,6 +185,8 @@ class Collect(object):
             img_meta[key] = results[key]
         data['img_meta'] = DC(img_meta, cpu_only=True)
         for key in self.keys:
+            if key not in results:
+              continue
             data[key] = results[key]
         self.filter_classes(data)
         return data

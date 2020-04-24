@@ -357,7 +357,7 @@ def anno3d_to_anno_topview(anno_3d, classes, input_style):
   anno_2d['labels'] = bbox_cat_ids
   anno_2d['bboxes'] = anno_3d['lines_2d']
   anno_2d['classes'] = [c for c in classes if c!='background']
-  anno_2d['relations'] = None
+  #anno_2d['relations'] = None
 
   if input_style == 'bev':
     voxel_size_prj=0.01

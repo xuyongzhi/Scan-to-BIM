@@ -1,6 +1,18 @@
 
 # RES
 
+## 25 Sfd img
+- wall
+
+c9ef74987a4187647cade05369203f090e908a32  
+test__6f521a2d7ae3d3dea17c96217688306b5bb78d6d  
+sTPV_r50_fpn_stanford2d_wa_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe   
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train |0.913 - 0.918 | 0.852 - 0.841 |
+| eval  |0.654 - 0.739 | 0.503 - 0.533 |
+
 ## 24 Bk Img
 - wall door  
 
@@ -14,6 +26,18 @@ eval loss: 1.35
 |-|-|-|-|-|
 | train | 0.953 - 0.964 | 0.926 - 0.898| 0.928 - 0.912 | 0.819 - 0.879 |
 | eval  | 0.837 - 0.848 | 0.76 - 0.671 | 0.846 - 0.753  |0.757 - 0.726 |
+
+- window
+
+c9ef74987a4187647cade05369203f090e908a32  
+test___6f521a2d7ae3d3dea17c96217688306b5bb78d6d  
+bTPV_r50_fpn_beike2d_wi_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe  
+
+| eval set | corner prec-recall| line prec-recall |
+|-|-|-|
+| train | 0.984 - 0.879|  0.764 - 0.778|
+| eval  | 0.647 - 0.377 | 0.489 - 0.301|
+
 
 ## 23 Bk Img
 - wall door  
@@ -58,7 +82,7 @@ Test the trained model on 12 Apr achieve the same acc. Test again at 46407969969
 | eval  | 0.819 - 0.838  |0.745 - 0.66  |0.881 - 0.712  | 0.766 - 0.671 |
 
 -window
-
+GG
 e7bca064f792a472c33125b9f6f56bc96f44bcdb
 TPV_r50_fpn_beike2d_wi_bs7_lr20_LsW510_RAR2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe-D90_0K_zX
 

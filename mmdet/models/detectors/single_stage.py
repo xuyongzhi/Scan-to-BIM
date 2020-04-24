@@ -108,7 +108,7 @@ class SingleStageDetector(BaseDetector):
                       img_metas,
                       gt_bboxes,
                       gt_labels,
-                      gt_relations,
+                      gt_relations = None,
                       gt_bboxes_ignore=None):
         '''
         img: [6, 4, 512, 512]

@@ -15,7 +15,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-#DATA = 'stanford2d'
+DATA = 'stanford2d'
 classes= ['wall']
 
 _obj_rep = DIM_PARSE.OBJ_REP
@@ -185,7 +185,7 @@ elif DATA == 'stanford2d':
 
 data = dict(
     imgs_per_gpu=5,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -211,7 +211,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 810
+total_epochs = 1010
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -236,11 +236,11 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr22_SFD_wa_Bp32.pth'
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 1:
+if 0:
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)
 
