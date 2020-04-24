@@ -82,9 +82,11 @@ class StrPointsHead(nn.Module):
                  loss_cor_ofs=dict(
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
                  move_points_to_center = False,
-                 get_edge_relation = True,
-                 relation_stage = ['init', 'refine', 'final'][1],
-                 relation_score_threshold = 0.1,
+                 relation_cfg=dict(
+                    enable = 1,
+                    stage = ['refine', 'final'][0],
+                    score_threshold = 0.2,
+                    max_relation_num = 120, ),
                  loss_relation=dict(
                      type='FocalLoss',
                      use_sigmoid=True,
@@ -146,10 +148,8 @@ class StrPointsHead(nn.Module):
             (-1))
         self.dcn_base_offset = torch.tensor(dcn_base_offset).view(1, -1, 1, 1)
 
-        self.get_edge_relation = get_edge_relation
-        if get_edge_relation:
-            self.relation_stage = relation_stage
-            self.relation_score_threshold = relation_score_threshold
+        self.relation_cfg = relation_cfg
+        if self.relation_cfg['enable']:
             self.loss_relation = build_loss(loss_relation)
 
         self.corner_hm = corner_hm
@@ -232,7 +232,7 @@ class StrPointsHead(nn.Module):
         self.cor_fcos_centerness = nn.Conv2d(self.feat_channels, 1, 3, padding=1)
 
         # relationship
-        if self.get_edge_relation:
+        if self.relation_cfg['enable']:
             self.edge_relation_convs = nn.ModuleList()
             for i in range(self.stacked_convs):
                 chn = self.in_channels if i == 0 else self.feat_channels
@@ -276,7 +276,7 @@ class StrPointsHead(nn.Module):
           normal_init(self.cor_fcos_reg, std=0.01)
           normal_init(self.cor_fcos_centerness, std=0.01)
 
-        if self.get_edge_relation:
+        if self.relation_cfg['enable']:
           for m in self.edge_relation_convs:
             normal_init(m.conv, std=0.01)
           bias_cls = bias_init_with_prob(0.01)
@@ -465,10 +465,10 @@ class StrPointsHead(nn.Module):
           cls_out['final'] = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
 
-        if self.get_edge_relation:
-          rel_feats = self.forward_single_relation_feats(x)
+        if self.relation_cfg['enable']:
+          rel_feat = self.forward_single_relation_feats(x)
         else:
-          rel_feats = None
+          rel_feat = None
 
         if self.corner_hm and stride == self.point_strides[0]:
           corner_outs = self.forward_single_corner(x, scale_learn)
@@ -482,7 +482,7 @@ class StrPointsHead(nn.Module):
         #debug_utils.show_shapes(pts_out_init, 'StrPointsHead pts_out_init')
         #debug_utils.show_shapes(cls_out, 'StrPointsHead cls_out')
         #debug_utils.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
-        return cls_out, pts_out_init, pts_out_refine, corner_outs, rel_feats
+        return cls_out, pts_out_init, pts_out_refine, corner_outs, rel_feat
 
     def forward_single_relation_feats(self, x):
         # use dcn later!
@@ -499,20 +499,77 @@ class StrPointsHead(nn.Module):
       else:
         scores = scores.softmax(-1)
         wall_id = self.wall_label
-      wall_score_mask = scores[:,wall_id,:] > self.relation_score_threshold
+      wall_score_mask = scores[:,wall_id,:] > self.relation_cfg['score_threshold']
       rel_cls_all = []
       high_score_inds_all = []
       for i in range(batch_size):
         high_score_inds = torch.nonzero(wall_score_mask[i]).squeeze(1)
+        num_hscore = high_score_inds.numel()
+        print(f'num high score: {num_hscore}')
         pos_rel_feats = rel_feats[i][:, high_score_inds]
         #pos_rel_feats = torch.range(0,10)[None,:]
         x = pos_rel_feats[:,:,None].repeat(1,1,pos_rel_feats.shape[1])
         y = x.permute(0, 2, 1)
         pos_rel_feats_matrix = torch.cat( [x, y], dim=0 )[None,...]
         rel_cls = self.edge_relation_cls(pos_rel_feats_matrix)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         rel_cls_all.append( rel_cls )
         high_score_inds_all.append( high_score_inds )
       return rel_cls_all, high_score_inds_all
+
+    def forward_single_relation_cls_train(self, rel_feat_outs, pos_inds_list, gt_inds_per_pos_list ):
+        '''
+        Predict the relation of positive detections.
+        '''
+        max_relation_num = self.relation_cfg['max_relation_num']
+        num_levels = len(rel_feat_outs)
+        batch_size = rel_feat_outs[0].shape[0]
+        rel_feat_channel = rel_feat_outs[0].shape[1]
+
+        rel_feats_flat = [rel_feat_outs[l].view(batch_size, rel_feat_channel, -1) for l in range(num_levels)]
+        rel_feats_flat = torch.cat(rel_feats_flat, dim=2)
+
+        rel_scores_all = []
+        rel_inds_all = []
+        gt_inds_per_rel_all = []
+        for i in range(batch_size):
+          np = pos_inds_list[i].numel()
+          #print(f'num pos wall: {np}, max set: {max_relation_num}')
+          if np > max_relation_num:
+              choice = torch.randperm(np)[:max_relation_num].sort()[0]
+              valid_inds_i = pos_inds_list[i][choice]
+              gt_inds_per_rel = gt_inds_per_pos_list[i][choice]
+          else:
+              valid_inds_i = pos_inds_list[i]
+              gt_inds_per_rel = gt_inds_per_pos_list[i]
+          rel_inds_all.append(valid_inds_i)
+          gt_inds_per_rel_all.append(gt_inds_per_rel)
+
+          rel_feats = rel_feats_flat[i][None, :, valid_inds_i]
+          ni = rel_feats.shape[2]
+          x = rel_feats[:,:,None,:].repeat(1,1,ni,1)
+          y = x.permute(0,1,3,2)
+          rel_feats_matrix = torch.cat([x,y], dim=1)
+          rel_scores = self.edge_relation_cls(rel_feats_matrix)
+          rel_scores_all.append(rel_scores)
+        pass
+        return rel_scores_all, rel_inds_all, gt_inds_per_rel_all
+
+    def forward_single_relation_cls_test(self, cls_out, rel_feat_outs):
+          num_levels = len(cls_out)
+          rel_stage = self.relation_cfg['stage']
+          assert rel_stage in ['init', 'refine', 'final']
+          batch_size = cls_out[0][rel_stage].shape[0]
+
+          cls_channel = cls_out[0][rel_stage].shape[1]
+          rel_feat_channel = rel_feat_outs[0].shape[1]
+
+          cls_flat = [cls_out[l][rel_stage].view(batch_size, cls_channel, -1) for l in range(num_levels)]
+          cls_flat = torch.cat(cls_flat, dim=2)
+
+          rel_feats_flat = [rel_feats_out[l].view(batch_size, rel_feat_channel, -1) for l in range(num_levels)]
+          rel_feats_flat = torch.cat(rel_feats_flat, dim=2)
+          relations_scores, high_score_inds = self.forward_single_relation_cls(cls_flat, rel_feats_flat)
 
     def forward_single_corner(self, x, scale):
         cls_feat = x
@@ -543,28 +600,6 @@ class StrPointsHead(nn.Module):
         '''
         # forward per level
         outs =  multi_apply(self.forward_single, feats, self.point_strides, self.scales)
-
-        if self.get_edge_relation:
-          cls_out = outs[0]
-          num_levels = len(cls_out)
-          rel_stage = self.relation_stage
-          assert rel_stage in ['init', 'refine', 'final']
-          batch_size = cls_out[0][rel_stage].shape[0]
-          rel_feats_out = outs[4]
-
-          cls_channel = cls_out[0][rel_stage].shape[1]
-          rel_feat_channel = rel_feats_out[0].shape[1]
-
-          cls_flat = [cls_out[l][rel_stage].view(batch_size, cls_channel, -1) for l in range(num_levels)]
-          cls_flat = torch.cat(cls_flat, dim=2)
-
-          rel_feats_flat = [rel_feats_out[l].view(batch_size, rel_feat_channel, -1) for l in range(num_levels)]
-          rel_feats_flat = torch.cat(rel_feats_flat, dim=2)
-          relations_scores, high_score_inds = self.forward_single_relation_cls(cls_flat, rel_feats_flat)
-
-          outs = outs[:-1] + ( relations_scores, high_score_inds, )
-        else:
-          outs = outs[:-1] + ( None, None, )
         return outs
 
     def get_points(self, featmap_sizes, img_metas):
@@ -786,8 +821,7 @@ class StrPointsHead(nn.Module):
              pts_preds_init,
              pts_preds_refine,
              corner_outs,
-             relations_scores,
-             high_score_inds,
+             rel_feat_outs,
              gt_bboxes,
              gt_labels,
              gt_relations,
@@ -936,20 +970,23 @@ class StrPointsHead(nn.Module):
 
         #-----------------------------------------------------------------------
         # relation loss
-        if self.get_edge_relation:
-            if self.relation_stage == 'refine':
+        if self.relation_cfg['enable']:
+            if self.relation_cfg['stage'] == 'refine':
                 pos_inds_list = pos_inds_list_refine
                 gt_inds_per_pos_list = gt_inds_per_pos_list_refine
-            num_flat = sum([cs['refine'].shape[2:].numel() for cs in cls_scores])
-            num_flats = (num_flat, ) * len(gt_labels)
+            wall_pos_inds_list, wall_gt_inds_per_pos_list = self.get_wall_pos(
+                gt_labels, pos_inds_list, gt_inds_per_pos_list)
+            #num_flat = sum([cs['refine'].shape[2:].numel() for cs in cls_scores])
+            #num_flats = (num_flat, ) * len(gt_labels)
+            relation_scores, relation_inds, gt_inds_per_rel = \
+              self.forward_single_relation_cls_train(rel_feat_outs,
+                      wall_pos_inds_list, wall_gt_inds_per_pos_list )
             loss_relation_wall, = multi_apply(
                 self.obj_relation_cls_loss,
-                num_flats,
-                relations_scores,
-                high_score_inds,
+                relation_scores,
+                relation_inds,
+                gt_inds_per_rel,
                 gt_relations,
-                pos_inds_list,
-                gt_inds_per_pos_list,
                 gt_labels )
             loss_dict_all['loss_relation'] = loss_relation_wall
 
@@ -965,12 +1002,45 @@ class StrPointsHead(nn.Module):
 
         return loss_dict_all
 
-    def obj_relation_cls_loss(self, num_flat, relations_scores, high_score_inds,
+    def get_wall_pos(self,  gt_labels, pos_inds_list, gt_inds_per_pos_list):
+      batch_size = len(gt_labels)
+      wall_pos_inds_list = []
+      wall_gt_inds_per_pos_list = []
+      for i in range(batch_size):
+        # reamin only wall in positive detection
+        pos_labels = gt_labels[i][ gt_inds_per_pos_list[i] ]
+        wall_mask = pos_labels == self.wall_label
+        wall_pos_inds_list.append( pos_inds_list[i][wall_mask] )
+        wall_gt_inds_per_pos_list.append( gt_inds_per_pos_list[i][wall_mask] )
+
+      return wall_pos_inds_list, wall_gt_inds_per_pos_list
+
+    def obj_relation_cls_loss(self, relation_scores, relation_inds,
+                    gt_inds_per_rel, gt_relations, gt_labels ):
+        '''
+        Valid sample for relation classification: in both high_score_inds and pos_inds
+        wall only input
+        '''
+        c = relation_scores.shape[1]
+        assert c==1, f"class num ={c}, but current version only allow wall"
+        relation_scores = relation_scores.permute(0,2,3,1).view(-1,c)
+        gt_relations_rel = gt_relations[gt_inds_per_rel, :][:,gt_inds_per_rel]
+        gt_relation_labels = gt_relations_rel.view(-1).to(torch.long)
+
+        # cal loss
+        loss_relation_wall = self.loss_relation(
+            relation_scores,
+            gt_relation_labels,
+            weight=None,
+            avg_factor=None,)
+        return (loss_relation_wall, )
+
+    def obj_relation_cls_loss_high_score(self, num_flat, relation_scores, high_score_inds,
                     gt_relations, pos_inds, gt_inds_per_pos, gt_labels ):
         '''
         Valid sample for relation classification: in both high_score_inds and pos_inds
         '''
-        relations_scores  = relations_scores.squeeze(0).squeeze(0)
+        relation_scores  = relation_scores.squeeze(0).squeeze(0)
         # remain only wall in positive detection
         labels_pos = gt_labels[gt_inds_per_pos]
         pos_wall_mask = labels_pos == self.wall_label
@@ -1219,8 +1289,7 @@ class StrPointsHead(nn.Module):
                    pts_preds_init,
                    pts_preds_refine,
                    corner_outs,
-                relations_scores,
-                high_score_inds,
+                   rel_feat_outs,
                    img_metas,
                    cfg,
                    rescale=False,
