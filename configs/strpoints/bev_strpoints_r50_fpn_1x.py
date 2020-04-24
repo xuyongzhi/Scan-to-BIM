@@ -241,5 +241,5 @@ auto_resume = True
 workflow = [('train', 5), ('val', 1)]
 if 1:
   workflow = [('train', 1),]
-  checkpoint_config = dict(interval=1)
+  checkpoint_config = dict(interval=100)
 

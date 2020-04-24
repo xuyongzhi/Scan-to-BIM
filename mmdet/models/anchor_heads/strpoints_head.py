@@ -1026,13 +1026,14 @@ class StrPointsHead(nn.Module):
         relation_scores = relation_scores.permute(0,2,3,1).view(-1,c)
         gt_relations_rel = gt_relations[gt_inds_per_rel, :][:,gt_inds_per_rel]
         gt_relation_labels = gt_relations_rel.view(-1).to(torch.long)
+        num_rel_sample = relation_inds.numel()
 
         # cal loss
         loss_relation_wall = self.loss_relation(
             relation_scores,
             gt_relation_labels,
             weight=None,
-            avg_factor=None,)
+            avg_factor=num_rel_sample,)
         return (loss_relation_wall, )
 
     def obj_relation_cls_loss_high_score(self, num_flat, relation_scores, high_score_inds,
