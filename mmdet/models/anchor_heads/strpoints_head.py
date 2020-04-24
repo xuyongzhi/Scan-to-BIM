@@ -230,7 +230,7 @@ class StrPointsHead(nn.Module):
                         norm_cfg=self.norm_cfg,
                         bias=self.norm_cfg is None))
             self.edge_relation_cls = nn.Conv2d(
-                self.feat_channels * 2, 1, 1, padding=1)
+                self.feat_channels * 2, 1, 3, padding=1)
 
         # learnable scale
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.point_strides])
@@ -449,7 +449,7 @@ class StrPointsHead(nn.Module):
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
 
         if self.get_edge_relation:
-          rel_feats = self.forward_single_edge_relation_Part1(x)
+          rel_feats = self.forward_single_relation_feats(x)
 
         if self.corner_hm and stride == self.point_strides[0]:
           corner_outs = self.forward_single_corner(x, scale_learn)
@@ -465,18 +465,28 @@ class StrPointsHead(nn.Module):
         #debug_utils.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
         return cls_out, pts_out_init, pts_out_refine, corner_outs, rel_feats
 
-    def forward_single_edge_relation_Part1(self, x):
+    def forward_single_relation_feats(self, x):
         # use dcn later!
         rel_feat = x
         for rel_layer in self.edge_relation_convs:
           rel_feat = rel_layer(x)
         return rel_feat
 
-    def forward_single_edge_relation_Part2(self, scores, pts, rel_feats):
-      score_threshold = 0.3
-      score_mask = scores > score_threshold
-      pos_inds = torch.nonzero(score_mask)
-      pass
+    def forward_single_relation_cls(self, scores, pts, rel_feats, wall_id=0, score_threshold=0.3):
+      batch_size = scores.shape[0]
+      wall_score_mask = scores[:,wall_id,:] > score_threshold
+      rel_cls_all = []
+      high_score_inds_all = []
+      for i in range(batch_size):
+        high_score_inds = torch.nonzero(wall_score_mask[i]).squeeze(1)
+        pos_rel_feats = rel_feats[i][:, high_score_inds]
+        x = pos_rel_feats[:,:,None].repeat(1,1,pos_rel_feats.shape[1])
+        y = x.permute(0, 2, 1)
+        pos_rel_feats_matrix = torch.cat( [x, y], dim=0 )[None,...]
+        rel_cls = self.edge_relation_cls(pos_rel_feats_matrix)
+        rel_cls_all.append( rel_cls )
+        high_score_inds_all.append( high_score_inds )
+      return rel_cls_all, high_score_inds_all
 
     def forward_single_corner(self, x, scale):
         cls_feat = x
@@ -527,11 +537,11 @@ class StrPointsHead(nn.Module):
 
         rel_feats_flat = [rel_feats_out[l].view(batch_size, rel_feat_channel, -1) for l in range(num_levels)]
         rel_feats_flat = torch.cat(rel_feats_flat, dim=2)
-        self.forward_single_edge_relation_Part2(cls_refine_flat, pts_refine_flat, rel_feats_flat)
+        relations_scores, high_score_inds = self.forward_single_relation_cls(cls_refine_flat, pts_refine_flat, rel_feats_flat)
 
         outs = outs[:-1]
+        outs += ( relations_scores, high_score_inds, )
         return outs
-        pass
 
     def get_points(self, featmap_sizes, img_metas):
         """Get points according to feature map sizes.
@@ -752,6 +762,8 @@ class StrPointsHead(nn.Module):
              pts_preds_init,
              pts_preds_refine,
              corner_outs,
+             relations_scores,
+             high_score_inds,
              gt_bboxes,
              gt_labels,
              img_metas,
@@ -1091,6 +1103,8 @@ class StrPointsHead(nn.Module):
                    pts_preds_init,
                    pts_preds_refine,
                    corner_outs,
+                relations_scores,
+                high_score_inds,
                    img_metas,
                    cfg,
                    rescale=False,

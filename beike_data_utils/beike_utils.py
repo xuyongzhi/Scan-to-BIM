@@ -451,7 +451,7 @@ class BEIKE(BEIKE_CLSINFO):
 
     def find_connection(self,):
       assert self.filter_edges == False
-      self.connection_dir = self.anno_folder.replace('json', 'connections')
+      self.connection_dir = self.anno_folder.replace('json', 'relations')
       if not os.path.exists(self.connection_dir):
         os.makedirs( self.connection_dir )
       for i in range(len(self)):
@@ -469,14 +469,14 @@ class BEIKE(BEIKE_CLSINFO):
       wall_connect_wall_mask = find_wall_wall_connection(walls, connect_threshold)
       window_in_wall_mask = find_wall_wd_connection(walls, windows)
       door_in_wall_mask = find_wall_wd_connection(walls, doors)
-      connections = dict( wall = wall_connect_wall_mask,
+      relations = dict( wall = wall_connect_wall_mask,
                           window = window_in_wall_mask,
                           door = door_in_wall_mask )
 
       #connect_mask = np.concatenate([wall_connect_wall_mask, door_in_wall_mask, window_in_wall_mask ], axis=0).astype(np.uint8)
 
       connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'] )
-      np.save(connection_file, connections, allow_pickle=True)
+      np.save(connection_file, relations, allow_pickle=True)
       print('\n\t', connection_file)
       pass
 
@@ -517,12 +517,12 @@ def find_wall_wall_connection(bboxes, connect_threshold):
 
       xinds, yinds = np.where(connect_mask)
       connection = np.concatenate([xinds[:,None], yinds[:,None]], axis=1).astype(np.uint8)
-      connections = []
+      relations = []
       for i in range(n):
-        connections.append([])
+        relations.append([])
       for i in range(connection.shape[0]):
         x,y = connection[i]
-        connections[x].append(y)
+        relations[x].append(y)
       return connect_mask
 
 def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
@@ -662,7 +662,7 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
 
       anno_img['bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
-      anno_img['connections'] = anno_raw['connections']
+      anno_img['relations'] = anno_raw['relations']
 
       anno_img['min_line_size'] = min_line_size
 
@@ -677,7 +677,7 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
         anno_img[ele] = anno_raw[ele]
       #assert bboxes.min() >= 0
       if DEBUG_CFG.VISUAL_CONNECTIONS:
-        show_connection( anno_img['bboxes'], anno_img['connections'] )
+        show_connection( anno_img['bboxes'], anno_img['relations'] )
       return anno_img
 
 
@@ -858,7 +858,7 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True, is_save
           pass
 
       if not is_save_connection:
-        anno['connections'] = load_connections_1scene(anno_folder, filename, classes)
+        anno['relations'] = load_relations_1scene(anno_folder, filename, classes)
 
       if filter_edges:
         wall_num = np.sum(anno['line_cat_ids'] == beike_clsinfo._category_ids_map['wall'])
@@ -866,25 +866,25 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True, is_save
         for ele in ['lines','line_cat_ids']:
           anno[ele] = anno[ele][line_valid]
         if not  is_save_connection:
-          anno['connections'] = anno['connections'][line_valid][:, line_valid[:wall_num]]
+          anno['relations'] = anno['relations'][line_valid][:, line_valid[:wall_num]]
         pass
       return anno
 
-def show_connection(bboxes, connections):
+def show_connection(bboxes, relations):
   n = bboxes.shape[0]
   for i in range(n):
-    cids = np.where(connections[i])[0]
+    cids = np.where(relations[i])[0]
     #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green',])
     _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green', 'red'])
   pass
 
-def load_connections_1scene(anno_folder, filename, classes):
-  connection_dir = anno_folder.replace('json', 'connections')
+def load_relations_1scene(anno_folder, filename, classes):
+  connection_dir = anno_folder.replace('json', 'relations')
   connect_file = os.path.join(connection_dir, filename.replace('.json', '.npy'))
-  connections_dict = np.load(connect_file, allow_pickle=True).tolist()
-  connections = [connections_dict[c] for c in classes if c!='background']
-  connections = np.concatenate(connections, axis=0)
-  return connections
+  relations_dict = np.load(connect_file, allow_pickle=True).tolist()
+  relations = [relations_dict[c] for c in classes if c!='background']
+  relations = np.concatenate(relations, axis=0)
+  return relations
 
 def load_gt_lines_bk(img_meta, img, classes, filter_edges):
   beike_clsinfo = BEIKE_CLSINFO(classes)

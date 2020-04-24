@@ -147,7 +147,7 @@ train_pipeline = [
     dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='DefaultFormatBundle'),
-    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels']),
+    dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_relations']),
 ]
 test_pipeline = [
     dict(type='LoadTopviewFromFile'),

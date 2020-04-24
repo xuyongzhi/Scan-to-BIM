@@ -108,6 +108,7 @@ class SingleStageDetector(BaseDetector):
                       img_metas,
                       gt_bboxes,
                       gt_labels,
+                      gt_relations,
                       gt_bboxes_ignore=None):
         '''
         img: [6, 4, 512, 512]
@@ -126,9 +127,9 @@ class SingleStageDetector(BaseDetector):
         outs = self.bbox_head(x)
         if RECORD_T:
           t2 = time.time()
-        loss_inputs = outs + (gt_bboxes, gt_labels, img_metas, self.train_cfg)
-        losses = self.bbox_head.loss(
-            *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
+        losses = self.bbox_head.loss( *outs,
+            gt_bboxes=gt_bboxes, gt_labels=gt_labels, img_metas=img_metas,
+            cfg=self.train_cfg,  gt_bboxes_ignore=gt_bboxes_ignore)
         if RECORD_T:
           t3 = time.time()
           print(f'\textract feat:{t1-t0:.3f} head:{t2-t1:.3f}, loss:{t3-t2:.3f}')

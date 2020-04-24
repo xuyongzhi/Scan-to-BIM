@@ -63,6 +63,7 @@ class LoadAnnotations(object):
 
     def _load_labels(self, results):
         results['gt_labels'] = results['ann_info']['labels']
+        results['gt_relations'] = results['ann_info']['relations']
         return results
 
     def _poly2mask(self, mask_ann, img_h, img_w):
