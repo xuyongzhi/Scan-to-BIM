@@ -206,6 +206,7 @@ def parse_args():
     parser.add_argument('--data_types', type=str, default=None, help='c for colors, n for normals, x for xyz')
     parser.add_argument('--classes', type=str, default=None, help='a for wall, i for window, d for door')
     parser.add_argument('--filter_edges', type=int, default=None,)
+    parser.add_argument('--relation', type=int, default=None,)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
