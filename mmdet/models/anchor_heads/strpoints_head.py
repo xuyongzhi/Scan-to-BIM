@@ -84,7 +84,7 @@ class StrPointsHead(nn.Module):
                  move_points_to_center = False,
                  get_edge_relation = True,
                  relation_stage = ['init', 'refine', 'final'][1],
-                 relation_score_threshold = 0.6,
+                 relation_score_threshold = 0.1,
                  loss_relation=dict(
                      type='FocalLoss',
                      use_sigmoid=True,
@@ -247,7 +247,7 @@ class StrPointsHead(nn.Module):
                         norm_cfg=self.norm_cfg,
                         bias=self.norm_cfg is None))
             self.edge_relation_cls = nn.Conv2d(
-                self.feat_channels * 2, 1, 3, padding=1)
+                self.feat_channels * 2, 1, 1, padding=0)
 
         # learnable scale
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.point_strides])
@@ -505,6 +505,7 @@ class StrPointsHead(nn.Module):
       for i in range(batch_size):
         high_score_inds = torch.nonzero(wall_score_mask[i]).squeeze(1)
         pos_rel_feats = rel_feats[i][:, high_score_inds]
+        #pos_rel_feats = torch.range(0,10)[None,:]
         x = pos_rel_feats[:,:,None].repeat(1,1,pos_rel_feats.shape[1])
         y = x.permute(0, 2, 1)
         pos_rel_feats_matrix = torch.cat( [x, y], dim=0 )[None,...]
