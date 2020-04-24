@@ -17,7 +17,7 @@ import glob
 
 
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
-from configs.common import DIM_PARSE
+from configs.common import DIM_PARSE, DEBUG_CFG
 from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines, gen_corners_from_lines_np
 from tools.debug_utils import get_random_color, _show_img_with_norm, _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls
@@ -676,7 +676,8 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       for ele in BEIKE.edge_attributions:
         anno_img[ele] = anno_raw[ele]
       #assert bboxes.min() >= 0
-      #show_connection( anno_img['bboxes'], anno_img['connections'] )
+      if DEBUG_CFG.VISUAL_CONNECTIONS:
+        show_connection( anno_img['bboxes'], anno_img['connections'] )
       return anno_img
 
 

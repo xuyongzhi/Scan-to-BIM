@@ -82,6 +82,7 @@ class StrPointsHead(nn.Module):
                  loss_cor_ofs=dict(
                      type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
                  move_points_to_center = False,
+                 get_edge_relation = True,
                  ):
         super(StrPointsHead, self).__init__()
         self.dim_parse = DIM_PARSE(num_classes)
@@ -135,6 +136,7 @@ class StrPointsHead(nn.Module):
             (-1))
         self.dcn_base_offset = torch.tensor(dcn_base_offset).view(1, -1, 1, 1)
         self.corner_hm = corner_hm
+        self.get_edge_relation = get_edge_relation
         self.corner_hm_only = corner_hm_only
         self.loss_centerness = build_loss(loss_centerness)
         self.loss_cor_ofs = build_loss(loss_cor_ofs)
@@ -182,6 +184,7 @@ class StrPointsHead(nn.Module):
         self.reppoints_pts_refine_out = nn.Conv2d(self.point_feat_channels,
                                                   pts_out_dim, 1, 1, 0)
 
+        # corner
         self.cor_cls_convs = nn.ModuleList()
         self.cor_reg_convs = nn.ModuleList()
         for i in range(self.stacked_convs):
@@ -211,6 +214,25 @@ class StrPointsHead(nn.Module):
         self.cor_fcos_reg = nn.Conv2d(self.feat_channels, 2, 3, padding=1)
         self.cor_fcos_centerness = nn.Conv2d(self.feat_channels, 1, 3, padding=1)
 
+        # relationship
+        if self.get_edge_relation:
+            self.edge_relation_convs = nn.ModuleList()
+            for i in range(self.stacked_convs):
+                chn = self.in_channels if i == 0 else self.feat_channels
+                self.edge_relation_convs.append(
+                    ConvModule(
+                        chn,
+                        self.feat_channels,
+                        3,
+                        stride=1,
+                        padding=1,
+                        conv_cfg=self.conv_cfg,
+                        norm_cfg=self.norm_cfg,
+                        bias=self.norm_cfg is None))
+            self.edge_relation_cls = nn.Conv2d(
+                self.feat_channels * 2, 1, 1, padding=1)
+
+        # learnable scale
         self.scales = nn.ModuleList([Scale(1.0) for _ in self.point_strides])
 
 
@@ -236,6 +258,12 @@ class StrPointsHead(nn.Module):
           normal_init(self.cor_fcos_cls, std=0.01, bias=bias_cls)
           normal_init(self.cor_fcos_reg, std=0.01)
           normal_init(self.cor_fcos_centerness, std=0.01)
+
+        if self.get_edge_relation:
+          for m in self.edge_relation_convs:
+            normal_init(m.conv, std=0.01)
+          bias_cls = bias_init_with_prob(0.01)
+          normal_init(self.edge_relation_cls, std=0.01, bias=bias_cls)
 
 
     def points2bbox(self, pts, y_first=True, out_line_constrain=False):
@@ -420,6 +448,9 @@ class StrPointsHead(nn.Module):
           cls_out['final'] = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
 
+        if self.get_edge_relation:
+          rel_feats = self.forward_single_edge_relation_Part1(x)
+
         if self.corner_hm and stride == self.point_strides[0]:
           corner_outs = self.forward_single_corner(x, scale_learn)
         else:
@@ -432,7 +463,20 @@ class StrPointsHead(nn.Module):
         #debug_utils.show_shapes(pts_out_init, 'StrPointsHead pts_out_init')
         #debug_utils.show_shapes(cls_out, 'StrPointsHead cls_out')
         #debug_utils.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
-        return cls_out, pts_out_init, pts_out_refine, corner_outs
+        return cls_out, pts_out_init, pts_out_refine, corner_outs, rel_feats
+
+    def forward_single_edge_relation_Part1(self, x):
+        # use dcn later!
+        rel_feat = x
+        for rel_layer in self.edge_relation_convs:
+          rel_feat = rel_layer(x)
+        return rel_feat
+
+    def forward_single_edge_relation_Part2(self, scores, pts, rel_feats):
+      score_threshold = 0.3
+      score_mask = scores > score_threshold
+      pos_inds = torch.nonzero(score_mask)
+      pass
 
     def forward_single_corner(self, x, scale):
         cls_feat = x
@@ -455,7 +499,39 @@ class StrPointsHead(nn.Module):
         return corner_outs
 
     def forward(self, feats):
-        return multi_apply(self.forward_single, feats, self.point_strides, self.scales)
+        '''
+        feats: (feats_level0, feats_level1...)
+        outs: cls_out, pts_out_init, pts_out_refine, corner_outs, rel_feats
+        len(outs[i]) = num_level, i=0:5
+        len(outs[i][j]) = batch_size, j=0:num_level
+        '''
+        # forward per level
+        outs =  multi_apply(self.forward_single, feats, self.point_strides, self.scales)
+
+        cls_out = outs[0]
+        pts_refine_out = outs[2]
+        rel_feats_out = outs[4]
+
+        num_levels = len(cls_out)
+        batch_size = cls_out[0]['refine'].shape[0]
+
+        cls_channel = cls_out[0]['refine'].shape[1]
+        pts_channel = pts_refine_out[0].shape[1]
+        rel_feat_channel = rel_feats_out[0].shape[1]
+
+        cls_refine_flat = [cls_out[l]['refine'].view(batch_size, cls_channel, -1) for l in range(num_levels)]
+        cls_refine_flat = torch.cat(cls_refine_flat, dim=2)
+
+        pts_refine_flat = [pts_refine_out[l].view(batch_size, pts_channel, -1) for l in range(num_levels)]
+        pts_refine_flat = torch.cat(pts_refine_flat, dim=2)
+
+        rel_feats_flat = [rel_feats_out[l].view(batch_size, rel_feat_channel, -1) for l in range(num_levels)]
+        rel_feats_flat = torch.cat(rel_feats_flat, dim=2)
+        self.forward_single_edge_relation_Part2(cls_refine_flat, pts_refine_flat, rel_feats_flat)
+
+        outs = outs[:-1]
+        return outs
+        pass
 
     def get_points(self, featmap_sizes, img_metas):
         """Get points according to feature map sizes.
@@ -710,8 +786,10 @@ class StrPointsHead(nn.Module):
             label_channels=label_channels,
             sampling=self.sampling,
             flag='init')
-        (*_, bbox_gt_list_init, candidate_list_init, bbox_weights_list_init,
-         num_total_pos_init, num_total_neg_init) = cls_reg_targets_init
+        ( labels_list_init, label_weights_list_init, bbox_gt_list_init,
+          candidate_list_init, bbox_weights_list_init, num_total_pos_init,
+          num_total_neg_init, pos_inds_list_init, gt_inds_per_pos_list_init
+          ) = cls_reg_targets_init
         num_total_samples_init = (
             num_total_pos_init +
             num_total_neg_init if self.sampling else num_total_pos_init)
@@ -738,7 +816,7 @@ class StrPointsHead(nn.Module):
             flag='refine')
         (labels_list_refine, label_weights_list_refine, bbox_gt_list_refine,
          candidate_list_refine, bbox_weights_list_refine, num_total_pos_refine,
-         num_total_neg_refine) = cls_reg_targets_refine
+         num_total_neg_refine, _, _) = cls_reg_targets_refine
         num_total_samples_refine = (
             num_total_pos_refine +
             num_total_neg_refine if self.sampling else num_total_pos_refine)
@@ -763,7 +841,7 @@ class StrPointsHead(nn.Module):
               flag='final')
           (labels_list_final, label_weights_list_final, bbox_gt_list_final,
           candidate_list_final, bbox_weights_list_final, num_total_pos_final,
-          num_total_neg_final) = cls_reg_targets_final
+          num_total_neg_final, _, _) = cls_reg_targets_final
           num_total_samples_finale = (
               num_total_pos_final +
               num_total_neg_final if self.sampling else num_total_pos_final)
@@ -826,6 +904,9 @@ class StrPointsHead(nn.Module):
           loss_dict_all.update(loss_corner_hm)
 
         return loss_dict_all
+
+    def edge_relation_loss(self,):
+        pass
 
     def corner_loss(self, corner_outs, gt_bboxes,
                     gt_labels, img_metas,cfg, gt_bboxes_ignore):

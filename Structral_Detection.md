@@ -16,6 +16,7 @@
 * compare performace of feeding images of different resolution
 *
 # Items need to be further researched
+- Use deformable conv for realtion feature learning
 - When optimize graph, use intersected as merged, istead of mean.
 - focal loss config
 - voxel_resolution = [512,512] is not fully used. 

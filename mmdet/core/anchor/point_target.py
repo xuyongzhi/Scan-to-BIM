@@ -64,7 +64,7 @@ def point_target(proposals_list,
       pass
 
     (all_labels, all_label_weights, all_bbox_gt, all_proposals,
-     all_proposal_weights, pos_inds_list, neg_inds_list) = multi_apply(
+     all_proposal_weights, pos_inds_list, neg_inds_list, gt_inds_per_pos_list) = multi_apply(
          point_target_single,
          proposals_list,
          valid_flag_list,
@@ -105,7 +105,8 @@ def point_target(proposals_list,
       #debug_utils.show_multi_ls_shapes([bbox_gt_list], ['bbox_gt_list'], f'{flag} point_target (4)')
 
     return (labels_list, label_weights_list, bbox_gt_list, proposals_list,
-            proposal_weights_list, num_total_pos, num_total_neg)
+            proposal_weights_list, num_total_pos, num_total_neg,
+            pos_inds_list, gt_inds_per_pos_list  )
 
 
 def images_to_levels(target, num_level_grids):
@@ -161,6 +162,10 @@ def point_target_single(flat_proposals,
 
     pos_inds = sampling_result.pos_inds
     neg_inds = sampling_result.neg_inds
+
+    gt_inds = assign_result.gt_inds
+    gt_inds_per_pos = gt_inds[pos_inds]
+
     if len(pos_inds) > 0:
         pos_gt_bboxes = sampling_result.pos_gt_bboxes
         bbox_gt[pos_inds, :] = pos_gt_bboxes
@@ -201,7 +206,7 @@ def point_target_single(flat_proposals,
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
     return (labels, label_weights, bbox_gt, pos_proposals, proposals_weights,
-            pos_inds, neg_inds)
+            pos_inds, neg_inds, gt_inds_per_pos)
 
 
 def unmap(data, count, inds, fill=0):
