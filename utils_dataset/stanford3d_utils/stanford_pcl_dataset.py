@@ -13,7 +13,7 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 
-SMALL_DATA = 1
+SMALL_DATA = 0
 
 class Stanford_CLSINFO(object):
   #classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -52,7 +52,7 @@ class Stanford_Ann():
   LONG = ['Area_1/hallway_2']
   UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
                'Area_4/hallway_14', 'Area_3/office_7']
-  SAMPLES1 = ['Area_4/office_22']
+  SAMPLES1 = ['Area_4/office_22', 'Area_1/office_16']
 
   def __init__(self, input_style, data_root, phase, voxel_size=None):
     assert input_style in ['pcl', 'bev']

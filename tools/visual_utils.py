@@ -44,6 +44,9 @@ def _draw_objs_ls_points_ls(img,
                             out_file=None,
                             obj_thickness=1,
                             point_thickness=1,
+                            obj_scores_ls=None,
+                            obj_cats_ls=None,
+                            text_colors_ls='green',
                             ):
   if objs_ls is not None:
     assert isinstance(objs_ls, list)
@@ -51,6 +54,12 @@ def _draw_objs_ls_points_ls(img,
       obj_colors = [obj_colors] * len(objs_ls)
     if not isinstance(obj_thickness, list):
       obj_thickness = [obj_thickness] * len(objs_ls)
+    if not isinstance(obj_scores_ls, list):
+      obj_scores_ls = [obj_scores_ls] * len(objs_ls)
+    if not isinstance(obj_cats_ls, list):
+      obj_cats_ls = [obj_cats_ls] * len(objs_ls)
+    if not isinstance(text_colors_ls, list):
+      text_colors_ls = [text_colors_ls] * len(objs_ls)
 
   if points_ls is not None:
     assert isinstance(points_ls, list)
@@ -62,7 +71,12 @@ def _draw_objs_ls_points_ls(img,
   img = _read_img(img)
   if objs_ls is not None:
     for i, objs in enumerate(objs_ls):
-      img = draw_objs(img, objs, obj_rep, obj_colors[i], obj_thickness[i])
+      img = draw_objs(img, objs, obj_rep, obj_colors[i],
+                      obj_thickness = obj_thickness[i],
+                      scores = obj_scores_ls[i],
+                      cats = obj_cats_ls[i],
+                      text_color=text_colors_ls[i],
+                       )
 
   if points_ls is not None:
     for i, points in enumerate(points_ls):
@@ -81,27 +95,24 @@ def _draw_points(img, points, color, point_thickness):
     return img
 
 
-def draw_objs(img, objs, obj_rep, color, obj_thickness=1, font_scale=0.5, text_color='green'):
+def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
+              cats=None, font_scale=0.5, text_color='green'):
   if obj_rep != 'RoBox2D_CenSizeAngle':
     objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'RoBox2D_CenSizeAngle')
-  draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness, font_scale, text_color)
+  draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=obj_thickness, scores=scores, cats=cats, font_scale=font_scale, text_color=text_color)
   return img
 
-def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, font_scale=0.5, text_color='green'):
+def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, scores=None, cats=None, font_scale=0.5, text_color='green'):
     '''
     img: [h,w,3]
     objs: [n,5/6]  of RoBox2D_CenSizeAngle
     color: 'red' or labels of objs
     '''
     assert objs.ndim == 2
-    assert objs.shape[1]==5 or objs.shape[1]==6
-    if objs.shape[1] == 6:
-      scores = objs[:,5]
-      objs = objs[:,:5]
-    else:
-      scores = None
+    assert objs.shape[1]==5
     rotations = objs[:,4]
     text_color = _get_color(text_color)
+    h,w = img.shape[:2]
 
     n = objs.shape[0]
     if isinstance(color, np.ndarray) and len(color) == n:
@@ -109,6 +120,9 @@ def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, font_scale=0.5,
     else:
       assert isinstance(color, str)
       colors = [_get_color(color) for i in range(n)]
+
+    if cats is not None and not isinstance(cats, list):
+      cats = [cats] * n
 
     boxes = []
     for i in range(n):
@@ -118,25 +132,23 @@ def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, font_scale=0.5,
         box = cv2.boxPoints(rect)
         box = np.int0(np.ceil(box))
         boxes.append(box)
-
-
-        #s, e = np.round(objs[i]).astype(np.int32)
         c = colors[i]
-        #cv2.line(img, (s[0], s[1]), (e[0], e[1]), c, thickness=obj_thickness)
-
-        ##label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
-        #label_text = ''
-        #if DEBUG_CFG.OBJ_LEGEND == 'score':
-        #  if scores is not None:
-        #    label_text += '{:.01f}'.format(scores[i]) # score
-        #else:
-        #  label_text += '{:.01f}'.format(rotations[i]) # rotation
-        #m = np.round(((s+e)/2)).astype(np.int32)
-        #if label_text != '':
-        #  cv2.putText(img, label_text, (m[0]-4, m[1] - 4),
-        #              cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
-
         cv2.drawContours(img, [box],0, c, obj_thickness)
+
+        label_text = ''
+        if cats is not None:
+          label_text += cats[i] + ' '
+        if scores is not None:
+          label_text += '{:.01f}'.format(scores[i]) # score
+
+        if label_text != '':
+          cen = center.astype(np.int)
+          ofs = 20
+          x = min(max(cen[0] - 4, ofs), w-ofs)
+          y = min(max(cen[1] - 4, ofs), h-ofs)
+          cv2.putText(img, label_text, (x, y),
+                      cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
+
     return img
 
 def draw_RoLine2D_UpRight_xyxy_sin2a(img, objs, color, obj_thickness=1, font_scale=0.5, text_color='green'):
@@ -197,7 +209,6 @@ def draw_AlBox2D_UpRight_xyxy(img, objs, color, obj_thickness=1, font_scale=0.5,
         s, e = np.round(objs[i]).astype(np.int32)
         c = _get_color(color)
         cv2.rectangle(img, (s[0], s[1]), (e[0], e[1]), c, thickness=obj_thickness)
-
 
         #label_text = class_names[label] if class_names is not None else 'cls {}'.format(label)
         label_text = ''

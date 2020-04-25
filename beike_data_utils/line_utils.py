@@ -375,7 +375,7 @@ def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
   #  lineIds_per_cor[i] = np.array(lineIds_per_cor[i])
   return lineIds_per_cor
 
-def optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr):
+def unused_optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr):
   '''
     lines_in: [n,5]
   '''

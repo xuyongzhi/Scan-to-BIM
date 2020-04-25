@@ -417,7 +417,7 @@ class RandomLineFlip(object):
         if flip_ratio is not None:
             assert flip_ratio >= 0 and flip_ratio <= 1
         assert direction in ['horizontal', 'vertical', 'random']
-        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
+        assert obj_rep in ['box_scope', 'line_scope', 'RoLine2D_UpRight_xyxy_sin2a']
 
     def bbox_flip(self, bboxes, img_shape, direction, obj_rep):
         """Flip bboxes horizontally.
@@ -428,7 +428,7 @@ class RandomLineFlip(object):
         """
         if obj_rep == 'box_scope' or obj_rep == 'line_scope':
           return self.bbox_flip_scope(bboxes, img_shape, direction)
-        elif obj_rep == 'lscope_istopleft':
+        elif obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
           return self.bbox_flip_scope_itl(bboxes, img_shape, direction)
         else:
           raise NotImplementedError
@@ -1247,7 +1247,7 @@ class RandomRotate(object):
         self.obj_rep = obj_rep
         if rotate_ratio is not None:
             assert rotate_ratio >= 0 and rotate_ratio <= 1
-        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft']
+        assert obj_rep in ['box_scope', 'line_scope', 'RoLine2D_UpRight_xyxy_sin2a']
 
     def __call__(self, results):
         if 'rotate' not in results:

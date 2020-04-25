@@ -196,8 +196,9 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
   else:
     raise NotImplementedError
   if torch.isnan(angle).any():
+    print(f'input vec norm=0\n norm_end={norm_end}')
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    assert False
+    #assert False
     pass
   return angle
 

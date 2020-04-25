@@ -10,7 +10,7 @@ import torch
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import DIM_PARSE, DEBUG_CFG
 from beike_data_utils.beike_utils import load_gt_lines_bk
-from beike_data_utils.line_utils import  optimize_graph
+from obj_geo_utils.obj_utils import GraphUtils
 from utils_dataset.gen_sparse_input import prepare_sparse_input, prepare_bev_sparse
 from tools.debug_utils import _show_lines_ls_points_ls
 
@@ -297,7 +297,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
 
                 #_show_lines_ls_points_ls((512,512), [bboxes_refine])
 
-                lines_graph, score_graph, labels_graph = optimize_graph(bboxes_refine, score_composite, labels, self.dim_parse.OBJ_REP, opt_graph_cor_dis_thr=10)
+                lines_graph, score_graph, labels_graph = GraphUtils.optimize_graph(bboxes_refine, score_composite, labels, self.dim_parse.OBJ_REP, opt_graph_cor_dis_thr=10)
                 lines_graph = np.concatenate([lines_graph, score_graph], axis=1)
 
                 #scores_filter = np.squeeze(score_ave)

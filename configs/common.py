@@ -1,12 +1,12 @@
 import torch
 import numpy as np
+#from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 #*******************************************************************************
 class DIM_PARSE:
   IMAGE_SIZE = 512
-  OBJ_REP = 'lscope_istopleft'
-  _all_obj_rep_dims = {'box_scope': 4, 'box3d_scope': 6, 'lscope_istopleft':5}
-  OBJ_DIM = _all_obj_rep_dims[OBJ_REP]
+  OBJ_REP = 'RoLine2D_UpRight_xyxy_sin2a'
+  OBJ_DIM = 5
 
   POINTS_NUM = 9
   POINTS_DIM = POINTS_NUM * 2 * 2
@@ -118,8 +118,10 @@ class DIM_PARSE:
     elif out_type == 'line_ave':
       bboxes_clean = np.concatenate([ bboxes_refine, score_line_ave ], axis=1 )
     elif out_type == 'score_final':
+      score_final = score_final.max(1, keepdims=True)
       bboxes_clean = np.concatenate([ bboxes_refine, score_final ], axis=1 )
     elif out_type == 'score_refine':
+      score_refine = score_refine.max(1, keepdims=True)
       bboxes_clean = np.concatenate([ bboxes_init, score_refine ], axis=1 )
     return bboxes_clean
 

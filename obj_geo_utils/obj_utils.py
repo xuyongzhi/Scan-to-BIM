@@ -282,7 +282,7 @@ class GraphUtils:
       line_labels_merged = None
       line_scores_merged = None
     else:
-      line_labels_merged = cor_labels_merged[corIds_per_line][:,0].astype(np.int32)
+      line_labels_merged = (cor_labels_merged[corIds_per_line][:,0]/100).astype(np.int32)
       line_scores_merged = cor_scores_merged[corIds_per_line].mean(axis=1)[:,None]
       line_labels_merged = line_labels_merged[valid_line_mask]
       line_scores_merged = line_scores_merged[valid_line_mask]
