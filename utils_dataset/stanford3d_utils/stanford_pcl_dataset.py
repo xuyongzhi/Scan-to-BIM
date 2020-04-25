@@ -18,8 +18,8 @@ SMALL_DATA = 0
 class Stanford_CLSINFO(object):
   classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
                     'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
-  classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',  'floor', 'board', 'bookcase', 'chair',
-                    'sofa', 'stairs', 'table', 'room']
+  classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
+                   'floor', 'board', 'bookcase', 'chair', 'sofa', 'stairs', 'table', 'room']
   def __init__(self, classes_in, always_load_walls=1):
       classes = [c for c in self.classes_order if c in classes_in]
       if 'background' not in classes:

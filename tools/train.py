@@ -236,7 +236,8 @@ def update_config(cfg, args, split):
           cfg['work_dir'] += f'_Fe'
 
         if cfg['model']['bbox_head']['relation_cfg']['enable']:
-          cfg['work_dir'] += f'_Rel'
+          self_relation = cfg['model']['bbox_head']['relation_cfg']['self_relation'][:2]
+          cfg['work_dir'] += f'_Rel{self_relation}'
 
         img_prefix = cfg['data']['train']['img_prefix']
         cur_path = os.path.abspath('.')

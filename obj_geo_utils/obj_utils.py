@@ -193,10 +193,9 @@ class OBJ_REPS_PARSE:
     lines_2p = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_2p(bboxes[:,:5])
     lines_CenLengthAngle = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
     boxes_csa = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
-    err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]
-    max_errr = np.abs(err).max()
     check_sin2 = 0
     if check_sin2:
+      err = np.sin(boxes_csa[:,-1]*2) - bboxes[:,4]
       if not (err.size==0 or max_err < 2e-1):
         i = np.abs(err).argmax()
         box_sin2_i = bboxes[i]

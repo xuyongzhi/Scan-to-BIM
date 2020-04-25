@@ -15,7 +15,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-DATA = 'stanford2d'
+#DATA = 'stanford2d'
 classes= ['wall']
 
 _obj_rep = DIM_PARSE.OBJ_REP
@@ -78,7 +78,11 @@ model = dict(
         corner_hm = False,
         corner_hm_only = False,
         move_points_to_center = 0,
-        relation_cfg=dict(enable=0, stage='refine', score_threshold=0.2, max_relation_num=120),
+        relation_cfg=dict(enable=0,
+                          self_relation = ['True', 'False', 'Ignore'][2],
+                          stage='refine',
+                          score_threshold=0.2,
+                          max_relation_num=120),
         )
     )
         #transform_method='minmax'))
@@ -241,6 +245,7 @@ resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
 if 0:
+  data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
-  checkpoint_config = dict(interval=100)
+  checkpoint_config = dict(interval=50)
 
