@@ -13,11 +13,11 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 
 class Stanford_CLSINFO(object):
-  classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
-                    'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
+  #classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
+  #                  'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
   classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
                    'floor', 'board', 'bookcase', 'chair', 'sofa', 'stairs', 'table', 'room']
   def __init__(self, classes_in, always_load_walls=1):
