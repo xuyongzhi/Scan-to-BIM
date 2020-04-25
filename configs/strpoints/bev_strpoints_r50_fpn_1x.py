@@ -184,7 +184,7 @@ elif DATA == 'stanford2d':
   img_prefix_test = 'test'
 
 data = dict(
-    imgs_per_gpu=5,
+    imgs_per_gpu=7,
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
@@ -211,7 +211,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1010
+total_epochs = 510
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -232,11 +232,11 @@ dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn'
 if DATA == 'beike2d':
-  load_from = './checkpoints/beike/Apr23_WaDo.pth'
+  load_from = './checkpoints/beike/Apr23_WaDo_Bev.pth'
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
-  load_from = './checkpoints/sfd/Apr22_SFD_wa_Bp32.pth'
-load_from = None
+  load_from = './checkpoints/sfd/Apr25_wa_Bev.pth'
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
