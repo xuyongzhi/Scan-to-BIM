@@ -275,9 +275,10 @@ def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
     if obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
       if points_ls is not None:
         for i in range(len(points_ls)):
-          n = points_ls[i].shape[0]
-          z = np.zeros([n,1])
-          points_ls[i] = np.concatenate([points_ls[i], z], axis=1)
+          if points_ls[i].shape[1] == 2:
+            n = points_ls[i].shape[0]
+            z = np.zeros([n,1])
+            points_ls[i] = np.concatenate([points_ls[i], z], axis=1)
 
       if objs_ls is not None:
         for i in range(len(objs_ls)):

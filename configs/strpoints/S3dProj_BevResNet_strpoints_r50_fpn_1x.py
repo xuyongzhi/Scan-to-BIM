@@ -112,6 +112,7 @@ model = dict(
         corner_hm = False,
         corner_hm_only = False,
         move_points_to_center = False,
+        relation_cfg=dict(enable=0, stage='refine', score_threshold=0.2, max_relation_num=120),
         )
     )
         #transform_method='minmax'))
@@ -190,7 +191,7 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,

@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from mmdet.datasets.custom_pcl import VoxelDatasetBase
 from plyfile import PlyData
 import numpy as np
@@ -17,6 +18,8 @@ SMALL_DATA = 0
 class Stanford_CLSINFO(object):
   classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
                     'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
+  classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',  'floor', 'board', 'bookcase', 'chair',
+                    'sofa', 'stairs', 'table', 'room']
   def __init__(self, classes_in, always_load_walls=1):
       classes = [c for c in self.classes_order if c in classes_in]
       if 'background' not in classes:
@@ -44,23 +47,23 @@ class Stanford_CLSINFO(object):
       return list(range(len(self)))
 
 
-class Stanford_Ann(object):
+class Stanford_Ann():
   EASY = ['Area_1/office_16']
   LONG = ['Area_1/hallway_2']
   UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
                'Area_4/hallway_14', 'Area_3/office_7']
   SAMPLES1 = ['Area_4/office_22']
 
-  def __init__(self, input_style, data_root, phase):
+  def __init__(self, input_style, data_root, phase, voxel_size=None):
     assert input_style in ['pcl', 'bev']
     assert phase in ['train', 'test']
     self.input_style = input_style
     self.area_list = [1,2,3,4,6] if phase == 'train' else [5]
     self.data_root = data_root
-    self.load_anno()
-    pass
+    self.voxel_size = voxel_size
+    self.load_annotation()
 
-  def load_anno(self):
+  def load_annotation(self, ):
     data_paths = glob.glob(os.path.join(self.data_root, "*/*.ply"))
     data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
     data_paths = [p.split(self.data_root)[1] for p in data_paths]
@@ -82,7 +85,6 @@ class Stanford_Ann(object):
       ann_filename = pcl_file.replace('.ply', '-boxes.npy')
       bev_filename = pcl_file.replace('.ply', '-topview.npy')
       anno_3d = load_bboxes( pcl_file, self._category_ids_map )
-      #anno_2d = raw_anno_to_img(anno_3d, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
       anno_2d = anno3d_to_anno_topview(anno_3d, self._classes, self.input_style)
 
 
@@ -93,7 +95,7 @@ class Stanford_Ann(object):
                       'ann_raw': anno_3d}
 
       if self.input_style == 'pcl':
-          raw_dynamic_vox_size = (anno_3d['pcl_scope'][1] - anno_3d['pcl_scope'][0]) / self.VOXEL_SIZE
+          raw_dynamic_vox_size = (anno_3d['pcl_scope'][1] - anno_3d['pcl_scope'][0]) / self.voxel_size
           raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
           raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
 
@@ -104,7 +106,7 @@ class Stanford_Ann(object):
                           scale_factor = 1,
                           data_aug = {},
                           )
-          img_meta['voxel_size'] = self.VOXEL_SIZE
+          img_meta['voxel_size'] = self.voxel_size
           img_meta['raw_dynamic_vox_size'] = raw_dynamic_vox_size
 
           img_info = dict(
@@ -120,7 +122,8 @@ class Stanford_Ann(object):
   def __len__(self):
     return len(self.img_infos)
 
-class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
+
+class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
   CLIP_SIZE = None
   LOCFEAT_IDX = 2
   ROTATION_AXIS = 'z'
@@ -145,7 +148,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
                img_prefix='data/stanford/ply/train.txt',
                classes = ['wall'],
                pipeline=None,
-               voxel_size=0.04,
+               voxel_size=None,
                auto_scale_vs = True,
                max_num_points = None,
                max_footprint_for_scale = None,
@@ -155,13 +158,14 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
                filter_edges = True,
                test_mode = False,
                ):
+    assert voxel_size is not None
     Stanford_CLSINFO.__init__(self, classes)
     data_root = ann_file
     phase = img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
-    Stanford_Ann.__init__(self, 'bev', data_root, phase)
+    Stanford_Ann.__init__(self, 'pcl', data_root, phase, voxel_size=voxel_size)
 
     self.save_sparse_input_for_debug = 0
-    self.VOXEL_SIZE = voxel_size
+    self.VOXEL_SIZE = self.voxel_size = voxel_size
     self.bev_pad_pixels = bev_pad_pixels
     self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
@@ -180,7 +184,6 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO):
 
   def _set_group_flag(self):
     self.flag = np.zeros(len(self), dtype=np.uint8)
-
 
   def load_ply(self, index):
     filepath = self.data_root / self.data_paths[index]

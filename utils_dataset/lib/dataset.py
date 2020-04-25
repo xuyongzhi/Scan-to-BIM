@@ -277,9 +277,9 @@ class VoxelizationDataset(VoxelizationDatasetBase):
 
     img_info = self.img_infos[index].copy()
 
-    is_include_gt_bboxes = 'gt_bboxes_raw' in img_info
+    is_include_gt_bboxes = 'gt_bboxes_2d_raw' in img_info
     if is_include_gt_bboxes:
-      gt_bboxes = img_info['gt_bboxes_raw']
+      gt_bboxes = img_info['gt_bboxes_2d_raw']
     else:
       gt_bboxes = None
     img_meta = img_info['img_meta']
