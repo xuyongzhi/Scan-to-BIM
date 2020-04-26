@@ -1,6 +1,17 @@
 
 # RES
 
+## 26 Sfd Img
+- wbc   
+    54343b7810e2c1872e39798f278de142c0ea7831
+
+| split |wall corner   |wall edge     |beam corner   |beam edge     |column corner |column edge   |
+|-|-|-|-|-|-|-|
+| train  |0.883 - 0.887 |0.83 - 0.786  |0.821 - 0.663 |0.738 - 0.596 |0.966 - 0.95  |0.955 - 0.939 |
+|gt num |          1542|          1146|           312|           156|           360|           180|
+| eval  |0.616 - 0.693 |0.456 - 0.464 |0.0 - 0.0     |0.0 - 0.0     |0.691 - 0.318 |0.588 - 0.27  |
+|gt num |           463|           334|             6|             3|           148|            74|
+
 ## 25 Sfd img
 - wall
 
@@ -427,6 +438,7 @@ Empty gt edges filtered
 | eval  | | | | |
 
 
+|split| wall corner | wall edge | beam corner |  beam edge | column corner | column edge |
 |split| wall corner | wall edge | door corner |  door edge | window corner | window edge |
 |-|-|-|-|-|-|-| 
 | train | | | | | | |

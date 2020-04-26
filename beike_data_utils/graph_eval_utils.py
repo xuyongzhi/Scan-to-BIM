@@ -187,8 +187,6 @@ class GraphEval():
     self.update_path(out_file)
     all_cor_nums_gt_pos_tp = defaultdict(list)
     all_line_nums_gt_pos_tp = defaultdict(list)
-    corner_recall_precision = defaultdict(list)
-    line_recall_precision = defaultdict(list)
     catid_2_cat = results_datas[0]['catid_2_cat']
 
     self.is_pcl = 'input_style' in results_datas[0]['img_meta'] and results_datas[0]['img_meta']['input_style'] == 'pcl'
@@ -266,6 +264,12 @@ class GraphEval():
 
     corner_recall_precision_perimg = defaultdict(list)
     line_recall_precision_perimg = defaultdict(list)
+
+    corner_recall_precision = {}
+    line_recall_precision = {}
+    cor_nums_sum = {}
+    line_nums_sum = {}
+
     for label in all_cor_nums_gt_pos_tp:
       cat =  catid_2_cat[label]
       cor_nums = np.array(all_cor_nums_gt_pos_tp[label])
@@ -278,8 +282,10 @@ class GraphEval():
 
       corner_recall_precision[cat] = [cor[2]/cor[0], cor[2]/cor[1]]
       line_recall_precision[cat] = [line[2]/line[0], line[2]/line[1]]
+      cor_nums_sum[cat] = cor
+      line_nums_sum[cat] = line
 
-    eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, img_meta)
+    eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum)
     path = os.path.dirname(out_file)
     eval_path = os.path.join(path, 'eval_res.txt')
     with open(eval_path, 'a') as f:
@@ -296,16 +302,38 @@ class GraphEval():
     np.save(eval_res_file, eval_res)
     return eval_res_str
 
-  def get_eval_res_str(self, corner_recall_precision, line_recall_precision, img_meta):
+  def get_eval_res_str(self, corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum ):
     rotate = False
     eval_str = '\n\n--------------------------------------\n\n' + \
                 str(self) + f'num_img: {self.num_img}\n'
+    cats = corner_recall_precision.keys()
+    eval_str += '| split |'
+    for cat in cats:
+      str_c = f'{cat} corner'
+      str_e = f'{cat} edge '
+      eval_str += f'{str_c:14}|{str_e:14}|'
+    eval_str += '\n|-|'
+    for cat in cats:
+      eval_str += '-|-|'
+
+    eval_str += '\n| eval  |'
     for cat in corner_recall_precision:
-      recall, precision = corner_recall_precision[cat]
-      eval_str += f'{cat:6} corner prec-recall: \t {precision:.3} | {recall:.3} |\n'
-      recall, precision = line_recall_precision[cat]
-      eval_str += f'{cat:6} line prec-recall: \t {precision:.3} | {recall:.3} |\n'
+      cor_rec, cor_prec = corner_recall_precision[cat]
+      line_rec, line_prec = line_recall_precision[cat]
+      cor_str = f'{cor_prec:.3} - {cor_rec:.3}'
+      line_str = f'{line_prec:.3} - {line_rec:.3}'
+      eval_str += f'{cor_str:14}|{line_str:14}|'
       pass
+    eval_str += '\n'
+
+    eval_str += '|gt num |'
+    for cat in cats:
+      cor_num = cor_nums_sum[cat][0]
+      line_num = line_nums_sum[cat][0]
+      eval_str += f'{cor_num:14}|{line_num:14}|'
+      pass
+    eval_str += '\n'
+
     return eval_str
 
   def eval_1img_1cls(self, img, det_lines, gt_lines, scene_name, det_cat):
@@ -623,7 +651,7 @@ def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
   dirname = 'sTPV_r50_fpn_stanford2d_wabeco_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe/'
   filename = 'detection_68_Imgs.pickle'
-  filename = 'detection_204_Imgs.pickle'
+  #filename = 'detection_204_Imgs.pickle'
   #filename = 'detection_2_Imgs.pickle'
   res_file = workdir + dirname  + filename
   eval_graph(res_file)
