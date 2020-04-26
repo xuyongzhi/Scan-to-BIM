@@ -16,6 +16,7 @@ classes= ['wall']
 
 voxel_size = 0.04
 stem_stride = {'beike_pcl_2d': 4, 'stanford_pcl_2d':2}[DATA]
+stem_stride = 2
 
 if DATA == 'beike_pcl_2d':
   batch_size = {2:2, 4:6}[stem_stride]
