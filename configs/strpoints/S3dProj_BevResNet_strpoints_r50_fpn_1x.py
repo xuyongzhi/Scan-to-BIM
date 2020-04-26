@@ -11,7 +11,7 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
-DATA = 'stanford_pcl_2d'
+#DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
@@ -185,7 +185,7 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=0,
+    workers_per_gpu=2,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
@@ -211,7 +211,7 @@ data['test'] = data['val'].copy()
 optimizer = dict(type='SGD', lr=lra, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 410
+total_epochs = 510
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -241,6 +241,6 @@ workflow = [('train', 5), ('val', 1)]
 
 if 0:
   total_epochs = 1010
-  checkpoint_config = dict(interval=5)
+  checkpoint_config = dict(interval=1)
   workflow = [('train', 1),]
 

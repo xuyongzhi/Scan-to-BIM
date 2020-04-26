@@ -516,16 +516,17 @@ class S3dProj_BevResNet(nn.Module):
 
     def _make_stem_layer(self, in_channels):
         kernel = (3,3,5)
+        kernel = (5,5,5)
         padding = get_padding_same_featsize(kernel)
         self.conv1 = build_conv_layer(
             self.s3d_conv_cfg,
             in_channels,
-            self.basic_planes,
+            self.basic_planes * 2,
             kernel_size=kernel,
             stride=2,
             padding=padding,
             bias=False)
-        self.norm1_name, norm1 = build_norm_layer(self.s3d_norm_cfg, self.basic_planes, postfix=1)
+        self.norm1_name, norm1 = build_norm_layer(self.s3d_norm_cfg, self.basic_planes * 2, postfix=1)
         self.add_module(self.norm1_name, norm1)
         self.relu = ME.MinkowskiReLU(inplace=True)
         if self.stem_stride == 4:
@@ -536,13 +537,13 @@ class S3dProj_BevResNet(nn.Module):
 
     def _make_project_layers(self):
         self.prj_block = BasicBlock
-        self.prj_stage_blocks = (2,)*5
+        self.prj_stage_blocks = (3,)*5
 
         z_strides = (2,) * 5
         kernels = ( (3,3,3), (3,3,3), (3,3,3), (3,3,3), (3,3,3) )
         dilations = (1,1,1,1,1)
-        inplanes = self.basic_planes
-        self.prj_planes = [self.basic_planes * r for r in (2,2,4,4,4)]
+        inplanes = self.basic_planes * 2
+        self.prj_planes = [self.basic_planes * r for r in (2,4,4,4,4)]
 
         assert np.product(z_strides) * 4 >= self.max_zdim
         self.prj_layers = []
