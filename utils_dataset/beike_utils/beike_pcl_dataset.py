@@ -177,6 +177,7 @@ class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
         #img_info['gt_bboxes'] = gt_bboxes
         img_info['gt_bboxes_2d_raw'] =  gt_bboxes
         img_info['gt_labels'] = anno_2d['labels']
+        img_info['gt_relations'] = anno_2d['relations']
       self.img_infos.append(img_info)
 
     pcl_scopes = np.array([x['img_meta']['pcl_scope'] for x in self.img_infos])
@@ -187,6 +188,7 @@ class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
     print(f'mean_pcl_scope: {self.mean_pcl_scope}')
     print(f'max_pcl_scope: {self.max_pcl_scope}')
     pass
+
 
   def load_ply(self, index):
     filepath = self.data_root / self.data_paths[index]

@@ -84,7 +84,6 @@ class StrPointsHead(nn.Module):
                  move_points_to_center = False,
                  relation_cfg=dict(
                     enable = 0,
-                    self_relation = ['True', 'False', 'Ignore'][2],
                     stage = ['refine', 'final'][0],
                     score_threshold = 0.2,
                     max_relation_num = 120, ),
@@ -811,6 +810,9 @@ class StrPointsHead(nn.Module):
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
+        if gt_relations is None:
+          assert self.relation_cfg['enable'] == 0
+          gt_relations = [None]*len(gt_bboxes)
         #-----------------------------------------------------------------------
         featmap_sizes = [featmap.size()[-2:] for featmap in pts_preds_init]
         assert len(featmap_sizes) == len(self.point_generators)
@@ -1006,8 +1008,7 @@ class StrPointsHead(nn.Module):
         Valid sample for relation classification: in both high_score_inds and pos_inds
         wall only input
         '''
-        self_relation = self.relation_cfg['self_relation']
-        assert self_relation in ['True']
+        self_relation =  'True'
         weight = None
         if self_relation == 'True':
           gt_relations.fill_diagonal_(True)

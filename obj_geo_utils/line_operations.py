@@ -9,7 +9,7 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 #--------------------------------------------------------------------------------
 
-def encode_line_rep(lines, obj_rep):
+def _encode_line_rep(lines, obj_rep):
   '''
   lines: [n,4] or [n,2,2]
   lines_out : [n,4/5]
@@ -67,7 +67,7 @@ def encode_line_rep(lines, obj_rep):
   return lines_out.astype(np.float32)
   pass
 
-def decode_line_rep(lines, obj_rep):
+def _decode_line_rep(lines, obj_rep):
   '''
   lines: [n,4/5]
   lines_out: [n,4]
@@ -156,13 +156,13 @@ def m_transform_lines(lines, matrix, obj_rep):
   '''
   assert matrix.shape == (4,4)
   n = lines.shape[0]
-  lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
+  lines_2endpts = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(n,2,2)
 
   ones = np.ones([n,2,2], dtype=lines.dtype)
   tmp = np.concatenate([lines_2endpts, ones], axis=2).reshape([n*2, 4])
   lines_2pts_r = (tmp @ matrix.T)[:,:2].reshape([n,2,2])
-  lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
-  return lines_rotated
+  lines_rotated = OBJ_REPS_PARSE.encode_obj(lines_2pts_r.reshape(n,4), 'RoLine2D_2p', obj_rep)
+  return lines_rotated.astype(np.float32)
 
 def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   '''

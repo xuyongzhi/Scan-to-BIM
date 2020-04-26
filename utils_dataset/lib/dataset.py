@@ -11,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 
 import MinkowskiEngine as ME
 
-from beike_data_utils.line_utils import m_transform_lines
+from obj_geo_utils.line_operations import m_transform_lines
 from configs.common import  DIM_PARSE
 
 from plyfile import PlyData

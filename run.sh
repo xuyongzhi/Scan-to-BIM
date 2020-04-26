@@ -4,7 +4,7 @@
 #export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
-#CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
 wkdir=bTPV_r50_fpn_beike2d_wado_bs1_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe_RelIg
@@ -17,10 +17,10 @@ CP=./work_dirs/${wkdir}/best.pth
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=7
+BS=2
 DATA_TYPES=cnx
 FILTER_EDGES=1
-REL=1
+REL=0
 CLS=adi
 CLS=ad
 #CLS=a

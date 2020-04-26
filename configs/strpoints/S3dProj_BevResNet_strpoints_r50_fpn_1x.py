@@ -32,15 +32,9 @@ max_zdim = max_height / voxel_size
 bev_pad_pixels = stem_stride * 0
 #*******************************************************************************
 _obj_rep = DIM_PARSE.OBJ_REP
-_all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
-_obj_dim = _all_obj_rep_dims[_obj_rep]
+_obj_dim = DIM_PARSE.OBJ_DIM
 
-
-if _obj_rep == 'box_scope':
-  _transform_method = 'moment'
-elif _obj_rep == 'line_scope':
-  _transform_method = 'moment'
-elif _obj_rep == 'lscope_istopleft':
+if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
 if DATA == 'stanford_pcl_2d':
@@ -191,7 +185,7 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         ann_file=ann_file,
