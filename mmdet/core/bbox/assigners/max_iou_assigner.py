@@ -56,7 +56,7 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
         self.overlap_fun = overlap_fun
-        assert obj_rep in ['box_scope', 'line_scope', 'lscope_istopleft', 'corner']
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a']
         if obj_rep == 'corner':
           assert ref_radius is not None
         self.obj_rep = obj_rep
@@ -117,7 +117,7 @@ class MaxIoUAssigner(BaseAssigner):
           assert gt_bboxes.shape[1] == 4
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 4
-        elif self.obj_rep == 'lscope_istopleft':
+        elif self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
           assert bboxes.shape[1] == 5
           assert gt_bboxes.shape[1] == 5
           bboxes = bboxes[:, :4]

@@ -17,6 +17,9 @@
 ## 26 Bk Bev
 -test 23 model
 
+train 4be5ee7a9a4599704c1269d3b65a8d20e44c1532
+tes_6a032bafd56aaa94eab361a6112d8f6d88770291
+
 | split |wall corner   |wall edge     |door corner   |door edge     |
 |-|-|-|-|-|
 | train |0.932 - 0.954 |0.911 - 0.866 |0.872 - 0.951 |0.854 - 0.932 |

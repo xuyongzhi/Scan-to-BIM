@@ -5,9 +5,7 @@ from .geometry_utils import sin2theta_np, angle_with_x_np
 import cv2
 from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls, _draw_lines_ls_points_ls
 import torch
-
-
-
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 #--------------------------------------------------------------------------------
 
@@ -212,7 +210,8 @@ def rotate_lines_img(lines, img, angle,  obj_rep, debug_rotation=0):
   n = lines.shape[0]
   if n == 0:
     return lines, img
-  lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
+  lines_2endpts = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(n,2,2)
+  #lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
 
   h, w = img_shape
   assert h%2 == 0
@@ -226,7 +225,8 @@ def rotate_lines_img(lines, img, angle,  obj_rep, debug_rotation=0):
   lines_2pts_r = np.matmul( tmp, matrix.T )
 
   # (1) rotate the lines
-  lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
+  lines_rotated = OBJ_REPS_PARSE.encode_obj(lines_2pts_r.reshape(-1,4), 'RoLine2D_2p', obj_rep)
+  #lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
   #_show_lines_ls_points_ls(img[:,:,0], [lines_rotated])
 
   # (3) scale the lines to fit the image size
