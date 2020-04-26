@@ -274,7 +274,7 @@ class GraphEval():
       line_recall_precision_perimg[cat].append( (line_nums[:,2] / line_nums[:,0], line_nums[:,2] / line_nums[:,1] ))
 
       cor = cor_nums.sum(axis=0)
-      line = cor_nums.sum(axis=0)
+      line = line_nums.sum(axis=0)
 
       corner_recall_precision[cat] = [cor[2]/cor[0], cor[2]/cor[1]]
       line_recall_precision[cat] = [line[2]/line[0], line[2]/line[1]]
@@ -305,6 +305,7 @@ class GraphEval():
       eval_str += f'{cat:6} corner prec-recall: \t {precision:.3} | {recall:.3} |\n'
       recall, precision = line_recall_precision[cat]
       eval_str += f'{cat:6} line prec-recall: \t {precision:.3} | {recall:.3} |\n'
+      pass
     return eval_str
 
   def eval_1img_1cls(self, img, det_lines, gt_lines, scene_name, det_cat):
