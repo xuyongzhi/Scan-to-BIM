@@ -655,7 +655,8 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
       else:
         corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
                                            pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
-      lines_pt_ordered = encode_line_rep(lines_pt, DIM_PARSE.OBJ_REP)
+      lines_pt_ordered = OBJ_REPS_PARSE.encode_obj(lines_pt.reshape(-1,4), 'RoLine2D_2p', DIM_PARSE.OBJ_REP )
+      #lines_pt_ordered = encode_line_rep(lines_pt, DIM_PARSE.OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()
       labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)

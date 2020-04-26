@@ -19,14 +19,9 @@ DATA = 'beike2d'
 classes= ['wall']
 
 _obj_rep = DIM_PARSE.OBJ_REP
-_all_obj_rep_dims = {'box_scope': 4, 'line_scope': 4, 'lscope_istopleft':5}
-_obj_dim = _all_obj_rep_dims[_obj_rep]
+_obj_dim = DIM_PARSE.OBJ_DIM
 
-if _obj_rep == 'box_scope':
-  _transform_method = 'moment'
-elif _obj_rep == 'line_scope':
-  _transform_method = 'moment'
-elif _obj_rep == 'lscope_istopleft':
+if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
@@ -180,7 +175,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  #img_prefix_test = img_prefix_train
+  img_prefix_test = img_prefix_train
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
   ann_file = 'data/stanford/'

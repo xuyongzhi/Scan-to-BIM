@@ -179,7 +179,7 @@ class SingleStageDetector(BaseDetector):
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
 
-    def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None):
+    def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None, gt_relations=None):
         from configs.common import DIM_PARSE
         if DEBUG_CFG.DISABLE_RESCALE:
           rescale = False

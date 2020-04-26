@@ -1,16 +1,28 @@
 
 # RES
 
-## 26 Sfd Img
+## 26 Sfd Bev
 - wbc   
-    54343b7810e2c1872e39798f278de142c0ea7831
+    54343b7810e2c1872e39798f278de142c0ea7831  
+    test__54343b7810e2c1872e39798f278de142c0ea7831  
+    sTPV_r50_fpn_stanford2d_wabeco_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe  
 
 | split |wall corner   |wall edge     |beam corner   |beam edge     |column corner |column edge   |
 |-|-|-|-|-|-|-|
-| train  |0.883 - 0.887 |0.83 - 0.786  |0.821 - 0.663 |0.738 - 0.596 |0.966 - 0.95  |0.955 - 0.939 |
+| train |0.883 - 0.887 |0.83 - 0.786  |0.821 - 0.663 |0.738 - 0.596 |0.966 - 0.95  |0.955 - 0.939 |
 |gt num |          1542|          1146|           312|           156|           360|           180|
 | eval  |0.616 - 0.693 |0.456 - 0.464 |0.0 - 0.0     |0.0 - 0.0     |0.691 - 0.318 |0.588 - 0.27  |
 |gt num |           463|           334|             6|             3|           148|            74|
+
+## 26 Bk Bev
+-test 23 model
+
+| split |wall corner   |wall edge     |door corner   |door edge     |
+|-|-|-|-|-|
+| train |0.932 - 0.954 |0.911 - 0.866 |0.872 - 0.951 |0.854 - 0.932 |
+|gt num |          2475|          2980|          1142|           571|
+| eval  |0.782 - 0.842 |0.72 - 0.649  |0.814 - 0.781 |0.771 - 0.74  |
+|gt num |           303|           368|           146|            73|
 
 ## 25 Sfd img
 - wall
