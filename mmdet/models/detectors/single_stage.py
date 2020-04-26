@@ -192,10 +192,14 @@ class SingleStageDetector(BaseDetector):
         bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
         bbox_results = [
             bbox2result(det_bboxes, det_labels, self.bbox_head.num_classes)
-            for det_bboxes, det_labels in bbox_list
+            for det_bboxes, det_labels ,_ in bbox_list
         ]
+        if bbox_list[0][2] is not None:
+          relation_scores = [relation_scores.cpu().numpy() for _,_, relation_scores in bbox_list]
+        else:
+          relation_scores = [None]
 
-        results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels, img = img)
+        results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels, img = img, det_relations = relation_scores[0])
         if 0:
           dim_parse = DIM_PARSE( len(img_meta[0]['classes'])+1 )
           det_bboxes = dim_parse.clean_bboxes_out( bbox_results[0][0],'final', 'line_ave' )[:,:5]

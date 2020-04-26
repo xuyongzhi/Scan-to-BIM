@@ -146,6 +146,7 @@ class DEBUG_CFG:
   VISUALIZE_IOU_ASSIGNER = 0
   SHOW_NMS_OUT = 0
   CHECK_POINT_ASSIGN = False
+  SHOW_RELATION_IN_TRAIN = 0
 
   # debug in test
   OBJ_LEGEND = ['score', 'rotation'][0]

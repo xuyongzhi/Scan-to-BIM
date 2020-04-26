@@ -37,6 +37,7 @@ def multiclass_nms(multi_bboxes,
     nms_cfg_ = nms_cfg.copy()
     nms_type = nms_cfg_.pop('type', 'nms')
     nms_op = getattr(nms_wrapper, nms_type)
+    nms_inds = []
     for i in range(1, num_classes):
         cls_inds = multi_scores[:, i] > score_thr
         if not cls_inds.any():
@@ -56,16 +57,22 @@ def multiclass_nms(multi_bboxes,
                                            dtype=torch.long)
         bboxes.append(cls_dets)
         labels.append(cls_labels)
+
+        # add for relation detection
+        nms_inds.append( torch.nonzero(cls_inds).squeeze(1)[inds] )
+        pass
     if bboxes:
         bboxes = torch.cat(bboxes)
         labels = torch.cat(labels)
+        nms_inds = torch.cat(nms_inds)
         if bboxes.shape[0] > max_num:
             _, inds = bboxes[:, -1].sort(descending=True)
             inds = inds[:max_num]
             bboxes = bboxes[inds]
             labels = labels[inds]
+            nms_inds = nms_inds[inds]
     else:
         bboxes = multi_bboxes.new_zeros((0, nms_in_dim+1))
         labels = multi_bboxes.new_zeros((0, ), dtype=torch.long)
 
-    return bboxes, labels
+    return bboxes, labels, nms_inds

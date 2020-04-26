@@ -156,7 +156,7 @@ test_cfg = dict(
     min_bbox_size=0,
     score_thr=0.2,
     nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
-    max_per_img=100)
+    max_per_img=150)
 
 # dataset settings
 

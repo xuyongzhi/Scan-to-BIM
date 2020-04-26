@@ -50,6 +50,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         #assert img_id == i_img
         result = results[i_img]
         det_result = result['det_bboxes']
+        det_relations = result['det_relations']
         if result['gt_bboxes']:
           if isinstance(result['gt_bboxes'], list):
             # test mode
@@ -76,6 +77,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
 
           detections_all_labels.append(detection_l)
         res_data['detections'] = detections_all_labels
+        res_data['det_relations'] = det_relations
 
         # optimize
         results_datas.append( res_data )

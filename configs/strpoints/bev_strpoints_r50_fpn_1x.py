@@ -73,8 +73,8 @@ model = dict(
         corner_hm = False,
         corner_hm_only = False,
         move_points_to_center = 0,
-        relation_cfg=dict(enable=0,
-                          self_relation = ['True', 'False', 'Ignore'][2],
+        relation_cfg=dict(enable=1,
+                          self_relation = 'True',
                           stage='refine',
                           score_threshold=0.2,
                           max_relation_num=120),
@@ -121,7 +121,7 @@ test_cfg = dict(
     min_bbox_size=0,
     score_thr=0.2,
     nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
-    max_per_img=100)
+    max_per_img=150)
 #img_norm_cfg = dict(
 #    mean=[  0, 0,0,0],
 #    std=[ 255, 1,1,1 ], to_rgb=False, method='raw')
