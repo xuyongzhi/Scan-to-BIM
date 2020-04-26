@@ -69,6 +69,11 @@ class OBJ_REPS_PARSE:
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'RoLine2D_CenterLengthAngle':
       return OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(bboxes)
 
+    elif obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a' and obj_rep_out == 'RoLine2D_CenterLengthAngle':
+      lines_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
+      lines_cla = OBJ_REPS_PARSE.encode_obj(lines_2p, 'RoLine2D_2p', 'RoLine2D_CenterLengthAngle')
+      return lines_cla
+
     elif obj_rep_out == 'RoBox2D_CenSizeAngle':
       if obj_rep_in == 'RoBox2D_UpRight_xyxy_sin2a_thick':
         return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2)
@@ -239,18 +244,24 @@ class GraphUtils:
   @staticmethod
   def optimize_graph(lines_in, scores=None, labels=None,
                      obj_rep='RoLine2D_UpRight_xyxy_sin2a',
-                     opt_graph_cor_dis_thr=0, min_length=0.1):
+                     opt_graph_cor_dis_thr=0, min_out_length=0):
     '''
       lines_in: [n,5]
+      Before optimization, all lines with length < opt_graph_cor_dis_thr are deleted.
+      After optimization, all lines with length < min_out_length are deleted.
     '''
     from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
     assert opt_graph_cor_dis_thr>0
 
     # filter short lines
-    line_length = np.linalg.norm(lines_in[:,2:4] - lines_in[:,:2], axis=1)
-    valid_line_mask = line_length > min_length
+    line_length_in = np.linalg.norm(lines_in[:,2:4] - lines_in[:,:2], axis=1)
+    valid_line_mask = line_length_in > opt_graph_cor_dis_thr
     del_lines = lines_in[valid_line_mask==False]
     lines_in = lines_in[valid_line_mask]
+    if scores is not None:
+      scores = scores[valid_line_mask]
+    if labels is not None:
+      labels = labels[valid_line_mask]
 
     #
     if obj_rep != 'RoLine2D_UpRight_xyxy_sin2a':
@@ -278,14 +289,20 @@ class GraphUtils:
     lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', obj_rep)
 
 
+    # remove short lines
+    line_length_out = np.linalg.norm(lines_merged[:,2:4] - lines_merged[:,:2], axis=1)
+    valid_inds = np.where(line_length_out > min_out_length)[0]
+    rm_num = line_length_out.shape[0] - valid_inds.shape[0]
+    lines_merged = lines_merged[valid_inds]
+
     if scores is None and labels is None:
       line_labels_merged = None
       line_scores_merged = None
     else:
       line_labels_merged = (cor_labels_merged[corIds_per_line][:,0]/100).astype(np.int32)
       line_scores_merged = cor_scores_merged[corIds_per_line].mean(axis=1)[:,None]
-      line_labels_merged = line_labels_merged[valid_line_mask]
-      line_scores_merged = line_scores_merged[valid_line_mask]
+      line_labels_merged = line_labels_merged[valid_inds]
+      line_scores_merged = line_scores_merged[valid_inds]
 
 
     debug = 0
@@ -298,17 +315,21 @@ class GraphUtils:
       deleted_corners = corners_merged[deleted_inds]
 
       dn = del_lines.shape[0]
-      length_deled = line_length[ valid_line_mask==False ]
+      length_deled = line_length_in[ valid_line_mask==False ]
       print(f'\n\n\tcorner num: {num_cor_org} -> {num_cor_merged}\n')
-      print(f'del lines: {dn}')
+      print(f'deleted input lines: {dn}')
       print(f'del length: {length_deled}')
 
       show = 1
 
       if show:
-        data = ['2d', '3d'][1]
+        data = ['2d', '3d'][0]
         if data=='2d':
           w, h = np.ceil(corners_in.max(0)+50).astype(np.int32)
+          if rm_num > 0:
+            _show_objs_ls_points_ls( (h,w), [lines_in, lines_in[line_merging_del_inds]], obj_colors=['green', 'red'], obj_thickness=[3,2],)
+
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           _show_objs_ls_points_ls( (h,w), [lines_in, lines_merged], obj_colors=['green', 'red'], obj_thickness=[3,2],
                       points_ls=[corners_in, corners_merged], point_colors=['green', 'red'], point_thickness=[3,2] )
         else:

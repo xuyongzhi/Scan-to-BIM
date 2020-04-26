@@ -4,6 +4,7 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from configs.common import DIM_PARSE
 from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
 from obj_geo_utils.obj_utils import GraphUtils
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from collections import defaultdict
 import os
 import numpy as np
@@ -87,7 +88,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     eval_graph( out_file )
 
 
-def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_cor_dis_thr, obj_rep):
+def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_cor_dis_thr, obj_rep, min_out_length):
   '''
   The input detection belong to one class
   det_lines: [n,6]
@@ -102,7 +103,16 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
   labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
   scores_i = det_lines[:,-1]
   if cat == 'wall':
-    det_lines_merged, scores_merged, labels_merged, _ = GraphUtils.optimize_graph(det_lines[:,:5], scores_i, labels_i, obj_rep, opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_length=0.3)
+    det_lines_merged, scores_merged, labels_merged, _ = \
+      GraphUtils.optimize_graph(det_lines[:,:5], scores_i, labels_i, obj_rep,
+      opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length)
+
+    check_length = 0
+    if check_length:
+      # check length
+      det_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines[:,:5], 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_CenterLengthAngle' )[:,2]
+      merged_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines_merged[:,:5], 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_CenterLengthAngle' )[:,2]
+
     det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
   else:
     det_lines_merged = det_lines
@@ -124,9 +134,13 @@ class GraphEval():
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
+  _min_out_length = 5
 
   _pcl_img_scale_ratio = 1.5
   _pcl_img_size_aug = 20
+
+  file_list = [ 'Area_1/hallway_6' ]
+  file_list = None
 
   def __init__(self, classes, filter_edges, score_threshold=0.4,):
     self.classes = classes
@@ -145,6 +159,7 @@ class GraphEval():
     par_str += f'Out type:{self.out_type}\n'
     par_str += f'Graph optimization corner distance threshold:{self._opt_graph_cor_dis_thr}\n'
     par_str += f'Positive score threshold:{s}\n'
+    par_str += f'Min out length:{self._min_out_length}\n'
     par_str += f'Positive corner distance threshold:{self._corner_dis_threshold}\n'
     par_str += '\n'
     return par_str
@@ -152,7 +167,7 @@ class GraphEval():
   def update_path(self, out_file):
     self.work_dir = os.path.dirname(out_file)
     s = int(self._score_threshold*10)
-    self.par_nice = f'Score{s}_corDis{self._corner_dis_threshold}_optGraph{self._opt_graph_cor_dis_thr}_{self.out_type}'
+    self.par_nice = f'Score{s}_optGraph{self._opt_graph_cor_dis_thr}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
     self.eval_dir = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/PerClass')
     self.eval_dir_all_cls = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/AllClasses')
     if not os.path.exists(self.eval_dir):
@@ -191,6 +206,11 @@ class GraphEval():
 
         filename =  img_meta['filename']
         scene_name = os.path.splitext(os.path.basename(filename))[0]
+
+        if self.file_list is not None:
+          if scene_name not in self.file_list:
+            continue
+
         print(f'\n\n\n\n{i_img}th file: {filename}')
 
         if not is_pcl:
@@ -214,7 +234,7 @@ class GraphEval():
             label_mask = gt_labels == label
             gt_lines_l = gt_lines[label_mask]
             det_lines = detections[label-1][f'detection_{out_type}'].copy()
-            det_lines_merged, _ = post_process_bboxes_1cls(det_lines, self._score_threshold, label, cat, self._opt_graph_cor_dis_thr, self.dim_parse.OBJ_REP)
+            det_lines_merged, _ = post_process_bboxes_1cls(det_lines, self._score_threshold, label, cat, self._opt_graph_cor_dis_thr, self.dim_parse.OBJ_REP, self._min_out_length)
 
             if is_pcl:
               det_lines[:,:4] = det_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
@@ -282,10 +302,9 @@ class GraphEval():
                 str(self) + f'num_img: {self.num_img}\n'
     for cat in corner_recall_precision:
       recall, precision = corner_recall_precision[cat]
-      eval_str += f'{cat:6} corner prec-recall: \t{precision:.3} - {recall:.3}\n'
-    for cat in line_recall_precision:
+      eval_str += f'{cat:6} corner prec-recall: \t {precision:.3} | {recall:.3} |\n'
       recall, precision = line_recall_precision[cat]
-      eval_str += f'{cat:6} line prec-recall: \t{precision:.3} - {recall:.3}\n'
+      eval_str += f'{cat:6} line prec-recall: \t {precision:.3} | {recall:.3} |\n'
     return eval_str
 
   def eval_1img_1cls(self, img, det_lines, gt_lines, scene_name, det_cat):
@@ -535,7 +554,7 @@ def apply_mask_on_ids(ids, mask):
   return (ids + 1) * mask - 1
 
 
-def draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10, obj_rep='RoLine2D_UpRight_xyxy_sin2a', det_out='line_ave'):
+def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10, obj_rep='RoLine2D_UpRight_xyxy_sin2a', det_out='line_ave'):
   with open(res_file, 'rb') as f:
     results_datas = pickle.load(f)
   eval_res_file = res_file.replace('.pickle', '_EvalRes.npy')
@@ -607,7 +626,6 @@ def main():
   #filename = 'detection_2_Imgs.pickle'
   res_file = workdir + dirname  + filename
   eval_graph(res_file)
-  #draw_eval_res(res_file)
 
 if __name__ == '__main__'  :
   main()
