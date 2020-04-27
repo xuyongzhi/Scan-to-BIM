@@ -89,7 +89,7 @@ def update_config(cfg, args, split):
     relation = args.relation
 
     if cls_str is not None:
-      cls_full = {'a':'wall', 'i':'window', 'd':'door', 'c':'column', 'b':'beam'}
+      cls_full = {'A':'all','a':'wall', 'i':'window', 'd':'door', 'c':'column', 'b':'beam'}
 
       classes = [cls_full[c] for c in cls_str]
       cfg['classes'] = classes

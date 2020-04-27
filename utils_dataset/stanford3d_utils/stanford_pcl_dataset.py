@@ -22,10 +22,15 @@ _raw_pcl_category_ids_map = {_raw_pcl_classes_order[i]:i for i in range(len(_raw
 class Stanford_CLSINFO(object):
   classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
                    'floor', 'board', 'bookcase', 'chair', 'sofa', 'stairs', 'table', 'room']
+  classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
+                   'floor', 'board', 'bookcase', 'chair', 'sofa', 'table']
   def __init__(self, classes_in, always_load_walls=1):
-      classes = [c for c in self.classes_order if c in classes_in]
-      if 'background' not in classes:
-        classes = ['background']+ classes
+      if classes_in == 'all':
+        classes = self.classes_order
+      else:
+        classes = [c for c in self.classes_order if c in classes_in]
+        if 'background' not in classes:
+          classes = ['background']+ classes
       n = len(classes)
       self._classes = classes
       self.CLASSES = classes
@@ -170,7 +175,9 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     self.save_sparse_input_for_debug = 0
     self.VOXEL_SIZE = self.voxel_size = voxel_size
     self.bev_pad_pixels = bev_pad_pixels
-    self.max_num_points = int(max_num_points)
+    if max_num_points is not None:
+     max_num_points = int(max_num_points)
+    self.max_num_points = max_num_points
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size if max_footprint_for_scale is not None else None
     self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
@@ -483,6 +490,7 @@ def main():
   img_prefix = './test.txt'
   classes = Stanford_CLSINFO.classes_order
   max_num_points = 50 * 1e4
+  max_num_points = None
   sfd_dataset = StanfordPcl( ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
   #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()

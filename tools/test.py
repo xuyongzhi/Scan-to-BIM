@@ -14,7 +14,7 @@ from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmcv.runner import get_dist_info, init_dist, load_checkpoint
 
 from mmdet.core import coco_eval, results2json, wrap_fp16_model
-from beike_data_utils.graph_eval_utils import save_res_graph, eval_graph
+from utils_dataset.graph_eval_utils import save_res_graph
 from mmdet.datasets import build_dataloader, build_dataset
 from mmdet.models import build_detector
 from tools.train import update_config
@@ -285,7 +285,6 @@ def main():
             else:
                 if cfg['DATA'] != 'coco':
                       results_datas = save_res_graph(dataset, data_loader, outputs, args.out, cfg['data']['test'])
-                      #eval_graph(results_datas, dataset, args.out)
                 else:
                   if not isinstance(outputs[0], dict):
                         result_files = results2json(dataset, outputs, args.out)
