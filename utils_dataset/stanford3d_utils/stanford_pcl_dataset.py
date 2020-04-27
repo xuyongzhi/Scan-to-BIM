@@ -13,11 +13,13 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 
+#_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
+_raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
+                  'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
+_raw_pcl_category_ids_map = {_raw_pcl_classes_order[i]:i for i in range(len(_raw_pcl_classes_order))}
 class Stanford_CLSINFO(object):
-  #classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
-  #                  'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
   classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
                    'floor', 'board', 'bookcase', 'chair', 'sofa', 'stairs', 'table', 'room']
   def __init__(self, classes_in, always_load_walls=1):
@@ -43,6 +45,7 @@ class Stanford_CLSINFO(object):
   def getCatIds(self):
       return list(self._category_ids_map.values())
 
+
   def getImgIds(self):
       return list(range(len(self)))
 
@@ -53,6 +56,8 @@ class Stanford_Ann():
   UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
                'Area_4/hallway_14', 'Area_3/office_7']
   SAMPLES1 = ['Area_4/office_22', 'Area_1/office_16']
+
+  GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
 
   def __init__(self, input_style, data_root, phase, voxel_size=None):
     assert input_style in ['pcl', 'bev']
@@ -70,9 +75,7 @@ class Stanford_Ann():
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
-      #data_paths = [f+'.ply' for f in self.EASY]
-      #data_paths = [f+'.ply' for f in self.LONG]
-      data_paths = [f+'.ply' for f in self.SAMPLES1]
+      data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
 
     data_paths.sort()
     self.data_paths = data_paths
@@ -167,7 +170,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     self.save_sparse_input_for_debug = 0
     self.VOXEL_SIZE = self.voxel_size = voxel_size
     self.bev_pad_pixels = bev_pad_pixels
-    self.max_num_points = max_num_points
+    self.max_num_points = int(max_num_points)
     self.max_footprint_for_scale = max_footprint_for_scale
     self.max_voxel_footprint = max_footprint_for_scale / voxel_size / voxel_size if max_footprint_for_scale is not None else None
     self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
@@ -226,6 +229,32 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     assert colors_norms.shape[1] == 9
     return colors_norms[:, self.data_channel_inds]
 
+
+  def show_pcl_3dbboxes_gts(self,):
+    for i in range(len(self)):
+      self.show_pcl_3dbboxes_gt_1scene(i)
+
+  def show_pcl_3dbboxes_gt_1scene(self, index):
+    img_info = self.img_infos[index]
+    print('\n\n', img_info['img_meta']['filename'])
+    gt_bboxes_3d_raw = img_info['gt_bboxes_3d_raw']
+    gt_labels = img_info['gt_labels']
+    coords, colors_norms, point_labels, _ = self.load_ply(index)
+
+    rm_cats = ['ceiling']
+    #rm_cats = ['beam']
+
+    points = np.concatenate([coords, colors_norms], axis=1)
+    points, point_labels = filter_categories('remove', points, point_labels, ['ceiling'], _raw_pcl_category_ids_map)
+    #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
+    gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, ['wall', 'beam', 'column', 'door', 'window'], self._category_ids_map)
+    gt_cats = [self._catid_2_cat[l] for l in gt_labels]
+    print(gt_cats)
+
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_colors=[gt_labels])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    pass
 
   def show_topview_gts(self, voxel_size_prj=0.01):
     for i in range(len(self)):
@@ -423,24 +452,19 @@ def show_bboxes(bboxes_3d):
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
 
-def remove_categories(bboxes, cat_ids, rm_cat_list):
+def filter_categories(event, bboxes, labels, filter_cats, category_ids_map):
+  assert event in ['remove','keep']
+  if event == 'remove':
+    x = 1
+  else:
+    x = 0
+  filter_labels = [category_ids_map[c] for c in filter_cats]
   n = bboxes.shape[0]
-  remain_mask = np.ones(n) == 1
-  for cat in rm_cat_list:
-    rm_id = self._category_ids_map[cat]
-    mask = cat_ids == rm_id
-    remain_mask[mask] = False
-  return bboxes[remain_mask], cat_ids[remain_mask]
-
-
-def keep_categories(bboxes, cat_ids, kp_cat_list):
-  n = bboxes.shape[0]
-  remain_mask = np.ones(n) == 0
-  for cat in kp_cat_list:
-    rm_id = self._category_ids_map[cat]
-    mask = cat_ids == rm_id
-    remain_mask[mask] = True
-  return bboxes[remain_mask], cat_ids[remain_mask]
+  remain_mask = np.ones(n) == x
+  for rm_id in filter_labels:
+    mask = labels == rm_id
+    remain_mask[mask] = 1-x
+  return bboxes[remain_mask], labels[remain_mask]
 
 
 def load_1_ply(filepath):
@@ -458,9 +482,12 @@ def main():
   img_prefix = './train.txt'
   img_prefix = './test.txt'
   classes = Stanford_CLSINFO.classes_order
-  sfd_dataset = StanfordPcl( ann_file, img_prefix, voxel_size=0.02, classes = classes)
-  sfd_dataset.gen_topviews()
+  max_num_points = 50 * 1e4
+  sfd_dataset = StanfordPcl( ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
+  #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()
+  sfd_dataset.show_pcl_3dbboxes_gts()
+  pass
 
   pass
 

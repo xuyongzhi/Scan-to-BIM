@@ -21,7 +21,7 @@ def load_1_ply(filepath):
 
 
 def load_bboxes(pcl_file):
-  anno_file = pcl_file.replace('.ply', '-boxes.npy')
+  anno_file = pcl_file.replace('.ply', '.npy').replace('Area_','Boxes_Area_')
   scope_file = pcl_file.replace('.ply', '-scope.txt')
   anno = defaultdict(list)
 
@@ -79,12 +79,18 @@ def show_bboxes(bboxes_3d, points=None, feats=None):
     #_show_objs_ls_points_ls( (512,512), [bboxes_show[:,:6]], obj_rep='RoBox2D_UpRight_xyxy_sin2a_thick' )
     _show_3d_points_objs_ls(points_ls, feats_ls, objs_ls=[bboxes_3d])
 
+
+def get_scene_name(filepath):
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
 def main():
-  path = '/DS/Stanford3D/aligned_processed_instance/Area_2/'
-  files = glob.glob(path+'*.ply')
+  data_root = '/DS/Stanford3D/aligned_processed_instance/'
+  files = glob.glob(data_root+'Area*/*.ply')
   for f in files:
+    print(f)
     coords, feats, labels, _ = load_1_ply(f)
     anno = load_bboxes(f)
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     show_bboxes(anno['bboxes_3d'], coords, feats)
   pass
 

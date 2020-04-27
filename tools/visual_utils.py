@@ -350,9 +350,14 @@ def _make_bboxes_o3d(bboxes, box_oriented, color):
     assert bboxes.shape[1] == 7
   else:
     assert bboxes.shape[1] == 6
+  if isinstance(color, np.ndarray) and color.shape[0] == bboxes.shape[0]:
+    colors = _label2color(color)
+  else:
+    c = _get_color(color)
+    colors = [c] * bboxes.shape[0]
   bboxes_ = []
   for i,bbox in enumerate(bboxes):
-    bboxes_.append( _make_bbox_o3d(bbox, box_oriented, color) )
+    bboxes_.append( _make_bbox_o3d(bbox, box_oriented, colors[i]) )
   return bboxes_
 
 def _make_bbox_o3d(bbox, box_oriented, color):
@@ -368,8 +373,7 @@ def _make_bbox_o3d(bbox, box_oriented, color):
 
     R = o3d.geometry.get_rotation_matrix_from_yxz(axis_angle)
     bbox_ = o3d.geometry.OrientedBoundingBox( center, R, extent )
-  c = _get_color(color)
-  bbox_.color = c
+  bbox_.color = color
   return bbox_
 
 def _make_pcd(points, colors=None, normals=None):
