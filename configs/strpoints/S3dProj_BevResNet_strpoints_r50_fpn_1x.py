@@ -11,7 +11,7 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
-DATA = 'stanford_pcl_2d'
+#DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
@@ -230,11 +230,12 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
+load_from = None
 if DATA == 'beike_pcl_2d':
   work_dir = f'./work_dirs/KR50_fpn'
+  load_from = './checkpoints/beike/Apr27_Bk_wado_Pcl.pth'
 if DATA == 'stanford_pcl_2d':
   work_dir = f'./work_dirs/SR50_fpn'
-load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
