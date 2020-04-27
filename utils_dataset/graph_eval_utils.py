@@ -13,8 +13,6 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,
 SHOW_EACH_CLASS = False
 
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
-    assert results[0]['gt_bboxes'] is not None
-
     filter_edges = data_test_cfg['filter_edges']
     classes = data_test_cfg['classes']
     dim_parse = DIM_PARSE(len(classes)+1)
@@ -54,12 +52,19 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         det_result = result['det_bboxes']
         det_relations = result['det_relations']
         if result['gt_bboxes']:
-          if isinstance(result['gt_bboxes'], list):
             # test mode
-            result['gt_bboxes'] = result['gt_bboxes'][0]
-            result['gt_labels'] = result['gt_labels'][0]
-          res_data['gt_bboxes'] = [ b.cpu().data.numpy() for b in result['gt_bboxes']]
-          res_data['gt_labels'] = [ b.cpu().data.numpy() for b in result['gt_labels']]
+          gt_bboxes = result['gt_bboxes']
+          gt_labels = result['gt_labels']
+          if isinstance(gt_bboxes, list):
+            assert len(gt_bboxes) == 1
+            gt_bboxes = gt_bboxes[0]
+            gt_labels = gt_labels[0]
+          if isinstance(gt_bboxes, list):
+            assert len(gt_bboxes) == 1
+            gt_bboxes = gt_bboxes[0]
+            gt_labels = gt_labels[0]
+          res_data['gt_bboxes'] = gt_bboxes.cpu().numpy()
+          res_data['gt_labels'] = gt_labels.cpu().numpy()
 
           #_show_objs_ls_points_ls(img_i, [res_data['gt_bboxes'][0]], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
           pass
@@ -140,11 +145,11 @@ class GraphEval():
   _opt_graph_cor_dis_thr = 10
   _min_out_length = 5
 
-  _pcl_img_scale_ratio = 1.5
-  _pcl_img_size_aug = 20
+  _eval_img_scale_ratio = 1.0
+  _eval_img_size_aug = 0
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
-  #scene_list = None
+  scene_list = None
 
   def __init__(self, classes, filter_edges, score_threshold=0.4,):
     self.classes = classes
@@ -194,6 +199,9 @@ class GraphEval():
     catid_2_cat = results_datas[0]['catid_2_cat']
 
     self.is_pcl = 'input_style' in results_datas[0]['img_meta'] and results_datas[0]['img_meta']['input_style'] == 'pcl'
+    if self.is_pcl:
+      self._eval_img_size_aug = 20
+      self._eval_img_scale_ratio = 1.5
 
     for i_img, res_data in enumerate(results_datas):
         detections = res_data['detections']
@@ -201,16 +209,21 @@ class GraphEval():
         is_pcl = 'input_style' in img_meta and img_meta['input_style'] == 'pcl'
         if not is_pcl:
           img = res_data['img']
+          p = self._eval_img_size_aug
+          if p>0:
+            img = np.pad(img, (p,p,p,p,0,0), 'constant', constant_values=0)
         else:
           img_shape = res_data['img']
-          img_shape[:2] = img_shape[:2] * self._pcl_img_scale_ratio + self._pcl_img_size_aug * 2
+          img_shape[:2] = img_shape[:2] * self._eval_img_scale_ratio + self._eval_img_size_aug * 2
           img = np.zeros(img_shape, dtype=np.int8)
+          pass
 
         filename =  img_meta['filename']
-        area_id = filename.split('Area_')[1][0]
         scene_name = os.path.splitext(os.path.basename(filename))[0]
-        scene_name = scene_name.split('-topview')[0]
-        scene_name = 'Area_' + area_id + '/' + scene_name
+        if 'Area_' in filename:
+          area_id = filename.split('Area_')[1][0]
+          scene_name = scene_name.split('-topview')[0]
+          scene_name = 'Area_' + area_id + '/' + scene_name
 
         if self.scene_list is not None:
           if scene_name not in self.scene_list:
@@ -218,14 +231,12 @@ class GraphEval():
 
         print(f'\n\n\n\n{i_img}th file: {filename}')
 
-        if not is_pcl:
-          #gt_lines, gt_labels = load_gt_lines_bk(img_meta, img, self.classes, self.filter_edges)
-          gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
-          gt_labels = results_datas[i_img]['gt_labels'][0].copy()
-        else:
-          gt_lines = results_datas[i_img]['gt_bboxes'][0].copy()
-          gt_labels = results_datas[i_img]['gt_labels'][0].copy()
-          gt_lines[:,:4] = gt_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
+        gt_lines = results_datas[i_img]['gt_bboxes'].copy()
+        gt_labels = results_datas[i_img]['gt_labels'].copy()
+        if gt_lines.ndim == 1:
+          gt_lines = gt_lines[None,:]
+        gt_lines[:,:4] = gt_lines[:,:4] * self._eval_img_scale_ratio + self._eval_img_size_aug
+        pass
 
         if debug and 0:
           print('gt')
@@ -236,26 +247,17 @@ class GraphEval():
         eval_draws_ls = []
         for label in range(1, num_labels+1):
             cat = catid_2_cat[label]
-            label_mask = gt_labels == label
+            label_mask = (gt_labels == label).reshape(-1)
             gt_lines_l = gt_lines[label_mask]
             det_lines = detections[label-1][f'detection_{out_type}'].copy()
+
+            det_lines[:,:4] = det_lines[:,:4] * self._eval_img_scale_ratio + self._eval_img_size_aug
             det_lines_merged, _ = post_process_bboxes_1cls(det_lines, self._score_threshold, label, cat, self._opt_graph_cor_dis_thr, self.dim_parse.OBJ_REP, self._min_out_length)
 
-            if is_pcl:
-              det_lines[:,:4] = det_lines[:,:4] * self._pcl_img_scale_ratio + self._pcl_img_size_aug
             if debug and 0:
               print('raw prediction')
               _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
 
-            #det_lines = filter_low_score_det(det_lines, self._score_threshold)
-            #labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
-            #scores_i = det_lines[:,-1]
-            #det_lines_merged, scores_merged, _ = optimize_graph(det_lines[:,:5], scores_i, labels_i, self.dim_parse.OBJ_REP, opt_graph_cor_dis_thr=self._opt_graph_cor_dis_thr)
-            #det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
-
-            if debug:
-              print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
 
             det_category_id = detections[label-1]['category_id']
             if det_category_id != 1:
@@ -265,6 +267,12 @@ class GraphEval():
             all_cor_nums_gt_pos_tp[label].append(cor_nums_gt_pos_tp)
             all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
             eval_draws_ls.append(eval_draws)
+
+            if debug or 0:
+              print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
+              _show_lines_ls_points_ls(img[:,:,0], [det_lines_merged[:,:5], gt_lines_l], line_colors=['green','red'])
+
             pass
         draw_eval_all_classes_1img(eval_draws_ls)
         pass
@@ -312,7 +320,7 @@ class GraphEval():
   def get_eval_res_str(self, corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum ):
     rotate = False
     eval_str = '\n\n--------------------------------------\n\n' + \
-                str(self) + f'num_img: {self.num_img}\n'
+                str(self) + f'num_img: {self.num_img}\nPrecision-Recall\n\n'
     cats = corner_recall_precision.keys()
     eval_str += '| split |'
     for cat in cats:
@@ -598,8 +606,19 @@ def draw_eval_all_classes_1img(eval_draws_ls):
   det_lines_2d = np.concatenate( det_lines_2d, axis=0 )
   gt_lines_2d = np.concatenate( gt_lines_2d, axis=0 )
   det_labels = np.concatenate( det_labels, axis=0 )
-  show_2dlines_as_3d(det_lines_2d[:,:5], det_labels)
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
+
+  img_detgt = img.shape[:2]
+  detgt_file = img_file_base_all_cls + '_DetGt.png'
+  img_detgt = _draw_objs_ls_points_ls(img_detgt,
+          [det_lines_2d[:,:5], gt_lines_2d[:,:5]],
+          obj_rep,
+          obj_colors=['blue', 'red'],
+          obj_thickness=[3,1],
+          out_file=None,)
+  mmcv.imwrite(img_detgt, detgt_file)
+
+  #show_2dlines_as_3d(det_lines_2d[:,:5], det_labels)
   pass
 
 def show_2dlines_as_3d(lines_2d, labels):
@@ -686,7 +705,9 @@ def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10,
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
   dirname = 'sTPV_r50_fpn_stanford2d_wabeco_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe/'
-  filename = 'detection_68_Imgs.pickle'
+  dirname = 'bTPV_r50_fpn_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe_RelTr'
+  #filename = 'detection_68_Imgs.pickle'
+  filename = 'detection_10_Imgs.pickle'
   #filename = 'detection_204_Imgs.pickle'
   #filename = 'detection_2_Imgs.pickle'
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
