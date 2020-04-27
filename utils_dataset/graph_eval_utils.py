@@ -8,7 +8,9 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from collections import defaultdict
 import os
 import numpy as np
-from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls
+from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls
+
+SHOW_EACH_CLASS = False
 
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     assert results[0]['gt_bboxes'] is not None
@@ -141,8 +143,8 @@ class GraphEval():
   _pcl_img_scale_ratio = 1.5
   _pcl_img_size_aug = 20
 
-  file_list = [ 'Area_1/hallway_6' ]
-  file_list = None
+  scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
+  #scene_list = None
 
   def __init__(self, classes, filter_edges, score_threshold=0.4,):
     self.classes = classes
@@ -205,10 +207,13 @@ class GraphEval():
           img = np.zeros(img_shape, dtype=np.int8)
 
         filename =  img_meta['filename']
+        area_id = filename.split('Area_')[1][0]
         scene_name = os.path.splitext(os.path.basename(filename))[0]
+        scene_name = scene_name.split('-topview')[0]
+        scene_name = 'Area_' + area_id + '/' + scene_name
 
-        if self.file_list is not None:
-          if scene_name not in self.file_list:
+        if self.scene_list is not None:
+          if scene_name not in self.scene_list:
             continue
 
         print(f'\n\n\n\n{i_img}th file: {filename}')
@@ -483,7 +488,8 @@ class GraphEval():
     #print('gt  corners. green: true pos, red: false neg')
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt.png'
     img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls(img_size, [gt_lines_true, gt_lines_false],
+    if SHOW_EACH_CLASS:
+      _show_lines_ls_points_ls(img_size, [gt_lines_true, gt_lines_false],
                             points_ls=[gt_corners_true, gt_corners_false],
                             line_colors=['green','red'],
                             line_thickness=1,
@@ -492,7 +498,8 @@ class GraphEval():
 
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_Det.png'
     img_file = os.path.join(self.eval_dir, img_name)
-    _show_lines_ls_points_ls(img_size, [det_lines], [det_corners],
+    if SHOW_EACH_CLASS:
+      _show_lines_ls_points_ls(img_size, [det_lines], [det_corners],
                              line_colors='random', point_colors='random',
                              line_thickness=1, point_thickness=2,
                              out_file=img_file, only_save=1)
@@ -501,7 +508,8 @@ class GraphEval():
     if  not self.is_pcl:
       img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt_wiht_input.png'
       img_file = os.path.join(self.eval_dir, img_name)
-      _show_lines_ls_points_ls(img[:,:,0], [gt_lines_true, gt_lines_false],
+      if SHOW_EACH_CLASS:
+        _show_lines_ls_points_ls(img[:,:,0], [gt_lines_true, gt_lines_false],
                               points_ls=[gt_corners_true, gt_corners_false],
                               line_colors=['green','red'],
                               line_thickness=1,
@@ -510,7 +518,8 @@ class GraphEval():
 
       img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet_with_input.png'
       img_file = os.path.join(self.eval_dir, img_name)
-      _show_lines_ls_points_ls(img[:,:,0], [det_lines_pos, det_lines_neg],
+      if SHOW_EACH_CLASS:
+        _show_lines_ls_points_ls(img[:,:,0], [det_lines_pos, det_lines_neg],
                                 points_ls=[det_corners_pos, det_corners_neg],
                               line_colors=['green', 'red'], line_thickness=1,
                               point_colors=['blue', 'yellow'], point_thickness=2,
@@ -528,6 +537,7 @@ class GraphEval():
     pass
     return cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false
 
+
 def draw_eval_all_classes_1img(eval_draws_ls):
   import mmcv
   colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow'}
@@ -535,8 +545,19 @@ def draw_eval_all_classes_1img(eval_draws_ls):
   num_cats = len(eval_draws_ls)
   img_det = None
   img_gt = None
+
+  det_lines_2d = []
+  gt_lines_2d = []
+  det_labels = []
   for i in range(num_cats):
     cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false = eval_draws_ls[i]
+
+    det_lines_2d.append( det_lines_pos )
+    det_lines_2d.append( det_lines_neg )
+    gt_lines_2d.append( gt_lines_true )
+    gt_lines_2d.append( gt_lines_false )
+    det_labels.append( np.ones([det_lines_pos.shape[0]])*i + 1 )
+    det_labels.append( np.ones([det_lines_neg.shape[0]])*i + 1 )
 
     if img_det is None:
       img_det = img.shape[:2]
@@ -573,6 +594,18 @@ def draw_eval_all_classes_1img(eval_draws_ls):
 
   mmcv.imwrite(img_det, det_file)
   mmcv.imwrite(img_gt, gt_file)
+
+  det_lines_2d = np.concatenate( det_lines_2d, axis=0 )
+  gt_lines_2d = np.concatenate( gt_lines_2d, axis=0 )
+  det_labels = np.concatenate( det_labels, axis=0 )
+  show_2dlines_as_3d(det_lines_2d[:,:5], det_labels)
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
+
+def show_2dlines_as_3d(lines_2d, labels):
+  lines_3d = OBJ_REPS_PARSE.lines2d_to_lines3d(lines_2d)
+  _show_3d_points_objs_ls(objs_ls=[lines_3d], obj_colors=[labels])
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def filter_low_score_det(det_lines, score_threshold=0.5):
@@ -649,13 +682,14 @@ def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10,
 
       pass
 
+
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
   dirname = 'sTPV_r50_fpn_stanford2d_wabeco_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe/'
   filename = 'detection_68_Imgs.pickle'
   #filename = 'detection_204_Imgs.pickle'
   #filename = 'detection_2_Imgs.pickle'
-  res_file = workdir + dirname  + filename
+  res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)
 
 if __name__ == '__main__'  :

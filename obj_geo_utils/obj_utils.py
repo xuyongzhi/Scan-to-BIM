@@ -114,6 +114,18 @@ class OBJ_REPS_PARSE:
 
     assert False, f'Not implemented:\nobj_rep_in: {obj_rep_in}\nobj_rep_out: {obj_rep_out}'
 
+  def lines2d_to_lines3d(lines2d, ):
+    '''
+      lines2d: [n,5]  RoLine2D_UpRight_xyxy_sin2a
+      out: RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+    '''
+    n = lines2d.shape[0]
+    tmp = np.ones([n,3])
+    tmp[:,0] = 2
+    tmp[:,1] = 0
+    tmp[:,2] = 75
+    lines3d = np.concatenate([lines2d, tmp], axis=1)
+    return lines3d
 
   @staticmethod
   def make_x_long_dim(bboxes, obj_rep):
