@@ -17,8 +17,8 @@ import glob
 
 
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+from obj_geo_utils.line_operations import rotate_bboxes_img, transfer_lines, gen_corners_from_lines_np
 from configs.common import DIM_PARSE, DEBUG_CFG
-from beike_data_utils.line_utils import encode_line_rep, rotate_lines_img, transfer_lines, gen_corners_from_lines_np
 from tools.debug_utils import get_random_color, _show_img_with_norm, _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls
 np.set_printoptions(precision=3, suppress=True)
@@ -271,7 +271,7 @@ class BEIKE(BEIKE_CLSINFO):
         bboxes = transfer_lines(bboxes, DIM_PARSE.OBJ_REP, img.shape[:2], angle, (cx,cy))
 
       if rotate_angle != 0:
-        bboxes, img = rotate_lines_img(bboxes, img, rotate_angle,
+        bboxes, img = rotate_bboxes_img(bboxes, img, rotate_angle,
                                       DIM_PARSE.OBJ_REP, check_by_cross=False)
 
       if WRITE_ANNO_IMG:
@@ -658,7 +658,6 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
         corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
                                            pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = OBJ_REPS_PARSE.encode_obj(lines_pt.reshape(-1,4), 'RoLine2D_2p', obj_rep )
-      #lines_pt_ordered = encode_line_rep(lines_pt, DIM_PARSE.OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()
       labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)
@@ -907,7 +906,7 @@ def load_gt_lines_bk(img_meta, img, classes, filter_edges):
   #_show_lines_ls_points_ls(img[:,:,0], [lines])
   if 'rotate_angle' in img_meta:
     rotate_angle = img_meta['rotate_angle']
-    lines, _ = rotate_lines_img(lines, img, rotate_angle, DIM_PARSE.OBJ_REP)
+    lines, _ = rotate_bboxes_img(lines, img, rotate_angle, DIM_PARSE.OBJ_REP)
     return lines, labels
   else:
     return lines, labels

@@ -13,9 +13,8 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
-from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
+from obj_geo_utils.geometry_utils import angle_from_vecs_to_vece, sin2theta
 from tools import debug_utils
-from beike_data_utils.line_utils import decode_line_rep_th
 
 import torchvision as tcv
 
@@ -249,7 +248,7 @@ class RepPointsHead(nn.Module):
             vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
             vec_start = torch.zeros_like(vec_pts)
             vec_start[:,1] = -1
-            istoplefts_0 = sin2theta(vec_start, vec_pts)
+            istoplefts_0,_ = sin2theta(vec_start, vec_pts)
 
             istoplefts_1 = istoplefts_0.view(pts_x.shape)
             istopleft = istoplefts_1.mean(dim=1, keepdim=True)

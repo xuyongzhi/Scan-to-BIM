@@ -124,12 +124,13 @@ def sin2theta(vec_start_0, vec_end_0):
   # get nan when the norm of vec_end is 0. set as 0 directly
   res[torch.isnan(res)] = 0
   assert not torch.isnan(res).any()
-  return res
+  sin_theta = cz
+  return res, sin_theta
 
 def sin2theta_np(vec_start, vec_end):
     vec_start_t = torch.from_numpy(vec_start)
     vec_end_t = torch.from_numpy(vec_end)
-    res = sin2theta(vec_start_t, vec_end_t)
+    res, _ = sin2theta(vec_start_t, vec_end_t)
     return res.cpu().data.numpy()
 
 def angle_from_vecs_to_vece_np(vec_start, vec_end, scope_id, debug=0):

@@ -13,9 +13,9 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
-from beike_data_utils.geometric_utils import angle_from_vecs_to_vece, sin2theta
+from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece
 from tools import debug_utils
-from beike_data_utils.line_utils import decode_line_rep_th, gen_corners_from_lines_th
+from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
 
 import torchvision as tcv
 
@@ -94,6 +94,7 @@ class StrPointsHead(nn.Module):
                      gamma=2.0,
                      alpha=0.25,
                      loss_weight=1.0,),
+                 num_ps_long_axis = 9,
                  ):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
@@ -107,6 +108,8 @@ class StrPointsHead(nn.Module):
         self.point_feat_channels = point_feat_channels
         self.stacked_convs = stacked_convs
         self.num_points = num_points
+        assert num_ps_long_axis <= num_points
+        self.num_ps_long_axis = num_ps_long_axis
         self.gradient_mul = gradient_mul
         self.point_base_scale = point_base_scale
         self.point_strides = point_strides
@@ -125,7 +128,8 @@ class StrPointsHead(nn.Module):
         self.center_init = center_init
         self.transform_method = transform_method
         if self.transform_method == 'moment' or \
-                self.transform_method == 'moment_lscope_istopleft':
+              self.transform_method == 'moment_lscope_istopleft' or \
+                self.transform_method == 'moment_LWAsS2ZZ':
             self.moment_transfer = nn.Parameter(
                 data=torch.zeros(2), requires_grad=True)
             self.moment_mul = moment_mul
@@ -370,7 +374,7 @@ class StrPointsHead(nn.Module):
             vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
             vec_start = torch.zeros_like(vec_pts)
             vec_start[:,1] = -1
-            istoplefts_0 = sin2theta(vec_start, vec_pts)
+            istoplefts_0, _ = sin2theta(vec_start, vec_pts)
 
             istoplefts_1 = istoplefts_0.view(pts_x.shape)
             istopleft = istoplefts_1.mean(dim=1, keepdim=True)
@@ -386,6 +390,52 @@ class StrPointsHead(nn.Module):
                 istopleft
             ],
                              dim=1)
+            if out_line_constrain:
+              bbox = torch.cat([bbox, isaline], dim=1)
+            pass
+        elif self.transform_method == 'moment_LWAsS2ZZ':
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+            pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
+            pts_x_std = torch.std(pts_x - pts_x_mean, dim=1, keepdim=True)
+            moment_transfer = (self.moment_transfer * self.moment_mul) + (
+                self.moment_transfer.detach() * (1 - self.moment_mul))
+            moment_width_transfer = moment_transfer[0]
+            moment_height_transfer = moment_transfer[1]
+            half_width = pts_x_std * torch.exp(moment_width_transfer)
+            half_height = pts_y_std * torch.exp(moment_height_transfer)
+
+            length_greater = torch.max( half_width, half_height ) * 2
+            width_smaller = torch.min( half_width, half_height ) * 2
+
+            vec_pts_y = pts_y - pts_y_mean
+            vec_pts_x = pts_x - pts_x_mean
+            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
+            vec_start = torch.zeros_like(vec_pts)
+            vec_start[:,1] = -1
+            sin_2thetas, sin_thetas = sin2theta(vec_start, vec_pts)
+            abs_sins = torch.abs(sin_thetas).view(pts_x.shape)
+            sin_2thetas = sin_2thetas.view(pts_x.shape)
+
+            npla = self.num_ps_long_axis
+            sin_2theta = sin_2thetas[:,:npla].mean(dim=1, keepdim=True)
+            abs_sin = abs_sins[:,:npla].mean(dim=1, keepdim=True)
+
+            #isaline = istoplefts_1.max(dim=1, keepdim=True)[0] - \
+            #          istoplefts_1.min(dim=1, keepdim=True)[0]
+
+            isaline_0 = sin_2thetas[:,:npla].std(dim=1, keepdim=True)
+            isaline_1 = abs_sins[:,:npla].std(dim=1, keepdim=True)
+            isaline = (isaline_0 + isaline_1) / 2
+
+            z0z1 = torch.zeros_like(pts_x_mean).repeat(1,2,1,1)
+
+            bbox = torch.cat([
+                pts_x_mean, pts_y_mean,
+                length_greater, width_smaller,
+                abs_sin, sin_2theta, z0z1
+              ], dim=1)
+
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
@@ -794,6 +844,9 @@ class StrPointsHead(nn.Module):
                               bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
                   bbox_i = torch.cat([bbox_i, istopleft], dim=1)
                   bbox.append(bbox_i)
+                elif self.transform_method == 'moment_LWAsS2ZZ':
+                  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                  pass
                 else:
                   raise NotImplemented
             bbox_list.append(bbox)

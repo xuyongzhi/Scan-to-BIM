@@ -3,6 +3,7 @@ import os
 import mmcv
 import numpy as np
 from torch.utils.data import Dataset
+import torch
 
 from .pipelines import Compose
 from .registry import DATASETS
@@ -165,6 +166,7 @@ class CustomDataset(Dataset):
         results = self.pipeline(results)
         results['img_meta'].data['input_style'] = self.input_style
         assert not 'background' in results['img_meta'].data['classes']
+        assert results['gt_bboxes'].data.dtype == torch.float32
 
         if DEBUG_CFG.VISUAL_TOPVIEW_INPUT:
           show_results_train(results, self.obj_rep)

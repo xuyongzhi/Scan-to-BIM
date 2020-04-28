@@ -65,6 +65,7 @@ model = dict(
         point_feat_channels=256,
         stacked_convs=3,
         num_points=9,
+        num_ps_long_axis = 9,
         gradient_mul=0.1,
         point_strides=[4, 8, 16, 32],
         point_base_scale=1,

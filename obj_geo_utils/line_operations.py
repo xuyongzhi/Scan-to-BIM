@@ -207,6 +207,7 @@ def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
     rotated_bboxes[:, 3] = bboxes[:, 3] * scale
     pass
 
+  rotated_bboxes = rotated_bboxes.astype(np.float32)
   show = 0
   if show:
     _show_objs_ls_points_ls( new_img[:,:,0], [rotated_bboxes], obj_rep=obj_rep )

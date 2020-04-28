@@ -4,7 +4,8 @@ import torch
 import cv2
 import numpy as np
 import sys
-from beike_data_utils.geometric_utils import angle_from_vecs_to_vece
+
+from obj_geo_utils.geometry_utils import angle_from_vecs_to_vece
 import os
 
 

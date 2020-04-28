@@ -18,7 +18,7 @@ class PointAssigner(BaseAssigner):
     """
 
     def __init__(self, scale=4, pos_num=3, obj_rep=''):
-        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a']
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYLgWsAsinSin2Z0Z1']
         self.scale = scale
         self.pos_num = pos_num
         self.obj_rep = obj_rep
@@ -79,13 +79,8 @@ class PointAssigner(BaseAssigner):
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 4
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).clamp(min=1e-6)
-        elif self.obj_rep == 'line_scope':
-          assert gt_bboxes.shape[1] == 4
-          if gt_bboxes_ignore is not None:
-            assert gt_bboxes_ignore.shape[1] == 4
-          gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
-                                                              .clamp(min=1e-6)
-          gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
+          gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
+
         elif self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
           assert gt_bboxes.shape[1] == 5
           if gt_bboxes_ignore is not None:
@@ -95,7 +90,18 @@ class PointAssigner(BaseAssigner):
           gt_bboxes = gt_bboxes[:,:4]
           gt_bboxes_wh = (gt_bboxes[:, 2:] - gt_bboxes[:, :2]).norm(dim=1)\
                                                               .clamp(min=1e-6)
-          gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)
+          gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)      # [56, 2]
+          gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2  # [56, 2]
+
+        elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
+          assert gt_bboxes.shape[1] == 8
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 8
+            gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+          gt_bboxes_raw = gt_bboxes.clone()
+          gt_bboxes_wh = gt_bboxes[:,2:3].repeat(1,2)
+          gt_bboxes_xy = gt_bboxes[:,:2]
+
         elif self.obj_rep == 'corner':
           raise NotImplemented
           assert gt_bboxes.shape[1] == 2
@@ -103,13 +109,15 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = gt_bboxes * 0 + 2**(lvl_min)*self.scale
           gt_bboxes = gt_bboxes.repeat(1,2)
           pass
+
         else:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           raise NotImplemented
+
         if DEBUG_CFG.CHECK_POINT_ASSIGN:
           if not gt_bboxes_wh.min() > DEBUG_CFG.MIN_BOX_SIZE:
             import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
-        gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2
 
         scale = self.scale
         gt_bboxes_lvl = ((torch.log2(gt_bboxes_wh[:, 0] / scale) +
@@ -188,7 +196,7 @@ class PointAssigner(BaseAssigner):
 
         if DEBUG_CFG.VISUALIZE_POINT_ASSIGNER:
           #if (not assign_res.num_pos_inds == num_gts):
-            from  tools.debug_utils import _show_lines_ls_points_ls
+            from tools.visual_utils import _show_objs_ls_points_ls
             import numpy as np
             filename = img_meta['filename']
             points_scope = points.max(0)[0][:2].int()
@@ -213,10 +221,10 @@ class PointAssigner(BaseAssigner):
                 assert False, "miss gt"
             if 1:
               pos_points = points[:,:2][pos_inds].cpu().data.numpy().reshape(-1,2)
-              _show_lines_ls_points_ls((points_scope[1], points_scope[0]), [gt_bboxes_raw, missed_gt_bboxes], [pos_points], line_colors=['red', 'green'])
-              #for i in range(len(pos_inds)):
-              #  pos_gt_i = gt_bboxes_raw[pos_gt_inds[i]].reshape(-1,5)
-              #  _show_lines_ls_points_ls((points_scope[1], points_scope[0]), [gt_bboxes_raw, pos_gt_i], [pos_points[i:i+1]], line_colors=['red', 'green'])
+              _show_objs_ls_points_ls((points_scope[1], points_scope[0]), [gt_bboxes_raw, missed_gt_bboxes], obj_rep=self.obj_rep, points_ls=[pos_points], obj_colors=['red', 'green'])
+              for i in range(len(pos_inds)):
+                pos_gt_i = gt_bboxes_raw[pos_gt_inds[i]].reshape(-1, gt_bboxes_raw.shape[1])
+                _show_objs_ls_points_ls((points_scope[1], points_scope[0]), [gt_bboxes_raw, pos_gt_i], obj_rep=self.obj_rep, points_ls = [pos_points[i:i+1]], obj_colors=['red', 'green'])
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
               pass
 
