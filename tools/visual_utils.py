@@ -11,7 +11,7 @@ from .color import color_val, get_random_color, label2color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-ADD_FRAME = 0
+ADD_FRAME = 1
 
 #-2d general------------------------------------------------------------------------------
 
@@ -300,7 +300,7 @@ def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
           tzz[:,2] = 0.01
           objs_ls[i] = np.concatenate([objs_ls[i], tzz], axis=1)
       obj_rep = 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1'
-    bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'RoBox3D_CenSizeAngle') for o in objs_ls]
+    bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'XYZLgWsHA') for o in objs_ls]
   else:
     bboxes_ls = None
   _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, obj_colors, box_oriented=True)
