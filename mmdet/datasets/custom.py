@@ -167,7 +167,7 @@ class CustomDataset(Dataset):
         assert not 'background' in results['img_meta'].data['classes']
 
         if DEBUG_CFG.VISUAL_TOPVIEW_INPUT:
-          show_results_train(results)
+          show_results_train(results, self.obj_rep)
         return results
 
     def prepare_test_img(self, idx):
@@ -204,7 +204,7 @@ def show_results_test(results):
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
-def show_results_train(results):
+def show_results_train(results, obj_rep):
   from tools.visual_utils import _show_objs_ls_points_ls
   from tools.debug_utils import _show_lines_ls_points_ls, _show_img_with_norm, _show_lines_labels
   print('\ncustom, after data augmentation',results['img_meta'].data['filename'])
@@ -228,7 +228,7 @@ def show_results_train(results):
   print(f'flip: {flip}\nrotate_angle: {rotate_angle}')
 
   #_show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
-  _show_objs_ls_points_ls(img[:,:,0], [gt_bboxes], obj_rep='RoLine2D_UpRight_xyxy_sin2a', obj_colors=[gt_labels])
+  _show_objs_ls_points_ls(img[:,:,0], [gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_labels])
   #_show_lines_labels(img[:,:,0], gt_bboxes, gt_labels)
   #_show_img_with_norm(img)
   #_show_lines_ls_points_ls(img[:,:,1:])

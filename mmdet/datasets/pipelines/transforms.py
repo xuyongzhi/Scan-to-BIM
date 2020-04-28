@@ -9,9 +9,9 @@ from numpy import random
 
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 from ..registry import PIPELINES
-#from beike_data_utils.line_utils import rotate_lines_img
-from obj_geo_utils.line_operations import rotate_lines_img
+from obj_geo_utils.line_operations import rotate_bboxes_img
 from tools.visual_utils import _show_objs_ls_points_ls
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 @PIPELINES.register_module
 class ResizeImgLine(object):
@@ -40,6 +40,7 @@ class ResizeImgLine(object):
     """
 
     def __init__(self,
+                 obj_rep,
                  img_scale=None,
                  multiscale_mode='range',
                  ratio_range=None,
@@ -62,6 +63,7 @@ class ResizeImgLine(object):
             assert multiscale_mode in ['value', 'range']
 
         self.multiscale_mode = multiscale_mode
+        self.obj_rep = obj_rep
         self.ratio_range = ratio_range
         self.keep_ratio = keep_ratio
         self.obj_dim = obj_dim
@@ -131,17 +133,26 @@ class ResizeImgLine(object):
         img_shape = results['img_shape']
         for key in results.get('bbox_fields', []):
             assert results[key].shape[1] == self.obj_dim
-            bboxes = results[key][:,:4] * results['scale_factor']
-            bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, img_shape[1] - 1)
-            bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, img_shape[0] - 1)
-            results[key][:,:4] = bboxes
+            if self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+              bboxes = results[key][:,:4] * results['scale_factor']
+              bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, img_shape[1] - 1)
+              bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, img_shape[0] - 1)
+              results[key][:,:4] = bboxes
+            elif self.obj_rep == 'XYLgWsSin2Sin4Z0Z1' or self.obj_rep=='XYLgWsAsinSin2Z0Z1':
+              bboxes = results[key][:,:4] * results['scale_factor']
+              bboxes[:, 0] = np.clip(bboxes[:, 0], 0, img_shape[1] - 1)
+              bboxes[:, 1] = np.clip(bboxes[:, 1], 0, img_shape[0] - 1)
+              results[key][:,:4] = bboxes
+            else:
+              print(f'obj_rep: {self.obj_rep}')
+              raise NotImplementedError
 
     def __call__(self, results):
         if 'scale' not in results:
             self._random_scale(results)
         self._resize_img(results)
         self._resize_bboxes(results)
-        #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], 'RoLine2D_UpRight_xyxy_sin2a')
+        #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], self.obj_rep)
         return results
 
     def __repr__(self):
@@ -417,7 +428,7 @@ class RandomLineFlip(object):
         if flip_ratio is not None:
             assert flip_ratio >= 0 and flip_ratio <= 1
         assert direction in ['horizontal', 'vertical', 'random']
-        assert obj_rep in ['box_scope', 'line_scope', 'RoLine2D_UpRight_xyxy_sin2a']
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYLgWsSin2Sin4Z0Z1', 'XYLgWsAsinSin2Z0Z1']
 
     def bbox_flip(self, bboxes, img_shape, direction, obj_rep):
         """Flip bboxes horizontally.
@@ -430,8 +441,44 @@ class RandomLineFlip(object):
           return self.bbox_flip_scope(bboxes, img_shape, direction)
         elif obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
           return self.bbox_flip_scope_itl(bboxes, img_shape, direction)
+        elif obj_rep == 'XYLgWsSin2Sin4Z0Z1':
+          return self.bbox_flip_XYLgWsSin2Sin4Z0Z1(bboxes, img_shape, direction)
+        elif self.obj_rep=='XYLgWsAsinSin2Z0Z1':
+          return self.bbox_flip_XYLgWsAsinSin2Z0Z1(bboxes, img_shape, direction)
         else:
           raise NotImplementedError
+
+    def bbox_flip_XYLgWsAsinSin2Z0Z1(self, bboxes, img_shape, direction):
+        assert bboxes.shape[-1] == 8
+        flipped = bboxes.copy()
+        if direction == 'horizontal':
+            w = img_shape[1]
+            flipped[..., 0] = w - bboxes[..., 0] - 1
+        elif direction == 'vertical':
+            h = img_shape[0]
+            flipped[..., 1] = h - bboxes[..., 1] - 1
+        else:
+            raise ValueError(
+                'Invalid flipping direction "{}"'.format(direction))
+        # theta *=-1 -> sin2theta *=-1, sin2theta *=-1
+        flipped[:,5]  *= -1
+        return flipped
+
+    def bbox_flip_XYLgWsSin2Sin4Z0Z1(self, bboxes, img_shape, direction):
+        assert bboxes.shape[-1] == 8
+        flipped = bboxes.copy()
+        if direction == 'horizontal':
+            w = img_shape[1]
+            flipped[..., 0] = w - bboxes[..., 0] - 1
+        elif direction == 'vertical':
+            h = img_shape[0]
+            flipped[..., 1] = h - bboxes[..., 1] - 1
+        else:
+            raise ValueError(
+                'Invalid flipping direction "{}"'.format(direction))
+        # theta *=-1 -> sin2theta *=-1, sin2theta *=-1
+        flipped[:,[4,5]]  *= -1
+        return flipped
 
     def bbox_flip_scope_itl(self, bboxes, img_shape, direction):
         assert bboxes.shape[-1] == 5
@@ -447,7 +494,7 @@ class RandomLineFlip(object):
         else:
             raise ValueError(
                 'Invalid flipping direction "{}"'.format(direction))
-        flipped[:,-1] = -flipped[:,-1]
+        flipped[:,-1]  *= -1
         #mask = (np.abs(flipped[:,-1]) >2).reshape(-1,1)
         #flipped = flipped - mask * flipped * 2
         #print('\nflipped\n')
@@ -589,14 +636,17 @@ class PadToSameHW_ForRotation(object):
         pad_val (float, optional): Padding value, 0 by default.
     """
 
-    def __init__(self, pad_border_make_bboxes_pos=True,  pad_val=0):
+    def __init__(self, obj_rep, pad_border_make_bboxes_pos=True,  pad_val=0):
+        self.obj_rep = obj_rep
         self.pad_val = pad_val
         self.pad_border_make_bboxes_pos = pad_border_make_bboxes_pos
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYLgWsSin2Sin4Z0Z1', 'XYLgWsAsinSin2Z0Z1']
 
     def _pad_img(self, results):
         #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], 'RoLine2D_UpRight_xyxy_sin2a')
         gt_bboxes = results['gt_bboxes'].copy()
-        min_corners = gt_bboxes[:,:4].reshape(-1,2).min(0).astype(np.int32)
+        corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes, self.obj_rep, 'RoLine2D_2p')
+        min_corners = corners.reshape(-1,2).min(0).astype(np.int32)
         min_border = 2
         border_pad = np.clip(min_border - min_corners, a_min=0, a_max=None)
         border_pad_x = border_pad[0]
@@ -615,19 +665,23 @@ class PadToSameHW_ForRotation(object):
         wpad1 = max(w1-w0-wpad0, 0)
         padded_img = np.pad(results['img'], ( (hpad0, hpad1), (wpad0, wpad1), (0,0) ), 'constant', constant_values=0 )
 
-        gt_bboxes[:,[0,2]] += wpad0
-        gt_bboxes[:,[1,3]] += hpad0
+        if self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+          gt_bboxes[:,[0,2]] += wpad0
+          gt_bboxes[:,[1,3]] += hpad0
+        elif self.obj_rep == 'XYLgWsSin2Sin4Z0Z1' or self.obj_rep=='XYLgWsAsinSin2Z0Z1':
+          gt_bboxes[:,0] += wpad0
+          gt_bboxes[:,1] += hpad0
         gt_bboxes = gt_bboxes.astype(np.float32)
 
         size = (h1, w1, results['img'].shape[2])
         results['img'] = padded_img
         results['pad_shape'] = padded_img.shape
         results['gt_bboxes'] = gt_bboxes
-        assert results['gt_bboxes'][:,:4].min() > 0
+        assert results['gt_bboxes'][:,:4].min() >= 0
         if padded_img.shape[:2] != (hw,hw):
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
-        #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], 'RoLine2D_UpRight_xyxy_sin2a')
+        #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], self.obj_rep)
         pass
 
     def __call__(self, results):
@@ -1247,7 +1301,7 @@ class RandomRotate(object):
         self.obj_rep = obj_rep
         if rotate_ratio is not None:
             assert rotate_ratio >= 0 and rotate_ratio <= 1
-        assert obj_rep in ['box_scope', 'line_scope', 'RoLine2D_UpRight_xyxy_sin2a']
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYLgWsSin2Sin4Z0Z1', 'XYLgWsAsinSin2Z0Z1']
 
     def __call__(self, results):
         if 'rotate' not in results:
@@ -1264,7 +1318,7 @@ class RandomRotate(object):
             for key in results.get('bbox_fields', []):
                 if results[key].shape[0] == 0:
                   continue
-                results[key], results['img'] = rotate_lines_img(results[key],
+                results[key], results['img'] = rotate_bboxes_img(results[key],
                                           results['img'], angle, self.obj_rep)
                 pass
 

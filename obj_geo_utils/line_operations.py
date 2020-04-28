@@ -6,7 +6,7 @@ import cv2
 from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls, _draw_lines_ls_points_ls
 import torch
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
-
+from tools.visual_utils import _show_objs_ls_points_ls
 #--------------------------------------------------------------------------------
 
 def _encode_line_rep(lines, obj_rep):
@@ -187,10 +187,37 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
   return lines_rotated
 
+
+def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
+  if obj_rep != 'RoLine2D_UpRight_xyxy_sin2a':
+    lines = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'RoLine2D_UpRight_xyxy_sin2a')
+  else:
+    lines = bboxes
+
+  rotate_lines, new_img = rotate_lines_img(lines, img, angle, 'RoLine2D_UpRight_xyxy_sin2a')
+
+  if obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+    rotated_bboxes = rotate_lines
+  elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
+    rotated_bboxes = OBJ_REPS_PARSE.encode_obj(rotate_lines, 'RoLine2D_UpRight_xyxy_sin2a', obj_rep)
+    rotated_bboxes[:, [6,7]] = bboxes[:, [6,7]]
+    scales = bboxes[:, 2] / rotated_bboxes[:,2]
+    assert abs(scales.min() - scales.max()) < 1e-5
+    scale = scales.mean()
+    rotated_bboxes[:, 3] = bboxes[:, 3] * scale
+    pass
+
+  show = 0
+  if show:
+    _show_objs_ls_points_ls( new_img[:,:,0], [rotated_bboxes], obj_rep=obj_rep )
+  pass
+  return rotated_bboxes, new_img
+
 def rotate_lines_img(lines, img, angle,  obj_rep, debug_rotation=0):
   '''
   The img sizes of input  and output are the same.
   '''
+  assert obj_rep == 'RoLine2D_UpRight_xyxy_sin2a'
   assert img.ndim == 3
   assert lines.ndim == 2
   assert lines.shape[1] == 5

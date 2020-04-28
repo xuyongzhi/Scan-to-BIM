@@ -22,9 +22,9 @@ BS=2
 DATA_TYPES=cnx
 FILTER_EDGES=1
 REL=0
-CLS=abc
+#CLS=abc
 #CLS=ad
-#CLS=a
+CLS=a
 #CLS=abcd
 #CLS=A
 

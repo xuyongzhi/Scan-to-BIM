@@ -20,14 +20,18 @@ classes= ['wall']
 
 if DATA == 'beike2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
 
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
 
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
+if _obj_rep == 'XYLgWsAsinSin2Z0Z1':
+  _transform_method='moment_LWAsS2ZZ'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
@@ -146,8 +150,8 @@ img_norm_cfg = dict(
 train_pipeline = [
     dict(type='LoadTopviewFromFile'),
     dict(type='LoadAnnotations', with_bbox=True),
-    dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
-    dict(type='ResizeImgLine', img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
+    dict(type='PadToSameHW_ForRotation',obj_rep=_obj_rep,pad_border_make_bboxes_pos=True),
+    dict(type='ResizeImgLine', obj_rep=_obj_rep, img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
     dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
@@ -163,7 +167,7 @@ test_pipeline = [
         flip=False,
         transforms=[
             dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
-            dict(type='ResizeImgLine', keep_ratio=True, obj_dim=_obj_dim),
+            dict(type='ResizeImgLine', obj_rep=_obj_rep, keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
             dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
