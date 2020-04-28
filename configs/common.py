@@ -1,23 +1,22 @@
 import torch
 import numpy as np
-#from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
-
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 #*******************************************************************************
 class DIM_PARSE:
   IMAGE_SIZE = 512
-  OBJ_REP = 'RoLine2D_UpRight_xyxy_sin2a'
-  OBJ_DIM = 5
 
   POINTS_NUM = 9
   POINTS_DIM = POINTS_NUM * 2 * 2
   # StrPointsHead.cal_test_score()
   LINE_CLS_WEIGHTS = {'refine':0.7, 'final':0.3}
 
-  def __init__(self, num_classes_inc_bg, is_out_corner=False):
+  def __init__(self, obj_rep, num_classes_inc_bg, is_out_corner=False):
     '''
     num_classes: not include background
     '''
     assert num_classes_inc_bg >= 2, "include bg"
+    self.OBJ_REP = obj_rep
+    self.OBJ_DIM = OBJ_REPS_PARSE._obj_dims[obj_rep]
     self.NUM_CLASS = num_classes_inc_bg
     self.use_sigmoid_cls = True
     if self.use_sigmoid_cls:

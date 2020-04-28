@@ -66,6 +66,7 @@ class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
   USE_NORMAL = True
 
   def __init__(self,
+               obj_rep,
                ann_file='data/beike/processed_512/',
                img_prefix='train',
                test_mode=False,
@@ -79,6 +80,7 @@ class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
                filter_edges = True,
                classes = ['wall'],
                pipeline=None,):
+    self.obj_rep = obj_rep
     self.save_sparse_input_for_debug = 0
     self.load_voxlized_sparse = DEBUG_CFG.LOAD_VOXELIZED_SPARSE
     BEIKE_CLSINFO.__init__(self, classes)
@@ -154,7 +156,9 @@ class BeikePcl(VoxelDatasetBase, BEIKE_CLSINFO):
                           filter_edges=self.filter_edges)
 
       self.anno_raws.append(anno_raw)
-      anno_2d = raw_anno_to_img(anno_raw, 'voxelization', {'voxel_size': self.VOXEL_SIZE})
+      anno_2d = raw_anno_to_img(obj_rep=self.obj_rep, anno_raw=anno_raw,
+                                anno_style='voxelization',
+                                pixel_config={'voxel_size': self.VOXEL_SIZE})
       raw_dynamic_vox_size = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0]) / self.VOXEL_SIZE
       raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
       raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())

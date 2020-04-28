@@ -15,12 +15,17 @@ DATA = 'beike_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
-stem_stride = {'beike_pcl_2d': 4, 'stanford_pcl_2d':2}[DATA]
 
 if DATA == 'beike_pcl_2d':
+  stem_stride = 4
   batch_size = {2:2, 4:6}[stem_stride]
+  _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
 elif DATA == 'stanford_pcl_2d':
+  stem_stride = 2
   batch_size = {2:3, 4:6}[stem_stride]
+  _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
+_obj_dim = dim_parse.OBJ_DIM
 
 if DATA == 'beike_pcl_2d':
   # pcl_scope: max=[20.041 15.847  6.531] mean=[10.841 10.851  3.392]
@@ -31,8 +36,6 @@ elif DATA == 'stanford_pcl_2d':
 max_zdim = max_height / voxel_size
 bev_pad_pixels = stem_stride * 0
 #*******************************************************************************
-_obj_rep = DIM_PARSE.OBJ_REP
-_obj_dim = DIM_PARSE.OBJ_DIM
 
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
@@ -82,6 +85,7 @@ model = dict(
         ),
     bbox_head=dict(
         type='StrPointsHead',
+        obj_rep=_obj_rep,
         num_classes=1+len(classes),
         in_channels=256,
         feat_channels=256,
@@ -185,9 +189,10 @@ if DATA == 'stanford_pcl_2d':
 
 data = dict(
     imgs_per_gpu=batch_size,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
+        obj_rep = _obj_rep,
         ann_file=ann_file,
         img_prefix=data_root + f'ply/train.txt',
         voxel_size=voxel_size,

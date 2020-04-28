@@ -15,7 +15,8 @@ SHOW_EACH_CLASS = False
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     filter_edges = data_test_cfg['filter_edges']
     classes = data_test_cfg['classes']
-    dim_parse = DIM_PARSE(len(classes)+1)
+    obj_rep = data_test_cfg['obj_rep']
+    dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
     num_imgs = len(results)
     assert len(data_loader) == num_imgs
     results_datas = []
@@ -45,6 +46,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
                           img_meta = img_meta_i,
                           catid_2_cat = catid_2_cat,
                           filter_edges = filter_edges,
+                          obj_rep = obj_rep,
                         )
         #img_id = dataset.img_ids[i_img]
         #assert img_id == i_img
@@ -134,7 +136,8 @@ def eval_graph(res_file):
   img_meta = results_datas[0]['img_meta']
   classes = img_meta['classes']
   filter_edges =  results_datas[0]['filter_edges']
-  graph_eval = GraphEval(classes, filter_edges)
+  obj_rep =  results_datas[0]['obj_rep']
+  graph_eval = GraphEval(obj_rep, classes, filter_edges)
   graph_eval(results_datas, res_file)
 
 
@@ -151,11 +154,11 @@ class GraphEval():
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = None
 
-  def __init__(self, classes, filter_edges, score_threshold=0.4,):
+  def __init__(self, obj_rep, classes, filter_edges, score_threshold=0.4,):
     self.classes = classes
     self.filter_edges = filter_edges
     self._score_threshold = score_threshold
-    self.dim_parse = DIM_PARSE(len(classes)+1)
+    self.dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
     pass
 
   def __str__(self):

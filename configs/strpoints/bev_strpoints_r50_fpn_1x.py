@@ -15,11 +15,16 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-DATA = 'stanford2d'
+#DATA = 'stanford2d'
 classes= ['wall']
 
-_obj_rep = DIM_PARSE.OBJ_REP
-_obj_dim = DIM_PARSE.OBJ_DIM
+if DATA == 'beike2d':
+  _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+elif DATA == 'stanford2d':
+  _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+
+dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
+_obj_dim = dim_parse.OBJ_DIM
 
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
@@ -49,6 +54,7 @@ model = dict(
         norm_cfg=norm_cfg),
     bbox_head=dict(
         type='StrPointsHead',
+        obj_rep=_obj_rep,
         num_classes=len(classes) + 1,
         in_channels=256,
         feat_channels=256,
@@ -174,7 +180,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  img_prefix_test = img_prefix_train
+  #img_prefix_test = img_prefix_train
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
   ann_file = 'data/stanford/'
@@ -186,6 +192,7 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
+        obj_rep = _obj_rep,
         ann_file=ann_file,
         img_prefix=img_prefix_train,
         pipeline=train_pipeline,
@@ -193,6 +200,7 @@ data = dict(
         filter_edges=filter_edges),
     val=dict(
         type=dataset_type,
+        obj_rep = _obj_rep,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
         pipeline=train_pipeline,
@@ -200,6 +208,7 @@ data = dict(
         filter_edges=filter_edges),
     test=dict(
         type=dataset_type,
+        obj_rep = _obj_rep,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
         pipeline=test_pipeline,

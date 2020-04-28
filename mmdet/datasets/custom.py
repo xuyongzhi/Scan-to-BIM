@@ -35,6 +35,7 @@ class CustomDataset(Dataset):
     CLASSES = None
 
     def __init__(self,
+                 obj_rep,
                  ann_file,
                  pipeline,
                  data_root=None,
@@ -45,6 +46,7 @@ class CustomDataset(Dataset):
                  test_mode=False,
                  classes=['wall'],
                  filter_edges=True):
+        self.obj_rep = obj_rep
         self.ann_file = ann_file
         self.data_root = data_root
         self.img_prefix = img_prefix

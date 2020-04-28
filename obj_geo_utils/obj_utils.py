@@ -3,11 +3,10 @@ import numpy as np
 import mmcv
 from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, vec_from_angle_with_x_np
 import cv2
-from tools import debug_utils
 import torch
 from obj_geo_utils.geometry_utils import limit_period_np
 
-class OBJ_REPS_PARSE:
+class OBJ_REPS_PARSE():
   '''
   (*) XYZLgWsHA
     angle: between long axis (x_b) and x_f, [-90, 90)
@@ -28,7 +27,6 @@ class OBJ_REPS_PARSE:
     'XYLgWsSin2Sin4Z0Z1': 8,
     'XYLgWsSin2Sin4': 6,
 
-    'AlBox2D_UpRight_xyxy': 4,
     'RoLine2D_UpRight_xyxy_sin2a': 5,
     'RoBox2D_UpRight_xyxy_sin2a_thick': 6,
     'RoLine2D_2p': 4,

@@ -82,6 +82,7 @@ class BEIKE(BEIKE_CLSINFO):
     edge_attributions =  ['e_'+a for a in edge_atts]
 
     def __init__(self,
+                 obj_rep,
                  anno_folder='data/beike/processed_512/json/',
                  img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
                  test_mode=False,
@@ -91,6 +92,7 @@ class BEIKE(BEIKE_CLSINFO):
                  ):
         super().__init__(classes, always_load_walls=1)
         assert  anno_folder[-5:] == 'json/'
+        self.obj_rep = obj_rep
         self.anno_folder = anno_folder
         self.test_mode = test_mode
         self.is_save_connection = is_save_connection
@@ -128,7 +130,7 @@ class BEIKE(BEIKE_CLSINFO):
                                 self._classes, filter_edges=filter_edges,
                                 is_save_connection = self.is_save_connection)
 
-          anno_img = raw_anno_to_img(anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, )
+          anno_img = raw_anno_to_img(self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, )
           anno_img['classes'] = [c for c in classes if c!='background']
           filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
@@ -648,14 +650,14 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
 
   return corners_pt, lines_pt
 
-def raw_anno_to_img(anno_raw, anno_style, pixel_config):
+def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
       anno_img = {}
       if 'voxel_size' in pixel_config:
         corners_pt, lines_pt = anno_raw['corners'], anno_raw['lines']
       else:
         corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
                                            pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
-      lines_pt_ordered = OBJ_REPS_PARSE.encode_obj(lines_pt.reshape(-1,4), 'RoLine2D_2p', DIM_PARSE.OBJ_REP )
+      lines_pt_ordered = OBJ_REPS_PARSE.encode_obj(lines_pt.reshape(-1,4), 'RoLine2D_2p', obj_rep )
       #lines_pt_ordered = encode_line_rep(lines_pt, DIM_PARSE.OBJ_REP)
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
       min_line_size = line_sizes.min()
@@ -667,8 +669,8 @@ def raw_anno_to_img(anno_raw, anno_style, pixel_config):
 
       anno_img['min_line_size'] = min_line_size
 
-
-      anno_img['bboxes_ignore'] = np.empty([0,DIM_PARSE.OBJ_DIM], dtype=np.float32)
+      obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
+      anno_img['bboxes_ignore'] = np.empty([0,obj_dim], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
       bboxes = anno_img['bboxes'][:,:4]
@@ -894,6 +896,7 @@ def load_gt_lines_bk(img_meta, img, classes, filter_edges):
   processed_dir = os.path.dirname(os.path.dirname(filename))
   json_dir = os.path.join(processed_dir, 'json/')
   anno_raw = load_anno_1scene(json_dir, scene_name+'.json', beike_clsinfo._classes, filter_edges=filter_edges)
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': DIM_PARSE.IMAGE_SIZE},)
   lines = anno_img['bboxes']
   labels = anno_img['labels']

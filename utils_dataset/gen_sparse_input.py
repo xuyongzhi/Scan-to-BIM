@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 from configs.common import DEBUG_CFG, DIM_PARSE
-OBJ_REP = DIM_PARSE.OBJ_REP
+#OBJ_REP = DIM_PARSE.OBJ_REP
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 from tools.visual_utils import _show_3d_points_objs_ls, _show_objs_ls_points_ls
 

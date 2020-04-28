@@ -8,7 +8,8 @@ def multiclass_nms(multi_bboxes,
                    score_thr,
                    nms_cfg,
                    max_num=-1,
-                   score_factors=None):
+                   score_factors=None,
+                   obj_rep = None):
     """NMS for multi-class bboxes.
 
     Args:
@@ -28,7 +29,7 @@ def multiclass_nms(multi_bboxes,
             are 0-based.
     """
     num_classes_inc_bg = multi_scores.shape[1] # include bg
-    dim_parse = DIM_PARSE(num_classes_inc_bg)
+    dim_parse = DIM_PARSE(obj_rep, num_classes_inc_bg)
     nms_in_dim = dim_parse.NMS_IN_DIM
 
     assert  multi_bboxes.shape[1] == nms_in_dim

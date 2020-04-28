@@ -9,7 +9,9 @@ from .registry import DATASETS
 @DATASETS.register_module
 class BeikeDataset(CustomDataset):
     def load_annotations(self, ann_folder):
-        self.beike = BEIKE(ann_folder, img_prefix=self.img_prefix,
+        self.beike = BEIKE( obj_rep = self.obj_rep,
+                           anno_folder=ann_folder,
+                           img_prefix=self.img_prefix,
                            test_mode=self.test_mode,
                            filter_edges=self.filter_edges,
                            classes = self.classes,

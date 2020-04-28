@@ -97,15 +97,15 @@ def _draw_points(img, points, color, point_thickness):
 
 def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
               cats=None, font_scale=0.5, text_color='green'):
-  if obj_rep != 'RoBox2D_CenSizeAngle':
-    objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'RoBox2D_CenSizeAngle')
-  draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=obj_thickness, scores=scores, cats=cats, font_scale=font_scale, text_color=text_color)
+  if obj_rep != 'XYLgWsA':
+    objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'XYLgWsA')
+  draw_XYLgWsA(img, objs, color, obj_thickness=obj_thickness, scores=scores, cats=cats, font_scale=font_scale, text_color=text_color)
   return img
 
-def draw_RoBox2D_CenSizeAngle(img, objs, color, obj_thickness=1, scores=None, cats=None, font_scale=0.5, text_color='green'):
+def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font_scale=0.5, text_color='green'):
     '''
     img: [h,w,3]
-    objs: [n,5/6]  of RoBox2D_CenSizeAngle
+    objs: [n,5/6]  of XYLgWsA
     color: 'red' or labels of objs
     '''
     assert objs.ndim == 2

@@ -48,6 +48,7 @@ class StrPointsHead(nn.Module):
     """  # noqa: W605
 
     def __init__(self,
+                 obj_rep,
                  num_classes,
                  in_channels,
                  feat_channels=256,
@@ -97,7 +98,8 @@ class StrPointsHead(nn.Module):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
 
-        self.dim_parse = DIM_PARSE(num_classes)
+        self.obj_rep = obj_rep
+        self.dim_parse = DIM_PARSE(obj_rep, num_classes)
         self.move_points_to_center = move_points_to_center
         self.in_channels = in_channels
         self.num_classes = num_classes
@@ -1468,7 +1470,8 @@ class StrPointsHead(nn.Module):
             # det_bboxes: [66, 47]
             det_bboxes, det_labels, nms_inds = multiclass_nms(mlvl_bboxes, mlvl_scores,
                                                     cfg.score_thr, cfg.nms,
-                                                    cfg.max_per_img)
+                                                    cfg.max_per_img,
+                                                    obj_rep = self.obj_rep)
             det_inds = mlvl_inds[nms_inds]
             assert det_bboxes.shape[1] == self.dim_parse.NMS_OUT_DIM
             if DEBUG_CFG.SHOW_NMS_OUT:
