@@ -663,7 +663,7 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
       min_line_size = line_sizes.min()
       labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)
 
-      anno_img['bboxes'] = lines_pt_ordered
+      anno_img['gt_bboxes'] = lines_pt_ordered
       anno_img['labels'] = anno_raw['line_cat_ids']
       anno_img['relations'] = anno_raw['relations']
 
@@ -673,14 +673,14 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
       anno_img['bboxes_ignore'] = np.empty([0,obj_dim], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
-      bboxes = anno_img['bboxes'][:,:4]
-      assert bboxes.max() < DIM_PARSE.IMAGE_SIZE
+      gt_bboxes = anno_img['gt_bboxes'][:,:4]
+      assert gt_bboxes.max() < DIM_PARSE.IMAGE_SIZE
 
       for ele in BEIKE.edge_attributions:
         anno_img[ele] = anno_raw[ele]
-      #assert bboxes.min() >= 0
+      #assert gt_bboxes.min() >= 0
       if DEBUG_CFG.VISUAL_CONNECTIONS:
-        show_connection( anno_img['bboxes'], anno_img['relations'] )
+        show_connection( anno_img['gt_bboxes'], anno_img['relations'] )
       return anno_img
 
 

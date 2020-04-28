@@ -112,6 +112,9 @@ class OBJ_REPS_PARSE():
       box3d = np.concatenate([box2d[:,:2], zc, box2d[:,2:4], zs, box2d[:,4:5]], axis=1)
       return box3d
 
+    elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'RoLine2D_UpRight_xyxy_sin2a':
+      return bboxes[:, :5]
+
     elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'Bottom_Corners':
       line_2p = OBJ_REPS_PARSE.encode_obj(bboxes[:,:5], 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
       thick = bboxes[:,5:6]

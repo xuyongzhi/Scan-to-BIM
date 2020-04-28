@@ -9,7 +9,9 @@ from .registry import DATASETS
 @DATASETS.register_module
 class Stanford_2D_Dataset(CustomDataset):
     def load_annotations(self, ann_folder):
-        self.sfd = Stanford_BEV(ann_folder,
+        self.sfd = Stanford_BEV(
+                           obj_rep = self.obj_rep,
+                           anno_folder = ann_folder,
                            img_prefix=self.img_prefix,
                            test_mode=self.test_mode,
                            filter_edges=self.filter_edges,

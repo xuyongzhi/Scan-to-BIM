@@ -12,6 +12,7 @@ from configs.common import DEBUG_CFG
 from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 SMALL_DATA = 1
 
@@ -92,23 +93,21 @@ class Stanford_Ann():
       pcl_file = os.path.join(self.data_root, self.data_paths[i])
       ann_filename = pcl_file.replace('.ply', '-boxes.npy')
       bev_filename = pcl_file.replace('.ply', '-topview.npy')
-      anno_3d = load_bboxes( pcl_file, self._category_ids_map )
-      anno_2d = anno3d_to_anno_topview(anno_3d, self._classes, self.input_style)
-
-
+      anno = load_bboxes( pcl_file, self._classes, self._category_ids_map, self.obj_rep, self.input_style )
+      #anno_2d = anno_raw_to_anno_topview(anno_raw, self._classes, self.input_style)
 
       if self.input_style == 'bev':
           img_info = {'filename': bev_filename,
-                      'ann': anno_2d,
-                      'ann_raw': anno_3d}
+                      'ann': anno,
+                      }
 
       if self.input_style == 'pcl':
-          raw_dynamic_vox_size = (anno_3d['pcl_scope'][1] - anno_3d['pcl_scope'][0]) / self.voxel_size
+          raw_dynamic_vox_size = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0]) / self.voxel_size
           raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
           raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
 
-          img_meta = dict(filename = anno_3d['filename'],
-                          pcl_scope = anno_3d['pcl_scope'],
+          img_meta = dict(filename = anno_raw['filename'],
+                          pcl_scope = anno_raw['pcl_scope'],
                           input_style=self.input_style,
                           classes = self._classes,
                           scale_factor = 1,
@@ -121,8 +120,8 @@ class Stanford_Ann():
             img_meta = img_meta,
             gt_bboxes_2d_raw = anno_2d['bboxes'],
             gt_labels = anno_2d['labels'],
-            gt_bboxes_3d_raw = anno_3d['bboxes_3d'],
-            gt_lines_thick_2d_raw = anno_3d['lines_thick_2d'],
+            gt_bboxes_3d_raw = anno_raw['bboxes_3d'],
+            gt_lines_thick_2d_raw = anno_raw['lines_thick_2d'],
           )
       self.img_infos.append(img_info)
     pass
@@ -152,6 +151,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
 
 
   def __init__(self,
+               obj_rep,
                ann_file='data/stanford/',
                img_prefix='data/stanford/ply/train.txt',
                classes = ['wall'],
@@ -167,6 +167,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
                test_mode = False,
                ):
     assert voxel_size is not None
+    self.obj_rep = obj_rep
     Stanford_CLSINFO.__init__(self, classes)
     data_root = ann_file
     phase = img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
@@ -341,12 +342,14 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
 
 class Stanford_BEV(Stanford_CLSINFO, Stanford_Ann):
     def __init__(self,
+                 obj_rep,
                  anno_folder='data/stanford/',
                  img_prefix='data/beike/processed_512/TopView_VerD/train.txt',
                  test_mode=False,
                  filter_edges=True,
                  classes = ['wall', ],
                  ):
+        self.obj_rep = obj_rep
         Stanford_CLSINFO.__init__(self, classes, always_load_walls=1)
         phase = img_prefix
         Stanford_Ann.__init__(self, 'bev', anno_folder, phase)
@@ -387,14 +390,14 @@ def unused_aligned_3dbboxes_TO_oriented_line(bboxes_3d):
   return lines3d
 
 
-def anno3d_to_anno_topview(anno_3d, classes, input_style):
-  anno_3d['classes'] = classes
-  bbox_cat_ids = anno_3d['bbox_cat_ids']
+def Unused_anno_raw_to_anno_topview(anno_raw, classes, input_style):
+  anno_raw['classes'] = classes
+  bbox_cat_ids = anno_raw['bbox_cat_ids']
 
   anno_2d = {}
-  anno_2d['filename'] = anno_3d['filename']
+  anno_2d['filename'] = anno_raw['filename']
   anno_2d['labels'] = bbox_cat_ids
-  anno_2d['bboxes'] = anno_3d['lines_2d']
+  anno_2d['bboxes'] = anno_raw['lines_2d']
   anno_2d['classes'] = [c for c in classes if c!='background']
   #anno_2d['relations'] = None
 
@@ -402,14 +405,13 @@ def anno3d_to_anno_topview(anno_3d, classes, input_style):
     voxel_size_prj=0.01
     anno_2d['bboxes'][:, :4] /= voxel_size_prj
 
-  #show_bboxes(anno_3d['bboxes_3d'])
+  #show_bboxes(anno_raw['bboxes_3d'])
   return anno_2d
 
 
-def load_bboxes(pcl_file, _category_ids_map):
+def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
   anno_file = pcl_file.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
   scope_file = pcl_file.replace('.ply', '-scope.txt')
-  anno = defaultdict(list)
 
   bboxes_dict = np.load(anno_file, allow_pickle=True).tolist()
   if 'clutter' in bboxes_dict:
@@ -423,28 +425,37 @@ def load_bboxes(pcl_file, _category_ids_map):
       num_box = bboxes_dict[cat].shape[0]
       cat_ids = _category_ids_map[cat] * np.ones([num_box], dtype=np.int64)
       bbox_cat_ids.append( cat_ids )
-  bboxes_3d = np.concatenate(bboxes, axis=0)
-
-  scope = np.loadtxt(scope_file)
-  anno['pcl_scope'] = scope
-
-  bboxes_3d[:, :2] -= scope[0:1,:2]
-  bboxes_3d[:, 2:4] -= scope[0:1,:2]
-
+  # the loaded format: RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+  bboxes_3d_URSin2T = np.concatenate(bboxes, axis=0)
   bbox_cat_ids = np.concatenate(bbox_cat_ids)
 
+  scope = np.loadtxt(scope_file)
+
+  bboxes_3d_URSin2T[:, :2] -= scope[0:1,:2]
+  bboxes_3d_URSin2T[:, 2:4] -= scope[0:1,:2]
+
+  gt_bboxes = OBJ_REPS_PARSE.encode_obj(bboxes_3d_URSin2T, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_rep)
+  anno = {}
+  if input_style == 'bev':
+    voxel_size_prj=0.01
+    gt_bboxes[:, :4] /= voxel_size_prj
+    anno['voxel_size_prj'] = voxel_size_prj
+
   filename = pcl_file
-  # bboxes_3d: RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
   # lines_2d: RoLine2D_UpRight_xyxy_sin2a
+  anno['pcl_scope'] = scope
   anno['filename'] = filename
-  anno['bboxes_3d'] = bboxes_3d
-  anno['lines_2d'] = bboxes_3d[:, :5]
-  anno['lines_thick_2d'] = bboxes_3d[:, :6]
-  anno['bbox_cat_ids'] = bbox_cat_ids
+  anno['classes'] = [c for c in classes if c!='background']
+  anno['bboxes_3d_URSin2T'] = bboxes_3d_URSin2T
+  anno['gt_bboxes'] = gt_bboxes
+  anno['labels'] = bbox_cat_ids
 
   show = 0
   if show:
-    show_bboxes(bboxes_3d)
+    #_show_3d_points_objs_ls(objs_ls=[bboxes_3d_URSin2T], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    w,h =  gt_bboxes[:,:4].reshape(-1,2).max(0).astype(np.int) + 10
+    _show_objs_ls_points_ls( (h,w), [gt_bboxes], obj_rep=obj_rep )
+
   return anno
 
 

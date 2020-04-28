@@ -51,7 +51,8 @@ class LoadAnnotations(object):
 
     def _load_bboxes(self, results):
         ann_info = results['ann_info']
-        results['gt_bboxes'] = ann_info['bboxes']
+        results['gt_bboxes'] = ann_info['gt_bboxes']
+        assert results['gt_bboxes'].shape[0]>0
 
         gt_bboxes_ignore = ann_info.get('bboxes_ignore', None)
         if gt_bboxes_ignore is not None:
