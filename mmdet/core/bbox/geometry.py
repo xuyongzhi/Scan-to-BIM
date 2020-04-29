@@ -97,7 +97,13 @@ def rotated_bbox_overlaps(bboxes1, bboxes2):
   bboxes2[:,-1] *= 180/np.pi
   assert bboxes1.shape[1] == 5
   assert bboxes1.shape[1] == 5
+  assert bboxes1[:,2:4].min() > 1
+  assert bboxes2[:,2:4].min() > 1
   ious_2d = _C.box_iou_rotated(bboxes1, bboxes2)
+  if torch.isnan(ious_2d).any():
+    print("nan iou from rotated_bbox_overlaps")
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
   return ious_2d
 
 def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
