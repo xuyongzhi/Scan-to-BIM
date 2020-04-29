@@ -1095,7 +1095,8 @@ class StrPointsHead(nn.Module):
           loss_dict_all.update(loss_corner_hm)
 
         if DEBUG:
-          for e in [ 'loss_clsF']:
+          #for e in ['loss_ptsR', 'loss_clsF']:
+          for e in ['loss_clsF']:
             del loss_dict_all[e]
         return loss_dict_all
 

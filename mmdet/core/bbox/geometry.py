@@ -18,6 +18,8 @@ def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.8):
   #t2 = time.time()
   ious = aug_ious * iou_w + rel_diss * (1-iou_w)
   #print('t1:{}\nt2:{}'.format((t1-t0)*1000, (t2-t1)*1000))
+
+  assert not torch.isnan(ious).any(), "nan iou from dsiou_rotated_3d_bbox"
   return ious
 
 def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
