@@ -37,6 +37,7 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
   abs_diss = abs_diss.norm(dim=-1)
 
   sizes1 = bboxes1[:,3:5].max(dim=1)[0]
+  assert sizes1.min() > 1, "find gt bboxes size <= 1"
   if mode == 'gt_size_as_ref':
     ref_sizes = sizes1.unsqueeze(dim=1).repeat(1, n2) / 2
   elif mode == 'fix_size_as_ref':
@@ -54,7 +55,7 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
   return rel_diss
 
 
-def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
+def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25, min_size=2):
   '''
   XYZLgWsHA
   '''
@@ -62,6 +63,7 @@ def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
   bboxes1 = bboxes0.clone()
   min_width = bboxes1[:, 3] * size_rate_thres
   bboxes1[:,4] = torch.max(bboxes1[:,4], min_width)
+  bboxes1[:,3:5] = torch.clamp(bboxes1[:,3:5], min=min_size)
   #_show_objs_ls_points_ls((512,512), [bboxes0.cpu().numpy()], obj_rep='XYZLgWsHA')
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
   return bboxes1
