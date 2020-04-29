@@ -32,6 +32,9 @@ elif _obj_rep == 'XYLgWsAsinSin2Z0Z1':
   num_ps_long_axis = 5
   overlap_fun='dil_iou_dis_rotated_3d'
 
+  num_ps_long_axis = 9
+  #overlap_fun='dil_iou_dis'
+
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
 

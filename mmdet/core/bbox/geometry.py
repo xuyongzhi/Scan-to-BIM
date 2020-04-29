@@ -19,7 +19,10 @@ def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.8):
   ious = aug_ious * iou_w + rel_diss * (1-iou_w)
   #print('t1:{}\nt2:{}'.format((t1-t0)*1000, (t2-t1)*1000))
 
-  assert not torch.isnan(ious).any(), "nan iou from dsiou_rotated_3d_bbox"
+  if torch.isnan(ious).any():
+    print("nan iou from dsiou_rotated_3d_bbox")
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
   return ious
 
 def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
@@ -37,7 +40,6 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
   abs_diss = abs_diss.norm(dim=-1)
 
   sizes1 = bboxes1[:,3:5].max(dim=1)[0]
-  assert sizes1.min() > 1, "find gt bboxes size <= 1"
   if mode == 'gt_size_as_ref':
     ref_sizes = sizes1.unsqueeze(dim=1).repeat(1, n2) / 2
   elif mode == 'fix_size_as_ref':
@@ -48,6 +50,7 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
     ref_sizes = ave_sizes
   else:
     raise NotImplemented
+  ref_sizes = ref_sizes.clamp(min=2)
 
   rel_diss = 1 - abs_diss / ref_sizes
   rel_diss = rel_diss.clamp(min=0)
@@ -55,7 +58,7 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
   return rel_diss
 
 
-def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25, min_size=2):
+def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
   '''
   XYZLgWsHA
   '''
@@ -63,7 +66,6 @@ def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25, min_size=2):
   bboxes1 = bboxes0.clone()
   min_width = bboxes1[:, 3] * size_rate_thres
   bboxes1[:,4] = torch.max(bboxes1[:,4], min_width)
-  bboxes1[:,3:5] = torch.clamp(bboxes1[:,3:5], min=min_size)
   #_show_objs_ls_points_ls((512,512), [bboxes0.cpu().numpy()], obj_rep='XYZLgWsHA')
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
   return bboxes1
@@ -82,7 +84,7 @@ def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
   return ious_2d
 
-def rotated_bbox_overlaps(bboxes1, bboxes2):
+def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=2):
   '''
   XYLgWsA
   bbox: [cx, cy, size_x, size_y, angle]
@@ -90,13 +92,16 @@ def rotated_bbox_overlaps(bboxes1, bboxes2):
         unit: degree
   '''
   from detectron2 import _C
+  assert bboxes1.shape[1] == 5
+  assert bboxes2.shape[1] == 5
   bboxes1 = bboxes1.clone()
   bboxes2 = bboxes2.clone()
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYLgWsA')
   bboxes1[:,-1] *= 180/np.pi
   bboxes2[:,-1] *= 180/np.pi
-  assert bboxes1.shape[1] == 5
-  assert bboxes1.shape[1] == 5
+
+  bboxes1[:,2:4] = torch.clamp(bboxes1[:,2:4], min=min_size)
+  bboxes2[:,2:4] = torch.clamp(bboxes2[:,2:4], min=min_size)
   assert bboxes1[:,2:4].min() > 1
   assert bboxes2[:,2:4].min() > 1
   ious_2d = _C.box_iou_rotated(bboxes1, bboxes2)
@@ -281,8 +286,8 @@ def test():
   cx = 200
   cy = 200
   cz = 0
-  sx = 100
-  sy = 1
+  sx = 0
+  sy = 0
   sz = 0
   u = np.pi/180
   bboxes0 = torch.Tensor([
