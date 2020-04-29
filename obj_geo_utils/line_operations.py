@@ -177,6 +177,7 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   matrix = cv2.getRotationMatrix2D(center, -angle, scale)
   n = lines.shape[0]
 
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
 
   ones = np.ones([n,2,1], dtype=lines.dtype)

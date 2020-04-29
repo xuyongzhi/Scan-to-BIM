@@ -11,6 +11,8 @@ def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
   bboxes1 = bboxes0.clone()
   min_width = bboxes1[:, 3] * size_rate_thres
   bboxes1[:,4] = torch.max(bboxes1[:,4], min_width)
+  #_show_objs_ls_points_ls((512,512), [bboxes0.cpu().numpy()], obj_rep='XYZLgWsHA')
+  #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
   return bboxes1
 
 def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
@@ -23,6 +25,7 @@ def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
   bboxes2 = dilate_3d_bboxes(bboxes2)
   ious_2d = rotated_bbox_overlaps( bboxes1[:,[0,1,3,4,6]], bboxes2[:,[0,1,3,4,6]])
 
+  #_show_objs_ls_points_ls((512,512), [bboxes2[:100,:].cpu().data.numpy()], obj_rep='XYZLgWsHA')
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
   return ious_2d
 
