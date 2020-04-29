@@ -1,11 +1,13 @@
 import torch
 
 from ..geometry import bbox_overlaps, dilated_bbox_overlaps, \
-                          dsiou_bbox_overlaps, corner_overlaps
+                          dsiou_bbox_overlaps, corner_overlaps,\
+                      rotated_3d_bbox_overlaps
 from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 import cv2
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE_TORCH
 
 from configs.common import DEBUG_CFG
 
@@ -56,7 +58,7 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
         self.overlap_fun = overlap_fun
-        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a']
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYLgWsAsinSin2Z0Z1']
         if obj_rep == 'corner':
           assert ref_radius is not None
         self.obj_rep = obj_rep
@@ -118,6 +120,7 @@ class MaxIoUAssigner(BaseAssigner):
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 4
         elif self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+          assert self.overlap_fun == 'dil_iou_dis'
           assert bboxes.shape[1] == 5
           assert gt_bboxes.shape[1] == 5
           bboxes = bboxes[:, :4]
@@ -125,6 +128,18 @@ class MaxIoUAssigner(BaseAssigner):
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 5
             gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+
+        elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
+          # transfer to XYZLgWsHA for iou calculation
+          assert self.overlap_fun == 'rotated_iou3d'
+          assert bboxes.shape[1] == 8
+          assert gt_bboxes.shape[1] == 8
+          bboxes = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA(bboxes)
+          gt_bboxes = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA(gt_bboxes)
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 8
+            gt_bboxes_ignore = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA(gt_bboxes_ignore)
+
         elif self.obj_rep == 'corner':
           assert gt_bboxes.shape[1] == 2
           #gt_bboxes = gt_bboxes.repeat(1,2)
@@ -139,6 +154,8 @@ class MaxIoUAssigner(BaseAssigner):
           overlaps_fun = dilated_bbox_overlaps
         elif self.overlap_fun == 'dil_iou_dis':
           overlaps_fun = dsiou_bbox_overlaps
+        elif self.overlap_fun == 'rotated_iou3d':
+          overlaps_fun = rotated_3d_bbox_overlaps
         elif self.overlap_fun == 'dis':
           overlaps_fun = corner_overlaps
         else:
@@ -171,7 +188,7 @@ class MaxIoUAssigner(BaseAssigner):
         if DEBUG_CFG.PRINT_IOU_ASSIGNER:
           print('\tmax_iou_assigner\t' + str(assign_result))
         if DEBUG_CFG.VISUALIZE_IOU_ASSIGNER:
-          show_assign_res(bboxes_raw, gt_bboxes_raw, assign_result, img_meta)
+          show_assign_res(self.obj_rep, bboxes_raw, gt_bboxes_raw, assign_result, img_meta)
         return assign_result
 
     def assign_wrt_overlaps(self, overlaps, gt_labels=None):
@@ -258,9 +275,9 @@ def fix_bboxes_size(bboxes, size=2):
   bboxes_ = torch.cat( [centroids - size/2, centroids + size/2], 1 )
   return bboxes_
 
-def show_assign_res(bboxes, gt_bboxes, assign_res, img_meta):
+def show_assign_res(obj_rep, bboxes, gt_bboxes, assign_res, img_meta):
   import mmcv, numpy as np
-  from  tools.debug_utils import _show_lines_ls_points_ls
+  from tools.visual_utils import _show_objs_ls_points_ls
 
   filename = img_meta['filename']
   print(f'\nfilename: {filename}\n')
@@ -286,9 +303,9 @@ def show_assign_res(bboxes, gt_bboxes, assign_res, img_meta):
   pos_bboxes_ = bboxes_[pos_inds]
   print(f'gt_num: {gt_num}, pos_num: {pos_num}, miss_gt_num: {gt_num_missed}')
 
-  _show_lines_ls_points_ls(img, [gt_bboxes_, bboxes_], line_colors=['red', 'green'])
-  _show_lines_ls_points_ls(img, [gt_bboxes_, pos_bboxes_], line_colors=['red', 'green'])
-  _show_lines_ls_points_ls(img, [gt_bboxes_, gt_bboxes_[gt_inds_invalid]], line_colors=['red', 'green'])
+  #_show_objs_ls_points_ls(img, [gt_bboxes_, bboxes_],obj_colors=['red', 'green'], obj_rep=obj_rep)
+  _show_objs_ls_points_ls(img, [gt_bboxes_, pos_bboxes_],obj_colors=['red', 'green'] , obj_rep=obj_rep)
+  _show_objs_ls_points_ls(img, [gt_bboxes_, gt_bboxes_[gt_inds_invalid]],obj_colors=['red', 'green'], obj_rep=obj_rep )
 
   for i in range(gt_num):
     mask = gt_inds_valid == i
@@ -302,7 +319,7 @@ def show_assign_res(bboxes, gt_bboxes, assign_res, img_meta):
     print(f'overlaps: mean={mol:.2} : {ol_str}')
 
     pos_ids_i = pos_inds[mask]
-    _show_lines_ls_points_ls(img, [gt_bboxes_, gt_bboxes_[i:i+1], bboxes_[pos_ids_i]], line_colors=['red', 'green', 'yellow'])
+    _show_objs_ls_points_ls(img, [gt_bboxes_, gt_bboxes_[i:i+1], bboxes_[pos_ids_i]],obj_colors=['red', 'green', 'yellow'], obj_rep=obj_rep)
 
     #cv2.waitKey(0)
     #cv2.destroyAllWindows()

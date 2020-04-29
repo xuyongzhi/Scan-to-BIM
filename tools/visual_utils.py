@@ -14,12 +14,38 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 ADD_FRAME = 0
 
 #-2d general------------------------------------------------------------------------------
+def _show_objs_ls_points_ls_torch(img,
+                            objs_ls=None,
+                            obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+                            points_ls=None,
+                            obj_colors='random',
+                            obj_scores_ls=None,
+                            point_colors='red',
+                            out_file=None,
+                            obj_thickness=1,
+                            point_thickness=1,
+                            only_save=False,
+                            ):
+  if isinstance(img, torch.Tensor):
+    img = img.cpu().numpy()
+  objs_ls = [o.cpu().numpy() for o in objs_ls]
+  if obj_scores_ls is not None:
+    obj_scores_ls = [s.cpu().numpy() for s in obj_scores_ls]
+  _show_objs_ls_points_ls(img, objs_ls, obj_rep,
+                          points_ls=points_ls,
+                          obj_colors=obj_colors,
+                          obj_scores_ls=obj_scores_ls,
+                          point_colors=point_colors,
+                          out_file=out_file,
+                          point_thickness=point_thickness,
+                          only_save=only_save)
 
 def _show_objs_ls_points_ls(img,
                             objs_ls=None,
                             obj_rep='RoLine2D_UpRight_xyxy_sin2a',
                             points_ls=None,
                             obj_colors='random',
+                            obj_scores_ls=None,
                             point_colors='red',
                             out_file=None,
                             obj_thickness=1,
@@ -31,7 +57,8 @@ def _show_objs_ls_points_ls(img,
   '''
   assert obj_rep in OBJ_REPS_PARSE._obj_reps
   img = _draw_objs_ls_points_ls(img, objs_ls, obj_rep, points_ls, obj_colors,
-                                point_colors, out_file, obj_thickness, point_thickness)
+      point_colors=point_colors, out_file=out_file, obj_thickness=obj_thickness,
+      point_thickness=point_thickness, obj_scores_ls=obj_scores_ls )
   if not only_save:
     mmcv.imshow(img)
 

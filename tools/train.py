@@ -158,6 +158,9 @@ def update_config(cfg, args, split):
     if split == 'train':
         #if '_obj_rep' in cfg:
         #  cfg['work_dir'] += '_' + cfg['_obj_rep']
+        num_ps_long_axis = cfg['model']['bbox_head']['num_ps_long_axis']
+        cfg['work_dir'] += f'Nla{num_ps_long_axis}'
+
         if 0 and 'cls_types' in cfg['model']['bbox_head']:
           cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
         if 'DATA' in cfg:

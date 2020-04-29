@@ -1,5 +1,48 @@
 import torch
+import numpy as np
+from tools.visual_utils import _show_objs_ls_points_ls
 
+
+def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
+  '''
+  XYZLgWsHA
+  '''
+  assert bboxes0.shape[1] == 7
+  bboxes1 = bboxes0.clone()
+  min_width = bboxes1[:, 3] * size_rate_thres
+  bboxes1[:,4] = torch.max(bboxes1[:,4], min_width)
+  return bboxes1
+
+def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
+  '''
+  XYZLgWsHA
+  '''
+  assert bboxes1.shape[1] == 7
+  assert bboxes1.shape[1] == 7
+  bboxes1 = dilate_3d_bboxes(bboxes1)
+  bboxes2 = dilate_3d_bboxes(bboxes2)
+  ious_2d = rotated_bbox_overlaps( bboxes1[:,[0,1,3,4,6]], bboxes2[:,[0,1,3,4,6]])
+
+  #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
+  return ious_2d
+
+def rotated_bbox_overlaps(bboxes1, bboxes2):
+  '''
+  XYLgWsA
+  bbox: [cx, cy, size_x, size_y, angle]
+  angle: from x_r to x_b, positive for clock-wise
+        unit: degree
+  '''
+  from detectron2 import _C
+  bboxes1 = bboxes1.clone()
+  bboxes2 = bboxes2.clone()
+  #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYLgWsA')
+  bboxes1[:,-1] *= 180/np.pi
+  bboxes2[:,-1] *= 180/np.pi
+  assert bboxes1.shape[1] == 5
+  assert bboxes1.shape[1] == 5
+  ious_2d = _C.box_iou_rotated(bboxes1, bboxes2)
+  return ious_2d
 
 def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
     """Calculate overlap between two set of bboxes.
@@ -88,11 +131,14 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
     return ious
 
 def dilated_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
-  bboxes1_a = dilated_bboxes(bboxes1)
-  bboxes2_a = dilated_bboxes(bboxes2)
+  bboxes1_a = dilate_bboxes(bboxes1)
+  bboxes2_a = dilate_bboxes(bboxes2)
   return bbox_overlaps(bboxes1_a, bboxes2_a, mode, is_aligned)
 
-def dilated_bboxes(bboxes0, size_rate_thres=0.25):
+def dilate_bboxes(bboxes0, size_rate_thres=0.25):
+  '''
+  xyxy
+  '''
   assert bboxes0.shape[1] == 4
   bboxes1 = bboxes0.clone()
   box_size = bboxes1[:,[2,3]] - bboxes1[:,[0,1]]
@@ -165,3 +211,31 @@ def show_overlaps(overlaps):
   s = np.sqrt(overlaps.shape[0]).astype(np.int32)
   overlaps = overlaps.reshape(s,s)
   mmcv.imshow(overlaps)
+
+def test():
+  from tools.visual_utils import _show_objs_ls_points_ls_torch
+  cx = 200
+  cy = 200
+  sx = 200
+  sy = 20
+  u = np.pi/180
+  bboxes0 = torch.Tensor([
+    [cx, cy, sx, sy, 0]
+  ])
+  bboxes1 = torch.Tensor([
+    [cx, cy, sx, sy, 0*u],
+    [cx, cy, sy, sx, 0*u],
+  ])
+  ious = rotated_bbox_overlaps(bboxes0, bboxes1)
+  s = ious[0][0:1]
+  s[:] = 1
+  print(ious)
+  for i in range(bboxes1.shape[0]):
+    print(ious[0,i])
+    _show_objs_ls_points_ls_torch( (512,512), [bboxes0, bboxes1[i:i+1]], obj_rep='XYLgWsA',
+                                obj_colors=['green', 'red'] )
+  #_show_objs_ls_points_ls_torch( (512,512), [bboxes0, bboxes1], obj_rep='XYLgWsA',
+  #                              obj_colors=['red','green'], obj_scores_ls=[s, ious[0]] )
+
+if __name__ == '__main__':
+  test()

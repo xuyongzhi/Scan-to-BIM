@@ -21,9 +21,17 @@ classes= ['wall']
 if DATA == 'beike2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
   _obj_rep = 'XYLgWsAsinSin2Z0Z1'
+  overlap_fun='dil_iou_dis'
+  overlap_fun='rotated_iou3d'
 elif DATA == 'stanford2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
   _obj_rep = 'XYLgWsAsinSin2Z0Z1'
+  overlap_fun='dil_iou_dis'
+
+if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+  num_ps_long_axis = 9
+else:
+  num_ps_long_axis = 5
 
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
@@ -65,7 +73,7 @@ model = dict(
         point_feat_channels=256,
         stacked_convs=3,
         num_points=9,
-        num_ps_long_axis = 9,
+        num_ps_long_axis = num_ps_long_axis,
         gradient_mul=0.1,
         point_strides=[4, 8, 16, 32],
         point_base_scale=1,
@@ -106,7 +114,7 @@ train_cfg = dict(
             neg_iou_thr=0.4,
             min_pos_iou=0.3,
             ignore_iof_thr=-1,
-            overlap_fun='dil_iou_dis',
+            overlap_fun=overlap_fun,
             obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,

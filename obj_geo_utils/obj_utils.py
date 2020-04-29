@@ -6,8 +6,34 @@ import cv2
 import torch
 from obj_geo_utils.geometry_utils import limit_period_np
 
+
+class OBJ_REPS_PARSE_TORCH():
+  import torch
+  @staticmethod
+  def XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA(bboxes_ass2):
+    n = bboxes_ass2.shape[0]
+    bboxes_csa = torch.zeros_like(bboxes_ass2)[:,:7]
+    bboxes_csa[:, [0,1]] = bboxes_ass2[:, [0,1]]
+    bboxes_csa[:, 2] = bboxes_ass2[:, [6,7]].mean(axis=1)
+    bboxes_csa[:, [3,4]] = bboxes_ass2[:, [2,3]]
+    bboxes_csa[:, 5] = bboxes_ass2[:, 7] - bboxes_ass2[:, 6]
+    abssin = bboxes_ass2[:, 4]
+    sin2theta = bboxes_ass2[:, 5]
+    theta_0 = torch.asin(abssin)
+    theta_1 = -theta_0
+    flag = (sin2theta >= 0).to(torch.int)
+    theta = theta_0 * flag + theta_1 * (1-flag)
+    bboxes_csa[:, 6] = theta
+    return bboxes_csa
+
 class OBJ_REPS_PARSE():
   '''
+  (*) CenSizeA3D vs XYZLgWsHA
+    CenSizeA3D[:,3:6]: [size_x, size_y, size_z]
+    XYZLgWsHA[:,3:6]: [max(size_x, size_y), min(size_x, size_y), size_z]
+    CenSizeA3D[:,-1]: rotation from x_ref to x_body
+    XYZLgWsHA[:,-1]: rotation from x_ref to axis_long
+
   (*) XYZLgWsHA
     angle: between long axis (x_b) and x_f, [-90, 90)
     x_b denotes the long axis:  always Lg >= Ws
@@ -22,6 +48,9 @@ class OBJ_REPS_PARSE():
     angle: [-90, 90)
   '''
   _obj_dims = {
+    'CenSizeA3D': 7,
+    'CenSize2D': 5,
+
     'XYZLgWsHA': 7,
     'XYLgWsA': 5,
 
@@ -63,10 +92,13 @@ class OBJ_REPS_PARSE():
     if obj_rep_in == obj_rep_out:
       return bboxes
 
-    if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsSin2Sin4Z0Z1':
+    if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsA':
+      return bboxes[:,[0,1,3,4,6]]
+
+    elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsSin2Sin4Z0Z1':
       return OBJ_REPS_PARSE.XYZLgWsHA_to_XYLgWsSin2Sin4Z0Z1(bboxes)
 
-    if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
+    elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
       return OBJ_REPS_PARSE.XYZLgWsHA_to_XYLgWsAsinSin2Z0Z1(bboxes)
 
     elif obj_rep_in == 'XYLgWsSin2Sin4Z0Z1' and obj_rep_out == 'XYZLgWsHA':
@@ -744,6 +776,7 @@ def merge_corners(corners_0, scores_0=None, opt_graph_cor_dis_thr=3):
     labels_merged = corners_1[:,2]
   corners_merged = corners_1[:,:2]
   return corners_merged, scores_merged, labels_merged
+
 
 
 def test_2d():
