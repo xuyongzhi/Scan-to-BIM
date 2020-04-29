@@ -832,9 +832,9 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True, is_save
       scene_size = scene_size[[1,0]]
       scene_name = filename.split('.json')[0]
 
-      anno['lines'] = fix_1_unaligned_scene(scene_name, anno['lines'], scene_size, 'std_2p')
+      anno['lines'] = fix_1_unaligned_scene(scene_name, anno['lines'], scene_size, line_obj_rep='RoLine2D_2p')
       tmp = np.repeat( anno['corners'][:,None,:], 2, axis=1 )
-      anno['corners'] = fix_1_unaligned_scene(scene_name, tmp, scene_size, 'std_2p')[:,0,:]
+      anno['corners'] = fix_1_unaligned_scene(scene_name, tmp, scene_size, line_obj_rep='RoLine2D_2p' )[:,0,:]
 
       # order by anno['line_cat_ids']
       line_cat_ids = anno['line_cat_ids']
@@ -925,8 +925,9 @@ def fix_1_unaligned_scene(scene_name, lines_unaligned, image_size, line_obj_rep)
       #print(scene_name, f'\t({angle}, {cx:.3f}, {cy:.3f})')
 
       angle, cx, cy = BAD_SCENE_TRANSFERS_PCL[scene_name]
-      lines_aligned = transfer_lines( lines_unaligned, line_obj_rep,
-        image_size, angle, (cx, cy) )
+      n = lines_unaligned.shape[0]
+      lines_aligned = transfer_lines( lines_unaligned.reshape(n,4), line_obj_rep,
+        image_size, angle, (cx, cy) ).reshape(n,2,2)
       pass
     else:
       lines_aligned = lines_unaligned

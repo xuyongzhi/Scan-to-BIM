@@ -176,16 +176,18 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   center = ((w - 0) * 0.5, (h - 0) * 0.5 )
   matrix = cv2.getRotationMatrix2D(center, -angle, scale)
   n = lines.shape[0]
+  assert lines.shape[1] == 4
+  assert obj_rep == 'RoLine2D_2p'
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
-  lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
+  #lines_2endpts = decode_line_rep(lines, obj_rep).reshape(n,2,2)
+  lines_2endpts = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(n,2,2)
 
   ones = np.ones([n,2,1], dtype=lines.dtype)
   tmp = np.concatenate([lines_2endpts, ones], axis=2).reshape([n*2, 3])
   lines_2pts_r = np.matmul( tmp, matrix.T ).reshape([n,2,2])
   lines_2pts_r[:,:,0] += offset[0]
   lines_2pts_r[:,:,1] += offset[1]
-  lines_rotated = encode_line_rep(lines_2pts_r, obj_rep)
+  lines_rotated = OBJ_REPS_PARSE.encode_obj(lines_2pts_r.reshape(n,4), 'RoLine2D_2p', obj_rep)
   return lines_rotated
 
 
@@ -203,7 +205,9 @@ def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
     rotated_bboxes = OBJ_REPS_PARSE.encode_obj(rotate_lines, 'RoLine2D_UpRight_xyxy_sin2a', obj_rep)
     rotated_bboxes[:, [6,7]] = bboxes[:, [6,7]]
     scales = bboxes[:, 2] / rotated_bboxes[:,2]
-    assert abs(scales.min() - scales.max()) < 1e-5
+    if not abs(scales.min() - scales.max()) < 1e-4:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
     scale = scales.mean()
     rotated_bboxes[:, 3] = bboxes[:, 3] * scale
     pass
