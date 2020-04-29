@@ -127,6 +127,9 @@ class DIM_PARSE:
 
 
 class DEBUG_CFG:
+  # tem
+  SET_WIDTH_0 = True
+
   # debug in input
   LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][0]
   MIN_BOX_SIZE = 5.0 * DIM_PARSE.IMAGE_SIZE / 1024
