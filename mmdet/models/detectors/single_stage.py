@@ -39,6 +39,7 @@ class SingleStageDetector(BaseDetector):
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
         self.init_weights(pretrained=pretrained)
+        self.obj_rep = bbox_head['obj_rep']
 
         if 'stem_stride' in backbone:
           self.stem_stride = backbone['stem_stride']
@@ -158,10 +159,10 @@ class SingleStageDetector(BaseDetector):
           rescale = False
           bbox_inputs = outs + (img_metas, self.test_cfg, rescale)
           bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
-          det_bboxes, det_labels = bbox_list[0]
+          det_bboxes, det_labels, _ = bbox_list[0]
           _det_bboxes0 = det_bboxes.cpu().data.numpy()
           assert not 'background' in img_metas[0]['classes']
-          dim_parse = DIM_PARSE( len(img_metas[0]['classes'])+1 )
+          dim_parse = DIM_PARSE( self.obj_rep, len(img_metas[0]['classes'])+1 )
           _det_bboxes1 = dim_parse.clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
           _det_bboxes = [_det_bboxes1]
           ngt = len(_gt_bboxes[0])
@@ -174,9 +175,11 @@ class SingleStageDetector(BaseDetector):
 
           #debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
           #debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
-          debug_utils._show_lines_ls_points_ls((512,512), [_gt_bboxes[0], _det_bboxes[0][mask]], line_colors=['red','green'])
-          _show_objs_ls_points_ls(img, [_gt_bboxes[0]], 'RoLine2D_UpRight_xyxy_sin2a')
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          _show_objs_ls_points_ls((512,512),
+                                  objs_ls = [_gt_bboxes[0][:,:5], _det_bboxes[0][mask][:,:5]],
+                                  obj_scores_ls = [None, _det_bboxes[0][mask][:,5]],
+                                  obj_colors=['red','green'],  obj_rep=self.obj_rep )
+          _show_objs_ls_points_ls(img[:,:,0], [_gt_bboxes[0]], obj_rep=self.obj_rep)
           pass
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None, gt_relations=None):

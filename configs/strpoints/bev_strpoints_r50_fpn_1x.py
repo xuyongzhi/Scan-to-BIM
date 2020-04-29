@@ -20,18 +20,17 @@ classes= ['wall']
 
 if DATA == 'beike2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
-  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
-  overlap_fun='dil_iou_dis'
-  overlap_fun='rotated_iou3d'
+  #_obj_rep = 'XYLgWsAsinSin2Z0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
   _obj_rep = 'XYLgWsAsinSin2Z0Z1'
-  overlap_fun='dil_iou_dis'
 
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   num_ps_long_axis = 9
-else:
+  overlap_fun='dil_iou_dis'
+elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
   num_ps_long_axis = 5
+  overlap_fun='rotated_iou3d'
 
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
@@ -175,7 +174,7 @@ test_pipeline = [
         img_scale=(IMAGE_SIZE, IMAGE_SIZE),
         flip=False,
         transforms=[
-            dict(type='PadToSameHW_ForRotation', pad_border_make_bboxes_pos=True),
+            dict(type='PadToSameHW_ForRotation', obj_rep=_obj_rep, pad_border_make_bboxes_pos=True),
             dict(type='ResizeImgLine', obj_rep=_obj_rep, keep_ratio=True, obj_dim=_obj_dim),
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
             dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
@@ -193,7 +192,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  #img_prefix_test = img_prefix_train
+  img_prefix_test = img_prefix_train
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
   ann_file = 'data/stanford/'
@@ -256,7 +255,7 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-load_from = None
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]

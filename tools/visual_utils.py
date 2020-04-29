@@ -150,6 +150,9 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
 
     if cats is not None and not isinstance(cats, list):
       cats = [cats] * n
+    if scores is not None:
+      scores = scores.reshape(-1)
+      assert scores.shape[0] == n
 
     boxes = []
     for i in range(n):

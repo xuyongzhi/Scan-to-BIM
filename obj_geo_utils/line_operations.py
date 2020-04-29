@@ -361,7 +361,8 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
         labels_cor = np.zeros([0,labels.shape[1]])
       return np.zeros([0,2]), labels_cor, np.zeros([0,2], dtype=np.int), 0
 
-    lines0 = decode_line_rep(lines, obj_rep)
+    #lines0 = decode_line_rep(lines, obj_rep)
+    lines0 = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(-1,2,2)
     if labels is not None:
       num_line = lines.shape[0]
       assert labels.shape[0] == num_line
@@ -501,7 +502,8 @@ def lines2d_to_bboxes3d(lines, line_obj_rep='lscope_istopleft', height=60, thick
   assert lines.shape[1] == 5
 
   n = lines.shape[0]
-  lines_std = decode_line_rep(lines, line_obj_rep).reshape(n,2,2)
+  #lines_std = decode_line_rep(lines, line_obj_rep).reshape(n,2,2)
+  lines_std = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(n,2,2)
   center2d = lines_std.mean(axis=1)
   vec_rotation = lines_std[:,0] - center2d
   z_angles = -angle_with_x_np(vec_rotation, scope_id=0)
@@ -545,7 +547,8 @@ def getOrientedLineRectSubPix(img, line, obj_rep, length_aug=-5, thickness_aug=4
   h, w = img.shape[:2]
 
   #angle = line[-1]
-  line = decode_line_rep(line[None, :], obj_rep)[0]
+  #line = decode_line_rep(line[None, :], obj_rep)[0]
+  line = OBJ_REPS_PARSE.encode_obj(line[None,:], obj_rep, 'RoLine2D_2p').reshape(-1,2,2)[0]
   points = line[:4].reshape(2,2)
   x, y = points.mean(axis=0).astype(np.int)
 

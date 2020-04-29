@@ -2,9 +2,8 @@ import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from tools.debug_utils import _show_lines_ls_points_ls
 from configs.common import DIM_PARSE
-from beike_data_utils.line_utils import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
-from obj_geo_utils.obj_utils import GraphUtils
-from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
+from obj_geo_utils.obj_utils import GraphUtils, OBJ_REPS_PARSE
 from collections import defaultdict
 import os
 import numpy as np
@@ -358,8 +357,8 @@ class GraphEval():
     num_gt = gt_lines.shape[0]
 
     det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:5],\
-                                          None, 'lscope_istopleft')
-    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, 'lscope_istopleft')
+                                          None, 'RoLine2D_UpRight_xyxy_sin2a')
+    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, 'RoLine2D_UpRight_xyxy_sin2a')
 
     cor_nums_gt_pos_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
 
@@ -490,9 +489,11 @@ class GraphEval():
     img_file = os.path.join(self.eval_dir, img_name)
     #print('det corners. green: true pos, red: false pos')
     img_size = img.shape[:2]
-    _show_lines_ls_points_ls(img_size, [det_lines_pos, det_lines_neg],
-                              points_ls=[det_corners_pos, det_corners_neg],
-                            line_colors=['green', 'red'], line_thickness=1,
+    _show_objs_ls_points_ls(
+      img_size, [det_lines_pos[:,:5], det_lines_neg[:,:5]],
+      obj_scores_ls=[det_lines_pos[:,-1:], det_lines_neg[:,-1:]],
+                            points_ls=[det_corners_pos, det_corners_neg],
+                            obj_colors=['green', 'red'], obj_thickness=1,
                             point_colors=['blue', 'yellow'], point_thickness=2,
                             out_file=img_file, only_save=1)
 
@@ -686,7 +687,7 @@ def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10,
 
       if det_out == 'line_ave':
         detection_objs = detections_line_ave
-        det_corners, _, _,_ = gen_corners_from_lines_np(detection_objs[:,:5], None, 'lscope_istopleft')
+        det_corners, _, _,_ = gen_corners_from_lines_np(detection_objs[:,:5], None, 'RoLine2D_UpRight_xyxy_sin2a')
 
       # use wall corner recall precision as name
       wall_cor_rec, wall_cor_prec = eval_res['corner_recall_precision'][1]
@@ -709,6 +710,7 @@ def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
   dirname = 'sTPV_r50_fpn_stanford2d_wabeco_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe/'
   dirname = 'bTPV_r50_fpn_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe_RelTr'
+  dirname = 'bTPV_r50_fpnNla9_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe'
   #filename = 'detection_68_Imgs.pickle'
   filename = 'detection_10_Imgs.pickle'
   #filename = 'detection_204_Imgs.pickle'
