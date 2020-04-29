@@ -3,6 +3,55 @@ import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls
 
 
+def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.8):
+  '''
+  XYZLgWsHA
+  bboxes1: [n,7]  gt
+  '''
+  assert bboxes1.shape[1] == 7
+  assert bboxes2.shape[1] == 7
+  #import time
+  #t0 = time.time()
+  aug_ious = rotated_3d_bbox_overlaps(bboxes1, bboxes2)
+  #t1 = time.time()
+  rel_diss = relative_dis_XYZLgWsHA(bboxes1, bboxes2)
+  #t2 = time.time()
+  ious = aug_ious * iou_w + rel_diss * (1-iou_w)
+  #print('t1:{}\nt2:{}'.format((t1-t0)*1000, (t2-t1)*1000))
+  return ious
+
+def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
+  '''
+  bboxes1 is gt
+  '''
+  assert bboxes1.shape[1] == 7
+  assert bboxes2.shape[1] == 7
+
+  n1 = bboxes1.shape[0]
+  n2 = bboxes2.shape[0]
+  centroids1 = bboxes1[:,:2]
+  centroids2 = bboxes2[:,:2]
+  abs_diss = centroids1.unsqueeze(dim=1) - centroids2.unsqueeze(dim=0)
+  abs_diss = abs_diss.norm(dim=-1)
+
+  sizes1 = bboxes1[:,3:5].max(dim=1)[0]
+  if mode == 'gt_size_as_ref':
+    ref_sizes = sizes1.unsqueeze(dim=1).repeat(1, n2) / 2
+  elif mode == 'fix_size_as_ref':
+    ref_sizes = sizes1.mean()
+  elif mode == 'ave_size_as_ref':
+    sizes2 = (bboxes2[:,2:] - bboxes2[:,:2]).norm(dim=-1)
+    ave_sizes = (sizes1.unsqueeze(dim=1) + sizes2.unsqueeze(dim=0))/2
+    ref_sizes = ave_sizes
+  else:
+    raise NotImplemented
+
+  rel_diss = 1 - abs_diss / ref_sizes
+  rel_diss = rel_diss.clamp(min=0)
+  rel_diss = rel_diss ** 2
+  return rel_diss
+
+
 def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
   '''
   XYZLgWsHA
@@ -151,10 +200,12 @@ def dilate_bboxes(bboxes0, size_rate_thres=0.25):
   bboxes1[:,2:] = (bboxes1[:, 2:] + aug)
   return bboxes1
 
-def relative_dis(bboxes1, bboxes2, mode='gt_size_as_ref'):
+def relative_dis_XyXy(bboxes1, bboxes2, mode='gt_size_as_ref'):
   '''
   bboxes1 is gt
   '''
+  assert bboxes1.shape[1] == 4
+  assert bboxes2.shape[1] == 4
   n1 = bboxes1.shape[0]
   n2 = bboxes2.shape[0]
   centroids1 = (bboxes1[:,:2] + bboxes1[:,2:]) / 2
@@ -185,7 +236,7 @@ def dsiou_bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
   iou_w = 0.6
   aug_ious = dilated_bbox_overlaps(bboxes1, bboxes2, mode, is_aligned)
   #t1 = time.time()
-  rel_diss = relative_dis(bboxes1, bboxes2)
+  rel_diss = relative_dis_XyXy(bboxes1, bboxes2)
   #t2 = time.time()
   ious = aug_ious * iou_w + rel_diss * (1-iou_w)
   #print('t1:{}\nt2:{}'.format((t1-t0)*1000, (t2-t1)*1000))
@@ -219,23 +270,27 @@ def test():
   from tools.visual_utils import _show_objs_ls_points_ls_torch
   cx = 200
   cy = 200
-  sx = 200
-  sy = 20
+  cz = 0
+  sx = 100
+  sy = 1
+  sz = 0
   u = np.pi/180
   bboxes0 = torch.Tensor([
-    [cx, cy, sx, sy, 0]
+    [cx, cy, cz, sx, sy, sz, 0]
   ])
   bboxes1 = torch.Tensor([
-    [cx, cy, sx, sy, 0*u],
-    [cx, cy, sy, sx, 0*u],
+    [cx, cy, cz, sx, sy, sz, 0*u,],
+    [cx, cy, cz, sy, sx, sz, 0*u,],
+    [cx, cy, cz, sx, sy, sz, 30*u,],
   ])
-  ious = rotated_bbox_overlaps(bboxes0, bboxes1)
+  #ious = rotated_bbox_overlaps(bboxes0, bboxes1)
+  ious = dsiou_rotated_3d_bbox(bboxes0, bboxes1, iou_w=0.8)
   s = ious[0][0:1]
   s[:] = 1
   print(ious)
   for i in range(bboxes1.shape[0]):
     print(ious[0,i])
-    _show_objs_ls_points_ls_torch( (512,512), [bboxes0, bboxes1[i:i+1]], obj_rep='XYLgWsA',
+    _show_objs_ls_points_ls_torch( (512,512), [bboxes0, bboxes1[i:i+1]], obj_rep='XYZLgWsHA',
                                 obj_colors=['green', 'red'] )
   #_show_objs_ls_points_ls_torch( (512,512), [bboxes0, bboxes1], obj_rep='XYLgWsA',
   #                              obj_colors=['red','green'], obj_scores_ls=[s, ious[0]] )

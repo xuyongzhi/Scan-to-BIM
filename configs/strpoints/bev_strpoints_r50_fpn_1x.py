@@ -20,7 +20,7 @@ classes= ['wall']
 
 if DATA == 'beike2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
-  #_obj_rep = 'XYLgWsAsinSin2Z0Z1'
+  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
   _obj_rep = 'XYLgWsAsinSin2Z0Z1'
@@ -28,9 +28,9 @@ elif DATA == 'stanford2d':
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   num_ps_long_axis = 9
   overlap_fun='dil_iou_dis'
-elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
+elif _obj_rep == 'XYLgWsAsinSin2Z0Z1':
   num_ps_long_axis = 5
-  overlap_fun='rotated_iou3d'
+  overlap_fun='dil_iou_dis_rotated_3d'
 
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
@@ -111,7 +111,7 @@ train_cfg = dict(
             type='MaxIoUAssigner',
             pos_iou_thr=0.7,
             neg_iou_thr=0.4,
-            min_pos_iou=0.3,
+            min_pos_iou=0.15,
             ignore_iof_thr=-1,
             overlap_fun=overlap_fun,
             obj_rep=_obj_rep),
@@ -230,7 +230,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 510
+total_epochs = 810
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -262,5 +262,5 @@ workflow = [('train', 5), ('val', 1)]
 if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
-  checkpoint_config = dict(interval=20)
+  checkpoint_config = dict(interval=100)
 

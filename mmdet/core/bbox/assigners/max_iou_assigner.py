@@ -2,7 +2,7 @@ import torch
 
 from ..geometry import bbox_overlaps, dilated_bbox_overlaps, \
                           dsiou_bbox_overlaps, corner_overlaps,\
-                      rotated_3d_bbox_overlaps
+                      dsiou_rotated_3d_bbox
 from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
@@ -131,7 +131,7 @@ class MaxIoUAssigner(BaseAssigner):
 
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
           # transfer to XYZLgWsHA for iou calculation
-          assert self.overlap_fun == 'rotated_iou3d'
+          assert self.overlap_fun == 'dil_iou_dis_rotated_3d'
           assert bboxes.shape[1] == 8
           assert gt_bboxes.shape[1] == 8
           bboxes = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA(bboxes)
@@ -154,8 +154,8 @@ class MaxIoUAssigner(BaseAssigner):
           overlaps_fun = dilated_bbox_overlaps
         elif self.overlap_fun == 'dil_iou_dis':
           overlaps_fun = dsiou_bbox_overlaps
-        elif self.overlap_fun == 'rotated_iou3d':
-          overlaps_fun = rotated_3d_bbox_overlaps
+        elif self.overlap_fun == 'dil_iou_dis_rotated_3d':
+          overlaps_fun = dsiou_rotated_3d_bbox
         elif self.overlap_fun == 'dis':
           overlaps_fun = corner_overlaps
         else:

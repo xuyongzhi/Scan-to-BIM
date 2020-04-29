@@ -755,6 +755,7 @@ class StrPointsHead(nn.Module):
                     num_total_samples_init, num_total_samples_refine,
                     num_total_samples_cls):
         obj_dim = bbox_gt_init.shape[-1]
+        n = pts_pred_init.shape[1]
         # classification loss
         loss_cls = {}
         for cls_type in cls_score:
@@ -769,15 +770,15 @@ class StrPointsHead(nn.Module):
               avg_factor=num_total_samples_cls[cls_type])
 
         # points loss
-        bbox_gt_init = bbox_gt_init.reshape(-1, obj_dim)
-        bbox_weights_init = bbox_weights_init.reshape(-1, obj_dim)
+        bbox_gt_init = bbox_gt_init.reshape(n, obj_dim)
+        bbox_weights_init = bbox_weights_init.reshape(n, obj_dim)
         bbox_pred_init = self.points2bbox(
-            pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False,
+            pts_pred_init.reshape(n, 2 * self.num_points), y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS)
-        bbox_gt_refine = bbox_gt_refine.reshape(-1, obj_dim)
-        bbox_weights_refine = bbox_weights_refine.reshape(-1, obj_dim)
+        bbox_gt_refine = bbox_gt_refine.reshape(n, obj_dim)
+        bbox_weights_refine = bbox_weights_refine.reshape(n, obj_dim)
         bbox_pred_refine = self.points2bbox(
-            pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False,
+            pts_pred_refine.reshape(n, 2 * self.num_points), y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS)
         normalize_term = self.point_base_scale * stride
 
