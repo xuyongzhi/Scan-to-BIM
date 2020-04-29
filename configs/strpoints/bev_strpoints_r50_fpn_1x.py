@@ -20,7 +20,7 @@ classes= ['wall']
 
 if DATA == 'beike2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
-  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
+  #_obj_rep = 'XYLgWsAsinSin2Z0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
   _obj_rep = 'XYLgWsAsinSin2Z0Z1'
@@ -33,7 +33,7 @@ elif _obj_rep == 'XYLgWsAsinSin2Z0Z1':
   overlap_fun='dil_iou_dis_rotated_3d'
 
   num_ps_long_axis = 9
-  #overlap_fun='dil_iou_dis'
+  overlap_fun='dil_iou_dis'
 
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
@@ -255,15 +255,15 @@ log_level = 'INFO'
 work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/Apr23_WaDo_Bev.pth'
-  load_from = './checkpoints/beike/XYLgWsAsinSin2Z0Z1.pth'
+  #load_from = './checkpoints/beike/XYLgWsAsinSin2Z0Z1.pth'
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 1:
+if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

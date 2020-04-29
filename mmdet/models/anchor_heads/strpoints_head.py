@@ -22,7 +22,7 @@ import torchvision as tcv
 from configs.common import DIM_PARSE, DEBUG_CFG
 
 LINE_CONSTRAIN_LOSS = True
-DEBUG = 1
+DEBUG = 0
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -101,6 +101,7 @@ class StrPointsHead(nn.Module):
 
         self.obj_rep = obj_rep
         self.dim_parse = DIM_PARSE(obj_rep, num_classes)
+        self.obj_dim = self.dim_parse.OBJ_DIM
         self.move_points_to_center = move_points_to_center
         self.in_channels = in_channels
         self.num_classes = num_classes
@@ -756,8 +757,6 @@ class StrPointsHead(nn.Module):
                     bbox_gt_refine, bbox_weights_refine, stride,
                     num_total_samples_init, num_total_samples_refine,
                     num_total_samples_cls):
-        obj_dim = bbox_gt_init.shape[-1]
-        n = pts_pred_init.shape[1]
         # classification loss
         loss_cls = {}
         for cls_type in cls_score:
@@ -772,15 +771,15 @@ class StrPointsHead(nn.Module):
               avg_factor=num_total_samples_cls[cls_type])
 
         # points loss
-        bbox_gt_init = bbox_gt_init.reshape(n, obj_dim)
-        bbox_weights_init = bbox_weights_init.reshape(n, obj_dim)
+        bbox_gt_init = bbox_gt_init.reshape(-1, self.obj_dim)
+        bbox_weights_init = bbox_weights_init.reshape(-1, self.obj_dim)
         bbox_pred_init = self.points2bbox(
-            pts_pred_init.reshape(n, 2 * self.num_points), y_first=False,
+            pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS)
-        bbox_gt_refine = bbox_gt_refine.reshape(n, obj_dim)
-        bbox_weights_refine = bbox_weights_refine.reshape(n, obj_dim)
+        bbox_gt_refine = bbox_gt_refine.reshape(-1, self.obj_dim)
+        bbox_weights_refine = bbox_weights_refine.reshape(-1, self.obj_dim)
         bbox_pred_refine = self.points2bbox(
-            pts_pred_refine.reshape(n, 2 * self.num_points), y_first=False,
+            pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS)
         normalize_term = self.point_base_scale * stride
 
@@ -791,17 +790,14 @@ class StrPointsHead(nn.Module):
           show_pred(bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, f'S{stride}_refine')
 
         if self.obj_rep == 'box_scope':
-          assert obj_dim == 4
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
         elif self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
-          assert obj_dim == 5
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,4] = bbox_pred_init[:,4]
           bbox_gt_init_nm[:,4] = bbox_gt_init[:,4]
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
-          assert obj_dim == 8
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,[4,5]] = bbox_pred_init[:,[4,5]]
@@ -809,17 +805,24 @@ class StrPointsHead(nn.Module):
           if DEBUG_CFG.SET_WIDTH_0:
             bbox_pred_init_nm[:,3] = 0
 
-        loss_pts_init = self.loss_bbox_init(
-            bbox_pred_init_nm[:,:obj_dim],
-            bbox_gt_init_nm,
-            bbox_weights_init,
-            avg_factor=num_total_samples_init)
+        if self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+            loss_pts_init_loc = self.loss_bbox_init(
+              bbox_pred_init_nm[:,:4],
+              bbox_gt_init_nm[:,:4],
+              bbox_weights_init[:,:4],
+              avg_factor=num_total_samples_init)
+            loss_pts_init_rotation = self.loss_bbox_init(
+              bbox_pred_init_nm[:,4:5],
+              bbox_gt_init_nm[:,4:5],
+              bbox_weights_init[:,4:5],
+              avg_factor=num_total_samples_init)
+            loss_pts_init = (loss_pts_init_loc, loss_pts_init_rotation)
 
         if LINE_CONSTRAIN_LOSS:
           gt_line_constrain_init = torch.zeros_like(bbox_gt_init_nm)[:,0:1]
           line_cons_weights_init = bbox_weights_init[:,0:1]
           loss_linec_init = self.loss_line_constrain_init(
-              bbox_pred_init_nm[:,obj_dim:],
+              bbox_pred_init_nm[:,self.obj_dim:],
               gt_line_constrain_init,
               line_cons_weights_init,
               avg_factor=num_total_samples_init)
@@ -839,17 +842,24 @@ class StrPointsHead(nn.Module):
           bbox_gt_refine_nm[:,[4,5]] = bbox_gt_refine[:,[4,5]]
 
 
-        loss_pts_refine = self.loss_bbox_refine(
-            bbox_pred_refine_nm[:,:obj_dim],
-            bbox_gt_refine_nm,
-            bbox_weights_refine,
-            avg_factor=num_total_samples_refine)
+        if self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+            loss_pts_refine_loc = self.loss_bbox_refine(
+              bbox_pred_refine_nm[:,:4],
+              bbox_gt_refine_nm[:,:4],
+              bbox_weights_refine[:,:4],
+              avg_factor=num_total_samples_refine)
+            loss_pts_refine_rot = self.loss_bbox_refine(
+              bbox_pred_refine_nm[:,4:5],
+              bbox_gt_refine_nm[:,4:5],
+              bbox_weights_refine[:,4:5],
+              avg_factor=num_total_samples_refine)
+            loss_pts_refine = (loss_pts_refine_loc, loss_pts_refine_rot)
 
         if LINE_CONSTRAIN_LOSS:
           gt_line_constrain_refine = torch.zeros_like(bbox_gt_refine_nm)[:,0:1]
           line_cons_weights_refine = bbox_weights_refine[:,0:1]
           loss_linec_refine = self.loss_line_constrain_refine(
-              bbox_pred_refine_nm[:,obj_dim:],
+              bbox_pred_refine_nm[:,self.obj_dim:],
               gt_line_constrain_refine,
               line_cons_weights_refine,
               avg_factor=num_total_samples_refine)
@@ -1048,12 +1058,14 @@ class StrPointsHead(nn.Module):
             num_total_samples_refine=num_total_samples_refine,
             num_total_samples_cls=num_total_samples_cls)
         loss_dict_all = {
-            'loss_ptsI': losses_pts_init,
-            'loss_ptsR': losses_pts_refine
+            'loss_locI': [l[0] for l in losses_pts_init],
+            'loss_rotI': [l[1] for l in losses_pts_init],
+            'loss_locR': [l[0] for l in losses_pts_refine],
+            'loss_rotR': [l[1] for l in losses_pts_refine],
         }
         if LINE_CONSTRAIN_LOSS:
-          loss_dict_all['loss_lcI'] = loss_linec_init
-          loss_dict_all['loss_lcR'] = loss_linec_refine
+          loss_dict_all['loss_clI'] = loss_linec_init
+          loss_dict_all['loss_clR'] = loss_linec_refine
         for c in self.cls_types:
           cstr = {'init':'I', 'refine':'R', 'final':'F'}[c]
           loss_dict_all['loss_cls'+cstr] = []
