@@ -447,6 +447,9 @@ class StrPointsHead(nn.Module):
 
             z0z1 = torch.cat([torch.zeros_like(pts_x_mean)]*2, axis=1)
 
+            if DEBUG_CFG.SET_WIDTH_0:
+              width_smaller *= 0
+
             bbox = torch.cat([
                 pts_x_mean, pts_y_mean,
                 length_greater, width_smaller,
@@ -815,8 +818,6 @@ class StrPointsHead(nn.Module):
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,[Asin, Sin2]] = bbox_pred_init[:,[Asin, Sin2]]
           bbox_gt_init_nm[:,[Asin, Sin2]] = bbox_gt_init[:,[Asin, Sin2]]
-          if DEBUG_CFG.SET_WIDTH_0:
-            bbox_pred_init_nm[:,3] = 0
 
         loss_pts_init = cal_loss_bbox('init', self.obj_rep, self.loss_bbox_init,
                                   bbox_pred_init_nm, bbox_gt_init_nm,
@@ -845,8 +846,6 @@ class StrPointsHead(nn.Module):
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,[Asin, Sin2]] = bbox_pred_refine[:,[Asin, Sin2]]
           bbox_gt_refine_nm[:,[Asin, Sin2]] = bbox_gt_refine[:,[Asin, Sin2]]
-          if DEBUG_CFG.SET_WIDTH_0:
-            bbox_pred_refine_nm[:,3] = 0
 
         loss_pts_refine = cal_loss_bbox('refine', self.obj_rep, self.loss_bbox_refine,
                                   bbox_pred_refine_nm, bbox_gt_refine_nm,
