@@ -28,6 +28,7 @@ elif DATA == 'stanford2d':
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   num_ps_long_axis = 9
   overlap_fun='dil_iou_dis'
+  overlap_fun='dil_iou_dis_rotated_3d'
 elif _obj_rep == 'XYLgWsAsinSin2Z0Z1':
   num_ps_long_axis = 5
   overlap_fun='dil_iou_dis_rotated_3d'
@@ -252,7 +253,8 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn'
+IoUType = '' if 'rotate' not in overlap_fun else 'RIou'
+work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{IoUType}_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/Apr23_WaDo_Bev.pth'
   #load_from = './checkpoints/beike/XYLgWsAsinSin2Z0Z1.pth'

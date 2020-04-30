@@ -1,8 +1,8 @@
 import torch
 
-from ..geometry import bbox_overlaps, dilated_bbox_overlaps, \
-                          dsiou_bbox_overlaps, corner_overlaps,\
-                      dsiou_rotated_3d_bbox
+from ..geometry import  bbox_overlaps, dilated_bbox_overlaps, \
+                        dsiou_bbox_overlaps, corner_overlaps,\
+                        dsiou_rotated_3d_bbox
 from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
@@ -120,14 +120,22 @@ class MaxIoUAssigner(BaseAssigner):
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 4
         elif self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
-          assert self.overlap_fun == 'dil_iou_dis'
+          assert self.overlap_fun == 'dil_iou_dis' or self.overlap_fun == 'dil_iou_dis_rotated_3d'
           assert bboxes.shape[1] == 5
           assert gt_bboxes.shape[1] == 5
-          bboxes = bboxes[:, :4]
-          gt_bboxes = gt_bboxes[:, :4]
-          if gt_bboxes_ignore is not None:
-            assert gt_bboxes_ignore.shape[1] == 5
-            gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+          if self.overlap_fun == 'dil_iou_dis':
+            bboxes = bboxes[:, :4]
+            gt_bboxes = gt_bboxes[:, :4]
+            if gt_bboxes_ignore is not None:
+              assert gt_bboxes_ignore.shape[1] == 5
+              gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
+          elif self.overlap_fun == 'dil_iou_dis_rotated_3d':
+            box_encode_fn = OBJ_REPS_PARSE_TORCH.UpRight_xyxy_sin2a_TO_XYZLgWsHA
+            bboxes = box_encode_fn(bboxes)
+            gt_bboxes = box_encode_fn(gt_bboxes)
+            if gt_bboxes_ignore is not None:
+              assert gt_bboxes_ignore.shape[1] == 5
+              gt_bboxes_ignore = box_encode_fn(gt_bboxes_ignore)
 
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
           # transfer to XYZLgWsHA for iou calculation
@@ -135,7 +143,7 @@ class MaxIoUAssigner(BaseAssigner):
           assert bboxes.shape[1] == 8
           assert gt_bboxes.shape[1] == 8
           if self.overlap_fun == 'dil_iou_dis_rotated_3d':
-            box_encode_fn = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA
+            box_encode_fn = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_TO_XYZLgWsHA
           elif self.overlap_fun == 'dil_iou_dis':
             box_encode_fn = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_to_XYXY
           bboxes = box_encode_fn(bboxes)
@@ -163,6 +171,7 @@ class MaxIoUAssigner(BaseAssigner):
         elif self.overlap_fun == 'dis':
           overlaps_fun = corner_overlaps
         else:
+          print(f'overlaps_fun: {self.overlaps_fun}')
           raise NotImplemented
 
         if self.overlap_fun == 'dis':

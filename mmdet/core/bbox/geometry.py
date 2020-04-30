@@ -3,6 +3,7 @@ import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls
 
 
+# 3d ---------------------------------------------------------------------------
 def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.8):
   '''
   XYZLgWsHA
@@ -57,7 +58,6 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
   rel_diss = rel_diss ** 2
   return rel_diss
 
-
 def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
   '''
   XYZLgWsHA
@@ -83,6 +83,8 @@ def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
   #_show_objs_ls_points_ls((512,512), [bboxes2[:100,:].cpu().data.numpy()], obj_rep='XYZLgWsHA')
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
   return ious_2d
+
+# Rotate 2d ---------------------------------------------------------------------------
 
 def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=2):
   '''
@@ -110,6 +112,8 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=2):
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
   return ious_2d
+
+# Aligned 2d ---------------------------------------------------------------------------
 
 def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
     """Calculate overlap between two set of bboxes.

@@ -1,7 +1,8 @@
 # xyz 17 Apr
 import numpy as np
 import mmcv
-from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, vec_from_angle_with_x_np
+from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
+      vec_from_angle_with_x_np, angle_with_x
 import cv2
 import torch
 from obj_geo_utils.geometry_utils import limit_period_np
@@ -10,7 +11,7 @@ from obj_geo_utils.geometry_utils import limit_period_np
 class OBJ_REPS_PARSE_TORCH():
   import torch
   @staticmethod
-  def XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA(bboxes_ass2):
+  def XYLgWsAsinSin2Z0Z1_TO_XYZLgWsHA(bboxes_ass2):
     n = bboxes_ass2.shape[0]
     bboxes_csa = torch.zeros_like(bboxes_ass2)[:,:7]
     bboxes_csa[:, [0,1]] = bboxes_ass2[:, [0,1]]
@@ -25,6 +26,37 @@ class OBJ_REPS_PARSE_TORCH():
     theta = theta_0 * flag + theta_1 * (1-flag)
     bboxes_csa[:, 6] = theta
     return bboxes_csa
+
+  @staticmethod
+  def UpRight_xyxy_sin2a_TO_XYZLgWsHA(bboxes_xyxysin2):
+    lines_2p = OBJ_REPS_PARSE_TORCH.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes_xyxysin2)
+    bboxes_CLA = OBJ_REPS_PARSE_TORCH.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
+    zero_1 = torch.zeros_like(bboxes_xyxysin2[:,0:1])
+    XYZLgWsHA = torch.cat([ bboxes_CLA[:,[0,1]], zero_1, bboxes_CLA[:,[2]], zero_1, zero_1, bboxes_CLA[:,[3]] ], dim=1)
+    return XYZLgWsHA
+
+  @staticmethod
+  def RoLine2D_2p_TO_CenterLengthAngle(bboxes):
+    assert bboxes.shape[1] == 4
+    corner0 = bboxes[:,0:2]
+    corner1 = bboxes[:,2:4]
+    center = bboxes.reshape(-1,2,2).mean(axis=1)
+    vec = corner1 - corner0
+    length = vec.norm(dim=1)[:,None]
+    angle = angle_with_x(vec, scope_id=2)[:,None]
+    # Because axis-y of img points to bottom for img, it is positive for
+    # anti-clock wise. Change to positive for clock-wise
+    angle = -angle
+    bboxes_CLA = torch.cat([center, length, angle], axis=1)
+    return bboxes_CLA
+
+  def UpRight_xyxy_sin2a_TO_RoLine2D_2p(lines):
+    '''
+    From RoLine2D_UpRight_xyxy_sin2a to RoLine2D_2p
+    '''
+    istopleft = (lines[:,4:5] >= 0).to(lines.dtype)
+    lines_2p = lines[:,:4] * istopleft +  lines[:,[0,3,2,1]] * (1-istopleft)
+    return lines_2p
 
 class OBJ_REPS_PARSE():
   '''
@@ -137,7 +169,7 @@ class OBJ_REPS_PARSE():
       return OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
 
     elif obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a' and obj_rep_out == 'RoLine2D_2p':
-      return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_2p(bboxes)
+      return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes)
 
     elif obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a' and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
       return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_XYLgWsAsinSin2Z0Z1(bboxes)
@@ -458,7 +490,7 @@ class OBJ_REPS_PARSE():
   @staticmethod
   def UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2=True):
     thickness = bboxes[:,5:6]
-    lines_2p = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_2p(bboxes[:,:5])
+    lines_2p = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes[:,:5])
     lines_CenLengthAngle = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
     boxes_csa = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
     check_sin2 = 0
@@ -531,7 +563,7 @@ class OBJ_REPS_PARSE():
     return XYLgWsAsinSin2Z0Z1
 
   @staticmethod
-  def UpRight_xyxy_sin2a_TO_2p(lines):
+  def UpRight_xyxy_sin2a_TO_RoLine2D_2p(lines):
     '''
     From RoLine2D_UpRight_xyxy_sin2a to RoLine2D_2p
     '''
