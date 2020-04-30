@@ -134,12 +134,13 @@ class ResizeImgLine(object):
         for key in results.get('bbox_fields', []):
             assert results[key].shape[1] == self.obj_dim
             if self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+              assert results[key].shape[1] == 5
               bboxes = results[key][:,:4] * results['scale_factor']
               bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, img_shape[1] - 1)
               bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, img_shape[0] - 1)
               results[key][:,:4] = bboxes
             elif self.obj_rep=='XYZLgWsHA':
-              assert bboxes.shape[1] == 7
+              assert results[key].shape[1] == 7
               bboxes = results[key][:,:6] * results['scale_factor']
               bboxes[:, 0] = np.clip(bboxes[:, 0], 0, img_shape[1] - 1)
               bboxes[:, 1] = np.clip(bboxes[:, 1], 0, img_shape[0] - 1)

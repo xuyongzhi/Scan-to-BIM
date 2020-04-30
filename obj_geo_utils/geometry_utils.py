@@ -2,15 +2,6 @@
 import torch, math
 import numpy as np
 
-'''
-Angle order:
-
-1. clock wise is positive in all my functions, same as opencv
-2. cross: positive for anti-clock wise
-3. opencv cv2.minAreaRect:  positive for anti-clock wise
-
-All angle used in this file is in unit of radian
-'''
 
 def limit_period(val, offset, period):
   '''
@@ -39,28 +30,28 @@ def angle_dif(val0, val1, aim_scope_id):
       raise NotImplementedError
     return dif
 
-def angle_with_x(vec_start, scope_id=0, debug=0):
+def angle_with_x(vec_end, scope_id=0, debug=0):
   '''
-   vec_start: [n,2/3]
+   vec_end: [n,2/3]
    scope_id=0: [0,pi]
             1: (-pi/2, pi/2]
 
    angle: [n]
   '''
-  assert vec_start.dim() == 2
-  vec_x = vec_start.clone().detach()
+  assert vec_end.dim() == 2
+  vec_x = vec_end.clone().detach()
   vec_x[:,0] = 1
   vec_x[:,1:] = 0
-  if torch.isnan(vec_start).any() or torch.isnan(vec_x).any():
+  if torch.isnan(vec_end).any() or torch.isnan(vec_x).any():
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
-  return angle_from_vecs_to_vece(vec_x, vec_start, scope_id, debug)
+  return angle_from_vecs_to_vece(vec_x, vec_end, scope_id, debug)
 
-def angle_with_x_np(vec_start, scope_id):
+def angle_with_x_np(vec_end, scope_id):
   # Note: for 3d coordinate, it is positive for clock wise.
   # But for img, it is positive for anti-clock wise, because y-axis of img
   # points to bottom
-  angle = angle_with_x(torch.from_numpy(vec_start), scope_id)
+  angle = angle_with_x(torch.from_numpy(vec_end), scope_id)
   return angle.data.numpy()
 
 def vec_from_angle_with_x_np(angle):
@@ -174,7 +165,6 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
   cz = cz * (1 - mask*1e-7)
   angle = torch.asin(cz)
   # cross is positive for anti-clock wise. change to clock-wise
-  angle = -angle  # [-pi/2, pi/2]
 
   # check :angle or pi-angle
   cosa = torch.sum(vec_start * vec_end,dim=1)
@@ -391,20 +381,24 @@ class OBJ_DEF():
 def test():
   import cv2
   np.set_printoptions(precision=3, suppress=True)
-  vec_start = np.array([[1,0]], dtype=np.int32) * 200
-  vec_end = np.array([[0,1]], dtype=np.int32) * 200
-  angle = angle_from_vecs_to_vece_np(vec_start, vec_end, scope_id=2)
+  z = 200
+  vec_start = np.array([[200,0]  ], dtype=np.int32)
+  vec_end   = np.array([[1,200]  ], dtype=np.int32)
+  #vec_end   = np.array([[170,200]], dtype=np.int32)
+  angle = angle_from_vecs_to_vece_np(vec_start, vec_end, scope_id=1)
+  angle = angle*180/np.pi
+
+  print(f'vec_start: {vec_start}')
+  print(f'vec_end: {vec_end}')
+  print(f'angle: {angle}')
 
   img = np.zeros([512,512,3], dtype=np.uint8)
-  z = 256
-  img = cv2.line(img, (z,z), (vec_start[0,0]+z, vec_start[0,1]+z), (0,255,0), thickness=1)
-  img = cv2.line(img, (z,z), (vec_end[0,0]+z, vec_end[0,1]+z), (0,255,0), thickness=1)
+  img = cv2.line(img, (z,z), (vec_start[0,0]+z,vec_start[0,1]+z), (0,255,0), thickness=1)
+  img = cv2.line(img, (z,z), (vec_end[0,0]+z,  vec_end[0,1]+z),    (0,255,0), thickness=1)
   cv2.imshow('img', img)
   cv2.waitKey(0)
 
-
   pass
-
 
 if __name__ == '__main__':
   test()

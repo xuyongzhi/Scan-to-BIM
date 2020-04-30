@@ -128,6 +128,7 @@ class DIM_PARSE:
 
 class DEBUG_CFG:
   # tem
+  IGNORE_Z = True
   SET_WIDTH_0 = True
 
   # debug in input

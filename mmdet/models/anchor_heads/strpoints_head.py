@@ -134,7 +134,7 @@ class StrPointsHead(nn.Module):
         self.transform_method = transform_method
         if self.transform_method == 'moment' or \
               self.transform_method == 'moment_lscope_istopleft' or \
-                self.transform_method == 'moment_LWAsS2ZZ':
+                self.transform_method == 'moment_XYZLgWsHA':
             self.moment_transfer = nn.Parameter(
                 data=torch.zeros(2), requires_grad=True)
             self.moment_mul = moment_mul
@@ -412,7 +412,7 @@ class StrPointsHead(nn.Module):
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
-        elif self.transform_method == 'moment_LWAsS2ZZ':
+        elif self.transform_method == 'moment_XYZLgWsHA':
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
             pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
@@ -434,6 +434,8 @@ class StrPointsHead(nn.Module):
             vec_start[:,1] = -1
 
             sin_2thetas, sin_thetas = sin2theta(vec_start, vec_pts)
+            angles = angle_from_vecs_to_vece(vec_start, vec_pts, scope_id=1)
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             abs_sins = torch.abs(sin_thetas).view(pts_x.shape)
             sin_2thetas = sin_2thetas.view(pts_x.shape)
 
@@ -890,15 +892,16 @@ class StrPointsHead(nn.Module):
                               bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
                   bbox_i = torch.cat([bbox_i, istopleft], dim=1)
                   bbox.append(bbox_i)
-                elif self.transform_method == 'moment_LWAsS2ZZ':
-                  assert bbox_preds_init.shape[1] == 8
+                elif self.transform_method == 'moment_XYZLgWsHA':
+                  assert bbox_preds_init.shape[1] == 7
                   bbox_shift = bbox_preds_init[:,:2] * self.point_strides[i_lvl]
-                  bbox_size = bbox_preds_init[:,2:4] * self.point_strides[i_lvl]
-                  AsS2ZZ_i = bbox_preds_init[i_img,4:8].permute(1,2,0).reshape(-1,4)
+                  bbox_size = bbox_preds_init[:,3:5] * self.point_strides[i_lvl]
+                  angle_i = bbox_preds_init[i_img,6:7].permute(1,2,0).reshape(-1,1)
                   bbox_center = center[i_lvl][:, :2]
                   bbox_cen_i = bbox_center + bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 2)
                   bbox_size_i = bbox_size[i_img].permute(1,2,0).reshape(-1,2)
-                  bbox_i = torch.cat([bbox_cen_i, bbox_size_i, AsS2ZZ_i], dim=1)
+                  bbox_i = torch.cat([bbox_cen_i, bbox_size_i, angle_i], dim=1)
+                  import pdb; pdb.set_trace()  # XXX BREAKPOINT
                   bbox.append(bbox_i)
                   pass
                 else:

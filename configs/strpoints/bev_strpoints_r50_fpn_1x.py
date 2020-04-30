@@ -40,7 +40,7 @@ _obj_dim = dim_parse.OBJ_DIM
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
 if _obj_rep == 'XYZLgWsHA':
-  _transform_method='moment_LWAsS2ZZ'
+  _transform_method='moment_XYZLgWsHA'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 

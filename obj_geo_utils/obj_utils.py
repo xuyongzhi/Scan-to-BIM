@@ -933,40 +933,37 @@ def merge_corners(corners_0, scores_0=None, opt_graph_cor_dis_thr=3):
   return corners_merged, scores_merged, labels_merged
 
 
-
-def test_2d():
-  from tools.debug_utils import _show_lines_ls_points_ls
-  bboxes_UpRight_xyxy_sin2a_thick = np.array([ [120.902, 344.609, 402.904, 345.328,  -0.51 ,   0. ]] )
-  boxes_CenSizeAngle = np.array( [[ 261.903, 344.968, 282.002,   0.   ,  -0.003 ]] )
-  _show_lines_ls_points_ls( (512,512),[ bboxes_UpRight_xyxy_sin2a_thick] )
-  bboxes_csa = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle( bboxes_UpRight_xyxy_sin2a_thick )
-  bboxes_sin2 = OBJ_REPS_PARSE.CenSizeAngle_TO_UpRight_xyxy_sin2a_thick( boxes_CenSizeAngle )
-  print( bboxes_csa )
-  print(bboxes_sin2)
-
 def test_3d():
-  from tools.visual_utils import _show_3d_points_objs_ls
+  from tools.visual_utils import _show_3d_points_objs_ls, _show_objs_ls_points_ls
 
   XYZLgWsHA = np.array([
                         [ 0,1,0, 5, 1, 2, np.pi/4 ],
                         [ 0,1,0, 5, 1, 2, -np.pi/4 ],
                         [ 0,1,0, 5, 1, 2, np.pi/8 ],
                         ])
-  XYLgWsSin2Sin4Z0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsSin2Sin4Z0Z1')
-  _XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(XYLgWsSin2Sin4Z0Z1, 'XYLgWsSin2Sin4Z0Z1', 'XYZLgWsHA')
-  err0 = XYZLgWsHA - _XYZLgWsHA
-  err = np.abs(err0).max()
-  print(f'\nerr: {err}')
   print(f'XYZLgWsHA: \n{XYZLgWsHA}')
-  print(f'_XYZLgWsHA: \n{_XYZLgWsHA}')
-  assert err < 1e-5
-  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA], obj_rep='XYZLgWsHA' )
-  _show_3d_points_objs_ls( objs_ls = [XYLgWsSin2Sin4Z0Z1], obj_rep='XYLgWsSin2Sin4Z0Z1' )
-  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA, _XYZLgWsHA], obj_rep='XYZLgWsHA' )
 
+  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA], obj_rep='XYZLgWsHA' )
+
+def test_2d():
+  from tools.visual_utils import _show_3d_points_objs_ls, _show_objs_ls_points_ls
+  cx = 256
+  cy = 256
+  cz = 0
+  l = 200
+  w = 50
+  h = 10
+  XYZLgWsHA_0 = np.array([
+                        [ cx, cy, cz, l, w, h, 0 ],
+                        [ cx, cy, cz, l, w, h, np.pi/4 ],
+                        ])
+  print(f'XYZLgWsHA: \n{XYZLgWsHA_0}')
+
+  _show_objs_ls_points_ls( (512,512), [XYZLgWsHA_0], obj_rep='XYZLgWsHA' )
+  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA_0], obj_rep='XYZLgWsHA' )
 
 if __name__ == '__main__':
-  test_3d()
+  test_2d()
 
 
 

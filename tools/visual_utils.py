@@ -7,11 +7,11 @@ from mmcv.image import imread, imwrite
 import cv2
 from MinkowskiEngine import SparseTensor
 
-from .color import color_val, get_random_color, label2color, _label2color
+from tools.color import color_val, get_random_color, label2color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-ADD_FRAME = 0
+ADD_FRAME = 1
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -369,6 +369,8 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
     else:
       center =  (0,0,0)
       fsize = 1.0
+      center =  bboxes_ls[0][0,:3]
+      fsize = bboxes_ls[0][:,3:6].max() * 0.2
     mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=fsize, origin=center)
     show_ls.append(mesh_frame)
 
@@ -459,4 +461,19 @@ def _show_feats(feats, gt_bboxes, stride):
     gt = gt_bboxes[i]
     _show_objs_ls_points_ls( img_3, [gt], obj_rep='RoLine2D_UpRight_xyxy_sin2a', obj_colors='yellow' )
     pass
+
+
+def test_angle_order():
+  # XYLgWsA
+  u = np.pi / 180
+  bboxes_1 = np.array( [
+    [200,200, 200, 20, 0*u],
+  ] )
+  bboxes_2 = np.array( [
+    [300,100, 100, 5, 45*u],
+  ] )
+  _show_objs_ls_points_ls( (512,512), [bboxes_2], obj_rep='XYLgWsA' )
+
+if __name__ == '__main__':
+  test_angle_order()
 
