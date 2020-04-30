@@ -72,6 +72,129 @@ class OBJ_REPS_PARSE():
     Lg: length is the greater horizontal axis
     Ws: Width is the smaller horizontal axis
 
+  (*) RoLine2D_UpRight_xyxy_sin2a
+    x denotes the long axis.
+    angle: [-90, 90)
+
+    Convert:
+      RoLine2D_2p <-> XYLgWsA
+      RoLine2D_UpRight_xyxy_sin2a <-> XYLgWsA
+      XYZLgWsHA <-> XYLgWsA
+  '''
+  _obj_dims = {
+    'XYZLgWsHA': 7,
+    'XYLgWsA': 5,
+
+    'RoLine2D_UpRight_xyxy_sin2a': 5,
+    'RoLine2D_2p': 4,
+  }
+  _obj_reps = _obj_dims.keys()
+
+  @staticmethod
+  def check_obj_dim(bboxes, obj_rep):
+    assert bboxes.ndim == 2
+    s = OBJ_REPS_PARSE._obj_dims[obj_rep]
+    assert bboxes.shape[1] == s, \
+      f'obj_rep={obj_rep}, input shape={bboxes.shape[1]}, correct shape={s}'
+
+  @staticmethod
+  def encode_obj(bboxes, obj_rep_in, obj_rep_out, check_sin2=1):
+    '''
+    '''
+    assert obj_rep_in  in OBJ_REPS_PARSE._obj_reps, obj_rep_in
+    assert obj_rep_out in OBJ_REPS_PARSE._obj_reps, obj_rep_out
+    OBJ_REPS_PARSE.check_obj_dim(bboxes, obj_rep_in)
+
+    bboxes = OBJ_REPS_PARSE.make_x_long_dim(bboxes, obj_rep_in)
+    nbox = bboxes.shape[0]
+
+    if obj_rep_in == obj_rep_out:
+      return bboxes
+
+    if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsA':
+      return bboxes[:,[0,1,3,4,6]]
+
+    if obj_rep_in == 'XYLgWsA'  and obj_rep_out == 'XYZLgWsHA':
+      ze = np.zeros([nbox, 1])
+      return np.concatenate([bboxes[:,[0,1]], ze, bboxes[:,[2,3]], ze, bboxes[:,[4]] ], axis=1)
+
+    elif obj_rep_in == 'RoLine2D_2p'  and obj_rep_out == 'XYLgWsA':
+      return OBJ_REPS_PARSE.RoLine2D_2p_TO_XYLgWsA(bboxes)
+
+    elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'RoLine2D_2p':
+      return OBJ_REPS_PARSE.XYLgWsA_TO_RoLine2D_2p(bboxes)
+
+    elif obj_rep_in == 'RoLine2D_2p'  and obj_rep_out == 'XYZLgWsHA':
+      XYLgWsA = OBJ_REPS_PARSE.RoLine2D_2p_TO_XYLgWsA(bboxes)
+      return OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'XYZLgWsHA' )
+
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'RoLine2D_2p':
+      XYLgWsA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYLgWsA')
+      return OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'RoLine2D_2p')
+
+    assert False, f'Not implemented:\nobj_rep_in: {obj_rep_in}\nobj_rep_out: {obj_rep_out}'
+
+  @staticmethod
+  def make_x_long_dim(bboxes, obj_rep):
+    if obj_rep in ['XYLgWsA', 'XYZLgWsHA']:
+        if obj_rep == 'XYLgWsA':
+          xi, yi, ai = 2, 3, 4
+        if obj_rep == 'XYZLgWsHA':
+          xi, yi, ai = 3, 4, 6
+        switch = (bboxes[:,yi] > bboxes[:,xi]).astype(bboxes.dtype)
+        bboxes[:,ai] = limit_period_np( bboxes[:,ai] + switch * np.pi / 2, 0.5, np.pi )
+        switch = switch.reshape(-1,1)
+        bboxes[:,[xi,yi]] = bboxes[:,[xi,yi]] * (1-switch) + bboxes[:,[yi,xi]] * switch
+
+    return bboxes
+
+  @staticmethod
+  def RoLine2D_2p_TO_XYLgWsA(bboxes):
+    assert bboxes.shape[1] == 4
+    corner0 = bboxes[:,0:2]
+    corner1 = bboxes[:,2:4]
+    center = bboxes.reshape(-1,2,2).mean(axis=1)
+    vec = corner1 - corner0
+    length = np.linalg.norm(vec, axis=1)[:,None]
+    angle = angle_with_x_np(vec, scope_id=2)[:,None]
+    # Because axis-y of img points to bottom for img, it is positive for
+    # anti-clock wise. Change to positive for clock-wise
+    angle = -angle
+    width = np.zeros([bboxes.shape[0], 1], dtype=np.float32)
+    XYLgWsA = np.concatenate([center, length, width, angle], axis=1)
+    return XYLgWsA
+
+  @staticmethod
+  def XYLgWsA_TO_RoLine2D_2p(bboxes):
+    assert bboxes.shape[1] == 5
+    center = bboxes[:,:2]
+    length = bboxes[:,2:3]
+    width = bboxes[:,3:4]
+    angle = bboxes[:,4]
+    vec = vec_from_angle_with_x_np(angle)
+    # due to y points to bottom, to make clock-wise positive:
+    vec[:,1] *= -1
+    corner0 = center - vec * length /2
+    corner1 = center + vec * length /2
+    line2d_2p = np.concatenate([corner0, corner1], axis=1)
+
+    assert width.min() == 0 and width.max() == 0
+    return line2d_2p
+
+class O_OBJ_REPS_PARSE():
+  '''
+  (*) CenSizeA3D vs XYZLgWsHA
+    CenSizeA3D[:,3:6]: [size_x, size_y, size_z]
+    XYZLgWsHA[:,3:6]: [max(size_x, size_y), min(size_x, size_y), size_z]
+    CenSizeA3D[:,-1]: rotation from x_ref to x_body
+    XYZLgWsHA[:,-1]: rotation from x_ref to axis_long
+
+  (*) XYZLgWsHA
+    angle: between long axis (x_b) and x_f, [-90, 90)
+    x_b denotes the long axis:  always Lg >= Ws
+    Lg: length is the greater horizontal axis
+    Ws: Width is the smaller horizontal axis
+
   (*) XYLgWsSin2Sin4Z0Z1
     angle, Lg, Ws: same with XYZLgWsHA
 

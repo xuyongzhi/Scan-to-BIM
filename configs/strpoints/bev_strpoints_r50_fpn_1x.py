@@ -20,16 +20,15 @@ classes= ['wall']
 
 if DATA == 'beike2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
-  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
+  _obj_rep = 'XYZLgWsHA'
 elif DATA == 'stanford2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
-  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
 
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   num_ps_long_axis = 9
   overlap_fun='dil_iou_dis'
   overlap_fun='dil_iou_dis_rotated_3d'
-elif _obj_rep == 'XYLgWsAsinSin2Z0Z1':
+elif _obj_rep == 'XYZLgWsHA':
   num_ps_long_axis = 5
   overlap_fun='dil_iou_dis_rotated_3d'
 
@@ -40,7 +39,7 @@ _obj_dim = dim_parse.OBJ_DIM
 
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
-if _obj_rep == 'XYLgWsAsinSin2Z0Z1':
+if _obj_rep == 'XYZLgWsHA':
   _transform_method='moment_LWAsS2ZZ'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
