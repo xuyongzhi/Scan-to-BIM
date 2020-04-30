@@ -139,13 +139,10 @@ class MaxIoUAssigner(BaseAssigner):
 
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
           # transfer to XYZLgWsHA for iou calculation
-          #assert self.overlap_fun == 'dil_iou_dis_rotated_3d'
+          assert self.overlap_fun == 'dil_iou_dis_rotated_3d'
           assert bboxes.shape[1] == 8
           assert gt_bboxes.shape[1] == 8
-          if self.overlap_fun == 'dil_iou_dis_rotated_3d':
-            box_encode_fn = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_TO_XYZLgWsHA
-          elif self.overlap_fun == 'dil_iou_dis':
-            box_encode_fn = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_to_XYXY
+          box_encode_fn = OBJ_REPS_PARSE_TORCH.XYLgWsAsinSin2Z0Z1_TO_XYZLgWsHA
           bboxes = box_encode_fn(bboxes)
           gt_bboxes = box_encode_fn(gt_bboxes)
           if gt_bboxes_ignore is not None:
