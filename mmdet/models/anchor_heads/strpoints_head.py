@@ -25,6 +25,7 @@ from tools.visual_utils import _show_objs_ls_points_ls_torch
 LINE_CONSTRAIN_LOSS = True
 DEBUG = 1
 CHECK_ZDIM_ZERO = True
+No_Abs_Sin = 1
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -444,6 +445,8 @@ class StrPointsHead(nn.Module):
 
             isaline_0 = sin_2thetas[:,:npla].std(dim=1, keepdim=True)
             isaline_1 = abs_sins[:,:npla].std(dim=1, keepdim=True)
+            if No_Abs_Sin:
+              isaline = isaline_0
             isaline = (isaline_0 + isaline_1) / 2
 
             z0z1 = torch.cat([torch.zeros_like(pts_x_mean)]*2, axis=1)
@@ -1758,6 +1761,12 @@ def cal_loss_bbox(obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init_nm,
               bbox_gt_init_nm[:,[Asin, Sin2]],
               bbox_weights_init[:,[Asin, Sin2]],
               avg_factor=num_total_samples_init)
+            if No_Abs_Sin:
+              loss_pts_init_rotation = loss_bbox_fun(
+                bbox_pred_init_nm[:,[Sin2]],
+                bbox_gt_init_nm[:,[ Sin2]],
+                bbox_weights_init[:,[Sin2]],
+                avg_factor=num_total_samples_init)
             loss_pts_init = (loss_pts_init_loc, loss_pts_init_rotation ,  loss_pts_init_size)
         else:
           raise NotImplementedError
