@@ -23,7 +23,7 @@ from configs.common import DIM_PARSE, DEBUG_CFG
 from tools.visual_utils import _show_objs_ls_points_ls_torch
 
 LINE_CONSTRAIN_LOSS = True
-DEBUG = 1
+DEBUG = 0
 CHECK_ZDIM_ZERO = True
 No_Abs_Sin = 1
 
@@ -767,9 +767,11 @@ class StrPointsHead(nn.Module):
         n = batch_size * num_feature
         bbox_gt_init: [n,5/8]
         '''
-        n = bbox_gt_init.shape[0]
-        assert bbox_gt_init.ndim == 2
-        assert bbox_gt_init.shape[1] == self.obj_dim
+        assert bbox_gt_init.ndim == 3
+        assert pts_pred_init.ndim == 3
+        batch_size, num_feats, obj_dim = bbox_gt_init.shape
+        assert obj_dim == self.obj_dim
+        assert pts_pred_init.shape == (batch_size, num_feats, self.num_points * 2)
 
         # classification loss
         loss_cls = {}

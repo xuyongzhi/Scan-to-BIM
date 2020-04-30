@@ -20,7 +20,7 @@ classes= ['wall']
 
 if DATA == 'beike2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
-  _obj_rep = 'XYLgWsAsinSin2Z0Z1'
+  #_obj_rep = 'XYLgWsAsinSin2Z0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
   _obj_rep = 'XYLgWsAsinSin2Z0Z1'
@@ -233,7 +233,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1510
+total_epochs = 1010
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -264,7 +264,7 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 1:
+if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)
