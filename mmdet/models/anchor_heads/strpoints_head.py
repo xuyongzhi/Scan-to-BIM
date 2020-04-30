@@ -1821,6 +1821,9 @@ def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights):
   bbox_pred = bbox_pred[:,:m]
   bbox_pred_ = bbox_pred[inds].cpu().data.numpy().reshape(-1,m)
   bbox_gt_ = bbox_gt[inds].cpu().data.numpy().reshape(-1,m)
+
+  errs = bbox_pred_ - bbox_gt_
+
   #_show_objs_ls_points_ls( (512,512), [bbox_gt, ], obj_rep = obj_rep)
   _show_objs_ls_points_ls( (512,512), [bbox_gt_, bbox_pred_], obj_rep = obj_rep, obj_colors=['red', 'green'], obj_thickness=[2,1])
 
