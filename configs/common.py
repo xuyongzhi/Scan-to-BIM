@@ -129,7 +129,7 @@ class DIM_PARSE:
 class DEBUG_CFG:
   # tem
   IGNORE_Z = True
-  SET_WIDTH_0 = True
+  SET_WIDTH_0 = False
 
   # debug in input
   LOAD_VOXELIZED_SPARSE = [False, 'raw','aug'][0]

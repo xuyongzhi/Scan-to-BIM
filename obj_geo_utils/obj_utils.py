@@ -220,8 +220,6 @@ class OBJ_REPS_PARSE():
     width = bboxes[:,3:4]
     angle = bboxes[:,4]
     vec = vec_from_angle_with_x_np(angle)
-    # due to y points to bottom, to make clock-wise positive:
-    vec[:,1] *= -1
     corner0 = center - vec * length /2
     corner1 = center + vec * length /2
     line2d_2p = np.concatenate([corner0, corner1], axis=1)

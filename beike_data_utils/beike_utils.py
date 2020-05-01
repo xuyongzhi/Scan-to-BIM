@@ -285,17 +285,20 @@ class BEIKE(BEIKE_CLSINFO):
                                obj_thickness=1, point_thickness=1,
                                out_file=anno_img_file, only_save=0)
 
-      show_1by1 = False
+      show_1by1 = 1
       if show_1by1:
         for k in range(bboxes.shape[0]):
             print(f'{k}')
             for ele in self.edge_attributions:
               if anno[ele].shape[0] > k:
                 print(f'{ele}: {anno[ele][k]}')
-            _show_lines_ls_points_ls(img, [bboxes[k:k+1]], [corners],
-                                line_colors='random', point_colors='random',
-                                line_thickness=1, point_thickness=1,
-                                out_file=anno_img_file, only_save=0)
+            _show_objs_ls_points_ls(
+                              img, [bboxes, bboxes[k:k+1]],
+                              obj_rep=self.obj_rep,
+                              points_ls = [corners],
+                              obj_colors=['green','red'], point_colors='random',
+                              obj_thickness=1, point_thickness=1,
+                              out_file=anno_img_file, only_save=0)
             pass
       return img
       #_show_img_with_norm(img)
@@ -1091,18 +1094,19 @@ def main(data_path):
   obj_rep = 'XYZLgWsHA'
   ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
   scenes = np.loadtxt(topview_path, dtype=str)
 
   #scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
   #scenes = BAD_SCENE_TRANSFERS_PCL
+  scenes = ['0Kajc_nnyZ6K0cRGCQJW56']
 
   classes = ['wall', 'door', 'window', ]
   #classes = [ 'door',  ]
   #classes = [ 'window', 'door', ]
   #classes = [ 'window', ]
-  #classes = [ 'wall', ]
+  classes = [ 'wall', ]
   is_save_connection = 0
   if is_save_connection:
     classes = ['wall', 'door', 'window', ]
@@ -1119,7 +1123,7 @@ def main(data_path):
 
   if 1:
     for s in scenes:
-      beike.show_scene_anno(s, True, 0)
+      beike.show_scene_anno(s, False, 0)
 
 
   #for s in UNALIGNED_SCENES:

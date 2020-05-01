@@ -23,7 +23,7 @@ import torchvision as tcv
 from configs.common import DIM_PARSE, DEBUG_CFG
 from tools.visual_utils import _show_objs_ls_points_ls_torch, _show_objs_ls_points_ls
 
-LINE_CONSTRAIN_LOSS = True
+LINE_CONSTRAIN_LOSS = False
 DEBUG = 1
 
 @HEADS.register_module
@@ -377,7 +377,6 @@ class StrPointsHead(nn.Module):
             half_width = pts_x_std * torch.exp(moment_width_transfer)
             half_height = pts_y_std * torch.exp(moment_height_transfer)
 
-
             vec_pts_y = pts_y - pts_y_mean
             vec_pts_x = pts_x - pts_x_mean
             vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
@@ -429,6 +428,7 @@ class StrPointsHead(nn.Module):
             pts_vecs = torch.cat([vec_pts_x[...,None], vec_pts_y[...,None]], dim=-1)
             pts_rvecs = RotateVector.encode_rvecs(pts_vecs, scope_id=1)
             bbox_rvecs_0, rvecs_std_0 = RotateVector.avervecs(pts_rvecs, dim=1, scope_id=1, keepdim=False)
+
             if bbox_rvecs_0.ndim == 4:
               bbox_rvecs = bbox_rvecs_0.permute(0,3,1,2)
               rvecs_std = rvecs_std_0.permute(0,3,1,2)
@@ -784,21 +784,15 @@ class StrPointsHead(nn.Module):
         # points loss
         bbox_gt_init = bbox_gt_init.reshape(-1, obj_dim)
         bbox_weights_init = bbox_weights_init.reshape(-1, obj_dim)
-        bbox_pred_init = self.points2bbox(
-            pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False,
+        pts_pred_init = pts_pred_init.reshape(-1, 2 * self.num_points)
+        bbox_pred_init = self.points2bbox( pts_pred_init, y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS)
         bbox_gt_refine = bbox_gt_refine.reshape(-1, obj_dim)
         bbox_weights_refine = bbox_weights_refine.reshape(-1, obj_dim)
-        bbox_pred_refine = self.points2bbox(
-            pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False,
+        pts_pred_refine = pts_pred_refine.reshape(-1, 2 * self.num_points)
+        bbox_pred_refine = self.points2bbox( pts_pred_refine, y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS)
         normalize_term = self.point_base_scale * stride
-
-        if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
-          print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
-          print(f'stride: {stride}')
-          show_pred(self.obj_rep_pred, bbox_pred_init, bbox_gt_init, bbox_weights_init)
-          show_pred(self.obj_rep_pred, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine)
 
         if self.obj_rep_pred == 'box_scope':
           bbox_pred_init_nm = bbox_pred_init / normalize_term
@@ -865,6 +859,15 @@ class StrPointsHead(nn.Module):
               gt_line_constrain_refine,
               line_cons_weights_refine,
               avg_factor=num_total_samples_refine)
+
+        if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
+          print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
+          print(f'stride: {stride}')
+          show_loss_samples(self.obj_rep_pred, bbox_pred_init, bbox_gt_init,
+                            bbox_weights_init, loss_pts_init, pts_pred_init )
+          show_loss_samples(self.obj_rep_pred, bbox_pred_refine, bbox_gt_refine,
+                            bbox_weights_refine, loss_pts_refine, pts_pred_refine )
+
 
         return loss_cls, loss_pts_init, loss_pts_refine, loss_linec_init, loss_linec_refine
 
@@ -1798,7 +1801,7 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
             loss_pts_init = {
               f'loss_loc{s}':  loss_pts_init_loc,
               f'loss_sin2{s}': loss_pts_init_sin2,
-              f'loss_absa{s}': loss_pts_init_absin,
+              f'loss_absin{s}': loss_pts_init_absin,
               f'loss_size{s}': loss_pts_init_size
             }
         else:
@@ -1837,17 +1840,20 @@ def convert_list_dict_order(f_ls_dict):
   return f_dict_ls
 
 
-def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights):
+def show_loss_samples(obj_rep, bbox_pred, bbox_gt, bbox_weights, loss, pts_pred):
+  print(f'loss:\n{loss}')
   inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
   m = bbox_gt.shape[1]
   bbox_pred = bbox_pred[:,:m]
   bbox_pred_ = bbox_pred[inds].cpu().data.numpy().reshape(-1,m)
   bbox_gt_ = bbox_gt[inds].cpu().data.numpy().reshape(-1,m)
+  pts_pred_ = pts_pred[inds].cpu().data.numpy().reshape(-1,2)
 
   errs = bbox_pred_ - bbox_gt_
 
-  #_show_objs_ls_points_ls( (512,512), [bbox_gt, ], obj_rep = obj_rep)
-  _show_objs_ls_points_ls( (512,512), [bbox_gt_, bbox_pred_], obj_rep = obj_rep, obj_colors=['red', 'green'], obj_thickness=[2,1])
+  #_show_objs_ls_points_ls( (512,512), [bbox_gt_, ], obj_rep = obj_rep)
+  _show_objs_ls_points_ls( (512,512), [bbox_gt_, bbox_pred_], obj_rep = obj_rep, obj_colors=['red', 'green'], obj_thickness=[2,1],
+                          points_ls = [pts_pred_], point_colors='random' )
 
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass

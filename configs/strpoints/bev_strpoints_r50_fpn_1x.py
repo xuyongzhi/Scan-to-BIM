@@ -259,7 +259,7 @@ IoUType = '' if 'rotate' not in overlap_fun else 'RIou'
 work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{IoUType}_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/Apr23_WaDo_Bev.pth'
-  load_from = './checkpoints/beike/XYLgWsAsinSin2Z0Z1.pth'
+  load_from = './checkpoints/beike/asin_sin2.pth'
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
