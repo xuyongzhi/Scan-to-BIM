@@ -830,6 +830,8 @@ class StrPointsHead(nn.Module):
               gt_line_constrain_init,
               line_cons_weights_init,
               avg_factor=num_total_samples_init)
+        else:
+          loss_linec_init = {}
 
         if self.obj_rep_pred == 'box_scope':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
@@ -859,6 +861,8 @@ class StrPointsHead(nn.Module):
               gt_line_constrain_refine,
               line_cons_weights_refine,
               avg_factor=num_total_samples_refine)
+        else:
+          loss_linec_refine = {}
 
         if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
           print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
