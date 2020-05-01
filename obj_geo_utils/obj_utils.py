@@ -5,58 +5,97 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
       vec_from_angle_with_x_np, angle_with_x
 import cv2
 import torch
-from obj_geo_utils.geometry_utils import limit_period_np
+from obj_geo_utils.geometry_utils import limit_period_np, limit_period
 
 
-class OBJ_REPS_PARSE_TORCH():
-  import torch
-  @staticmethod
-  def XYLgWsAsinSin2Z0Z1_TO_XYZLgWsHA(bboxes_ass2):
-    n = bboxes_ass2.shape[0]
-    bboxes_csa = torch.zeros_like(bboxes_ass2)[:,:7]
-    bboxes_csa[:, [0,1]] = bboxes_ass2[:, [0,1]]
-    bboxes_csa[:, 2] = bboxes_ass2[:, [6,7]].mean(axis=1)
-    bboxes_csa[:, [3,4]] = bboxes_ass2[:, [2,3]]
-    bboxes_csa[:, 5] = bboxes_ass2[:, 7] - bboxes_ass2[:, 6]
-    abssin = bboxes_ass2[:, 4]
-    sin2theta = bboxes_ass2[:, 5]
-    theta_0 = torch.asin(abssin)
-    theta_1 = -theta_0
-    flag = (sin2theta >= 0).to(torch.int)
-    theta = theta_0 * flag + theta_1 * (1-flag)
-    bboxes_csa[:, 6] = theta
-    return bboxes_csa
+
+class OBJ_PARSE_TORCH():
+  _obj_dims = {
+    'XYZLgWsHV': 8,
+    'XYZLgWsHA': 7,
+  }
+  _obj_reps = _obj_dims.keys()
 
   @staticmethod
-  def UpRight_xyxy_sin2a_TO_XYZLgWsHA(bboxes_xyxysin2):
-    lines_2p = OBJ_REPS_PARSE_TORCH.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes_xyxysin2)
-    bboxes_CLA = OBJ_REPS_PARSE_TORCH.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
-    zero_1 = torch.zeros_like(bboxes_xyxysin2[:,0:1])
-    XYZLgWsHA = torch.cat([ bboxes_CLA[:,[0,1]], zero_1, bboxes_CLA[:,[2]], zero_1, zero_1, bboxes_CLA[:,[3]] ], dim=1)
-    return XYZLgWsHA
+  def check_obj_dim(bboxes, obj_rep):
+    assert bboxes.ndim == 2
+    s = OBJ_REPS_PARSE._obj_dims[obj_rep]
+    assert bboxes.shape[1] == s, \
+      f'obj_rep={obj_rep}, input shape={bboxes.shape[1]}, correct shape={s}'
 
   @staticmethod
-  def RoLine2D_2p_TO_CenterLengthAngle(bboxes):
-    assert bboxes.shape[1] == 4
+  def encode_obj(bboxes, obj_rep_in, obj_rep_out, check_sin2=1):
+    '''
+    '''
+    OBJ_PARSE_TORCH.check_obj_dim(bboxes, obj_rep_in)
+
+    bboxes = OBJ_PARSE_TORCH.make_x_long_dim(bboxes, obj_rep_in)
+    nbox = bboxes.shape[0]
+
+    if obj_rep_in == obj_rep_out:
+      return bboxes
+
+    elif obj_rep_in == 'XYZLgWsHV'  and obj_rep_out == 'XYZLgWsHA':
+      return OBJ_PARSE_TORCH.XYZLgWsHV_TO_XYZLgWsHA(bboxes)
+
+    elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYZLgWsHV':
+      return OBJ_PARSE_TORCH.XYZLgWsHA_TO_XYZLgWsHV(bboxes)
+
+    elif obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a'  and obj_rep_out == 'XYZLgWsHA':
+      return OBJ_PARSE_TORCH.UpRight_xyxy_sin2a_TO_XYZLgWsHA(bboxes)
+
+    assert False, f'Not implemented:\nobj_rep_in: {obj_rep_in}\nobj_rep_out: {obj_rep_out}'
+
+  @staticmethod
+  def make_x_long_dim(bboxes, obj_rep):
+    if obj_rep in ['XYLgWsA', 'XYZLgWsHA']:
+        if obj_rep == 'XYLgWsA':
+          xi, yi, ai = 2, 3, 4
+        if obj_rep == 'XYZLgWsHA':
+          xi, yi, ai = 3, 4, 6
+        switch = (bboxes[:,yi] > bboxes[:,xi]).to(bboxes.dtype)
+        bboxes[:,ai] = limit_period( bboxes[:,ai] + switch * np.pi / 2, 0.5, np.pi )
+        switch = switch.reshape(-1,1)
+        bboxes[:,[xi,yi]] = bboxes[:,[xi,yi]] * (1-switch) + bboxes[:,[yi,xi]] * switch
+    return bboxes
+
+  @staticmethod
+  def XYZLgWsHV_TO_XYZLgWsHA(bboxes):
+    n,c = bboxes.shape
+    assert c==8
+    bboxes_new = torch.zeros_like(bboxes)[:,:7]
+    bboxes_new[:,:6] = bboxes[:,:6]
+    bboxes_new[:,6] = torch.asin(bboxes[:,7])
+    return bboxes_new
+
+  @staticmethod
+  def XYZLgWsHA_TO_XYZLgWsHV(bboxes):
+    n,c = bboxes.shape
+    assert c==7
+    sin = torch.sin(bboxes[:,6:7])
+    cos = torch.cos(bboxes[:,6:7])
+    return torch.cat([bboxes[:,:6], cos, sin], dim=1)
+
+  @staticmethod
+  def UpRight_xyxy_sin2a_TO_XYZLgWsHA(bboxes):
+    XYLgWsA = OBJ_PARSE_TORCH.UpRight_xyxy_sin2a_TO_XYLgWsA(bboxes)
+    ze = torch.zeros([n, 1], dtype=bboxes.dtype, device=bboxes.device)
+    return torch.cat( [XYLgWsA[:,[0,1]], ze, XYLgWsA[:,[2,3]], ze, XYLgWsA[:,[4]] ], dim=1 )
+
+  @staticmethod
+  def UpRight_xyxy_sin2a_TO_XYLgWsA(bboxes):
+    n,c = bboxes.shape
+    assert c==5
     corner0 = bboxes[:,0:2]
     corner1 = bboxes[:,2:4]
     center = bboxes.reshape(-1,2,2).mean(axis=1)
     vec = corner1 - corner0
-    length = vec.norm(dim=1)[:,None]
+    length = vec.norm(axis=1)[:,None]
     angle = angle_with_x(vec, scope_id=2)[:,None]
-    # Because axis-y of img points to bottom for img, it is positive for
-    # anti-clock wise. Change to positive for clock-wise
-    angle = -angle
-    bboxes_CLA = torch.cat([center, length, angle], axis=1)
-    return bboxes_CLA
+    width = torch.zeros([n, 1], dtype=bboxes.dtype, device=bboxes.device)
+    XYLgWsA = torch.cat([center, length, width, angle], axis=1)
+    return XYLgWsA
 
-  def UpRight_xyxy_sin2a_TO_RoLine2D_2p(lines):
-    '''
-    From RoLine2D_UpRight_xyxy_sin2a to RoLine2D_2p
-    '''
-    istopleft = (lines[:,4:5] >= 0).to(lines.dtype)
-    lines_2p = lines[:,:4] * istopleft +  lines[:,[0,3,2,1]] * (1-istopleft)
-    return lines_2p
 
 class OBJ_REPS_PARSE():
   '''
@@ -82,6 +121,8 @@ class OBJ_REPS_PARSE():
       XYZLgWsHA <-> XYLgWsA
   '''
   _obj_dims = {
+    'XYZLgWsHV': 8,
+
     'XYZLgWsHA': 7,
     'XYLgWsA': 5,
 
@@ -114,7 +155,7 @@ class OBJ_REPS_PARSE():
     if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsA':
       return bboxes[:,[0,1,3,4,6]]
 
-    if obj_rep_in == 'XYLgWsA'  and obj_rep_out == 'XYZLgWsHA':
+    elif obj_rep_in == 'XYLgWsA'  and obj_rep_out == 'XYZLgWsHA':
       ze = np.zeros([nbox, 1])
       return np.concatenate([bboxes[:,[0,1]], ze, bboxes[:,[2,3]], ze, bboxes[:,[4]] ], axis=1)
 
@@ -131,6 +172,13 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'RoLine2D_2p':
       XYLgWsA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYLgWsA')
       return OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'RoLine2D_2p')
+
+    elif obj_rep_in == 'XYZLgWsHV'  and obj_rep_out == 'XYZLgWsHA':
+      return OBJ_PARSE_TORCH.XYZLgWsHV_TO_XYZLgWsHA(torch.from_numpy(bboxes)).numpy()
+
+    elif obj_rep_in == 'XYZLgWsHV'  and obj_rep_out == 'XYLgWsA':
+      XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHV', 'XYZLgWsHA')
+      return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsA')
 
     assert False, f'Not implemented:\nobj_rep_in: {obj_rep_in}\nobj_rep_out: {obj_rep_out}'
 
@@ -159,7 +207,7 @@ class OBJ_REPS_PARSE():
     angle = angle_with_x_np(vec, scope_id=2)[:,None]
     # Because axis-y of img points to bottom for img, it is positive for
     # anti-clock wise. Change to positive for clock-wise
-    angle = -angle
+    angle = angle
     width = np.zeros([bboxes.shape[0], 1], dtype=np.float32)
     XYLgWsA = np.concatenate([center, length, width, angle], axis=1)
     return XYLgWsA
@@ -567,7 +615,7 @@ class O_OBJ_REPS_PARSE():
     angle = angle_with_x_np(vec, scope_id=2)[:,None]
     # Because axis-y of img points to bottom for img, it is positive for
     # anti-clock wise. Change to positive for clock-wise
-    angle = -angle
+    angle = angle
     bboxes_CLA = np.concatenate([center, length, angle], axis=1)
     return bboxes_CLA
 
@@ -581,7 +629,7 @@ class O_OBJ_REPS_PARSE():
     angle = angle_with_x_np(vec, scope_id=2)[:,None]
     # Because axis-y of img points to bottom for img, it is positive for
     # anti-clock wise. Change to positive for clock-wise
-    angle = -angle
+    angle = angle
     width = np.zeros([bboxes.shape[0], 1], dtype=np.float32)
     XYLgWsA = np.concatenate([center, length, width, angle], axis=1)
     return XYLgWsA

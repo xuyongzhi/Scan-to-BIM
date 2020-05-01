@@ -161,3 +161,7 @@ voxel_zero_offset_i = int(np.ceil( img_meta['voxel_zero_offset'] * 2 / point_str
 feat_w += voxel_zero_offset_i
 valid_feat_h = min(int(np.ceil(h / point_stride)), feat_h)
 ```
+
+# Key 
+1. arcsin is not differentialable, while leads to nan gradient.
+

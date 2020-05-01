@@ -250,9 +250,9 @@ class BEIKE(BEIKE_CLSINFO):
       colors_corner = {'wall': (0,0,255), 'door': (0,255,0),
                        'window': (255,0,0), 'other':(255,255,255)}
       anno = self.img_infos[idx]['ann']
-      bboxes = anno['bboxes']
+      bboxes = anno['gt_bboxes']
       labels = anno['labels']
-      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, DIM_PARSE.OBJ_REP)
+      corners = OBJ_REPS_PARSE.encode_obj(bboxes, self.obj_rep, 'RoLine2D_2p').reshape(-1,2)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
@@ -278,9 +278,11 @@ class BEIKE(BEIKE_CLSINFO):
         anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
       else:
         anno_img_file = None
-      _show_lines_ls_points_ls(img, [bboxes], [corners],
-                               line_colors='random', point_colors='random',
-                               line_thickness=1, point_thickness=1,
+      _show_objs_ls_points_ls(
+                               img, [bboxes], obj_rep = self.obj_rep,
+                               points_ls = [corners],
+                               obj_colors='random', point_colors='random',
+                               obj_thickness=1, point_thickness=1,
                                out_file=anno_img_file, only_save=0)
 
       show_1by1 = False
@@ -680,6 +682,9 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
       #assert gt_bboxes.min() >= 0
       if DEBUG_CFG.VISUAL_CONNECTIONS:
         show_connection( anno_img['gt_bboxes'], anno_img['relations'] )
+
+      #_show_objs_ls_points_ls((512,512), [lines_pt.reshape(-1,4)], 'RoLine2D_2p')
+      #_show_objs_ls_points_ls((512,512), [lines_pt_ordered], obj_rep)
       return anno_img
 
 
@@ -1083,11 +1088,14 @@ def gen_images_from_npy(data_path):
   pass
 
 def main(data_path):
+  obj_rep = 'XYZLgWsHA'
   ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
 
-  scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
+  scenes = np.loadtxt(topview_path, dtype=str)
+
+  #scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
   #scenes = BAD_SCENE_TRANSFERS_PCL
 
   classes = ['wall', 'door', 'window', ]
@@ -1098,7 +1106,9 @@ def main(data_path):
   is_save_connection = 0
   if is_save_connection:
     classes = ['wall', 'door', 'window', ]
-  beike = BEIKE(ANNO_PATH, topview_path,
+  beike = BEIKE(obj_rep,
+                ANNO_PATH,
+                topview_path,
                 classes = classes,
                 filter_edges= 0,
                 is_save_connection=is_save_connection,
@@ -1107,7 +1117,7 @@ def main(data_path):
   if is_save_connection:
     beike.find_connection()
 
-  if 0:
+  if 1:
     for s in scenes:
       beike.show_scene_anno(s, True, 0)
 

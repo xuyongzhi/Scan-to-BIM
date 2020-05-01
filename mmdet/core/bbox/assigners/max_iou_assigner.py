@@ -7,7 +7,7 @@ from ..straight_line_distance import line_overlaps
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 import cv2
-from obj_geo_utils.obj_utils import OBJ_REPS_PARSE_TORCH
+from obj_geo_utils.obj_utils import OBJ_PARSE_TORCH
 
 from configs.common import DEBUG_CFG
 
@@ -58,11 +58,12 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
         self.overlap_fun = overlap_fun
-        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYZLgWsHA']
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYZLgWsHA', 'XYZLgWsHV']
         if obj_rep == 'corner':
           assert ref_radius is not None
         self.obj_rep = obj_rep
         self.ref_radius = ref_radius
+        self.obj_dim = OBJ_PARSE_TORCH._obj_dims[self.obj_rep]
 
     def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None,
                img_meta=None):
@@ -130,21 +131,31 @@ class MaxIoUAssigner(BaseAssigner):
               assert gt_bboxes_ignore.shape[1] == 5
               gt_bboxes_ignore = gt_bboxes_ignore[:,:4]
           elif self.overlap_fun == 'dil_iou_dis_rotated_3d':
-            box_encode_fn = OBJ_REPS_PARSE_TORCH.UpRight_xyxy_sin2a_TO_XYZLgWsHA
+            box_encode_fn = OBJ_PARSE_TORCH.UpRight_xyxy_sin2a_TO_XYZLgWsHA
             bboxes = box_encode_fn(bboxes)
             gt_bboxes = box_encode_fn(gt_bboxes)
             if gt_bboxes_ignore is not None:
               assert gt_bboxes_ignore.shape[1] == 5
               gt_bboxes_ignore = box_encode_fn(gt_bboxes_ignore)
 
+        elif self.obj_rep == 'XYZLgWsHV':
+          # transfer to XYZLgWsHA for iou calculation
+          assert self.overlap_fun == 'dil_iou_dis_rotated_3d'
+          assert bboxes.shape[1] == self.obj_dim
+          assert gt_bboxes.shape[1] == self.obj_dim
+          bboxes = OBJ_PARSE_TORCH.encode_obj(bboxes, self.obj_rep, 'XYZLgWsHA')
+          gt_bboxes = OBJ_PARSE_TORCH.encode_obj(gt_bboxes, self.obj_rep, 'XYZLgWsHA')
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == OBJ_PARSE_TORCH._obj_dims[self.obj_rep]
+            gt_bboxes_ignore = OBJ_PARSE_TORCH.encode_obj(gt_bboxes_ignore, self.obj_rep, 'XYZLgWsHA')
+
         elif self.obj_rep == 'XYZLgWsHA':
           # transfer to XYZLgWsHA for iou calculation
           assert self.overlap_fun == 'dil_iou_dis_rotated_3d'
-          assert bboxes.shape[1] == 7
-          assert gt_bboxes.shape[1] == 7
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          assert bboxes.shape[1] == self.obj_dim
+          assert gt_bboxes.shape[1] == self.obj_dim
           if gt_bboxes_ignore is not None:
-            assert gt_bboxes_ignore.shape[1] == 7
+            assert gt_bboxes_ignore.shape[1] == OBJ_PARSE_TORCH._obj_dims[self.obj_rep]
 
         elif self.obj_rep == 'corner':
           assert gt_bboxes.shape[1] == 2

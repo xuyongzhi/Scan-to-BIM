@@ -40,7 +40,10 @@ _obj_dim = dim_parse.OBJ_DIM
 if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
   _transform_method='moment_lscope_istopleft'
 if _obj_rep == 'XYZLgWsHA':
-  _transform_method='moment_XYZLgWsHA'
+  _transform_method='moment_XYZLgWsHV'
+  _obj_rep_pred = 'XYZLgWsHV'
+else:
+  _obj_rep_pred = _obj_rep
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
@@ -68,6 +71,7 @@ model = dict(
     bbox_head=dict(
         type='StrPointsHead',
         obj_rep=_obj_rep,
+        obj_rep_pred=_obj_rep_pred,
         num_classes=len(classes) + 1,
         in_channels=256,
         feat_channels=256,
@@ -104,7 +108,7 @@ model = dict(
 # training and testing settings
 train_cfg = dict(
     init=dict(
-        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep),
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep_pred),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -116,7 +120,7 @@ train_cfg = dict(
             min_pos_iou=0.15,
             ignore_iof_thr=-1,
             overlap_fun=overlap_fun,
-            obj_rep=_obj_rep),
+            obj_rep=_obj_rep_pred),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),

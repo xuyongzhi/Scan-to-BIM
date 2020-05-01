@@ -18,7 +18,6 @@ from mmdet.models import build_detector
 import shutil
 import numpy as np
 
-
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument('config', help='train config file path')

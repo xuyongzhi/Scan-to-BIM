@@ -18,7 +18,7 @@ class PointAssigner(BaseAssigner):
     """
 
     def __init__(self, scale=4, pos_num=3, obj_rep=''):
-        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYZLgWsHA']
+        assert obj_rep in ['RoLine2D_UpRight_xyxy_sin2a', 'XYZLgWsHV']
         self.scale = scale
         self.pos_num = pos_num
         self.obj_rep = obj_rep
@@ -98,6 +98,15 @@ class PointAssigner(BaseAssigner):
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 7
             gt_bboxes_ignore = gt_bboxes_ignore[:,:7]
+          gt_bboxes_raw = gt_bboxes.clone()
+          gt_bboxes_wh = gt_bboxes[:,3:5].max(dim=1, keepdims=True)[0].repeat(1,2)
+          gt_bboxes_xy = gt_bboxes[:,:2]
+
+        elif self.obj_rep == 'XYZLgWsHV':
+          assert gt_bboxes.shape[1] == 8
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 8
+            gt_bboxes_ignore = gt_bboxes_ignore[:,:8]
           gt_bboxes_raw = gt_bboxes.clone()
           gt_bboxes_wh = gt_bboxes[:,3:5].max(dim=1, keepdims=True)[0].repeat(1,2)
           gt_bboxes_xy = gt_bboxes[:,:2]

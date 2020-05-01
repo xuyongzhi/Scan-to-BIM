@@ -3,6 +3,106 @@ import torch, math
 import numpy as np
 
 
+def parse_scope_id(scope_id):
+  if scope_id == 1:
+    # [-pi/2, pi/2]: offset=0.5, period=pi
+    offset, period = 0.5, math.pi
+  elif scope_id == 0:
+    # [0, pi]: offset=0, period=pi
+    offset, period = 0, math.pi
+  elif scope_id == 2:
+    # [-pi, pi]: offset=0.5, period=pi*2
+    offset, period = 0.5, math.pi*2
+  elif scope_id == 3:
+    # [0, 2*pi]: offset=0, period=pi*2
+    offset, period = 0, math.pi*2
+  else:
+    raise NotImplementedError
+  return offset, period
+
+class RotateVector():
+  def check_norm(vecs):
+    assert vecs.shape[-1] == 2
+    norm = vecs.norm(dim=-1)
+    assert torch.abs(norm-1).max() < 1e-5
+
+  def limit_period_rvec(vecs,  scope_id):
+    '''
+    scope_id=0: [0, pi]  [ cos, |sin| ]
+    scope_id=1: [-pi/2, pi/2]  [ |cos|, sin ]
+    scope_id=2: [-pi, pi]  [ cos, sin ]
+    scope_id=3: [0, 2*pi]  [ cos, sin ]
+    '''
+    assert vecs.shape[-1] == 2
+    assert vecs.ndim >= 2
+    if scope_id == 2 or scope_id == 3:
+      return vecs
+    elif scope_id == 1:
+      ref = torch.zeros_like(vecs)
+      ref[:,0] = 1
+      cos = (ref * vecs).sum(dim=-1, keepdim=True)
+      dtype = vecs.dtype
+      device = vecs.device
+      no_switch = (cos > 0).to(dtype).to(device) * 2 - 1
+      vecs = vecs * no_switch
+    return vecs
+
+  def encode_rvecs(vecs, scope_id):
+    assert vecs.shape[-1] == 2
+    norm = vecs.norm(dim=-1, keepdim=True)
+    vecs = vecs / norm
+    vecs = RotateVector.limit_period_rvec(vecs, scope_id)
+    return vecs
+
+  def avervecs(vecs, dim, scope_id, keepdim=False):
+    '''
+    original: (0,0)
+    vecs: [...,2]
+    '''
+    assert vecs.shape[-1] == 2
+    assert dim < vecs.ndim-1
+    RotateVector.check_norm(vecs)
+    dtype = vecs.dtype
+    device = vecs.device
+
+    ids = torch.tensor([0]).to(device)
+    ref = torch.index_select(vecs, dim, ids)
+
+    cos = (ref * vecs).sum(dim=-1, keepdim=True)
+    no_switch = (cos > 0).to(dtype).to(device) * 2 - 1
+    vecs_new = vecs * no_switch
+    ave = vecs_new.mean(dim=dim, keepdim=True)
+    std = vecs_new.std(dim=dim, keepdim=True)
+    a_norm = ave.norm(dim=-1, keepdim=True)
+    ave = ave / a_norm
+    ave = RotateVector.limit_period_rvec(ave, scope_id)
+    if not keepdim:
+      ave = ave.squeeze(dim)
+      std = std.squeeze(dim)
+    return ave, std
+
+def ave_std_angles_with_period(angles, dim, keepdim=False, scope_id=1):
+  '''
+  1. Select any one (1st) as ref
+  2. Make all in the period/2 of ref
+  3. Perform mean
+  3. Limiot period
+  '''
+  offset, period = parse_scope_id(scope_id)
+  dtype = angles.dtype
+  device = angles.device
+
+  i_ids = torch.tensor([0]).to(angles.device)
+  ref = torch.index_select(angles, dim, i_ids)
+  mask = (torch.abs(angles - ref) > period/2).to(dtype).to(device)
+  sign = (angles - ref < 0).to(dtype).to(device)*2 - 1
+  mask *= sign
+
+  angles_new = angles + period * mask
+  std, ave = torch.std_mean( angles_new, dim=dim, keepdim=keepdim)
+  ave = limit_period(ave, offset, period)
+  return ave, std
+
 def limit_period(val, offset, period):
   '''
     [0, pi]: offset=0, period=pi
@@ -61,7 +161,7 @@ def vec_from_angle_with_x_np(angle):
   '''
   assert angle.ndim == 1
   x = np.cos(angle)[:,None]
-  y = -np.sin(angle)[:,None]
+  y = np.sin(angle)[:,None]
   vec = np.concatenate([x,y], axis=1)
 
   check = 1
@@ -383,10 +483,11 @@ def test():
   np.set_printoptions(precision=3, suppress=True)
   z = 200
   vec_start = np.array([[200,0]  ], dtype=np.int32)
-  vec_end   = np.array([[1,200]  ], dtype=np.int32)
+  vec_end   = np.array([[10,200]  ], dtype=np.int32)
   #vec_end   = np.array([[170,200]], dtype=np.int32)
-  angle = angle_from_vecs_to_vece_np(vec_start, vec_end, scope_id=1)
-  angle = angle*180/np.pi
+  angle_ = angle_from_vecs_to_vece_np(vec_start, vec_end, scope_id=1)*180/np.pi
+  angle = angle_with_x_np(vec_end, scope_id=1)*180/np.pi
+  assert angle == angle_
 
   print(f'vec_start: {vec_start}')
   print(f'vec_end: {vec_end}')
@@ -398,8 +499,20 @@ def test():
   cv2.imshow('img', img)
   cv2.waitKey(0)
 
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
+def test_rvec():
+  vecs = torch.tensor([[-1,10], [1,10], [0,10]], dtype=torch.float32)
+  vecs = torch.tensor([[-1,10], [2,20], [1,1] ], dtype=torch.float32)
+  vecs = torch.tensor([[-10,10], [21,20], ], dtype=torch.float32)
+  rvecs = RotateVector.encode_rvecs(vecs, scope_id=1)
+  ave, std = RotateVector.avervecs(rvecs, dim=0, scope_id=1)
+  print(rvecs)
+  print(ave)
+  print(std)
+
 if __name__ == '__main__':
-  test()
+  test_rvec()
+
 
