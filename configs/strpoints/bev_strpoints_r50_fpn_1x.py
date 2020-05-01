@@ -263,7 +263,7 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]

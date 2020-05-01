@@ -1120,7 +1120,7 @@ class StrPointsHead(nn.Module):
           # ['loss_locI', 'loss_sin2I', 'loss_absaI', 'loss_sizeI', 'loss_locR',
           # 'loss_sin2R', 'loss_absaR', 'loss_sizeR', 'loss_clI', 'loss_clR', 'loss_clsR', 'loss_clsF']
           for e in loss_dict_all.keys():
-            if e == 'loss_locI':
+            if 'I' in  e:
               loss_dict_all_new[e] =   loss_dict_all[e]
           return loss_dict_all_new
         return loss_dict_all

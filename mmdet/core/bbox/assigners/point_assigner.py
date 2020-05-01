@@ -227,7 +227,9 @@ class PointAssigner(BaseAssigner):
               if is_gt_out_scope.all():
                 print('\n\tthe missed gts are out of scope\n')
               else:
-                assert False, "miss gt"
+                print(f'miss {miss_gt_num} gts')
+                import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                #assert False, "miss gt"
             if 1:
               pos_points = points[:,:2][pos_inds].cpu().data.numpy().reshape(-1,2)
               _show_objs_ls_points_ls((points_scope[1], points_scope[0]), [gt_bboxes_raw, missed_gt_bboxes], obj_rep=self.obj_rep, points_ls=[pos_points], obj_colors=['red', 'green'])
