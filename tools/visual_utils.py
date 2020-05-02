@@ -157,6 +157,7 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
     boxes = []
     for i in range(n):
         center, size, angle = objs[i][:2], objs[i][2:4], objs[i][4]
+        #print(f'size: {size}')
         angle *= 180 / np.pi
         rect = ( center, size, angle )
         box = cv2.boxPoints(rect)

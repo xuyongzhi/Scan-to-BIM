@@ -124,9 +124,17 @@ class OBJ_REPS_PARSE():
         bboxes_csa =  OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes, check_sin2)
         return bboxes_csa
 
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYZLgWsHA':
+      XYLgWsA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'XYLgWsA')
+      return OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'XYZLgWsHA')
+
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYXYSin2WZ0Z1':
       ze = bboxes[:,:3]*0
       return np.concatenate([bboxes, ze], axis=1)
+
+    elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'XYZLgWsHA':
+      ze = bboxes[:,:1]*0
+      return np.concatenate([bboxes[:,[0,1]], ze, bboxes[:,[2,3]], ze, bboxes[:,[4]]], axis=1)
 
     # --------------------------------------------------------------------------
 

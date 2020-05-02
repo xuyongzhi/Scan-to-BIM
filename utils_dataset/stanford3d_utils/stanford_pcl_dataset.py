@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 1
+SMALL_DATA = 0
 
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
 _raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -61,7 +61,7 @@ class Stanford_Ann():
   LONG = ['Area_1/hallway_2']
   UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
                'Area_4/hallway_14', 'Area_3/office_7']
-  SAMPLES1 = ['Area_4/office_22', 'Area_1/office_16']
+  SAMPLES1 = ['Area_5/office_39']
 
   GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
 
@@ -81,7 +81,8 @@ class Stanford_Ann():
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
-      data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
+      #data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
+      data_paths = [f+'.ply' for f in self.SAMPLES1]
 
     data_paths.sort()
     self.data_paths = data_paths
@@ -215,7 +216,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     coords -= pcl_scope[0:1]
 
     #bboxes_3d = self.img_infos[index]['gt_bboxes_3d_raw']
-    #_show_3d_points_objs_ls([coords], None, [bboxes_3d], 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    #_show_3d_points_objs_ls([coords], None, [bboxes_3d], 'XYXYSin2WZ0Z1')
     return coords, colors_norms, point_labels, None
 
   def _augment_coords_to_colors_norms(self, coords, colors_norms, point_labels=None):
@@ -260,8 +261,8 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     print(gt_cats)
 
     _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
-    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_colors=[gt_labels])
-    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
     pass
 
   def show_topview_gts(self, voxel_size_prj=0.01):
@@ -326,7 +327,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
 
 
     #gt_bboxes_3d_raw = self.img_infos[index]['gt_bboxes_3d_raw']
-    #_show_3d_points_objs_ls([points], objs_ls=[gt_bboxes_3d_raw], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    #_show_3d_points_objs_ls([points], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
 
     gt_labels = self.img_infos[index]['gt_labels']
     gt_bboxes_2d_raw = self.img_infos[index]['gt_lines_thick_2d_raw']
@@ -425,7 +426,7 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
       num_box = bboxes_dict[cat].shape[0]
       cat_ids = _category_ids_map[cat] * np.ones([num_box], dtype=np.int64)
       bbox_cat_ids.append( cat_ids )
-  # the loaded format: RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+  # the loaded format: XYXYSin2WZ0Z1
   bboxes_3d_URSin2T = np.concatenate(bboxes, axis=0)
   bbox_cat_ids = np.concatenate(bbox_cat_ids)
 
@@ -434,11 +435,13 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
   bboxes_3d_URSin2T[:, :2] -= scope[0:1,:2]
   bboxes_3d_URSin2T[:, 2:4] -= scope[0:1,:2]
 
-  gt_bboxes = OBJ_REPS_PARSE.encode_obj(bboxes_3d_URSin2T, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_rep)
+  gt_bboxes = OBJ_REPS_PARSE.encode_obj(bboxes_3d_URSin2T, 'XYXYSin2WZ0Z1', obj_rep)
   anno = {}
   if input_style == 'bev':
     voxel_size_prj=0.01
-    gt_bboxes[:, :4] /= voxel_size_prj
+    sin2 = gt_bboxes[:,4].copy()
+    gt_bboxes /= voxel_size_prj
+    gt_bboxes[:,4] = sin2
     anno['voxel_size_prj'] = voxel_size_prj
 
   filename = pcl_file
@@ -452,7 +455,8 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
 
   show = 0
   if show:
-    #_show_3d_points_objs_ls(objs_ls=[bboxes_3d_URSin2T], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    print(f'\n\n{pcl_file}\n\n')
+    #_show_3d_points_objs_ls(objs_ls=[bboxes_3d_URSin2T], obj_rep='XYXYSin2WZ0Z1')
     w,h =  gt_bboxes[:,:4].reshape(-1,2).max(0).astype(np.int) + 10
     _show_objs_ls_points_ls( (h,w), [gt_bboxes], obj_rep=obj_rep )
 
@@ -460,7 +464,7 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
 
 
 def show_bboxes(bboxes_3d):
-    #_show_3d_points_objs_ls(None, None, [bboxes_3d],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    #_show_3d_points_objs_ls(None, None, [bboxes_3d],  obj_rep='XYXYSin2WZ0Z1')
     bboxes_show = bboxes_3d.copy()
     voxel_size = 0.02
     bboxes_show[:,:4] /= voxel_size
@@ -495,21 +499,35 @@ def load_1_ply(filepath):
     return coords, colors_norms, point_labels, None
 
 
-def main():
+def main3d():
+  obj_rep = 'XYXYSin2WZ0Z1'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
   img_prefix = './train.txt'
   img_prefix = './test.txt'
   classes = Stanford_CLSINFO.classes_order
   max_num_points = 50 * 1e4
   max_num_points = None
-  sfd_dataset = StanfordPcl( ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
+  sfd_dataset = StanfordPcl(obj_rep, ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
   #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()
   sfd_dataset.show_pcl_3dbboxes_gts()
   pass
 
+def main2d():
+  obj_rep = 'XYXYSin2WZ0Z1'
+  ann_file = '/home/z/Research/mmdetection/data/stanford/'
+  img_prefix = './train.txt'
+  img_prefix = './test.txt'
+  classes = Stanford_CLSINFO.classes_order
+  max_num_points = 50 * 1e4
+  max_num_points = None
+  sfd_dataset = Stanford_BEV(obj_rep, ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
+  #sfd_dataset.gen_topviews()
+  #sfd_dataset.show_topview_gts()
+  sfd_dataset.show_pcl_3dbboxes_gts()
   pass
 
 if __name__ == '__main__':
-   main()
+   main3d()
+   #main2d()
 

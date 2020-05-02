@@ -99,7 +99,10 @@ class StrPointsHead(nn.Module):
                  ):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
-        self.box_extra_dims = 3
+        if obj_rep == 'XYXYSin2WZ0Z1':
+          self.box_extra_dims = 3
+        else:
+          self.box_extra_dims = 0
 
         self.obj_rep = obj_rep
         self.dim_parse = DIM_PARSE(obj_rep, num_classes)
@@ -318,7 +321,7 @@ class StrPointsHead(nn.Module):
           normal_init(self.edge_relation_cls, std=0.01, bias=bias_cls)
 
 
-    def points2bbox(self, pts, y_first=True, out_line_constrain=False):
+    def points2bbox(self, pts, y_first=True, out_line_constrain=False, box_extra=None):
         """
         Converting the points set into bounding box.
         :param pts: the input points sets (fields), each points
@@ -335,6 +338,7 @@ class StrPointsHead(nn.Module):
         pts_x = pts_reshape[:, :, 1, ...] if y_first else pts_reshape[:, :, 0,
                                                                       ...]
         if self.transform_method == 'minmax':
+            assert box_extra is None
             bbox_left = pts_x.min(dim=1, keepdim=True)[0]
             bbox_right = pts_x.max(dim=1, keepdim=True)[0]
             bbox_up = pts_y.min(dim=1, keepdim=True)[0]
@@ -342,6 +346,7 @@ class StrPointsHead(nn.Module):
             bbox = torch.cat([bbox_left, bbox_up, bbox_right, bbox_bottom],
                              dim=1)
         elif self.transform_method == 'partial_minmax':
+            assert box_extra is None
             pts_y = pts_y[:, :4, ...]
             pts_x = pts_x[:, :4, ...]
             bbox_left = pts_x.min(dim=1, keepdim=True)[0]
@@ -351,6 +356,7 @@ class StrPointsHead(nn.Module):
             bbox = torch.cat([bbox_left, bbox_up, bbox_right, bbox_bottom],
                              dim=1)
         elif self.transform_method == 'moment':
+            assert box_extra is None
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
             pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
@@ -367,6 +373,7 @@ class StrPointsHead(nn.Module):
             ],
                              dim=1)
         elif self.transform_method == 'moment_XYXYSin2':
+            assert box_extra is None
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
             pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
@@ -419,6 +426,11 @@ class StrPointsHead(nn.Module):
             pass
 
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
+            assert self.box_extra_dims == 3 and box_extra.shape[1] == self.box_extra_dims
+            if not box_extra.shape[2:] == pts_x.shape[2:]:
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
+
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
             pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
@@ -450,6 +462,7 @@ class StrPointsHead(nn.Module):
             isaline = (isaline_0 + isaline_1) / 2
 
             width_z0_z1 = torch.zeros_like(pts_y)[:,:3]
+            width_z0_z1[:,0] = box_extra[:,0]
 
             bbox = torch.cat([
                 pts_x_mean - half_width, pts_y_mean - half_height,
@@ -814,7 +827,9 @@ class StrPointsHead(nn.Module):
         return pts_list
 
 
-    def loss_single(self, cls_score, pts_pred_init, pts_pred_refine, labels,
+    def loss_single(self, cls_score, pts_pred_init, pts_pred_refine,
+                    box_extra_init,  box_extra_refine,
+                    labels,
                     label_weights, bbox_gt_init, bbox_weights_init,
                     bbox_gt_refine, bbox_weights_refine, stride,
                     num_total_samples_init, num_total_samples_refine,
@@ -845,14 +860,20 @@ class StrPointsHead(nn.Module):
         # points loss
         bbox_gt_init = bbox_gt_init.reshape(-1, self.obj_dim)
         bbox_weights_init = bbox_weights_init.reshape(-1, self.obj_dim)
+        if box_extra_init is not None:
+          box_extra_init = box_extra_init.reshape(-1, self.box_extra_dims)
         bbox_pred_init = self.points2bbox(
             pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False,
-            out_line_constrain=LINE_CONSTRAIN_LOSS)
+            out_line_constrain=LINE_CONSTRAIN_LOSS,
+            box_extra=box_extra_init)
         bbox_gt_refine = bbox_gt_refine.reshape(-1, self.obj_dim)
         bbox_weights_refine = bbox_weights_refine.reshape(-1, self.obj_dim)
+        if box_extra_refine is not None:
+            box_extra_refine = box_extra_refine.reshape(-1, self.box_extra_dims)
         bbox_pred_refine = self.points2bbox(
             pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False,
-            out_line_constrain=LINE_CONSTRAIN_LOSS)
+            out_line_constrain=LINE_CONSTRAIN_LOSS,
+            box_extra=box_extra_refine)
         normalize_term = self.point_base_scale * stride
 
         if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
@@ -878,7 +899,7 @@ class StrPointsHead(nn.Module):
 
         loss_pts_init = cal_loss_bbox('init', self.obj_rep, self.loss_bbox_init,
                                   bbox_pred_init_nm, bbox_gt_init_nm,
-                                  bbox_weights_init, num_total_samples_init)
+                                  bbox_weights_init, num_total_samples_init,)
 
         if LINE_CONSTRAIN_LOSS:
           assert bbox_pred_init_nm.shape[1] == self.obj_dim + 1
@@ -906,7 +927,7 @@ class StrPointsHead(nn.Module):
 
         loss_pts_refine = cal_loss_bbox('refine', self.obj_rep, self.loss_bbox_refine,
                                   bbox_pred_refine_nm, bbox_gt_refine_nm,
-                                  bbox_weights_refine, num_total_samples_refine)
+                                  bbox_weights_refine, num_total_samples_refine,)
 
         if LINE_CONSTRAIN_LOSS:
           assert bbox_pred_refine_nm.shape[1] == self.obj_dim + 1
@@ -920,13 +941,21 @@ class StrPointsHead(nn.Module):
 
         return loss_cls, loss_pts_init, loss_pts_refine, loss_linec_init, loss_linec_refine
 
-    def get_bbox_from_pts(self, center_list, pts_preds):
+    def get_bbox_from_pts(self, center_list, pts_preds, box_extras):
+        if self.box_extra_dims > 0:
+          assert len(box_extras) == len(pts_preds) and pts_preds[0].shape[2:] == box_extras[0].shape[2:]
+        else:
+          assert box_extras[0] is None
         bbox_list = []
         for i_img, center in enumerate(center_list):
             bbox = []
             for i_lvl in range(len(pts_preds)):
+                if self.box_extra_dims >0:
+                  box_extra_i = box_extras[i_lvl].detach()
+                else:
+                  box_extra_i = None
                 bbox_preds_init = self.points2bbox(
-                    pts_preds[i_lvl].detach())
+                    pts_preds[i_lvl].detach(), box_extra=box_extra_i )
                 if self.transform_method == 'center_size_istopleft':
                   raise NotImplementedError
                 elif self.transform_method == 'moment':
@@ -977,12 +1006,15 @@ class StrPointsHead(nn.Module):
              pts_preds_refine,
              corner_outs,
              rel_feat_outs,
+             box_extra_init,
+             box_extra_refine,
              gt_bboxes,
              gt_labels,
              gt_relations,
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
+
         if DEBUG and 0:
           gt_bboxes = [g[5:8,:] for g in gt_bboxes]
         #_show_objs_ls_points_ls_torch((512,512), gt_bboxes, self.obj_rep)
@@ -1032,7 +1064,7 @@ class StrPointsHead(nn.Module):
                                                        img_metas)
         pts_coordinate_preds_refine = self.offset_to_pts(
             center_list, pts_preds_refine)
-        bbox_list_initres = self.get_bbox_from_pts(center_list, pts_preds_init)
+        bbox_list_initres = self.get_bbox_from_pts(center_list, pts_preds_init, box_extra_init)
         #debug_utils.show_shapes(pts_preds_init, 'StrPointsHead init')
         #debug_utils.show_shapes(bbox_list_initres, 'StrPointsHead init bbox')
         cls_reg_targets_refine = point_target(
@@ -1059,7 +1091,7 @@ class StrPointsHead(nn.Module):
         if 'final' in self.cls_types:
           center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
-          bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine)
+          bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine, box_extra_refine)
           #debug_utils.show_shapes(pts_preds_refine, 'StrPointsHead refine')
           #debug_utils.show_shapes(bbox_list_refineres, 'StrPointsHead refine bbox')
           cls_reg_targets_final = point_target(
@@ -1103,6 +1135,14 @@ class StrPointsHead(nn.Module):
           label_weights_list.append(label_weights_list_i)
 
         #-----------------------------------------------------------------------
+        if self.box_extra_dims>0:
+          assert box_extra_init[0].shape[1] == box_extra_refine[0].shape[1] == self.box_extra_dims
+          bs = box_extra_init[0].shape[0]
+          box_extra_init = [e.permute(0,2,3,1).reshape(bs, -1, self.box_extra_dims) for e in box_extra_init]
+          box_extra_refine = [e.permute(0,2,3,1).reshape(bs, -1, self.box_extra_dims) for e in box_extra_refine]
+        else:
+          assert box_extra_init[0] is None
+        #-----------------------------------------------------------------------
         # compute loss per level
         losses_cls, losses_pts_init, losses_pts_refine,\
           loss_linec_init, loss_linec_refine\
@@ -1111,6 +1151,8 @@ class StrPointsHead(nn.Module):
             cls_scores,
             pts_coordinate_preds_init,
             pts_coordinate_preds_refine,
+            box_extra_init,
+            box_extra_refine,
             labels_list,
             label_weights_list,
             bbox_gt_list_init,
@@ -1492,6 +1534,8 @@ class StrPointsHead(nn.Module):
                    pts_preds_refine,
                    corner_outs,
                    rel_feat_outs,
+                   box_extra_init,
+                   box_extra_refine,
                    img_metas,
                    cfg,
                    rescale=False,
@@ -1499,7 +1543,7 @@ class StrPointsHead(nn.Module):
         assert len(cls_scores) == len(pts_preds_refine)
         cls_scores, cls_scores_refine_final = self.cal_test_score(cls_scores)
         bbox_preds_refine = [
-            self.points2bbox(pts_pred_refine)
+            self.points2bbox(pts_pred_refine, box_extra=box_extra_refine)
             for pts_pred_refine in pts_preds_refine
         ]
         num_levels = len(cls_scores)
@@ -1507,7 +1551,7 @@ class StrPointsHead(nn.Module):
         if self.dim_parse.OUT_EXTAR_DIM > 0:
           for i in range(num_levels):
             bbox_preds_init = [
-                self.points2bbox(pts_pred_init)
+                self.points2bbox(pts_pred_init, box_extra=box_extra_init)
                 for pts_pred_init in pts_preds_init
             ]
             # OUT_ORDER
@@ -1824,7 +1868,7 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
                 bbox_weights_init [:,[6,7]],
                 avg_factor=num_total_samples_init)
               loss_pts_init[f'loss_wd{s}'] = loss_pts_init_width
-              loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
+              #loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
 
         elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
             Xc, Yc, Lg, Ws, Asin, Sin2, Z0, Z1 = range(8)
