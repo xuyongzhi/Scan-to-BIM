@@ -67,7 +67,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
           res_data['gt_bboxes'] = gt_bboxes.cpu().numpy()
           res_data['gt_labels'] = gt_labels.cpu().numpy()
 
-          #_show_objs_ls_points_ls(img_i, [res_data['gt_bboxes'][0]], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+          #_show_objs_ls_points_ls(img_i, [res_data['gt_bboxes'][0]], obj_rep='XYXYSin2')
           pass
 
         detections_all_labels = []
@@ -105,7 +105,7 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
   score_threshold: 0.4
   label: 1
   opt_graph_cor_dis_thr: 10
-  obj_rep: 'RoLine2D_UpRight_xyxy_sin2a'
+  obj_rep: 'XYXYSin2'
 
   det_lines_merged: [m,6]
   '''
@@ -120,8 +120,8 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
     check_length = 0
     if check_length:
       # check length
-      det_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines[:,:5], 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_CenterLengthAngle' )[:,2]
-      merged_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines_merged[:,:5], 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_CenterLengthAngle' )[:,2]
+      det_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines[:,:5], 'XYXYSin2', 'RoLine2D_CenterLengthAngle' )[:,2]
+      merged_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines_merged[:,:5], 'XYXYSin2', 'RoLine2D_CenterLengthAngle' )[:,2]
 
     det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
   else:
@@ -242,7 +242,7 @@ class GraphEval():
 
         if debug and 0:
           print('gt')
-          _show_objs_ls_points_ls(img, [gt_lines], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+          _show_objs_ls_points_ls(img, [gt_lines], obj_rep='XYXYSin2')
         pass
 
         num_labels = len(detections)
@@ -357,8 +357,8 @@ class GraphEval():
     num_gt = gt_lines.shape[0]
 
     det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:5],\
-                                          None, 'RoLine2D_UpRight_xyxy_sin2a')
-    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, 'RoLine2D_UpRight_xyxy_sin2a')
+                                          None, 'XYXYSin2')
+    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, 'XYXYSin2')
 
     cor_nums_gt_pos_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
 
@@ -553,7 +553,7 @@ class GraphEval():
 def draw_eval_all_classes_1img(eval_draws_ls):
   import mmcv
   colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow'}
-  obj_rep='RoLine2D_UpRight_xyxy_sin2a'
+  obj_rep='XYXYSin2'
   num_cats = len(eval_draws_ls)
   img_det = None
   img_gt = None
@@ -641,7 +641,7 @@ def apply_mask_on_ids(ids, mask):
   return (ids + 1) * mask - 1
 
 
-def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10, obj_rep='RoLine2D_UpRight_xyxy_sin2a', det_out='line_ave'):
+def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10, obj_rep='XYXYSin2', det_out='line_ave'):
   with open(res_file, 'rb') as f:
     results_datas = pickle.load(f)
   eval_res_file = res_file.replace('.pickle', '_EvalRes.npy')
@@ -687,7 +687,7 @@ def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10,
 
       if det_out == 'line_ave':
         detection_objs = detections_line_ave
-        det_corners, _, _,_ = gen_corners_from_lines_np(detection_objs[:,:5], None, 'RoLine2D_UpRight_xyxy_sin2a')
+        det_corners, _, _,_ = gen_corners_from_lines_np(detection_objs[:,:5], None, 'XYXYSin2')
 
       # use wall corner recall precision as name
       wall_cor_rec, wall_cor_prec = eval_res['corner_recall_precision'][1]
@@ -700,7 +700,7 @@ def unsed_draw_eval_res(res_file, score_threshold=0.4, opt_graph_cor_dis_thr=10,
       img_file = os.path.join(eval_dir, img_name)
       #print('det corners. green: true pos, red: false pos')
       img_size = img.shape[:2]
-      _show_objs_ls_points_ls(img_size, [detection_objs[:,:5]], 'RoLine2D_UpRight_xyxy_sin2a', [det_corners], out_file=img_file, only_save=1)
+      _show_objs_ls_points_ls(img_size, [detection_objs[:,:5]], 'XYXYSin2', [det_corners], out_file=img_file, only_save=1)
 
 
       pass

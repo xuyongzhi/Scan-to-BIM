@@ -18,7 +18,7 @@ DATA = 'beike2d'
 #DATA = 'stanford2d'
 classes= ['wall']
 
-_obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+_obj_rep = 'XYXYSin2'
 #_obj_rep = 'XYLgWsAsinSin2Z0Z1'
 
 num_ps_long_axis = 9
@@ -28,7 +28,7 @@ overlap_fun='dil_iou_dis_rotated_3d'
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
 
-if _obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+if _obj_rep == 'XYXYSin2':
   _transform_method='moment_lscope_istopleft'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
@@ -247,7 +247,7 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-load_from = None
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]

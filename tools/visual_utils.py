@@ -16,7 +16,7 @@ ADD_FRAME = 0
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
                             objs_ls=None,
-                            obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+                            obj_rep='XYXYSin2',
                             points_ls=None,
                             obj_colors='random',
                             obj_scores_ls=None,
@@ -42,7 +42,7 @@ def _show_objs_ls_points_ls_torch(img,
 
 def _show_objs_ls_points_ls(img,
                             objs_ls=None,
-                            obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+                            obj_rep='XYXYSin2',
                             points_ls=None,
                             obj_colors='random',
                             obj_scores_ls=None,
@@ -64,7 +64,7 @@ def _show_objs_ls_points_ls(img,
 
 def _draw_objs_ls_points_ls(img,
                             objs_ls=None,
-                            obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+                            obj_rep='XYXYSin2',
                             points_ls=None,
                             obj_colors='green',
                             point_colors='red',
@@ -181,7 +181,7 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
 
     return img
 
-def draw_RoLine2D_UpRight_xyxy_sin2a(img, objs, color, obj_thickness=1, font_scale=0.5, text_color='green'):
+def draw_XYXYSin2(img, objs, color, obj_thickness=1, font_scale=0.5, text_color='green'):
     '''
     img: [h,w,3]
     objs: [n,5/6]
@@ -198,7 +198,7 @@ def draw_RoLine2D_UpRight_xyxy_sin2a(img, objs, color, obj_thickness=1, font_sca
     text_color = _get_color(text_color)
 
     objs = decode_line_rep(objs, 'lscope_istopleft').reshape(-1,2,2)
-    objs = OBJ_REPS_PARSE.encode_obj(objs, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
+    objs = OBJ_REPS_PARSE.encode_obj(objs, 'XYXYSin2', 'RoLine2D_2p')
     for i in range(objs.shape[0]):
         s, e = np.round(objs[i]).astype(np.int32)
         c = _get_color(color)
@@ -313,7 +313,7 @@ def _show_sparse_coords(x, gt_bboxes=None):
 def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
              objs_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_colors='random', thickness=0.1):
   if objs_ls is not None:
-    if obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+    if obj_rep == 'XYXYSin2':
       if points_ls is not None:
         for i in range(len(points_ls)):
           if points_ls[i].shape[1] == 2:
@@ -437,7 +437,7 @@ def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2
     lines2d[:,:4] = (lines2d[:,:4].reshape(-1,2) - scope_min).reshape(-1,4)
     scope_max = lines2d[:,:4].reshape(-1,2).max(0, keepdims=True)
     w, h = np.ceil(scope_max +10).astype(np.int32)[0]
-    _show_objs_ls_points_ls( (h,w), [lines2d], 'RoLine2D_UpRight_xyxy_sin2a', points_ls)
+    _show_objs_ls_points_ls( (h,w), [lines2d], 'XYXYSin2', points_ls)
 #-feature------------------------------------------------------------------------------
 def _show_feats(feats, gt_bboxes, stride):
   '''
@@ -457,6 +457,6 @@ def _show_feats(feats, gt_bboxes, stride):
     img2 = img[:,:,cn//3*2:].sum(2)[:,:,None]
     img_3 = np.concatenate([img0, img1, img2], axis=2)
     gt = gt_bboxes[i]
-    _show_objs_ls_points_ls( img_3, [gt], obj_rep='RoLine2D_UpRight_xyxy_sin2a', obj_colors='yellow' )
+    _show_objs_ls_points_ls( img_3, [gt], obj_rep='XYXYSin2', obj_colors='yellow' )
     pass
 

@@ -52,7 +52,7 @@ class OBJ_REPS_PARSE_TORCH():
 
   def UpRight_xyxy_sin2a_TO_RoLine2D_2p(lines):
     '''
-    From RoLine2D_UpRight_xyxy_sin2a to RoLine2D_2p
+    From XYXYSin2 to RoLine2D_2p
     '''
     istopleft = (lines[:,4:5] >= 0).to(lines.dtype)
     lines_2p = lines[:,:4] * istopleft +  lines[:,[0,3,2,1]] * (1-istopleft)
@@ -75,7 +75,7 @@ class OBJ_REPS_PARSE():
   (*) XYLgWsSin2Sin4Z0Z1
     angle, Lg, Ws: same with XYZLgWsHA
 
-  (*) RoLine2D_UpRight_xyxy_sin2a
+  (*) XYXYSin2
     x denotes the long axis.
     angle: [-90, 90)
   '''
@@ -93,12 +93,12 @@ class OBJ_REPS_PARSE():
     'XYLgWsSin2Sin4': 6,
 
 
-    'RoLine2D_UpRight_xyxy_sin2a': 5,
+    'XYXYSin2': 5,
     'RoBox2D_UpRight_xyxy_sin2a_thick': 6,
     'RoLine2D_2p': 4,
     'RoLine2D_CenterLengthAngle': 4,
 
-    'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1': 8,
+    'XYXYSin2WZ0Z1': 8,
     'Bottom_Corners': 3+3,
   }
   _obj_reps = _obj_dims.keys()
@@ -127,6 +127,19 @@ class OBJ_REPS_PARSE():
     if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsA':
       return bboxes[:,[0,1,3,4,6]]
 
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2':
+      return OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
+
+    # --------------------------------------------------------------------------
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2WZ0Z1':
+      bboxes = OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
+
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYXYSin2WZ0Z1':
+      pass
+      #bboxes = OBJ_REPS_PARSE.(bboxes)
+
+    # --------------------------------------------------------------------------
+
     elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsSin2Sin4Z0Z1':
       return OBJ_REPS_PARSE.XYZLgWsHA_to_XYLgWsSin2Sin4Z0Z1(bboxes)
 
@@ -136,8 +149,8 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYLgWsSin2Sin4Z0Z1' and obj_rep_out == 'XYZLgWsHA':
       return OBJ_REPS_PARSE.XYLgWsSin2Sin4Z0Z1_to_XYZLgWsHA(bboxes)
 
-    elif obj_rep_in == 'XYLgWsAsinSin2Z0Z1' and obj_rep_out == 'RoLine2D_UpRight_xyxy_sin2a':
-      return OBJ_REPS_PARSE.XYLgWsAsinSin2Z0Z1_to_RoLine2D_UpRight_xyxy_sin2a(bboxes)
+    elif obj_rep_in == 'XYLgWsAsinSin2Z0Z1' and obj_rep_out == 'XYXYSin2':
+      return OBJ_REPS_PARSE.XYLgWsAsinSin2Z0Z1_to_XYXYSin2(bboxes)
 
     elif obj_rep_in == 'XYLgWsAsinSin2Z0Z1' and obj_rep_out == 'XYZLgWsHA':
       return OBJ_REPS_PARSE.XYLgWsAsinSin2Z0Z1_to_XYZLgWsHA(bboxes)
@@ -165,13 +178,11 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
       return OBJ_REPS_PARSE.Line2p_TO_XYLgWsAsinSin2Z0Z1(bboxes)
 
-    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'RoLine2D_UpRight_xyxy_sin2a':
-      return OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
 
-    elif obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a' and obj_rep_out == 'RoLine2D_2p':
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'RoLine2D_2p':
       return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes)
 
-    elif obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a' and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
       return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_XYLgWsAsinSin2Z0Z1(bboxes)
 
     elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'RoBox2D_UpRight_xyxy_sin2a_thick':
@@ -196,21 +207,21 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYLgWsA':
       return OBJ_REPS_PARSE.RoLine2D_2p_TO_XYLgWsA(bboxes)
 
-    elif obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a' and obj_rep_out == 'RoLine2D_CenterLengthAngle':
-      lines_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'RoLine2D_CenterLengthAngle':
+      lines_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'RoLine2D_2p')
       lines_cla = OBJ_REPS_PARSE.encode_obj(lines_2p, 'RoLine2D_2p', 'RoLine2D_CenterLengthAngle')
       return lines_cla
 
     elif obj_rep_out == 'XYLgWsA':
       if obj_rep_in == 'RoBox2D_UpRight_xyxy_sin2a_thick':
         return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2)
-      if obj_rep_in == 'RoLine2D_UpRight_xyxy_sin2a':
+      if obj_rep_in == 'XYXYSin2':
         # to RoBox2D_UpRight_xyxy_sin2a_thick
         bboxes = np.concatenate([bboxes, bboxes[:,0:1]*0], axis=1)
         bboxes_csa =  OBJ_REPS_PARSE.UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2)
         return bboxes_csa
 
-    elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'XYZLgWsHA':
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYZLgWsHA':
       box2d = OBJ_REPS_PARSE.encode_obj(bboxes[:,:6], 'RoBox2D_UpRight_xyxy_sin2a_thick', 'XYLgWsA')
       z0 = bboxes[:,6:7]
       z1 = bboxes[:,7:8]
@@ -219,11 +230,11 @@ class OBJ_REPS_PARSE():
       box3d = np.concatenate([box2d[:,:2], zc, box2d[:,2:4], zs, box2d[:,4:5]], axis=1)
       return box3d
 
-    elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'RoLine2D_UpRight_xyxy_sin2a':
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYXYSin2':
       return bboxes[:, :5]
 
-    elif obj_rep_in == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' and obj_rep_out == 'Bottom_Corners':
-      line_2p = OBJ_REPS_PARSE.encode_obj(bboxes[:,:5], 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'Bottom_Corners':
+      line_2p = OBJ_REPS_PARSE.encode_obj(bboxes[:,:5], 'XYXYSin2', 'RoLine2D_2p')
       thick = bboxes[:,5:6]
       z0 = bboxes[:,6:7]
       z1 = bboxes[:,7:8]
@@ -231,7 +242,7 @@ class OBJ_REPS_PARSE():
       bottom_corners = np.concatenate([line_2p[:,:2], z0, line_2p[:,2:4], z0], axis=1)
       return bottom_corners
 
-    elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1':
+    elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYXYSin2WZ0Z1':
       # XYLgWsA
       XYLgWsA = bboxes[:, [0,1, 3,4, 6]]
       z0 = bboxes[:, 2:3] - bboxes[:, 5:6]/2
@@ -244,8 +255,8 @@ class OBJ_REPS_PARSE():
 
   def lines2d_to_lines3d(lines2d, ):
     '''
-      lines2d: [n,5]  RoLine2D_UpRight_xyxy_sin2a
-      out: RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+      lines2d: [n,5]  XYXYSin2
+      out: XYXYSin2WZ0Z1
     '''
     n = lines2d.shape[0]
     tmp = np.ones([n,3])
@@ -342,10 +353,10 @@ class OBJ_REPS_PARSE():
     return bboxes_csa
 
   @staticmethod
-  def XYLgWsAsinSin2Z0Z1_to_RoLine2D_UpRight_xyxy_sin2a(bboxes):
+  def XYLgWsAsinSin2Z0Z1_to_XYXYSin2(bboxes):
     XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsAsinSin2Z0Z1', 'XYZLgWsHA')
-    RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-    return RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1[:,:5]
+    XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
+    return XYXYSin2WZ0Z1[:,:5]
 
   @staticmethod
   def XYLgWsSin2Sin4Z0Z1_to_XYZLgWsHA(bboxes_s2s4):
@@ -374,12 +385,12 @@ class OBJ_REPS_PARSE():
       _show_objs_ls_points_ls((512,512), objs_ls = [bboxes], obj_rep='XYLgWsSin2Sin4Z0Z1')
       #_show_3d_points_objs_ls(objs_ls=[bboxes], obj_rep='XYLgWsSin2Sin4Z0Z1')
     XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsSin2Sin4Z0Z1', 'XYZLgWsHA')
-    RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA,  'XYZLgWsHA', 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA,  'XYZLgWsHA', 'XYXYSin2WZ0Z1')
     if debug:
       #_show_3d_points_objs_ls(objs_ls=[XYZLgWsHA], obj_rep='XYZLgWsHA')
-      _show_3d_points_objs_ls(objs_ls=[RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-    RoLine2D_UpRight_xyxy_sin2a = OBJ_REPS_PARSE.encode_obj(RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'RoLine2D_UpRight_xyxy_sin2a')
-    RoLine2D_2p = OBJ_REPS_PARSE.encode_obj( RoLine2D_UpRight_xyxy_sin2a, 'RoLine2D_UpRight_xyxy_sin2a',  'RoLine2D_2p' )
+      _show_3d_points_objs_ls(objs_ls=[XYXYSin2WZ0Z1], obj_rep='XYXYSin2WZ0Z1')
+    XYXYSin2 = OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'XYXYSin2')
+    RoLine2D_2p = OBJ_REPS_PARSE.encode_obj( XYXYSin2, 'XYXYSin2',  'RoLine2D_2p' )
 
     if debug:
       _show_objs_ls_points_ls((512, 512), [RoLine2D_2p], obj_rep='RoLine2D_2p')
@@ -395,12 +406,12 @@ class OBJ_REPS_PARSE():
       _show_objs_ls_points_ls((512,512), objs_ls = [bboxes], obj_rep='XYLgWsAsinSin2Z0Z1')
       #_show_3d_points_objs_ls(objs_ls=[bboxes], obj_rep='XYLgWsAsinSin2Z0Z1')
     XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsAsinSin2Z0Z1', 'XYZLgWsHA')
-    RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA,  'XYZLgWsHA', 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA,  'XYZLgWsHA', 'XYXYSin2WZ0Z1')
     if debug:
       #_show_3d_points_objs_ls(objs_ls=[XYZLgWsHA], obj_rep='XYZLgWsHA')
-      _show_3d_points_objs_ls(objs_ls=[RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-    RoLine2D_UpRight_xyxy_sin2a = OBJ_REPS_PARSE.encode_obj(RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'RoLine2D_UpRight_xyxy_sin2a')
-    RoLine2D_2p = OBJ_REPS_PARSE.encode_obj( RoLine2D_UpRight_xyxy_sin2a, 'RoLine2D_UpRight_xyxy_sin2a',  'RoLine2D_2p' )
+      _show_3d_points_objs_ls(objs_ls=[XYXYSin2WZ0Z1], obj_rep='XYXYSin2WZ0Z1')
+    XYXYSin2 = OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'XYXYSin2')
+    RoLine2D_2p = OBJ_REPS_PARSE.encode_obj( XYXYSin2, 'XYXYSin2',  'RoLine2D_2p' )
 
     if debug:
       _show_objs_ls_points_ls((512, 512), [RoLine2D_2p], obj_rep='RoLine2D_2p')
@@ -508,7 +519,7 @@ class OBJ_REPS_PARSE():
   @staticmethod
   def Line2p_TO_UpRight_xyxy_sin2a(bboxes):
     '''
-    From RoLine2D_2p to RoLine2D_UpRight_xyxy_sin2a
+    From RoLine2D_2p to XYXYSin2
     '''
     bboxes = bboxes.reshape(-1,2,2)
     xy_min = bboxes.min(axis=1)
@@ -528,11 +539,11 @@ class OBJ_REPS_PARSE():
 
   @staticmethod
   def Line2p_TO_XYLgWsSin2Sin4Z0Z1(bboxes):
-    UpRight_xyxy_sin2a = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'RoLine2D_UpRight_xyxy_sin2a')
+    UpRight_xyxy_sin2a = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'XYXYSin2')
     n = UpRight_xyxy_sin2a.shape[0]
     tmp = np.zeros([n, 3], dtype=np.float32)
-    RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1 = np.concatenate([ UpRight_xyxy_sin2a, tmp  ], axis=1)
-    XYZLgWsHA = OBJ_REPS_PARSE.encode_obj( RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'XYZLgWsHA')
+    XYXYSin2WZ0Z1 = np.concatenate([ UpRight_xyxy_sin2a, tmp  ], axis=1)
+    XYZLgWsHA = OBJ_REPS_PARSE.encode_obj( XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
     XYLgWsSin2Sin4Z0Z1 = OBJ_REPS_PARSE.encode_obj( XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsSin2Sin4Z0Z1' )
 
     show = 0
@@ -546,11 +557,11 @@ class OBJ_REPS_PARSE():
 
   @staticmethod
   def Line2p_TO_XYLgWsAsinSin2Z0Z1(bboxes):
-    UpRight_xyxy_sin2a = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'RoLine2D_UpRight_xyxy_sin2a')
+    UpRight_xyxy_sin2a = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'XYXYSin2')
     n = UpRight_xyxy_sin2a.shape[0]
     tmp = np.zeros([n, 3], dtype=np.float32)
-    RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1 = np.concatenate([ UpRight_xyxy_sin2a, tmp  ], axis=1)
-    XYZLgWsHA = OBJ_REPS_PARSE.encode_obj( RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'XYZLgWsHA')
+    XYXYSin2WZ0Z1 = np.concatenate([ UpRight_xyxy_sin2a, tmp  ], axis=1)
+    XYZLgWsHA = OBJ_REPS_PARSE.encode_obj( XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
     XYLgWsAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj( XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsAsinSin2Z0Z1' )
 
     show = 0
@@ -565,7 +576,7 @@ class OBJ_REPS_PARSE():
   @staticmethod
   def UpRight_xyxy_sin2a_TO_RoLine2D_2p(lines):
     '''
-    From RoLine2D_UpRight_xyxy_sin2a to RoLine2D_2p
+    From XYXYSin2 to RoLine2D_2p
     '''
     istopleft = (lines[:,4:5] >= 0).astype(lines.dtype)
     lines_2p = lines[:,:4] * istopleft +  lines[:,[0,3,2,1]] * (1-istopleft)
@@ -573,7 +584,7 @@ class OBJ_REPS_PARSE():
 
   @staticmethod
   def UpRight_xyxy_sin2a_TO_XYLgWsAsinSin2Z0Z1(bboxes):
-    XYLgWsA = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_UpRight_xyxy_sin2a', 'XYLgWsA')
+    XYLgWsA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'XYLgWsA')
     XYLgWsAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'XYLgWsAsinSin2Z0Z1')
     return XYLgWsAsinSin2Z0Z1
 
@@ -588,7 +599,7 @@ class OBJ_REPS_PARSE():
 class GraphUtils:
   @staticmethod
   def optimize_graph(lines_in, scores=None, labels=None,
-                     obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+                     obj_rep='XYXYSin2',
                      opt_graph_cor_dis_thr=0, min_out_length=0):
     '''
       lines_in: [n,5]
@@ -609,15 +620,15 @@ class GraphUtils:
       labels = labels[valid_line_mask]
 
     #
-    if obj_rep != 'RoLine2D_UpRight_xyxy_sin2a':
-      lines_in = OBJ_REPS_PARSE.encode_obj(lines_in, obj_rep_in, 'RoLine2D_UpRight_xyxy_sin2a')
+    if obj_rep != 'XYXYSin2':
+      lines_in = OBJ_REPS_PARSE.encode_obj(lines_in, obj_rep_in, 'XYXYSin2')
     num_line = lines_in.shape[0]
     if scores is None and labels is None:
       lab_sco_lines = None
     else:
       lab_sco_lines = np.concatenate([labels.reshape(num_line,1), scores.reshape(num_line,1)], axis=1)
     corners_in, lab_sco_cors, corIds_per_line, num_cor_uq_org = \
-          GraphUtils.gen_corners_from_lines_np(lines_in, lab_sco_lines, 'RoLine2D_UpRight_xyxy_sin2a')
+          GraphUtils.gen_corners_from_lines_np(lines_in, lab_sco_lines, 'XYXYSin2')
     if scores is None and labels is None:
       labels_cor = None
       scores_cor = None
@@ -680,17 +691,17 @@ class GraphUtils:
         else:
           if dn>0:
             _show_3d_points_objs_ls(
-              objs_ls = [lines_in, del_lines], obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+              objs_ls = [lines_in, del_lines], obj_rep='XYXYSin2',
               obj_colors=['red','blue'], thickness=5,)
 
           print('\nCompare org and merged')
           _show_3d_points_objs_ls( points_ls=[deleted_corners],
-            objs_ls = [lines_in, lines_merged], obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+            objs_ls = [lines_in, lines_merged], obj_rep='XYXYSin2',
             obj_colors=['blue', 'red'], thickness=[3,2],)
 
           print('\nMerged result')
           _show_3d_points_objs_ls( points_ls=[deleted_corners],
-            objs_ls = [lines_merged], obj_rep='RoLine2D_UpRight_xyxy_sin2a',
+            objs_ls = [lines_merged], obj_rep='XYXYSin2',
             obj_colors='random', thickness=5,)
 
         pass
@@ -698,7 +709,7 @@ class GraphUtils:
     return lines_merged, line_scores_merged, line_labels_merged, valid_line_mask
 
   @staticmethod
-  def gen_corners_from_lines_np(lines, labels=None, obj_rep='RoLine2D_UpRight_xyxy_sin2a', flag=''):
+  def gen_corners_from_lines_np(lines, labels=None, obj_rep='XYXYSin2', flag=''):
       '''
       lines: [n,5]
       labels: [n,1/2]: 1 for label only, 2 for label and score

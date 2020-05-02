@@ -807,7 +807,7 @@ class StrPointsHead(nn.Module):
         if self.obj_rep == 'box_scope':
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
-        elif self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+        elif self.obj_rep == 'XYXYSin2':
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,4] = bbox_pred_init[:,4]
@@ -836,7 +836,7 @@ class StrPointsHead(nn.Module):
         if self.obj_rep == 'box_scope':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
-        elif self.obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+        elif self.obj_rep == 'XYXYSin2':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,4] = bbox_pred_refine[:,4]
@@ -1733,7 +1733,7 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
                   bbox_weights_init, num_total_samples_init):
         assert stage in ['init', 'refine']
         s = {'init':'I', 'refine':'R'}[stage]
-        if obj_rep == 'RoLine2D_UpRight_xyxy_sin2a':
+        if obj_rep == 'XYXYSin2':
             loss_pts_init_loc = loss_bbox_fun(
               bbox_pred_init_nm[:,:4],
               bbox_gt_init_nm[:,:4],
