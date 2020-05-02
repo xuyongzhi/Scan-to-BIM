@@ -99,6 +99,7 @@ class StrPointsHead(nn.Module):
                  ):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
+        self.box_extra_dims = 3
 
         self.obj_rep = obj_rep
         self.dim_parse = DIM_PARSE(obj_rep, num_classes)
@@ -211,6 +212,11 @@ class StrPointsHead(nn.Module):
         self.reppoints_pts_refine_out = nn.Conv2d(self.point_feat_channels,
                                                   pts_out_dim, 1, 1, 0)
 
+        if self.box_extra_dims >0:
+          self.box_extra_init_out = nn.Conv2d(self.point_feat_channels,
+                                                  self.box_extra_dims, 1, 1, 0)
+          self.box_extra_refine_out = nn.Conv2d(self.point_feat_channels,
+                                                  self.box_extra_dims, 1, 1, 0)
         #-----------------------------------------------------------------------
         # corner
         self.cor_cls_convs = nn.ModuleList()
@@ -560,8 +566,11 @@ class StrPointsHead(nn.Module):
         for reg_conv in self.reg_convs:
             pts_feat = reg_conv(pts_feat)
         # initialize reppoints
-        pts_out_init = self.reppoints_pts_init_out(
-            self.relu(self.reppoints_pts_init_conv(pts_feat)))
+        pts_feat_init = self.relu(self.reppoints_pts_init_conv(pts_feat))
+        pts_out_init = self.reppoints_pts_init_out( pts_feat_init )
+        if self.box_extra_dims >0:
+          box_extra_init = self.box_extra_init_out(pts_feat_init)
+
         if self.use_grid_points:
             pts_out_init, bbox_out_init = self.gen_grid_from_reg(
                 pts_out_init, bbox_init.detach())
@@ -579,8 +588,11 @@ class StrPointsHead(nn.Module):
           cls_out['refine'] = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset)))
 
-        pts_out_refine = self.reppoints_pts_refine_out(
-            self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset)))
+        pts_feat_refine = self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset))
+        pts_out_refine = self.reppoints_pts_refine_out( pts_feat_refine )
+        if self.box_extra_dims >0:
+          box_extra_refine = self.box_extra_refine_out(pts_feat_refine)
+
         if self.use_grid_points:
             pts_out_refine, bbox_out_refine = self.gen_grid_from_reg(
                 pts_out_refine, bbox_out_init.detach())
@@ -607,7 +619,10 @@ class StrPointsHead(nn.Module):
           corner_outs = self.forward_single_corner(x, scale_learn)
         else:
           corner_outs = None
-        # predict cls from the two end_points
+
+        if not self.box_extra_dims >0:
+          box_extra_init = None
+          box_extra_refine = None
 
         #debug_utils.show_shapes(x, 'StrPointsHead input')
         #debug_utils.show_shapes(cls_feat, 'StrPointsHead cls_feat')
@@ -615,7 +630,7 @@ class StrPointsHead(nn.Module):
         #debug_utils.show_shapes(pts_out_init, 'StrPointsHead pts_out_init')
         #debug_utils.show_shapes(cls_out, 'StrPointsHead cls_out')
         #debug_utils.show_shapes(pts_out_refine, 'StrPointsHead pts_out_refine')
-        return cls_out, pts_out_init, pts_out_refine, corner_outs, rel_feat
+        return cls_out, pts_out_init, pts_out_refine, corner_outs, rel_feat, box_extra_init, box_extra_refine
 
     def forward_single_relation_feats(self, x):
         # use dcn later!
