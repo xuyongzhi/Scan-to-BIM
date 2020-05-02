@@ -8,7 +8,7 @@ import torch
 from obj_geo_utils.geometry_utils import limit_period_np
 
 
-class OBJ_REPS_PARSE_TORCH():
+class _OBJ_REPS_PARSE_TORCH():
   import torch
   @staticmethod
   def XYLgWsAsinSin2Z0Z1_TO_XYZLgWsHA(bboxes_ass2):
@@ -28,8 +28,16 @@ class OBJ_REPS_PARSE_TORCH():
     return bboxes_csa
 
   @staticmethod
-  def UpRight_xyxy_sin2a_TO_XYZLgWsHA(bboxes_xyxysin2):
-    lines_2p = OBJ_REPS_PARSE_TORCH.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes_xyxysin2)
+  def XYXYSin2WZ0Z1_TO_XYZLgWsHA(bboxes):
+    lines_2p = OBJ_REPS_PARSE_TORCH.UXYXYSin2_TO_RoLine2D_2p(bboxes)
+    bboxes_CLA = OBJ_REPS_PARSE_TORCH.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
+    zero_1 = torch.zeros_like(bboxes_xyxysin2[:,0:1])
+    XYZLgWsHA = torch.cat([ bboxes_CLA[:,[0,1]], zero_1, bboxes_CLA[:,[2]], zero_1, zero_1, bboxes_CLA[:,[3]] ], dim=1)
+    return XYZLgWsHA
+
+  @staticmethod
+  def XYXYSin2_TO_XYZLgWsHA(bboxes_xyxysin2):
+    lines_2p = OBJ_REPS_PARSE_TORCH.UXYXYSin2_TO_RoLine2D_2p(bboxes_xyxysin2)
     bboxes_CLA = OBJ_REPS_PARSE_TORCH.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
     zero_1 = torch.zeros_like(bboxes_xyxysin2[:,0:1])
     XYZLgWsHA = torch.cat([ bboxes_CLA[:,[0,1]], zero_1, bboxes_CLA[:,[2]], zero_1, zero_1, bboxes_CLA[:,[3]] ], dim=1)
@@ -50,7 +58,7 @@ class OBJ_REPS_PARSE_TORCH():
     bboxes_CLA = torch.cat([center, length, angle], axis=1)
     return bboxes_CLA
 
-  def UpRight_xyxy_sin2a_TO_RoLine2D_2p(lines):
+  def UXYXYSin2_TO_RoLine2D_2p(lines):
     '''
     From XYXYSin2 to RoLine2D_2p
     '''
@@ -110,7 +118,16 @@ class OBJ_REPS_PARSE():
     assert bboxes.shape[1] == s, f'obj_rep={obj_rep}, input shape={bboxes.shape[1]}, correct shape={s}'
 
   @staticmethod
-  def encode_obj(bboxes, obj_rep_in, obj_rep_out, check_sin2=1):
+  def encode_obj(bboxes, obj_rep_in, obj_rep_out):
+    if isinstance(bboxes, torch.Tensor):
+      bboxes_np = bboxes.cpu().data.numpy()
+      bboxes_np = OBJ_REPS_PARSE.encode_obj_np(bboxes_np, obj_rep_in, obj_rep_out)
+      return torch.from_numpy(bboxes_np).to(bboxes.dtype).to(bboxes.device)
+    else:
+      return OBJ_REPS_PARSE.encode_obj_np(bboxes, obj_rep_in, obj_rep_out)
+
+  @staticmethod
+  def encode_obj_np(bboxes, obj_rep_in, obj_rep_out, check_sin2=1):
     '''
     bboxes: [n,4] or [n,2,2]
     bboxes_out : [n,4/5]
@@ -124,19 +141,28 @@ class OBJ_REPS_PARSE():
     if obj_rep_in == obj_rep_out:
       return bboxes
 
+    # essential  ---------------------------------------------------------------
     if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsA':
       return bboxes[:,[0,1,3,4,6]]
 
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2':
       return OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
 
-    # --------------------------------------------------------------------------
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'RoLine2D_2p':
+      return OBJ_REPS_PARSE.UXYXYSin2_TO_RoLine2D_2p(bboxes)
+
+    # extra  -------------------------------------------------------------------
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2WZ0Z1':
       bboxes = OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
+      return OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'XYXYSin2WZ0Z1')
 
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'RoLine2D_2p':
+      return OBJ_REPS_PARSE.UXYXYSin2_TO_RoLine2D_2p(bboxes[:,:5])
+
+    # 2D -> 3D -----------------------------------------------------------------
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYXYSin2WZ0Z1':
-      pass
-      #bboxes = OBJ_REPS_PARSE.(bboxes)
+      ze = bboxes[:,:3]*0
+      return np.concatenate([bboxes, ze], axis=1)
 
     # --------------------------------------------------------------------------
 
@@ -179,8 +205,6 @@ class OBJ_REPS_PARSE():
       return OBJ_REPS_PARSE.Line2p_TO_XYLgWsAsinSin2Z0Z1(bboxes)
 
 
-    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'RoLine2D_2p':
-      return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes)
 
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
       return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_XYLgWsAsinSin2Z0Z1(bboxes)
@@ -501,7 +525,7 @@ class OBJ_REPS_PARSE():
   @staticmethod
   def UpRight_xyxy_sin2a_thick_TO_CenSizeAngle(bboxes, check_sin2=True):
     thickness = bboxes[:,5:6]
-    lines_2p = OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_RoLine2D_2p(bboxes[:,:5])
+    lines_2p = OBJ_REPS_PARSE.UXYXYSin2_TO_RoLine2D_2p(bboxes[:,:5])
     lines_CenLengthAngle = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(lines_2p)
     boxes_csa = np.concatenate([lines_CenLengthAngle[:,[0,1,2]], thickness, lines_CenLengthAngle[:,[3]]], axis=1)
     check_sin2 = 0
@@ -574,7 +598,7 @@ class OBJ_REPS_PARSE():
     return XYLgWsAsinSin2Z0Z1
 
   @staticmethod
-  def UpRight_xyxy_sin2a_TO_RoLine2D_2p(lines):
+  def UXYXYSin2_TO_RoLine2D_2p(lines):
     '''
     From XYXYSin2 to RoLine2D_2p
     '''

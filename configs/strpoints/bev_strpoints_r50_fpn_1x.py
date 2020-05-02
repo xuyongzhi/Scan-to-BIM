@@ -19,6 +19,7 @@ DATA = 'beike2d'
 classes= ['wall']
 
 _obj_rep = 'XYXYSin2'
+_obj_rep = 'XYXYSin2WZ0Z1'
 #_obj_rep = 'XYLgWsAsinSin2Z0Z1'
 
 num_ps_long_axis = 9
@@ -29,7 +30,9 @@ dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
 
 if _obj_rep == 'XYXYSin2':
-  _transform_method='moment_lscope_istopleft'
+  _transform_method='moment_XYXYSin2'
+elif _obj_rep == 'XYXYSin2WZ0Z1':
+  _transform_method='moment_XYXYSin2WZ0Z1'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
@@ -247,11 +250,11 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

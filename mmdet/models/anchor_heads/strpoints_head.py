@@ -133,8 +133,7 @@ class StrPointsHead(nn.Module):
         self.center_init = center_init
         self.transform_method = transform_method
         if self.transform_method == 'moment' or \
-              self.transform_method == 'moment_lscope_istopleft' or \
-                self.transform_method == 'moment_LWAsS2ZZ':
+            self.transform_method in ['moment_XYXYSin2', 'moment_XYXYSin2WZ0Z1']:
             self.moment_transfer = nn.Parameter(
                 data=torch.zeros(2), requires_grad=True)
             self.moment_mul = moment_mul
@@ -361,7 +360,7 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height
             ],
                              dim=1)
-        elif self.transform_method == 'moment_lscope_istopleft':
+        elif self.transform_method == 'moment_XYXYSin2':
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
             pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
@@ -412,6 +411,49 @@ class StrPointsHead(nn.Module):
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
+
+        elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+            pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
+            pts_x_std = torch.std(pts_x - pts_x_mean, dim=1, keepdim=True)
+            moment_transfer = (self.moment_transfer * self.moment_mul) + (
+                self.moment_transfer.detach() * (1 - self.moment_mul))
+            moment_width_transfer = moment_transfer[0]
+            moment_height_transfer = moment_transfer[1]
+            half_width = pts_x_std * torch.exp(moment_width_transfer)
+            half_height = pts_y_std * torch.exp(moment_height_transfer)
+
+
+            vec_pts_y = pts_y - pts_y_mean
+            vec_pts_x = pts_x - pts_x_mean
+            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
+            vec_start = torch.zeros_like(vec_pts)
+            vec_start[:,1] = -1
+
+            sin_2thetas, sin_thetas = sin2theta(vec_start, vec_pts)
+            abs_sins = torch.abs(sin_thetas).view(pts_x.shape)
+            sin_2thetas = sin_2thetas.view(pts_x.shape)
+
+            npla = self.num_ps_long_axis
+            sin_2theta = sin_2thetas[:,:npla].mean(dim=1, keepdim=True)
+            abs_sin = abs_sins[:,:npla].mean(dim=1, keepdim=True)
+
+            isaline_0 = sin_2thetas[:,:npla].std(dim=1, keepdim=True)
+            isaline_1 = abs_sins[:,:npla].std(dim=1, keepdim=True)
+            isaline = (isaline_0 + isaline_1) / 2
+
+            width_z0_z1 = torch.zeros_like(pts_y)[:,:3]
+
+            bbox = torch.cat([
+                pts_x_mean - half_width, pts_y_mean - half_height,
+                pts_x_mean + half_width, pts_y_mean + half_height,
+                sin_2theta, width_z0_z1
+            ], dim=1)
+            if out_line_constrain:
+              bbox = torch.cat([bbox, isaline], dim=1)
+            pass
+
         elif self.transform_method == 'moment_LWAsS2ZZ':
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
@@ -807,7 +849,7 @@ class StrPointsHead(nn.Module):
         if self.obj_rep == 'box_scope':
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
-        elif self.obj_rep == 'XYXYSin2':
+        elif self.obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,4] = bbox_pred_init[:,4]
@@ -836,7 +878,7 @@ class StrPointsHead(nn.Module):
         if self.obj_rep == 'box_scope':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
-        elif self.obj_rep == 'XYXYSin2':
+        elif self.obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,4] = bbox_pred_refine[:,4]
@@ -879,16 +921,23 @@ class StrPointsHead(nn.Module):
                       [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
                   bbox.append(bbox_center +
                               bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4))
-                elif self.transform_method == 'moment_lscope_istopleft':
+                elif self.transform_method == 'moment_XYXYSin2':
                   assert bbox_preds_init.shape[1] == 5
                   bbox_shift = bbox_preds_init[:,:4] * self.point_strides[i_lvl]
-                  istopleft = bbox_preds_init[i_img,4:5].\
-                                 permute(1,2,0).reshape(-1,1)
-                  bbox_center = torch.cat(
-                      [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
-                  bbox_i = bbox_center +\
-                              bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
+                  istopleft = bbox_preds_init[i_img,4:5]. permute(1,2,0).reshape(-1,1)
+                  bbox_center = torch.cat([center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
+                  bbox_i = bbox_center + bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
                   bbox_i = torch.cat([bbox_i, istopleft], dim=1)
+                  bbox.append(bbox_i)
+                elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
+                  assert bbox_preds_init.shape[1] == 8
+                  bbox_preds_init_i = bbox_preds_init[i_img].permute(1,2,0).reshape(-1,8)
+                  bbox_shift = bbox_preds_init_i[:,:4] * self.point_strides[i_lvl]
+                  istopleft = bbox_preds_init_i[:,4:5]
+                  bbox_center = torch.cat([center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
+                  bbox_i = bbox_center + bbox_shift
+                  wz0z1 =  bbox_preds_init_i[:,5:8] * self.point_strides[i_lvl]
+                  bbox_i = torch.cat([bbox_i, istopleft, wz0z1], dim=1)
                   bbox.append(bbox_i)
                 elif self.transform_method == 'moment_LWAsS2ZZ':
                   assert bbox_preds_init.shape[1] == 8
@@ -1733,7 +1782,7 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
                   bbox_weights_init, num_total_samples_init):
         assert stage in ['init', 'refine']
         s = {'init':'I', 'refine':'R'}[stage]
-        if obj_rep == 'XYXYSin2':
+        if obj_rep == 'XYXYSin2' or obj_rep == 'XYXYSin2WZ0Z1':
             loss_pts_init_loc = loss_bbox_fun(
               bbox_pred_init_nm[:,:4],
               bbox_gt_init_nm[:,:4],
@@ -1748,6 +1797,20 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
                 f'loss_loc{s}': loss_pts_init_loc,
                 f'loss_rot{s}': loss_pts_init_rotation
             }
+            if obj_rep == 'XYXYSin2WZ0Z1':
+              loss_pts_init_width = loss_bbox_fun(
+                bbox_pred_init_nm [:,[5]],
+                bbox_gt_init_nm   [:,[5]],
+                bbox_weights_init [:,[5]],
+                avg_factor=num_total_samples_init)
+              loss_pts_init_z = loss_bbox_fun(
+                bbox_pred_init_nm [:,[6,7]],
+                bbox_gt_init_nm   [:,[6,7]],
+                bbox_weights_init [:,[6,7]],
+                avg_factor=num_total_samples_init)
+              loss_pts_init[f'loss_wd{s}'] = loss_pts_init_width
+              loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
+
         elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
             Xc, Yc, Lg, Ws, Asin, Sin2, Z0, Z1 = range(8)
             loss_pts_init_loc = loss_bbox_fun(
