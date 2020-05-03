@@ -46,6 +46,11 @@ class Stanford3DDatasetConverter:
       'clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column', 'door', 'floor', 'sofa',
       'stairs', 'table', 'wall', 'window'
   ]
+  num_cat = len(CLASSES)
+  Cat2Id = {}
+  for i in range(num_cat):
+    Cat2Id[CLASSES[i]] = i
+  wall_id = Cat2Id['wall']
   TRAIN_TEXT = 'train'
   VAL_TEXT = 'val'
   TEST_TEXT = 'test'
@@ -181,14 +186,16 @@ def aligned_points_to_bbox(points, out_np=False):
     bbox_np = np.concatenate([min_bound, max_bound], axis=0)
   return bbox_np
 
-def points_to_oriented_bbox(points, voxel_size=0.002):
+def points_to_oriented_bbox(points, bboxes_wall, cat_name,  voxel_size=0.002):
   '''
   points: [n,3]
-  boxes3d: [n,8] RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+  boxes3d: [n,8] XYXYSin2WZ0Z1
   '''
   import cv2
   assert points.ndim == 2
   assert points.shape[1] == 3
+  if cat_name!='wall':
+    assert bboxes_wall is not None
   aug = 10
 
   xyz_min = points.min(0)
@@ -205,7 +212,20 @@ def points_to_oriented_bbox(points, voxel_size=0.002):
   # NOTE: x, y is inversed between 3d points and 2d img
   #img[point_inds[:,0],  point_inds[:,1]] = 255
 
-  box2d = cv2.minAreaRect(point_inds)
+  if cat_name in ['wall']:
+    rotate_box = True
+  else:
+    rotate_box = False
+
+  if not rotate_box:
+    min_xy = point_inds.min(0)
+    max_xy = point_inds.max(0)
+    cx, cy = (min_xy + max_xy) / 2
+    sx, sy = max_xy - min_xy
+    box2d = ( (cx,cy), (sx,sy), 0 )
+  else:
+    # ( (cx,cy), (sx,sy), angle )
+    box2d = cv2.minAreaRect(point_inds)
   box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
   # The original angle from cv2.minAreaRect denotes the rotation from ref-x
   # to body-x. It is it positive for clock-wise.
@@ -218,14 +238,18 @@ def points_to_oriented_bbox(points, voxel_size=0.002):
 
   #_show_objs_ls_points_ls(img, [box2d], obj_rep='RoBox2D_CenSizeAngle', points_ls=[point_inds])
 
-  box2d_st = OBJ_REPS_PARSE.encode_obj(box2d, obj_rep_in = 'RoBox2D_CenSizeAngle',
-                     obj_rep_out = 'RoBox2D_UpRight_xyxy_sin2a_thick')
-  #_show_objs_ls_points_ls(img, [box2d_st], obj_rep='RoBox2D_UpRight_xyxy_sin2a_thick', points_ls=[point_inds])
+  box2d_st = OBJ_REPS_PARSE.encode_obj(box2d, obj_rep_in = 'XYLgWsA',
+                     obj_rep_out = 'XYXYSin2W')
 
   box3d = np.concatenate([box2d_st, xyz_min[None,2:], xyz_max[None,2:]], axis=1)
   box3d[:, [0,1,2,3, 5,]] *= voxel_size
   box3d[:, [0,1]] += xyz_min[None, [0,1]]
   box3d[:, [2,3]] += xyz_min[None, [0,1]]
+
+  if 0 and cat_name == 'column':
+    _show_objs_ls_points_ls(img, [box2d_st, bboxes_wall[:,:6]], obj_rep='XYXYSin2W',
+                            points_ls=[point_inds], obj_colors=['green', 'blue'])
+    pass
   return box3d
 
 
@@ -279,14 +303,16 @@ def gen_bboxes():
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
   scenes = ['Area_1/office_31']
   scenes = ['Area_6/hallway_3', 'Area_4/hallway_12']
-  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+  scenes = ['Area_5/conferenceRoom_1']
+  scenes = ['Area_1/hallway_7']
+  ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
       bbox_file = plyf.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
       bbox_dir = os.path.dirname(bbox_file)
       if not os.path.exists(bbox_dir):
         os.makedirs(bbox_dir)
-      print(f'\n\n\t{bbox_file} \n\t\t{l}\n')
+      print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
         #continue
@@ -301,9 +327,12 @@ def gen_bboxes():
 
       cat_min = categories.min()
       cat_max = categories.max()
+      cat_ids = [Stanford3DDatasetConverter.wall_id, ] + [i for i in range(cat_max+1) if i != Stanford3DDatasetConverter.wall_id]
+
+      bboxes_wall = None
 
       bboxes = defaultdict(list)
-      for cat in range(cat_min, cat_max+1):
+      for cat in cat_ids:
         mask_cat = categories == cat
         cat_name = Stanford3DDatasetConverter.CLASSES[cat]
         num_cat = mask_cat.sum()
@@ -323,8 +352,10 @@ def gen_bboxes():
           coords_cat_ins = coords_cat[mask_ins]
           if cat_name != 'clutter':
             #show_pcd(coords_cat_ins)
-            bbox = points_to_oriented_bbox(coords_cat_ins)
+            bbox = points_to_oriented_bbox(coords_cat_ins, bboxes_wall, cat_name)
             bboxes[cat_name].append(bbox)
+        if cat_name == 'wall':
+          bboxes_wall = np.concatenate(bboxes['wall'],0)
         pass
       for cat in bboxes:
         bboxes[cat] = np.concatenate(bboxes[cat], 0)
@@ -339,7 +370,7 @@ def gen_bboxes():
       pcl_scope = np.concatenate([min_pcl, max_pcl], axis=0)
       room = np.concatenate([ mean_pcl, max_pcl-min_pcl, np.array([0]) ], axis=0)
 
-      bboxes['room'] = OBJ_REPS_PARSE.encode_obj( room[None,:], 'RoBox3D_CenSizeAngle', 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' )
+      bboxes['room'] = OBJ_REPS_PARSE.encode_obj( room[None,:], 'XYZLgWsHA', 'XYXYSin2WZ0Z1' )
 
       bboxes['wall'] = optimize_walls(bboxes['wall'])
 
@@ -349,38 +380,58 @@ def gen_bboxes():
       colors = instances.astype(np.int32)
       colors = feats
 
+      if 0:
+        all_bboxes = []
+        all_cats = []
+        for cat in bboxes:
+          all_bboxes.append( bboxes[cat] )
+          all_cats += [cat] * bboxes[cat].shape[0]
+        all_bboxes = np.concatenate(all_bboxes, 0)
+        all_cats = np.array(all_cats)
+
+        all_bboxes_2d = all_bboxes[:,:6].copy() / 0.01
+        org = all_bboxes_2d[:,:4].reshape(-1,2).min(0)[None,:] - 50
+        all_bboxes_2d[:,:2] -=  org
+        all_bboxes_2d[:,2:4] -=  org
+        w, h = all_bboxes_2d[:,:4].reshape(-1,2).max(0).astype(np.int)+100
+        _show_objs_ls_points_ls( (h,w), [all_bboxes_2d], obj_rep='XYXYSin2W',
+                                obj_scores_ls=[all_cats])
+
       #print(walls)
 
-      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
       #print( bboxes['wall'])
       #bboxes['wall'][:,:5],_,_ = GraphUtils.optimize_graph(bboxes['wall'][:,:5], obj_rep='RoLine2D_UpRight_xyxy_sin2a', opt_graph_cor_dis_thr=0.2)
       #print( bboxes['wall'])
-      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
 
       if 0:
         for cat in bboxes:
           print(cat)
-          _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='XYXYSin2WZ0Z1')
           pass
   pass
 
 def optimize_walls(walls_3d_line):
     '''
-    RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1
+    XYXYSin2WZ0Z1
     '''
-    bottom_corners = OBJ_REPS_PARSE.encode_obj(walls_3d_line, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'Bottom_Corners').reshape(-1,3)
-    #_show_3d_points_objs_ls([bottom_corners], objs_ls = [walls_3d_line],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    bottom_corners = OBJ_REPS_PARSE.encode_obj(walls_3d_line, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
+    #_show_3d_points_objs_ls([bottom_corners], objs_ls = [walls_3d_line],  obj_rep='XYXYSin2WZ0Z1')
 
     walls_2d_line = walls_3d_line[:,:5]
 
     #_show_3d_points_objs_ls(objs_ls=[walls_2d_line], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
-    walls_2d_line_new, _, _, valid_mask = GraphUtils.optimize_graph(walls_2d_line, opt_graph_cor_dis_thr=0.15, min_length=0.22)
+    walls_2d_line_new, _, _, valid_mask = GraphUtils.optimize_graph(walls_2d_line, obj_rep='XYXYSin2', opt_graph_cor_dis_thr=0.15, min_out_length=0.22)
     #_show_3d_points_objs_ls(objs_ls=[walls_2d_line_new], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
 
-    walls_3d_line_new = np.concatenate( [walls_2d_line_new, walls_3d_line[valid_mask][:,5:8]], axis=1 )
-    bottom_corners_new = OBJ_REPS_PARSE.encode_obj(walls_3d_line_new, 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', 'Bottom_Corners').reshape(-1,3)
-    #_show_3d_points_objs_ls([bottom_corners_new], objs_ls = [walls_3d_line_new],  obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+    try:
+      walls_3d_line_new = np.concatenate( [walls_2d_line_new, walls_3d_line[valid_mask][:,5:8]], axis=1 )
+    except:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+    bottom_corners_new = OBJ_REPS_PARSE.encode_obj(walls_3d_line_new, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
+    #_show_3d_points_objs_ls([bottom_corners_new], objs_ls = [walls_3d_line_new],  obj_rep='XYXYSin2WZ0Z1')
     return walls_3d_line_new
     pass
 

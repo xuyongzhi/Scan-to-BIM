@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
 _raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -63,6 +63,7 @@ class Stanford_Ann():
                'Area_4/hallway_14', 'Area_3/office_7']
   SAMPLES1 = ['Area_5/office_39']
   WithColum = ['Area_5/conferenceRoom_2']
+  BadColum = ['Area_5/conferenceRoom_1']
 
   GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
 
@@ -83,7 +84,7 @@ class Stanford_Ann():
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
       data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
-      data_paths = [f+'.ply' for f in self.WithColum]
+      data_paths = [f+'.ply' for f in self.BadColum]
       #data_paths = [f+'.ply' for f in self.SAMPLES1]
 
     data_paths.sort()
@@ -150,7 +151,6 @@ class Stanford_Ann():
     rm_cats = ['ceiling']
     #rm_cats = ['beam']
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
-    kp_cats = ['wall', 'beam', 'column',  'window']
 
     # 2d
     gt_corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes, self.obj_rep, 'RoLine2D_2p')
@@ -161,15 +161,6 @@ class Stanford_Ann():
     obj_cats = np.array(kp_cats)[gt_labels]
     _show_objs_ls_points_ls((h,w), [gt_bboxes], self.obj_rep, points_ls=[gt_corners], obj_scores_ls=[obj_cats])
 
-    # 3d
-    if 0:
-      #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
-      gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, ['wall', 'beam', 'column', 'door', 'window'], self._category_ids_map)
-      gt_cats = [self._catid_2_cat[l] for l in gt_labels]
-      print(gt_cats)
-      corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
-      _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    pass
 
   def show_gt_bboxes_1scene_3d(self, index):
     img_info = self.img_infos[index]
@@ -178,9 +169,10 @@ class Stanford_Ann():
     gt_labels = img_info['gt_labels']
     coords, colors_norms, point_labels, _ = self.load_ply(index)
 
+    kp_cats = ['wall', 'beam', 'column', 'door', 'window']
     rm_cats = ['ceiling']
-    #rm_cats = ['beam']
 
+    # 3d
     points = np.concatenate([coords, colors_norms], axis=1)
     points, point_labels = filter_categories('remove', points, point_labels, ['ceiling'], _raw_pcl_category_ids_map)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
@@ -192,7 +184,13 @@ class Stanford_Ann():
 
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
+
+    gt_bboxes_3d_raw[:,:4] /= 0.02
+    corners /= 0.02
+    obj_cats = np.array(kp_cats)[gt_labels]
+    _show_objs_ls_points_ls((512,512), [gt_bboxes_3d_raw], self.obj_rep, points_ls=[corners], obj_scores_ls=[obj_cats])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
@@ -573,7 +571,7 @@ def main2d():
   pass
 
 if __name__ == '__main__':
-   #main3d()
-   main2d()
+   main3d()
+   #main2d()
 
 

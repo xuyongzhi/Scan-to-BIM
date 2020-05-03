@@ -587,10 +587,12 @@ class GraphUtils:
     '''
     from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
     assert opt_graph_cor_dis_thr>0
+    num_in = lines_in.shape[0]
 
     # filter short lines
     line_length_in = np.linalg.norm(lines_in[:,2:4] - lines_in[:,:2], axis=1)
     valid_line_mask = line_length_in > opt_graph_cor_dis_thr
+    valid_inds_0 = np.where(valid_line_mask)[0]
     del_lines = lines_in[valid_line_mask==False]
     lines_in = lines_in[valid_line_mask]
     if scores is not None:
@@ -626,9 +628,12 @@ class GraphUtils:
 
     # remove short lines
     line_length_out = np.linalg.norm(lines_merged[:,2:4] - lines_merged[:,:2], axis=1)
-    valid_inds = np.where(line_length_out > min_out_length)[0]
+    valid_mask_1 = line_length_out > min_out_length
+    valid_inds = np.where(valid_mask_1)[0]
     rm_num = line_length_out.shape[0] - valid_inds.shape[0]
     lines_merged = lines_merged[valid_inds]
+
+    valid_inds_final = valid_inds_0[valid_inds]
 
     if scores is None and labels is None:
       line_labels_merged = None
@@ -638,6 +643,10 @@ class GraphUtils:
       line_scores_merged = cor_scores_merged[corIds_per_line].mean(axis=1)[:,None]
       line_labels_merged = line_labels_merged[valid_inds]
       line_scores_merged = line_scores_merged[valid_inds]
+
+    if valid_inds_final.shape[0] != lines_merged.shape[0]:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
 
     debug = 0
@@ -685,7 +694,7 @@ class GraphUtils:
 
         pass
 
-    return lines_merged, line_scores_merged, line_labels_merged, valid_line_mask
+    return lines_merged, line_scores_merged, line_labels_merged, valid_inds_final
 
   @staticmethod
   def gen_corners_from_lines_np(lines, labels=None, obj_rep='XYXYSin2', flag=''):
