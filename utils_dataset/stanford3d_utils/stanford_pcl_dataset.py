@@ -14,7 +14,8 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 1
+SMALL_DATA = 0
+NO_LONG = 1
 
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
 _raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -58,7 +59,7 @@ class Stanford_CLSINFO(object):
 
 class Stanford_Ann():
   EASY = ['Area_1/office_16']
-  LONG = ['Area_1/hallway_2']
+  LONG = ['Area_1/hallway_2', 'Area_1/hallway_6' , 'Area_3/hallway_1' , 'Area_3/hallway_4' , 'Area_5/hallway_2' , 'Area_5/hallway_1']
   UNALIGNED = ['Area_2/storage_9','Area_2/hallway_11',  'Area_2/auditorium_1',
                'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
@@ -87,6 +88,20 @@ class Stanford_Ann():
       data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
       data_paths = [f+'.ply' for f in self.BadColum]
       #data_paths = [f+'.ply' for f in self.SAMPLES1]
+
+    if NO_LONG:
+      data_paths_new = []
+      for p in data_paths:
+        ok = 1
+        for l in self.LONG:
+          if l in p:
+            ok = 0
+        if ok:
+          data_paths_new.append(p)
+      n_long = len(data_paths_new) - len(data_paths)
+      print(f'{n_long} long scenes rmed')
+      data_paths = data_paths_new
+      pass
 
     data_paths.sort()
     self.data_paths = data_paths
