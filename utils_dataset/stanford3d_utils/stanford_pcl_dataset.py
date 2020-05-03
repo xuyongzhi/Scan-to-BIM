@@ -62,6 +62,7 @@ class Stanford_Ann():
   UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8', 'Area_2/storage_9',
                'Area_4/hallway_14', 'Area_3/office_7']
   SAMPLES1 = ['Area_5/office_39']
+  WithColum = ['Area_5/conferenceRoom_2']
 
   GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
 
@@ -81,8 +82,9 @@ class Stanford_Ann():
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
-      #data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
-      data_paths = [f+'.ply' for f in self.SAMPLES1]
+      data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
+      data_paths = [f+'.ply' for f in self.WithColum]
+      #data_paths = [f+'.ply' for f in self.SAMPLES1]
 
     data_paths.sort()
     self.data_paths = data_paths

@@ -35,6 +35,8 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
 
   n1 = bboxes1.shape[0]
   n2 = bboxes2.shape[0]
+  if n1==0 or n2==0:
+    return np.zeros([n1,n2])
   centroids1 = bboxes1[:,:2]
   centroids2 = bboxes2[:,:2]
   abs_diss = centroids1.unsqueeze(dim=1) - centroids2.unsqueeze(dim=0)
@@ -104,8 +106,10 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=2):
 
   bboxes1[:,2:4] = torch.clamp(bboxes1[:,2:4], min=min_size)
   bboxes2[:,2:4] = torch.clamp(bboxes2[:,2:4], min=min_size)
-  assert bboxes1[:,2:4].min() > 1
-  assert bboxes2[:,2:4].min() > 1
+  if bboxes1.shape[0] > 0:
+    assert bboxes1[:,2:4].min() > 1
+  if bboxes2.shape[0] > 0:
+    assert bboxes2[:,2:4].min() > 1
   ious_2d = _C.box_iou_rotated(bboxes1, bboxes2)
   if torch.isnan(ious_2d).any():
     print("nan iou from rotated_bbox_overlaps")
