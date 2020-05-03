@@ -335,8 +335,12 @@ def angle_of_2lines(line0, line1, scope_id=0):
   # sometimes cos can be a bit > 1
   ref = np.clip(np.abs(cos), a_min=1, a_max=None)
   cos /= ref
-  assert np.all(np.abs(cos)<=1)
   angle = np.arccos( cos )
+  #if not np.all(np.abs(cos)<=1):
+  #  mask = norm0 < 1e-5 or norm1 < 1e-5
+  #  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  #  angle[mask] = 0
+  angle[np.isnan(angle)]=0
 
   if scope_id == 0:
     pass
