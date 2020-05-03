@@ -4,7 +4,7 @@ import os
 
 from tqdm import tqdm
 
-from obj_geo_utils.geometry_utils import limit_period_np, vertical_dis_1point_lines
+from obj_geo_utils.geometry_utils import limit_period_np, vertical_dis_1point_lines, points_in_lines
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from utils_dataset.lib.pc_utils import save_point_cloud
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls, _show_lines_ls_points_ls
@@ -35,6 +35,7 @@ STANFORD_3D_TO_SEGCLOUD_LABEL = {
     2: 11,
     0: 12,
 }
+THICK_MAP = {'door': 0.2, 'window': 0.25}
 
 DEBUG=0
 
@@ -186,7 +187,7 @@ def aligned_points_to_bbox(points, out_np=False):
     bbox_np = np.concatenate([min_bound, max_bound], axis=0)
   return bbox_np
 
-def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.02):
+def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
   '''
   points: [n,3]
   boxes3d: [n,8] XYXYSin2WZ0Z1
@@ -231,14 +232,16 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.02):
   if cat_name == 'wall':
     # ( (cx,cy), (sx,sy), angle )
     box2d = cv2.minAreaRect(point_inds)
-  elif cat_name in ['door']:
-    box2d = points_to_box_align_with_wall(point_inds, walls_inds, cat_name)
+  elif cat_name in ['door', 'window']:
+    box2d = aligned_box(point_inds)
+    size_a = min(box2d[1]) * voxel_size
+    if size_a > 0.3:
+      print(f'size_align: {size_a}')
+      box2d = points_to_box_align_with_wall(point_inds, walls_inds, cat_name, voxel_size)
+      if box2d is None:
+        return None
   else:
-    min_xy = point_inds.min(0)
-    max_xy = point_inds.max(0)
-    cx, cy = (min_xy + max_xy) / 2
-    sx, sy = max_xy - min_xy
-    box2d = ( (cx,cy), (sx,sy), 0 )
+    box2d = aligned_box(point_inds)
   box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
   # The original angle from cv2.minAreaRect denotes the rotation from ref-x
   # to body-x. It is it positive for clock-wise.
@@ -257,7 +260,7 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.02):
   box3d[:, [0,1]] += xyz_min[None, [0,1]]
   box3d[:, [2,3]] += xyz_min[None, [0,1]]
 
-  if 1 and cat_name in ['door']:
+  if 0 and cat_name in ['door']:
     img_size = point_inds.max(0)[[1,0]]+1 + 100
     img = np.zeros(img_size, dtype=np.uint8)
 
@@ -271,17 +274,63 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.02):
     pass
   return box3d
 
+def aligned_box(point_inds):
+    min_xy = point_inds.min(0)
+    max_xy = point_inds.max(0)
+    cx, cy = (min_xy + max_xy) / 2
+    sx, sy = max_xy - min_xy
+    box2d = ( (cx,cy), (sx,sy), 0 )
+    return box2d
 
-def points_to_box_align_with_wall(points, walls, cat_name):
+def points_to_box_align_with_wall(points, walls, cat_name, voxel_size):
+  for i in range(4):
+    box2d, wall_id = points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size)
+    if box2d is None:
+      return None
+    length = max(box2d[1]) * voxel_size
+    thick = min(box2d[1]) * voxel_size
+
+    print(f'{cat_name} length={length}, thick={thick}')
+    if length > 0.5:
+      return box2d
+    mask = np.arange(walls.shape[0]) != wall_id
+    walls = walls[mask]
+    pass
+  return None
+
+def points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size, max_diss_meter=2):
   from obj_geo_utils.line_operations import transfer_lines_points
+  thick = THICK_MAP[cat_name] / voxel_size
+  max_diss = max_diss_meter / voxel_size
+
   meanp = points.mean(0)
   wall_lines = OBJ_REPS_PARSE.encode_obj( walls, 'XYXYSin2WZ0Z1', 'RoLine2D_2p' ).reshape(-1,2,2)
-  diss = vertical_dis_1point_lines(meanp, wall_lines)
-  wall_id = diss.argmin()
   walls_ = OBJ_REPS_PARSE.encode_obj(walls, 'XYXYSin2WZ0Z1', 'XYLgWsA')
-  the_wall = walls_[wall_id][None,:]
-  #_show_objs_ls_points_ls( (512,512), [walls_, the_wall], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points])
-  #_show_objs_ls_points_ls( (512,512), [walls_], obj_rep='XYLgWsA' , points_ls = [points])
+  diss = vertical_dis_1point_lines(meanp, wall_lines, no_extend=False)
+
+  for i in range(5):
+    wall_id = diss.argmin()
+    min_diss = diss[wall_id] * voxel_size
+    if min_diss > max_diss:
+      return None, None
+    print(f'\n{cat_name} and wall, min diss: {min_diss}')
+    the_wall = walls_[wall_id][None,:]
+    #_show_objs_ls_points_ls( (512,512), [walls_, the_wall], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points])
+    #_show_objs_ls_points_ls( (512,512), [walls_], obj_rep='XYLgWsA' , points_ls = [points])
+
+    thres = 0.2 / voxel_size
+    the_wall_aug = the_wall.copy()
+    the_wall_aug[:,2:4] += 0.2 / voxel_size
+    the_line2d = OBJ_REPS_PARSE.encode_obj( the_wall_aug, 'XYLgWsA', 'RoLine2D_2p' ).reshape(-1,2,2)
+    num_inside = points_in_lines( points, the_line2d, thres ).sum()
+    inside_rate = 1.0 * num_inside / points.shape[0]
+    print(f'inside_rate: {inside_rate}')
+    if inside_rate > 0.2:
+      break
+    else:
+      diss[wall_id] += 10000
+  if inside_rate <0.2:
+    return None, None
 
   angle = -the_wall[0,4]
   center = (the_wall[0,0], the_wall[0,1])
@@ -293,19 +342,41 @@ def points_to_box_align_with_wall(points, walls, cat_name):
   max_xy = points_r.max(0)
   xc, yc = (min_xy + max_xy) / 2
   xs, ys = max_xy - min_xy
+  ys_meter = ys * voxel_size
   box_r = the_wall_r.copy()
   box_r[0]  = xc
   box_r[2] = xs
-  box_r[3] *= 2
+
+  wall_yc = box_r[1]
+  #thick = box_r[3] * 2
+  y_max = max_xy[1]
+  y_min = min_xy[1]
+  if wall_yc > y_max - thick/2:
+    y_min = y_max - thick
+    yc = (y_min + y_max) / 2
+  elif wall_yc < y_min + thick/2:
+    y_max = y_min + thick
+    yc = (y_min + y_max) / 2
+  else:
+    yc = wall_yc
+
+  box_r[1] = yc
+  box_r[3] = thick
+
   box_r = box_r[None,:]
   #_show_objs_ls_points_ls( (512,512), [walls_r, box_r], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_r])
 
   box_out, points_out = transfer_lines_points( box_r, 'XYLgWsA', points_r, center, -angle, (0,0) )
-  #_show_objs_ls_points_ls( (1024,1024), [walls_, box_out], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_out, points], point_colors=['yellow','red'])
+
+
+  wall_view = walls_[wall_id:wall_id+1]
+  wall_view = walls_
+  #_show_objs_ls_points_ls( (1024,1024), [wall_view, box_out], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_out, points], point_colors=['yellow','red'])
+
   cx, cy, l, w, a = box_out[0]
   a = a*180/np.pi
   box_2d = ( (cx,cy), (l,w), a)
-  return box_2d
+  return box_2d, wall_id
 
 def unused_points_to_bbox(points, out_np=False):
   from beike_data_utils.geometric_utils import R_to_Vec, R_to_Euler
@@ -351,14 +422,33 @@ def unused_points_to_bbox(points, out_np=False):
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   return bbox_np
 
-def gen_bboxes():
+
+def sampling_points(max_num, points, *args):
+    max_num = int(max_num)
+    n0 = points.shape[0]
+    if n0 > max_num:
+      inds = np.random.choice(n0, max_num, replace=False)
+      points = points[inds]
+      new_args = []
+      for i in range(len(args)):
+        new_args.append(  args[i][inds] )
+      new_args = tuple(new_args)
+    else:
+      new_args = args
+    return ( points,) + new_args
+
+def gen_bboxes(max_num_points=1e5):
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
   UNALIGNED = ['Area_2/auditorium_1', 'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
+  DOOR_HAD = ['Area_1/hallway_4','Area_2/auditorium_1','Area_1/hallway_8']
+  ROTAE_WINDOW=['Area_1/office_11']
   scenes = UNALIGNED[0:1]
-  ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+  scenes = DOOR_HAD[2:]
+  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
       bbox_file = plyf.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
@@ -376,6 +466,9 @@ def gen_bboxes():
       feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
       categories = np.array(data['label'], dtype=np.int32)
       instances = np.array(data['instance'], dtype=np.int32)
+
+      coords, feats, categories, instances = sampling_points(max_num_points, coords, feats, categories, instances)
+
       #show_pcd(coords)
 
       cat_min = categories.min()
@@ -399,14 +492,15 @@ def gen_bboxes():
         for ins in range(ins_min, ins_max+1):
           mask_ins = instances_cat == ins
           num_ins = mask_ins.sum()
-          print(f'\t{ins}th instance has {num_ins} points')
+          #print(f'\t{ins}th instance has {num_ins} points')
           if num_ins == 0:
             continue
           coords_cat_ins = coords_cat[mask_ins]
           if cat_name != 'clutter':
             #show_pcd(coords_cat_ins)
             bbox = points_to_oriented_bbox(coords_cat_ins, bboxes_wall, cat_name)
-            bboxes[cat_name].append(bbox)
+            if bbox is not None:
+              bboxes[cat_name].append(bbox)
         if cat_name == 'wall':
           bboxes_wall = np.concatenate(bboxes['wall'],0)
         pass
@@ -433,10 +527,11 @@ def gen_bboxes():
       colors = instances.astype(np.int32)
       colors = feats
 
-      if 1:
+      if 0:
         all_bboxes = []
         all_cats = []
         view_cats = ['wall', 'beam', 'window', 'column', 'door']
+        #view_cats += ['table']
         for cat in view_cats:
           if cat not in bboxes:
             continue
@@ -445,7 +540,9 @@ def gen_bboxes():
         all_bboxes = np.concatenate(all_bboxes, 0)
         all_cats = np.array(all_cats)
 
-        all_bboxes_2d = all_bboxes[:,:6].copy() / 0.02
+        scope = all_bboxes[:,:4].reshape(-1,2).max(0) - all_bboxes[:,:4].reshape(-1,2).min(0)
+        voxel_size =  max(scope) / 1000
+        all_bboxes_2d = all_bboxes[:,:6].copy() / voxel_size
         org = all_bboxes_2d[:,:4].reshape(-1,2).min(0)[None,:] - 50
         all_bboxes_2d[:,:2] -=  org
         all_bboxes_2d[:,2:4] -=  org
@@ -461,9 +558,9 @@ def gen_bboxes():
       #print( bboxes['wall'])
       #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
 
-      if 1:
+      if 0:
         view_cats = ['column', 'beam']
-        view_cats = ['door']
+        view_cats = ['door',]
         for cat in view_cats:
           if cat not in bboxes:
             continue

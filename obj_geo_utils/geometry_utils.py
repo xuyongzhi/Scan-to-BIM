@@ -285,7 +285,7 @@ def vertical_dis_points_lines(points, lines):
   dis = np.concatenate(dis, 0)
   return dis
 
-def vertical_dis_1point_lines(point, lines):
+def vertical_dis_1point_lines(point, lines, no_extend=False):
   '''
   point:[2/3]
   lines:[m,2,2/3]
@@ -303,6 +303,12 @@ def vertical_dis_1point_lines(point, lines):
   dis = np.sin(angles) * np.linalg.norm(direc_p, axis=1)
   mask = np.isnan(dis)
   dis[mask] = 0
+
+  if no_extend:
+    diss_to_corner = np.linalg.norm( point[:,None,:] - lines, axis=-1 ).min(1)
+    diss_to_center = np.linalg.norm( point[:,:] - lines.mean(1), axis=-1 )
+    is_extend = diss_to_center > diss_to_corner
+    dis += is_extend * 10000
   return dis
 
 def angle_of_2lines(line0, line1, scope_id=0):
