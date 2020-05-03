@@ -4,7 +4,7 @@ import os
 
 from tqdm import tqdm
 
-from obj_geo_utils.geometry_utils import limit_period_np
+from obj_geo_utils.geometry_utils import limit_period_np, vertical_dis_1point_lines
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from utils_dataset.lib.pc_utils import save_point_cloud
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls, _show_lines_ls_points_ls
@@ -186,7 +186,7 @@ def aligned_points_to_bbox(points, out_np=False):
     bbox_np = np.concatenate([min_bound, max_bound], axis=0)
   return bbox_np
 
-def points_to_oriented_bbox(points, bboxes_wall, cat_name,  voxel_size=0.002):
+def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.02):
   '''
   points: [n,3]
   boxes3d: [n,8] XYXYSin2WZ0Z1
@@ -195,37 +195,50 @@ def points_to_oriented_bbox(points, bboxes_wall, cat_name,  voxel_size=0.002):
   assert points.ndim == 2
   assert points.shape[1] == 3
   if cat_name!='wall':
-    assert bboxes_wall is not None
-  aug = 10
+    assert bboxes_wall0 is not None
+
+  #if bboxes_wall0 is not None:
+  #  _show_3d_points_objs_ls([points], objs_ls=[bboxes_wall0], obj_rep='XYXYSin2WZ0Z1')
 
   xyz_min = points.min(0)
   xyz_max = points.max(0)
-  scope = xyz_max - xyz_min
+  if bboxes_wall0 is not None:
+    xy_min_w = bboxes_wall0[:,:4].reshape(-1,2).min(0)
+    z_mi_w = bboxes_wall0[:,-2].min()
+    xyz_min[0] = min(xyz_min[0], xy_min_w[0])
+    xyz_min[1] = min(xyz_min[1], xy_min_w[1])
   points = points - xyz_min
 
   point_inds = points / voxel_size
-  point_inds = np.round(point_inds).astype(np.int)[:,:2] + aug
+  point_inds = np.round(point_inds).astype(np.int)[:,:2]
 
-  img_size = point_inds.max(0)[[1,0]]+1 + aug*2
-
-  img = np.zeros(img_size, dtype=np.uint8)
-  # NOTE: x, y is inversed between 3d points and 2d img
-  #img[point_inds[:,0],  point_inds[:,1]] = 255
+  if bboxes_wall0 is  not None:
+    bboxes_wall = bboxes_wall0.copy()
+    bboxes_wall[:,:2] -= xyz_min[:2]
+    bboxes_wall[:,2:4] -= xyz_min[:2]
+    walls_inds = bboxes_wall / voxel_size
+    walls_inds = np.round(walls_inds).astype(np.float32)
+    walls_inds[:,:4]
+    walls_inds[:,4] = bboxes_wall0[:,4]
+    #_show_objs_ls_points_ls( (512,512), [walls_inds], obj_rep='XYXYSin2WZ0Z1' )
+    pass
 
   if cat_name in ['wall', 'window']:
     rotate_box = True
   else:
     rotate_box = False
 
-  if not rotate_box:
+  if cat_name == 'wall':
+    # ( (cx,cy), (sx,sy), angle )
+    box2d = cv2.minAreaRect(point_inds)
+  elif cat_name in ['door']:
+    box2d = points_to_box_align_with_wall(point_inds, walls_inds, cat_name)
+  else:
     min_xy = point_inds.min(0)
     max_xy = point_inds.max(0)
     cx, cy = (min_xy + max_xy) / 2
     sx, sy = max_xy - min_xy
     box2d = ( (cx,cy), (sx,sy), 0 )
-  else:
-    # ( (cx,cy), (sx,sy), angle )
-    box2d = cv2.minAreaRect(point_inds)
   box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
   # The original angle from cv2.minAreaRect denotes the rotation from ref-x
   # to body-x. It is it positive for clock-wise.
@@ -236,8 +249,6 @@ def points_to_oriented_bbox(points, bboxes_wall, cat_name,  voxel_size=0.002):
   box2d[:,-1] *= np.pi / 180
   box2d[:,-1] = limit_period_np(box2d[:,-1], 0.5, np.pi) # limit_period
 
-  #_show_objs_ls_points_ls(img, [box2d], obj_rep='RoBox2D_CenSizeAngle', points_ls=[point_inds])
-
   box2d_st = OBJ_REPS_PARSE.encode_obj(box2d, obj_rep_in = 'XYLgWsA',
                      obj_rep_out = 'XYXYSin2W')
 
@@ -246,12 +257,55 @@ def points_to_oriented_bbox(points, bboxes_wall, cat_name,  voxel_size=0.002):
   box3d[:, [0,1]] += xyz_min[None, [0,1]]
   box3d[:, [2,3]] += xyz_min[None, [0,1]]
 
-  if 0 and cat_name == 'column':
-    _show_objs_ls_points_ls(img, [box2d_st, bboxes_wall[:,:6]], obj_rep='XYXYSin2W',
+  if 1 and cat_name in ['door']:
+    img_size = point_inds.max(0)[[1,0]]+1 + 100
+    img = np.zeros(img_size, dtype=np.uint8)
+
+    if bboxes_wall0 is not None:
+      _show_objs_ls_points_ls(img, [box2d_st, walls_inds[:,:6]], obj_rep='XYXYSin2W',
                             points_ls=[point_inds], obj_colors=['green', 'blue'])
+    else:
+      _show_objs_ls_points_ls(img, [box2d_st], obj_rep='XYXYSin2W',
+                            points_ls=[point_inds], obj_colors=['green', 'blue'])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
   return box3d
 
+
+def points_to_box_align_with_wall(points, walls, cat_name):
+  from obj_geo_utils.line_operations import transfer_lines_points
+  meanp = points.mean(0)
+  wall_lines = OBJ_REPS_PARSE.encode_obj( walls, 'XYXYSin2WZ0Z1', 'RoLine2D_2p' ).reshape(-1,2,2)
+  diss = vertical_dis_1point_lines(meanp, wall_lines)
+  wall_id = diss.argmin()
+  walls_ = OBJ_REPS_PARSE.encode_obj(walls, 'XYXYSin2WZ0Z1', 'XYLgWsA')
+  the_wall = walls_[wall_id][None,:]
+  #_show_objs_ls_points_ls( (512,512), [walls_, the_wall], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points])
+  #_show_objs_ls_points_ls( (512,512), [walls_], obj_rep='XYLgWsA' , points_ls = [points])
+
+  angle = -the_wall[0,4]
+  center = (the_wall[0,0], the_wall[0,1])
+  walls_r, points_r = transfer_lines_points( walls_, 'XYLgWsA', points, center, angle, (0,0) )
+  the_wall_r = walls_r[wall_id]
+  #_show_objs_ls_points_ls( (512,512), [walls_r], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_r])
+
+  min_xy = points_r.min(0)
+  max_xy = points_r.max(0)
+  xc, yc = (min_xy + max_xy) / 2
+  xs, ys = max_xy - min_xy
+  box_r = the_wall_r.copy()
+  box_r[0]  = xc
+  box_r[2] = xs
+  box_r[3] *= 2
+  box_r = box_r[None,:]
+  #_show_objs_ls_points_ls( (512,512), [walls_r, box_r], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_r])
+
+  box_out, points_out = transfer_lines_points( box_r, 'XYLgWsA', points_r, center, -angle, (0,0) )
+  #_show_objs_ls_points_ls( (1024,1024), [walls_, box_out], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_out, points], point_colors=['yellow','red'])
+  cx, cy, l, w, a = box_out[0]
+  a = a*180/np.pi
+  box_2d = ( (cx,cy), (l,w), a)
+  return box_2d
 
 def unused_points_to_bbox(points, out_np=False):
   from beike_data_utils.geometric_utils import R_to_Vec, R_to_Euler
@@ -301,9 +355,9 @@ def gen_bboxes():
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
-  UNALIGNED = ['Area_3/office_8',
+  UNALIGNED = ['Area_2/auditorium_1', 'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
-  scenes = UNALIGNED
+  scenes = UNALIGNED[0:1]
   ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
@@ -391,7 +445,7 @@ def gen_bboxes():
         all_bboxes = np.concatenate(all_bboxes, 0)
         all_cats = np.array(all_cats)
 
-        all_bboxes_2d = all_bboxes[:,:6].copy() / 0.007
+        all_bboxes_2d = all_bboxes[:,:6].copy() / 0.02
         org = all_bboxes_2d[:,:4].reshape(-1,2).min(0)[None,:] - 50
         all_bboxes_2d[:,:2] -=  org
         all_bboxes_2d[:,2:4] -=  org
@@ -408,7 +462,9 @@ def gen_bboxes():
       #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
 
       if 1:
-        for cat in ['column', 'beam']:
+        view_cats = ['column', 'beam']
+        view_cats = ['door']
+        for cat in view_cats:
           if cat not in bboxes:
             continue
           print(cat)

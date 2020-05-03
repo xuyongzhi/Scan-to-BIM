@@ -59,7 +59,8 @@ class Stanford_CLSINFO(object):
 class Stanford_Ann():
   EASY = ['Area_1/office_16']
   LONG = ['Area_1/hallway_2']
-  UNALIGNED = ['Area_2/storage_9', 'Area_3/office_8',
+  UNALIGNED = ['Area_2/storage_9','Area_2/hallway_11',  'Area_2/auditorium_1',
+               'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
   SAMPLES1 = ['Area_5/office_39']
   WithColum = ['Area_5/conferenceRoom_2']

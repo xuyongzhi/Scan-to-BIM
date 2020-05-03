@@ -164,10 +164,44 @@ def m_transform_lines(lines, matrix, obj_rep):
   lines_rotated = OBJ_REPS_PARSE.encode_obj(lines_2pts_r.reshape(n,4), 'RoLine2D_2p', obj_rep)
   return lines_rotated.astype(np.float32)
 
+def transfer_lines_points(lines, obj_rep, points, center, angle, offset):
+  '''
+  lines: [n,5]
+  points: [m,2]
+  angle: clock-wise is positive, degree
+  offset: (2)
+  '''
+  assert points.ndim == 2
+  assert lines.ndim == 2
+  n = lines.shape[0]
+  scale = 1
+  angle *= 180/np.pi
+  matrix = cv2.getRotationMatrix2D(center, -angle, scale)
+
+  lines_2endpts = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(n,2,2)
+
+  ones = np.ones([n,2,1], dtype=lines.dtype)
+  tmp = np.concatenate([lines_2endpts, ones], axis=2).reshape([n*2, 3])
+  lines_2pts_r = np.matmul( tmp, matrix.T ).reshape([n,2,2])
+  lines_2pts_r[:,:,0] += offset[0]
+  lines_2pts_r[:,:,1] += offset[1]
+  lines_rotated = OBJ_REPS_PARSE.encode_obj(lines_2pts_r.reshape(n,4), 'RoLine2D_2p', obj_rep)
+  if obj_rep == 'XYLgWsA':
+    lines_rotated[:,3] = lines[:,3]
+  if obj_rep == 'XYZLgWsHA':
+    lines_rotated[:,4] = lines[:,4]
+
+  m,pc = points.shape
+  ones = np.ones([m,1], dtype=lines.dtype)
+  tmp = np.concatenate([points, ones], axis=1).reshape([m, pc+1])
+  points_r = np.matmul( tmp, matrix.T ).reshape([m,pc])
+  return lines_rotated, points_r
+
 def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   '''
   lines: [n,5]
   angle: clock-wise is positive
+  offset: (2)
   '''
   scale = 1
   h, w = img_shape
