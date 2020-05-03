@@ -109,17 +109,20 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
 
   det_lines_merged: [m,6]
   '''
+  obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
+  assert det_lines.shape[1] == obj_dim+1
   det_lines = filter_low_score_det(det_lines, score_threshold)
   labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
   scores_i = det_lines[:,-1]
   if cat == 'wall':
     det_lines_merged, scores_merged, labels_merged, _ = \
-      GraphUtils.optimize_graph(det_lines[:,:5], scores_i, labels_i, obj_rep,
+      GraphUtils.optimize_graph(det_lines[:,:obj_dim], scores_i, labels_i, obj_rep=obj_rep,
       opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length)
 
     check_length = 0
     if check_length:
       # check length
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       det_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines[:,:5], 'XYXYSin2', 'RoLine2D_CenterLengthAngle' )[:,2]
       merged_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines_merged[:,:5], 'XYXYSin2', 'RoLine2D_CenterLengthAngle' )[:,2]
 
@@ -154,6 +157,8 @@ class GraphEval():
   scene_list = None
 
   def __init__(self, obj_rep, classes, filter_edges, score_threshold=0.4,):
+    self.obj_rep = obj_rep
+    self.obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
     self.classes = classes
     self.filter_edges = filter_edges
     self._score_threshold = score_threshold
@@ -242,7 +247,7 @@ class GraphEval():
 
         if debug and 0:
           print('gt')
-          _show_objs_ls_points_ls(img, [gt_lines], obj_rep='XYXYSin2')
+          _show_objs_ls_points_ls(img, [gt_lines], obj_rep=self.obj_rep)
         pass
 
         num_labels = len(detections)
@@ -276,7 +281,7 @@ class GraphEval():
               _show_lines_ls_points_ls(img[:,:,0], [det_lines_merged[:,:5], gt_lines_l], line_colors=['green','red'])
 
             pass
-        draw_eval_all_classes_1img(eval_draws_ls)
+        draw_eval_all_classes_1img(eval_draws_ls, self.obj_rep)
         pass
 
     corner_recall_precision_perimg = defaultdict(list)
@@ -356,9 +361,9 @@ class GraphEval():
   def eval_1img_1cls(self, img, det_lines, gt_lines, scene_name, det_cat):
     num_gt = gt_lines.shape[0]
 
-    det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:5],\
-                                          None, 'XYXYSin2')
-    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, 'XYXYSin2')
+    det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:self.obj_dim],\
+                                          None, self.obj_rep)
+    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, self.obj_rep)
 
     cor_nums_gt_pos_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
 
@@ -550,13 +555,13 @@ class GraphEval():
     return cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false
 
 
-def draw_eval_all_classes_1img(eval_draws_ls):
+def draw_eval_all_classes_1img(eval_draws_ls, obj_rep):
   import mmcv
   colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow'}
-  obj_rep='XYXYSin2'
   num_cats = len(eval_draws_ls)
   img_det = None
   img_gt = None
+  obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
 
   det_lines_2d = []
   gt_lines_2d = []
@@ -576,11 +581,11 @@ def draw_eval_all_classes_1img(eval_draws_ls):
     c = colors_map[cat]
     det_file = img_file_base_all_cls + '_Det.png'
     img_det = _draw_objs_ls_points_ls(img_det,
-            [det_lines_pos[:,:5], det_lines_neg[:,:5]],
+            [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
             obj_rep,
             [det_corners_pos, det_corners_neg],
             obj_colors=c,
-            obj_scores_ls = [det_lines_pos[:,5], det_lines_neg[:,5]],
+            obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]],
             obj_cats_ls = ['', 'F'],
             point_colors=['blue', 'yellow'],
             obj_thickness=[2,2],
@@ -593,7 +598,7 @@ def draw_eval_all_classes_1img(eval_draws_ls):
       img_gt = img[:,:,0]
     gt_file = img_file_base_all_cls + '_Gt.png'
     img_gt = _draw_objs_ls_points_ls(img_gt,
-            [gt_lines_true[:,:5], gt_lines_false[:,:5]],
+            [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
             obj_rep,
             [gt_corners_true, gt_corners_false],
             obj_colors=c,
@@ -615,7 +620,7 @@ def draw_eval_all_classes_1img(eval_draws_ls):
   img_detgt = img.shape[:2]
   detgt_file = img_file_base_all_cls + '_DetGt.png'
   img_detgt = _draw_objs_ls_points_ls(img_detgt,
-          [det_lines_2d[:,:5], gt_lines_2d[:,:5]],
+          [det_lines_2d[:,:obj_dim], gt_lines_2d[:,:obj_dim]],
           obj_rep,
           obj_colors=['blue', 'red'],
           obj_thickness=[3,1],
@@ -632,7 +637,6 @@ def show_2dlines_as_3d(lines_2d, labels):
   pass
 
 def filter_low_score_det(det_lines, score_threshold=0.5):
-  assert det_lines.shape[1] == 6
   mask = det_lines[:,-1] > score_threshold
   det_lines_ = det_lines[mask]
   return det_lines_

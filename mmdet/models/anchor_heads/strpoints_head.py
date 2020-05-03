@@ -1534,8 +1534,8 @@ class StrPointsHead(nn.Module):
                    pts_preds_refine,
                    corner_outs,
                    rel_feat_outs,
-                   box_extra_init,
-                   box_extra_refine,
+                   box_extra_inits,
+                   box_extra_refines,
                    img_metas,
                    cfg,
                    rescale=False,
@@ -1544,7 +1544,7 @@ class StrPointsHead(nn.Module):
         cls_scores, cls_scores_refine_final = self.cal_test_score(cls_scores)
         bbox_preds_refine = [
             self.points2bbox(pts_pred_refine, box_extra=box_extra_refine)
-            for pts_pred_refine in pts_preds_refine
+            for pts_pred_refine, box_extra_refine in zip(pts_preds_refine, box_extra_refines)
         ]
         num_levels = len(cls_scores)
 
@@ -1552,7 +1552,7 @@ class StrPointsHead(nn.Module):
           for i in range(num_levels):
             bbox_preds_init = [
                 self.points2bbox(pts_pred_init, box_extra=box_extra_init)
-                for pts_pred_init in pts_preds_init
+                for pts_pred_init, box_extra_init in zip(pts_preds_init, box_extra_inits)
             ]
             # OUT_ORDER
             init_refine = torch.cat([bbox_preds_refine[i], bbox_preds_init[i],
@@ -1646,16 +1646,20 @@ class StrPointsHead(nn.Module):
             mlvl_inds.append( topk_inds + flat_inds_last )
             flat_inds_last += cls_score.shape[0]
 
-            bbox_pos_center = points[:, :2].repeat(1, self.dim_parse.OBJ_DIM//2)
-            bboxes = bbox_pred[:,:4] * self.point_strides[i_lvl]+ bbox_pos_center
-            x1 = bboxes[:, 0].clamp(min=0, max=img_shape[1])
-            y1 = bboxes[:, 1].clamp(min=0, max=img_shape[0])
-            x2 = bboxes[:, 2].clamp(min=0, max=img_shape[1])
-            y2 = bboxes[:, 3].clamp(min=0, max=img_shape[0])
+            ze = torch.zeros_like(points[:,0:1])
+            bbox_pos_center = points[:, :2].repeat(1, 2)
+            xyxy = bbox_pred[:,:4] * self.point_strides[i_lvl]+ bbox_pos_center
+            x1 = xyxy[:, 0].clamp(min=0, max=img_shape[1])
+            y1 = xyxy[:, 1].clamp(min=0, max=img_shape[0])
+            x2 = xyxy[:, 2].clamp(min=0, max=img_shape[1])
+            y2 = xyxy[:, 3].clamp(min=0, max=img_shape[0])
             bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
 
-            if self.dim_parse.OBJ_DIM == 5:
+            if self.obj_rep == 'XYXYSin2':
               bboxes = torch.cat([bboxes, bbox_pred[:,4:5]], dim=1)
+            elif self.obj_rep == 'XYXYSin2WZ0Z1':
+              wz0z1 = bbox_pred[:,5:8] * self.point_strides[i_lvl]
+              bboxes = torch.cat([bboxes, bbox_pred[:,4:5], wz0z1], dim=1)
 
             if self.dim_parse.OUT_EXTAR_DIM > 0:
               _bboxes_refine, bboxes_init, points_refine, points_init, \

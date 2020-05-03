@@ -600,7 +600,7 @@ class GraphUtils:
 
     #
     if obj_rep != 'XYXYSin2':
-      lines_in = OBJ_REPS_PARSE.encode_obj(lines_in, obj_rep_in, 'XYXYSin2')
+      lines_in = OBJ_REPS_PARSE.encode_obj(lines_in, obj_rep, 'XYXYSin2')
     num_line = lines_in.shape[0]
     if scores is None and labels is None:
       lab_sco_lines = None

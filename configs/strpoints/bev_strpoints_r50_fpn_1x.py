@@ -191,6 +191,7 @@ elif DATA == 'stanford2d':
   ann_file = 'data/stanford/'
   img_prefix_train = 'train'
   img_prefix_test = 'test'
+  img_prefix_test = 'train'
 
 data = dict(
     imgs_per_gpu=7,
