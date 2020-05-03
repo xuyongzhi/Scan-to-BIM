@@ -212,7 +212,7 @@ def points_to_oriented_bbox(points, bboxes_wall, cat_name,  voxel_size=0.002):
   # NOTE: x, y is inversed between 3d points and 2d img
   #img[point_inds[:,0],  point_inds[:,1]] = 255
 
-  if cat_name in ['wall']:
+  if cat_name in ['wall', 'window']:
     rotate_box = True
   else:
     rotate_box = False
@@ -301,10 +301,9 @@ def gen_bboxes():
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
-  scenes = ['Area_1/office_31']
-  scenes = ['Area_6/hallway_3', 'Area_4/hallway_12']
-  scenes = ['Area_5/conferenceRoom_1']
-  scenes = ['Area_1/hallway_7']
+  UNALIGNED = ['Area_3/office_8',
+               'Area_4/hallway_14', 'Area_3/office_7']
+  scenes = UNALIGNED
   ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
@@ -380,16 +379,19 @@ def gen_bboxes():
       colors = instances.astype(np.int32)
       colors = feats
 
-      if 0:
+      if 1:
         all_bboxes = []
         all_cats = []
-        for cat in bboxes:
+        view_cats = ['wall', 'beam', 'window', 'column', 'door']
+        for cat in view_cats:
+          if cat not in bboxes:
+            continue
           all_bboxes.append( bboxes[cat] )
           all_cats += [cat] * bboxes[cat].shape[0]
         all_bboxes = np.concatenate(all_bboxes, 0)
         all_cats = np.array(all_cats)
 
-        all_bboxes_2d = all_bboxes[:,:6].copy() / 0.01
+        all_bboxes_2d = all_bboxes[:,:6].copy() / 0.007
         org = all_bboxes_2d[:,:4].reshape(-1,2).min(0)[None,:] - 50
         all_bboxes_2d[:,:2] -=  org
         all_bboxes_2d[:,2:4] -=  org
@@ -405,8 +407,10 @@ def gen_bboxes():
       #print( bboxes['wall'])
       #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
 
-      if 0:
-        for cat in bboxes:
+      if 1:
+        for cat in ['column', 'beam']:
+          if cat not in bboxes:
+            continue
           print(cat)
           _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='XYXYSin2WZ0Z1')
           pass
