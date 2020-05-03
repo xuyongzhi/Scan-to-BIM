@@ -862,25 +862,21 @@ class StrPointsHead(nn.Module):
         bbox_weights_init = bbox_weights_init.reshape(-1, self.obj_dim)
         if box_extra_init is not None:
           box_extra_init = box_extra_init.reshape(-1, self.box_extra_dims)
+        pts_pred_init = pts_pred_init.reshape(-1, 2 * self.num_points)
         bbox_pred_init = self.points2bbox(
-            pts_pred_init.reshape(-1, 2 * self.num_points), y_first=False,
+            pts_pred_init, y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS,
             box_extra=box_extra_init)
         bbox_gt_refine = bbox_gt_refine.reshape(-1, self.obj_dim)
         bbox_weights_refine = bbox_weights_refine.reshape(-1, self.obj_dim)
         if box_extra_refine is not None:
             box_extra_refine = box_extra_refine.reshape(-1, self.box_extra_dims)
+        pts_pred_refine = pts_pred_refine.reshape(-1, 2 * self.num_points)
         bbox_pred_refine = self.points2bbox(
-            pts_pred_refine.reshape(-1, 2 * self.num_points), y_first=False,
+            pts_pred_refine, y_first=False,
             out_line_constrain=LINE_CONSTRAIN_LOSS,
             box_extra=box_extra_refine)
         normalize_term = self.point_base_scale * stride
-
-        if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
-          print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
-          print(f'stride: {stride}')
-          show_pred(self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init)
-          show_pred(self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine)
 
         if self.obj_rep == 'box_scope':
           bbox_pred_init_nm = bbox_pred_init / normalize_term
@@ -938,6 +934,13 @@ class StrPointsHead(nn.Module):
               gt_line_constrain_refine,
               line_cons_weights_refine,
               avg_factor=num_total_samples_refine)
+
+        if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
+          print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
+          print(f'stride: {stride}')
+          show_pred(self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_linec_init, pts_pred_init)
+          show_pred(self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_linec_refine, pts_pred_refine)
+
 
         return loss_cls, loss_pts_init, loss_pts_refine, loss_linec_init, loss_linec_refine
 
@@ -1941,19 +1944,24 @@ def convert_list_dict_order(f_ls_dict):
   return f_dict_ls
 
 
-def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights):
+def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
+              loss_linec_init, pts_pred
+              ):
+  print(f'loss_pts: \n{loss_pts}')
   inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
   m = bbox_gt.shape[1]
   bbox_pred = bbox_pred[:,:m]
   bbox_pred_ = bbox_pred[inds].cpu().data.numpy().reshape(-1,m)
   bbox_gt_ = bbox_gt[inds].cpu().data.numpy().reshape(-1,m)
+  pts_pred = pts_pred[inds].cpu().data.numpy().reshape(-1,2)
 
   errs = bbox_pred_ - bbox_gt_
 
   #_show_objs_ls_points_ls( (512,512), [bbox_gt, ], obj_rep = obj_rep)
-  _show_objs_ls_points_ls( (512,512), [bbox_gt_, bbox_pred_], obj_rep = obj_rep, obj_colors=['red', 'green'], obj_thickness=[2,1])
+  _show_objs_ls_points_ls( (512,512), [bbox_gt_, bbox_pred_], obj_rep = obj_rep,
+                          points_ls = [pts_pred], point_colors='blue', point_thickness=2,
+                          obj_colors=['red', 'green'], obj_thickness=[2,1])
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_nms_out(det_bboxes, det_labels, num_classes):
