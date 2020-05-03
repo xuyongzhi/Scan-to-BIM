@@ -557,7 +557,7 @@ class GraphEval():
 
 def draw_eval_all_classes_1img(eval_draws_ls, obj_rep):
   import mmcv
-  colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow'}
+  colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow', 'window':'cyan'}
   num_cats = len(eval_draws_ls)
   img_det = None
   img_gt = None
