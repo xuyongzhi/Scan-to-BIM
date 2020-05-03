@@ -170,7 +170,10 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
         if cats is not None:
           label_text += cats[i] + ' '
         if scores is not None:
-          label_text += '{:.01f}'.format(scores[i]) # score
+          try:
+            label_text += '{:.01f}'.format(scores[i]) # score
+          except:
+            label_text += str(scores[i]) # score
 
         if label_text != '':
           cen = center.astype(np.int)

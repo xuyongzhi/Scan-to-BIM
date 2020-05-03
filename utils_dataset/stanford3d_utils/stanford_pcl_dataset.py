@@ -103,12 +103,12 @@ class Stanford_Ann():
                       }
 
       if self.input_style == 'pcl':
-          raw_dynamic_vox_size = (anno_raw['pcl_scope'][1] - anno_raw['pcl_scope'][0]) / self.voxel_size
+          raw_dynamic_vox_size = (anno['pcl_scope'][1] - anno['pcl_scope'][0]) / self.voxel_size
           raw_dynamic_vox_size = np.ceil(raw_dynamic_vox_size).astype(np.int32)
           raw_dynamic_vox_size = tuple(raw_dynamic_vox_size.tolist())
 
-          img_meta = dict(filename = anno_raw['filename'],
-                          pcl_scope = anno_raw['pcl_scope'],
+          img_meta = dict(filename = anno['filename'],
+                          pcl_scope = anno['pcl_scope'],
                           input_style=self.input_style,
                           classes = self._classes,
                           scale_factor = 1,
@@ -119,10 +119,9 @@ class Stanford_Ann():
 
           img_info = dict(
             img_meta = img_meta,
-            gt_bboxes_2d_raw = anno_2d['bboxes'],
-            gt_labels = anno_2d['labels'],
-            gt_bboxes_3d_raw = anno_raw['bboxes_3d'],
-            gt_lines_thick_2d_raw = anno_raw['lines_thick_2d'],
+            gt_bboxes_2d_raw = anno['gt_bboxes'],
+            gt_labels = anno['labels'],
+            gt_bboxes_3d_raw = anno['bboxes_XYXYSin2WZ0Z1'],
           )
       self.img_infos.append(img_info)
     pass
@@ -130,6 +129,69 @@ class Stanford_Ann():
   def __len__(self):
     return len(self.img_infos)
 
+
+  def show_gt_bboxes(self,):
+    for i in range(len(self)):
+      if self.input_style == 'pcl':
+        self.show_gt_bboxes_1scene_3d(i)
+      if self.input_style == 'bev':
+        self.show_gt_bboxes_1scene_bev(i)
+
+  def show_gt_bboxes_1scene_bev(self, index):
+    img_info = self.img_infos[index]
+    print('\n\n', img_info['filename'])
+    ann = img_info['ann']
+    gt_bboxes_3d_raw = ann['bboxes_XYXYSin2WZ0Z1']
+    gt_bboxes = ann['gt_bboxes']
+    gt_labels = ann['labels']
+
+    rm_cats = ['ceiling']
+    #rm_cats = ['beam']
+    kp_cats = ['wall', 'beam', 'column', 'door', 'window']
+    kp_cats = ['wall', 'beam', 'column',  'window']
+
+    # 2d
+    gt_corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes, self.obj_rep, 'RoLine2D_2p')
+    gt_corners, _ = filter_categories('keep', gt_corners, gt_labels, kp_cats, self._category_ids_map)
+    gt_corners = gt_corners.reshape(-1,2)
+    w, h = gt_corners.max(0).astype(np.int) + 10
+    gt_bboxes, gt_labels = filter_categories('keep', gt_bboxes, gt_labels, kp_cats, self._category_ids_map)
+    obj_cats = np.array(kp_cats)[gt_labels]
+    _show_objs_ls_points_ls((h,w), [gt_bboxes], self.obj_rep, points_ls=[gt_corners], obj_scores_ls=[obj_cats])
+
+    # 3d
+    if 0:
+      #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
+      gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, ['wall', 'beam', 'column', 'door', 'window'], self._category_ids_map)
+      gt_cats = [self._catid_2_cat[l] for l in gt_labels]
+      print(gt_cats)
+      corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
+      _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    pass
+
+  def show_gt_bboxes_1scene_3d(self, index):
+    img_info = self.img_infos[index]
+    print('\n\n', img_info['img_meta']['filename'])
+    gt_bboxes_3d_raw = img_info['gt_bboxes_3d_raw']
+    gt_labels = img_info['gt_labels']
+    coords, colors_norms, point_labels, _ = self.load_ply(index)
+
+    rm_cats = ['ceiling']
+    #rm_cats = ['beam']
+
+    points = np.concatenate([coords, colors_norms], axis=1)
+    points, point_labels = filter_categories('remove', points, point_labels, ['ceiling'], _raw_pcl_category_ids_map)
+    #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
+    gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, ['wall', 'beam', 'column', 'door', 'window'], self._category_ids_map)
+    gt_cats = [self._catid_2_cat[l] for l in gt_labels]
+    print(gt_cats)
+
+    corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
+
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
+    _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
+    pass
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
   CLIP_SIZE = None
@@ -239,31 +301,6 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     return colors_norms[:, self.data_channel_inds]
 
 
-  def show_pcl_3dbboxes_gts(self,):
-    for i in range(len(self)):
-      self.show_pcl_3dbboxes_gt_1scene(i)
-
-  def show_pcl_3dbboxes_gt_1scene(self, index):
-    img_info = self.img_infos[index]
-    print('\n\n', img_info['img_meta']['filename'])
-    gt_bboxes_3d_raw = img_info['gt_bboxes_3d_raw']
-    gt_labels = img_info['gt_labels']
-    coords, colors_norms, point_labels, _ = self.load_ply(index)
-
-    rm_cats = ['ceiling']
-    #rm_cats = ['beam']
-
-    points = np.concatenate([coords, colors_norms], axis=1)
-    points, point_labels = filter_categories('remove', points, point_labels, ['ceiling'], _raw_pcl_category_ids_map)
-    #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
-    gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, ['wall', 'beam', 'column', 'door', 'window'], self._category_ids_map)
-    gt_cats = [self._catid_2_cat[l] for l in gt_labels]
-    print(gt_cats)
-
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
-    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
-    pass
 
   def show_topview_gts(self, voxel_size_prj=0.01):
     for i in range(len(self)):
@@ -427,15 +464,15 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
       cat_ids = _category_ids_map[cat] * np.ones([num_box], dtype=np.int64)
       bbox_cat_ids.append( cat_ids )
   # the loaded format: XYXYSin2WZ0Z1
-  bboxes_3d_URSin2T = np.concatenate(bboxes, axis=0)
+  bboxes_XYXYSin2WZ0Z1 = np.concatenate(bboxes, axis=0)
   bbox_cat_ids = np.concatenate(bbox_cat_ids)
 
   scope = np.loadtxt(scope_file)
 
-  bboxes_3d_URSin2T[:, :2] -= scope[0:1,:2]
-  bboxes_3d_URSin2T[:, 2:4] -= scope[0:1,:2]
+  bboxes_XYXYSin2WZ0Z1[:, :2] -= scope[0:1,:2]
+  bboxes_XYXYSin2WZ0Z1[:, 2:4] -= scope[0:1,:2]
 
-  gt_bboxes = OBJ_REPS_PARSE.encode_obj(bboxes_3d_URSin2T, 'XYXYSin2WZ0Z1', obj_rep)
+  gt_bboxes = OBJ_REPS_PARSE.encode_obj(bboxes_XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', obj_rep)
   anno = {}
   if input_style == 'bev':
     voxel_size_prj=0.01
@@ -449,14 +486,14 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
   anno['pcl_scope'] = scope
   anno['filename'] = filename
   anno['classes'] = [c for c in classes if c!='background']
-  anno['bboxes_3d_URSin2T'] = bboxes_3d_URSin2T
+  anno['bboxes_XYXYSin2WZ0Z1'] = bboxes_XYXYSin2WZ0Z1
   anno['gt_bboxes'] = gt_bboxes
   anno['labels'] = bbox_cat_ids
 
   show = 0
   if show:
     print(f'\n\n{pcl_file}\n\n')
-    #_show_3d_points_objs_ls(objs_ls=[bboxes_3d_URSin2T], obj_rep='XYXYSin2WZ0Z1')
+    #_show_3d_points_objs_ls(objs_ls=[bboxes_XYXYSin2WZ0Z1], obj_rep='XYXYSin2WZ0Z1')
     w,h =  gt_bboxes[:,:4].reshape(-1,2).max(0).astype(np.int) + 10
     _show_objs_ls_points_ls( (h,w), [gt_bboxes], obj_rep=obj_rep )
 
@@ -476,17 +513,25 @@ def show_bboxes(bboxes_3d):
 
 def filter_categories(event, bboxes, labels, filter_cats, category_ids_map):
   assert event in ['remove','keep']
-  if event == 'remove':
-    x = 1
-  else:
-    x = 0
+  num0 = len(category_ids_map)
+  num1 = len(filter_cats)
+  labels_map = -np.ones([num0])
   filter_labels = [category_ids_map[c] for c in filter_cats]
+  if event == 'remove':
+    keep_labels = [category_ids_map[c] for c in category_ids_map if c not in filter_cats]
+  else:
+    keep_labels = filter_labels
+  labels_map[keep_labels] = np.arange(num1)
+
   n = bboxes.shape[0]
-  remain_mask = np.ones(n) == x
-  for rm_id in filter_labels:
-    mask = labels == rm_id
-    remain_mask[mask] = 1-x
-  return bboxes[remain_mask], labels[remain_mask]
+  remain_mask = np.zeros(n)==1
+  for l in keep_labels:
+    mask = labels == l
+    remain_mask[mask] = True
+  new_bboxes =  bboxes[remain_mask]
+  new_labels = labels_map[ labels[remain_mask] ].astype(np.int32)
+  assert new_labels.min() >= 0
+  return new_bboxes, new_labels
 
 
 def load_1_ply(filepath):
@@ -510,24 +555,23 @@ def main3d():
   sfd_dataset = StanfordPcl(obj_rep, ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
   #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()
-  sfd_dataset.show_pcl_3dbboxes_gts()
+  sfd_dataset.show_gt_bboxes()
   pass
 
 def main2d():
   obj_rep = 'XYXYSin2WZ0Z1'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
   img_prefix = './train.txt'
-  img_prefix = './test.txt'
+  img_prefix = 'test'
   classes = Stanford_CLSINFO.classes_order
-  max_num_points = 50 * 1e4
-  max_num_points = None
-  sfd_dataset = Stanford_BEV(obj_rep, ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
+  sfd_dataset = Stanford_BEV(obj_rep, ann_file, img_prefix,  classes = classes)
   #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()
-  sfd_dataset.show_pcl_3dbboxes_gts()
+  sfd_dataset.show_gt_bboxes()
   pass
 
 if __name__ == '__main__':
-   main3d()
-   #main2d()
+   #main3d()
+   main2d()
+
 
