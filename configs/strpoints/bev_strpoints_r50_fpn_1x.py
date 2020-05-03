@@ -19,7 +19,7 @@ DATA = 'stanford2d'
 classes= ['wall']
 
 _obj_rep = 'XYXYSin2'
-_obj_rep = 'XYXYSin2WZ0Z1'
+#_obj_rep = 'XYXYSin2WZ0Z1'
 
 num_ps_long_axis = 9
 #overlap_fun='dil_iou_dis'
@@ -244,7 +244,7 @@ log_config = dict(
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 IoUType = '' if 'rotate' not in overlap_fun else 'RIou'
-work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{IoUType}_'
+work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}_{IoUType}_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/Apr23_WaDo_Bev.pth'
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
