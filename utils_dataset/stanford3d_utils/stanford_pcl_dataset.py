@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
@@ -71,12 +71,17 @@ class Stanford_Ann():
 
   def __init__(self, input_style, data_root, phase, voxel_size=None):
     assert input_style in ['pcl', 'bev']
-    assert phase in ['train', 'test']
     self.input_style = input_style
-    self.area_list = [1,2,3,4,6] if phase == 'train' else [5]
+    self.phase = phase
+    if phase in ['train', 'test']:
+      self.area_list = [1,2,3,4,6] if phase == 'train' else [5]
+    else:
+      self.area_list = [int(a) for a in phase]
     self.data_root = data_root
     self.voxel_size = voxel_size
     self.load_annotation()
+    n = len(self.data_paths)
+    print(f'\nphase: {phase}. {n} scenes loaded\n')
 
   def load_annotation(self, ):
     data_paths = glob.glob(os.path.join(self.data_root, "*/*.ply"))
@@ -86,7 +91,7 @@ class Stanford_Ann():
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
       data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
-      data_paths = [f+'.ply' for f in self.BadColum]
+      #data_paths = [f+'.ply' for f in self.BadColum]
       #data_paths = [f+'.ply' for f in self.SAMPLES1]
 
     if NO_LONG:
