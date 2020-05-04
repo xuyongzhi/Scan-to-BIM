@@ -237,6 +237,16 @@ def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
     rotated_bboxes = rotate_lines
   elif obj_rep == 'XYXYSin2WZ0Z1':
     rotated_bboxes = np.concatenate([rotate_lines, bboxes[:,5:8]], axis=1)
+  elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
+    rotated_bboxes = OBJ_REPS_PARSE.encode_obj(rotate_lines, 'XYXYSin2', obj_rep)
+    rotated_bboxes[:, [6,7]] = bboxes[:, [6,7]]
+    scales = bboxes[:, 2] / rotated_bboxes[:,2]
+    if not abs(scales.min() - scales.max()) < 1e-4:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+    scale = scales.mean()
+    rotated_bboxes[:, 3] = bboxes[:, 3] * scale
+    pass
   elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
     rotated_bboxes = OBJ_REPS_PARSE.encode_obj(rotate_lines, 'XYXYSin2', obj_rep)
     rotated_bboxes[:, [6,7]] = bboxes[:, [6,7]]

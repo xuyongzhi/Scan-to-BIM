@@ -36,7 +36,9 @@ class OBJ_REPS_PARSE():
     'XYZLgWsHA': 7,
     'XYLgWsA': 5,
 
-    'XYLgWsAsinSin2Z0Z1': 8,
+    'XYLgWsAbsSin2Z0Z1': 8,
+
+    'XYLgWsAbsSin2Z0Z1': 8,
     'XYLgWsAsinSin2': 6,
 
     'XYLgWsSin2Sin4Z0Z1': 8,
@@ -50,6 +52,7 @@ class OBJ_REPS_PARSE():
 
     'XYXYSin2WZ0Z1': 8,
     'Bottom_Corners': 3+3,
+
   }
   _obj_reps = _obj_dims.keys()
 
@@ -79,6 +82,7 @@ class OBJ_REPS_PARSE():
     OBJ_REPS_PARSE.check_obj_dim(bboxes, obj_rep_in)
 
     bboxes = OBJ_REPS_PARSE.make_x_long_dim(bboxes, obj_rep_in)
+    nb = bboxes.shape[0]
 
     if obj_rep_in == obj_rep_out:
       return bboxes
@@ -96,7 +100,16 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYXYSin2W' and obj_rep_out == 'XYLgWsA':
         return OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes, check_sin2)
 
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
+        return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYLgWsAbsSin2Z0Z1(bboxes)
+
+    elif obj_rep_in == 'XYLgWsAbsSin2Z0Z1' and obj_rep_out == 'XYZLgWsHA':
+        return OBJ_REPS_PARSE.XYLgWsAbsSin2Z0Z1_TO_XYZLgWsHA(bboxes)
+
     # extra  -------------------------------------------------------------------
+    elif obj_rep_in == 'XYLgWsAbsSin2Z0Z1' and obj_rep_out == 'XYLgWsA':
+      return OBJ_REPS_PARSE.XYLgWsAbsSin2Z0Z1_TO_XYZLgWsHA(bboxes)[:,[0,1,3,4,6]]
+
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2WZ0Z1':
       bboxes = OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
       return OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'XYXYSin2WZ0Z1')
@@ -121,6 +134,25 @@ class OBJ_REPS_PARSE():
       XYXYSin2W = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsA','XYXYSin2W')
       return OBJ_REPS_PARSE.encode_obj(XYXYSin2W[:,:5], 'XYXYSin2', 'RoLine2D_2p')
 
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'RoLine2D_2p':
+      return OBJ_REPS_PARSE.encode_obj(bboxes[:,[0,1,3,4,6]], 'XYLgWsA', 'RoLine2D_2p')
+
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
+      XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
+      return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsAbsSin2Z0Z1')
+
+    elif obj_rep_in == 'XYLgWsAbsSin2Z0Z1' and obj_rep_out == 'XYXYSin2':
+      RoLine2D_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsAbsSin2Z0Z1', 'RoLine2D_2p')
+      return OBJ_REPS_PARSE.encode_obj(RoLine2D_2p, 'RoLine2D_2p', 'XYXYSin2')
+
+    elif obj_rep_in == 'XYLgWsAbsSin2Z0Z1' and obj_rep_out == 'RoLine2D_2p':
+      XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsAbsSin2Z0Z1', 'XYZLgWsHA')
+      RoLine2D_2p = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'RoLine2D_2p')
+      return RoLine2D_2p
+
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
+      XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'XYXYSin2WZ0Z1')
+      return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1')
 
     # expand size: add width, 2D -> 3D -----------------------------------------------------------------
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYLgWsA':
@@ -579,6 +611,37 @@ class OBJ_REPS_PARSE():
     sin2theta = np.sin(theta * 2)
     tmp = np.zeros([bboxes.shape[0], 2])
     return np.concatenate([ bboxes[:,:4], AbsSin, sin2theta, tmp  ], axis=1)
+
+  @staticmethod
+  def XYLgWsAbsSin2Z0Z1_TO_XYZLgWsHA(bboxes):
+    nb = bboxes.shape[0]
+    bboxes_new = np.zeros([nb, 7])
+    bboxes_new[:,[0,1]] = bboxes[:,[0,1]]
+    bboxes_new[:,[3,4]] = bboxes[:,[2,3]]
+    abs_angle = bboxes[:,4]
+    sin2 = bboxes[:,5]
+    pos = sin2>0
+    angle = abs_angle * pos - abs_angle * (1-pos)
+    bboxes_new[:,6] = angle
+    z0 = bboxes[:,6]
+    z1 = bboxes[:,7]
+    bboxes_new[:,2] = (z0+z1)/2
+    bboxes_new[:,5] = z1 - z0
+    return bboxes_new
+
+  @staticmethod
+  def XYZLgWsHA_TO_XYLgWsAbsSin2Z0Z1(bboxes):
+    nb = bboxes.shape[0]
+    bboxes_new = np.zeros([nb, 8])
+    bboxes_new[:,[0,1]] = bboxes[:,[0,1]]
+    bboxes_new[:,[2,3]] = bboxes[:,[3,4]]
+    bboxes_new[:,[4]] = np.abs(bboxes[:,[6]])
+    bboxes_new[:,[5]] = np.sin(2*bboxes[:,[6]])
+    zc = bboxes[:,2]
+    h = bboxes[:,5]
+    bboxes_new[:,6] = zc - h/2
+    bboxes_new[:,7] = zc + h/2
+    return bboxes_new
 
 class GraphUtils:
   @staticmethod

@@ -92,7 +92,7 @@ class Stanford_Ann():
     if SMALL_DATA:
       data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
       #data_paths = [f+'.ply' for f in self.BadColum]
-      #data_paths = [f+'.ply' for f in self.SAMPLES1]
+      data_paths = [f+'.ply' for f in self.SAMPLES1]
 
     if NO_LONG:
       data_paths_new = []

@@ -19,7 +19,8 @@ DATA = 'stanford2d'
 classes= ['wall']
 
 _obj_rep = 'XYXYSin2'
-#_obj_rep = 'XYXYSin2WZ0Z1'
+_obj_rep = 'XYXYSin2WZ0Z1'
+_obj_rep = 'XYLgWsAbsSin2Z0Z1'
 
 num_ps_long_axis = 9
 #overlap_fun='dil_iou_dis'
@@ -30,6 +31,8 @@ _obj_dim = dim_parse.OBJ_DIM
 
 if _obj_rep == 'XYXYSin2':
   _transform_method='moment_XYXYSin2'
+elif _obj_rep == 'XYLgWsAbsSin2Z0Z1':
+  _transform_method='XYLgWsAbsSin2Z0Z1'
 elif _obj_rep == 'XYXYSin2WZ0Z1':
   _transform_method='moment_XYXYSin2WZ0Z1'
 #*******************************************************************************

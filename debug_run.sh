@@ -16,18 +16,18 @@ CP=./work_dirs/${wkdir}/best.pth
 
 
 LR=0.01
-ROTATE=1
+ROTATE=0
 BASE_PLANE=32
 BS=1
 DATA_TYPES=cnx
 FILTER_EDGES=1
 REL=0
 #CLS=ad
-#CLS=a
+CLS=a
 #CLS=abcd
 #CLS=A
-CLS=c
-CLS=abci
+#CLS=c
+#CLS=abci
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
 #--resume $CP 

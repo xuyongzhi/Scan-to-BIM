@@ -22,7 +22,6 @@ import torchvision as tcv
 from configs.common import DIM_PARSE, DEBUG_CFG
 from tools.visual_utils import _show_objs_ls_points_ls_torch, _show_objs_ls_points_ls
 
-LINE_CONSTRAIN_LOSS = True
 DEBUG = 0
 
 @HEADS.register_module
@@ -99,10 +98,14 @@ class StrPointsHead(nn.Module):
                  ):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
+        self.line_constrain_loss = True
         if obj_rep == 'XYXYSin2WZ0Z1':
           self.box_extra_dims = 3
-        else:
-          self.box_extra_dims = 0
+        elif obj_rep == 'XYXYSin2':
+            self.box_extra_dims = 0
+        elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
+            self.box_extra_dims = 8
+            self.line_constrain_loss = False
 
         self.obj_rep = obj_rep
         self.dim_parse = DIM_PARSE(obj_rep, num_classes)
@@ -345,6 +348,13 @@ class StrPointsHead(nn.Module):
             bbox_bottom = pts_y.max(dim=1, keepdim=True)[0]
             bbox = torch.cat([bbox_left, bbox_up, bbox_right, bbox_bottom],
                              dim=1)
+        elif self.transform_method == 'XYLgWsAbsSin2Z0Z1':
+            assert self.box_extra_dims == 8
+            assert box_extra.shape[1] == 8
+            bbox = box_extra
+            bbox[:,6:8] = 0
+            pass
+
         elif self.transform_method == 'partial_minmax':
             assert box_extra is None
             pts_y = pts_y[:, :4, ...]
@@ -520,10 +530,8 @@ class StrPointsHead(nn.Module):
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
-        elif self.transform_method == 'center_size_istopleft':
-            raise NotImplementedError
         else:
-            raise NotImplementedError
+          assert False
         return bbox
 
     def gen_grid_from_reg(self, reg, previous_boxes):
@@ -865,7 +873,7 @@ class StrPointsHead(nn.Module):
         pts_pred_init = pts_pred_init.reshape(-1, 2 * self.num_points)
         bbox_pred_init = self.points2bbox(
             pts_pred_init, y_first=False,
-            out_line_constrain=LINE_CONSTRAIN_LOSS,
+            out_line_constrain=self.line_constrain_loss,
             box_extra=box_extra_init)
         bbox_gt_refine = bbox_gt_refine.reshape(-1, self.obj_dim)
         bbox_weights_refine = bbox_weights_refine.reshape(-1, self.obj_dim)
@@ -874,7 +882,7 @@ class StrPointsHead(nn.Module):
         pts_pred_refine = pts_pred_refine.reshape(-1, 2 * self.num_points)
         bbox_pred_refine = self.points2bbox(
             pts_pred_refine, y_first=False,
-            out_line_constrain=LINE_CONSTRAIN_LOSS,
+            out_line_constrain=self.line_constrain_loss,
             box_extra=box_extra_refine)
         normalize_term = self.point_base_scale * stride
 
@@ -886,7 +894,7 @@ class StrPointsHead(nn.Module):
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,4] = bbox_pred_init[:,4]
           bbox_gt_init_nm[:,4] = bbox_gt_init[:,4]
-        elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
+        elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1':
           Xc, Yc, Lg, Ws, Asin, Sin2, Z0, Z1 = range(8)
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
@@ -897,7 +905,7 @@ class StrPointsHead(nn.Module):
                                   bbox_pred_init_nm, bbox_gt_init_nm,
                                   bbox_weights_init, num_total_samples_init,)
 
-        if LINE_CONSTRAIN_LOSS:
+        if self.line_constrain_loss:
           assert bbox_pred_init_nm.shape[1] == self.obj_dim + 1
           gt_line_constrain_init = torch.zeros_like(bbox_gt_init_nm)[:,0:1]
           line_cons_weights_init = bbox_weights_init[:,0:1]
@@ -915,7 +923,7 @@ class StrPointsHead(nn.Module):
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,4] = bbox_pred_refine[:,4]
           bbox_gt_refine_nm[:,4] = bbox_gt_refine[:,4]
-        elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1':
+        elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,[Asin, Sin2]] = bbox_pred_refine[:,[Asin, Sin2]]
@@ -925,7 +933,7 @@ class StrPointsHead(nn.Module):
                                   bbox_pred_refine_nm, bbox_gt_refine_nm,
                                   bbox_weights_refine, num_total_samples_refine,)
 
-        if LINE_CONSTRAIN_LOSS:
+        if self.line_constrain_loss:
           assert bbox_pred_refine_nm.shape[1] == self.obj_dim + 1
           gt_line_constrain_refine = torch.zeros_like(bbox_gt_refine_nm)[:,0:1]
           line_cons_weights_refine = bbox_weights_refine[:,0:1]
@@ -934,6 +942,9 @@ class StrPointsHead(nn.Module):
               gt_line_constrain_refine,
               line_cons_weights_refine,
               avg_factor=num_total_samples_refine)
+        else:
+          loss_linec_init  = None
+          loss_linec_refine = None
 
         if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
           print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
@@ -986,15 +997,12 @@ class StrPointsHead(nn.Module):
                   wz0z1 =  bbox_preds_init_i[:,5:8] * self.point_strides[i_lvl]
                   bbox_i = torch.cat([bbox_i, istopleft, wz0z1], dim=1)
                   bbox.append(bbox_i)
-                elif self.transform_method == 'moment_LWAsS2ZZ':
+                elif self.transform_method == 'XYLgWsAbsSin2Z0Z1':
                   assert bbox_preds_init.shape[1] == 8
-                  bbox_shift = bbox_preds_init[:,:2] * self.point_strides[i_lvl]
-                  bbox_size = bbox_preds_init[:,2:4] * self.point_strides[i_lvl]
-                  AsS2ZZ_i = bbox_preds_init[i_img,4:8].permute(1,2,0).reshape(-1,4)
+                  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,8)
+                  bbox_i[:,[0,1,2,3,6,7]] *=  self.point_strides[i_lvl]
                   bbox_center = center[i_lvl][:, :2]
-                  bbox_cen_i = bbox_center + bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 2)
-                  bbox_size_i = bbox_size[i_img].permute(1,2,0).reshape(-1,2)
-                  bbox_i = torch.cat([bbox_cen_i, bbox_size_i, AsS2ZZ_i], dim=1)
+                  bbox_i[:,[0,1]] += bbox_center
                   bbox.append(bbox_i)
                   pass
                 else:
@@ -1172,7 +1180,7 @@ class StrPointsHead(nn.Module):
         for ele in losses_pts_refine[0].keys():
           loss_dict_all[ele] = [l[ele] for l in losses_pts_refine]
 
-        if LINE_CONSTRAIN_LOSS:
+        if self.line_constrain_loss:
           loss_dict_all['loss_clI'] = loss_linec_init
           loss_dict_all['loss_clR'] = loss_linec_refine
         for c in self.cls_types:
@@ -1877,7 +1885,7 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
               loss_pts_init[f'loss_wd{s}'] = loss_pts_init_width
               #loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
 
-        elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
+        elif obj_rep == 'XYLgWsAsinSin2Z0Z1' or obj_rep == 'XYLgWsAbsSin2Z0Z1':
             Xc, Yc, Lg, Ws, Asin, Sin2, Z0, Z1 = range(8)
             loss_pts_init_loc = loss_bbox_fun(
               bbox_pred_init_nm[:,[Xc, Yc]],
@@ -1900,7 +1908,6 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
               bbox_weights_init[:,[Sin2]],
               avg_factor=num_total_samples_init)
 
-            loss_pts_init_asin *= 2
             loss_pts_init = {
               f'loss_loc{s}':  loss_pts_init_loc,
               f'loss_sin2{s}': loss_pts_init_sin2,
