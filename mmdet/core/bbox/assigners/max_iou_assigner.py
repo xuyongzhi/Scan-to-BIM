@@ -142,7 +142,7 @@ class MaxIoUAssigner(BaseAssigner):
           assert bboxes.shape[1] == 8
           assert gt_bboxes.shape[1] == 8
           box_encode_fn = OBJ_REPS_PARSE.encode_obj
-          bboxes = box_encode_fn(bboxes, self.obj_rep, 'XYZLgWsHA')
+          bboxes = box_encode_fn(bboxes, self.obj_rep, 'XYZLgWsHA', allow_illegal=True)
           gt_bboxes = box_encode_fn(gt_bboxes, self.obj_rep, 'XYZLgWsHA')
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 5

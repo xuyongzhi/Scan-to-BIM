@@ -38,7 +38,7 @@ class OBJ_REPS_PARSE():
 
     'XYLgWsAbsSin2Z0Z1': 8,
 
-    'XYLgWsAbsSin2Z0Z1': 8,
+    'XYLgWsAsinSin2Z0Z1': 8,
     'XYLgWsAsinSin2': 6,
 
     'XYLgWsSin2Sin4Z0Z1': 8,
@@ -57,29 +57,51 @@ class OBJ_REPS_PARSE():
   _obj_reps = _obj_dims.keys()
 
   @staticmethod
-  def check_obj_dim(bboxes, obj_rep):
+  def check_obj_dim(bboxes, obj_rep, allow_illegal):
     assert bboxes.ndim == 2
     s = OBJ_REPS_PARSE._obj_dims[obj_rep]
     assert bboxes.shape[1] == s, f'obj_rep={obj_rep}, input shape={bboxes.shape[1]}, correct shape={s}'
 
-  @staticmethod
-  def encode_obj(bboxes, obj_rep_in, obj_rep_out):
-    if isinstance(bboxes, torch.Tensor):
-      bboxes_np = bboxes.cpu().data.numpy()
-      bboxes_np = OBJ_REPS_PARSE.encode_obj_np(bboxes_np, obj_rep_in, obj_rep_out)
-      return torch.from_numpy(bboxes_np).to(bboxes.dtype).to(bboxes.device)
-    else:
-      return OBJ_REPS_PARSE.encode_obj_np(bboxes, obj_rep_in, obj_rep_out)
+    if obj_rep == 'XYLgWsAbsSin2Z0Z1':
+        if allow_illegal:
+          bboxes[:,3] = np.clip(bboxes[:,3], None, bboxes[:,2])
+          bboxes[:,4] = np.clip(bboxes[:,3], 0, np.pi/2)
+          bboxes[:,5] = np.clip(bboxes[:,3], -1, 1)
+        else:
+          check_lw = np.all( bboxes[:,2] > bboxes[:,3] )
+          check_abs = np.all( bboxes[:,4] >=0 ) and  np.all( bboxes[:,4] <= np.pi/2 )
+          check_sin2 = np.all( np.abs(bboxes[:,5]) <= 1 )
+          if not check_lw:
+            err = ( bboxes[:,2] - bboxes[:,3] ).max()
+            pass
+          if not check_abs:
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
+          if not check_sin2:
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
 
   @staticmethod
-  def encode_obj_np(bboxes, obj_rep_in, obj_rep_out, check_sin2=1):
+  def encode_obj(bboxes, obj_rep_in, obj_rep_out, allow_illegal=False):
+    if isinstance(bboxes, torch.Tensor):
+      bboxes_np = bboxes.cpu().data.numpy()
+      bboxes_np = OBJ_REPS_PARSE.encode_obj_np(bboxes_np, obj_rep_in, obj_rep_out, allow_illegal)
+      OBJ_REPS_PARSE.check_obj_dim(bboxes_np, obj_rep_out, allow_illegal)
+      return torch.from_numpy(bboxes_np).to(bboxes.dtype).to(bboxes.device)
+    else:
+      bboxes_out = OBJ_REPS_PARSE.encode_obj_np(bboxes, obj_rep_in, obj_rep_out, allow_illegal)
+      OBJ_REPS_PARSE.check_obj_dim(bboxes_out, obj_rep_out, allow_illegal)
+      return bboxes_out
+
+  @staticmethod
+  def encode_obj_np(bboxes, obj_rep_in, obj_rep_out, allow_illegal):
     '''
     bboxes: [n,4] or [n,2,2]
     bboxes_out : [n,4/5]
     '''
     assert obj_rep_in  in OBJ_REPS_PARSE._obj_reps, obj_rep_in
     assert obj_rep_out in OBJ_REPS_PARSE._obj_reps, obj_rep_out
-    OBJ_REPS_PARSE.check_obj_dim(bboxes, obj_rep_in)
+    OBJ_REPS_PARSE.check_obj_dim(bboxes, obj_rep_in, allow_illegal)
 
     bboxes = OBJ_REPS_PARSE.make_x_long_dim(bboxes, obj_rep_in)
     nb = bboxes.shape[0]
@@ -98,7 +120,7 @@ class OBJ_REPS_PARSE():
       return OBJ_REPS_PARSE.XYXYSin2_TO_RoLine2D_2p(bboxes)
 
     elif obj_rep_in == 'XYXYSin2W' and obj_rep_out == 'XYLgWsA':
-        return OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes, check_sin2)
+        return OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes)
 
     elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
         return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYLgWsAbsSin2Z0Z1(bboxes)
@@ -139,7 +161,8 @@ class OBJ_REPS_PARSE():
 
     elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
       XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
-      return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsAbsSin2Z0Z1')
+      bboxes_new = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsAbsSin2Z0Z1')
+      return bboxes_new
 
     elif obj_rep_in == 'XYLgWsAbsSin2Z0Z1' and obj_rep_out == 'XYXYSin2':
       RoLine2D_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsAbsSin2Z0Z1', 'RoLine2D_2p')

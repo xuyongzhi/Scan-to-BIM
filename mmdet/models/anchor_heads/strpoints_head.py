@@ -352,7 +352,8 @@ class StrPointsHead(nn.Module):
             assert self.box_extra_dims == 8
             assert box_extra.shape[1] == 8
             bbox = box_extra
-            bbox[:,6:8] = 0
+            if DEBUG_CFG.SET_WIDTH_0:
+              bbox[:,3] *= 0
             pass
 
         elif self.transform_method == 'partial_minmax':
@@ -474,6 +475,11 @@ class StrPointsHead(nn.Module):
             width_z0_z1 = torch.zeros_like(pts_y)[:,:3]
             width_z0_z1[:,0] = box_extra[:,0]
 
+            if DEBUG_CFG.SET_WIDTH_0:
+              width_z0_z1[:,0] *= 0
+            if DEBUG_CFG.SET_Z_0:
+              width_z0_z1[:,1:] *= 0
+
             bbox = torch.cat([
                 pts_x_mean - half_width, pts_y_mean - half_height,
                 pts_x_mean + half_width, pts_y_mean + half_height,
@@ -517,9 +523,6 @@ class StrPointsHead(nn.Module):
             isaline = (isaline_0 + isaline_1) / 2
 
             z0z1 = torch.cat([torch.zeros_like(pts_x_mean)]*2, axis=1)
-
-            if DEBUG_CFG.SET_WIDTH_0:
-              width_smaller *= 0
 
             bbox = torch.cat([
                 pts_x_mean, pts_y_mean,
@@ -1887,15 +1890,21 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
 
         elif obj_rep == 'XYLgWsAsinSin2Z0Z1' or obj_rep == 'XYLgWsAbsSin2Z0Z1':
             Xc, Yc, Lg, Ws, Asin, Sin2, Z0, Z1 = range(8)
+
             loss_pts_init_loc = loss_bbox_fun(
               bbox_pred_init_nm[:,[Xc, Yc]],
               bbox_gt_init_nm[:,[Xc, Yc]],
               bbox_weights_init[:,[Xc, Yc]],
               avg_factor=num_total_samples_init)
-            loss_pts_init_size = loss_bbox_fun(
-              bbox_pred_init_nm[:,[Lg, Ws]],
-              bbox_gt_init_nm[:,  [Lg, Ws]],
-              bbox_weights_init[:,[Lg, Ws]],
+            loss_pts_init_lg = loss_bbox_fun(
+              bbox_pred_init_nm[:,[Lg]],
+              bbox_gt_init_nm[:,  [Lg]],
+              bbox_weights_init[:,[Lg]],
+              avg_factor=num_total_samples_init)
+            loss_pts_init_ws = loss_bbox_fun(
+              bbox_pred_init_nm[:,[ Ws]],
+              bbox_gt_init_nm[:,  [ Ws]],
+              bbox_weights_init[:,[ Ws]],
               avg_factor=num_total_samples_init)
             loss_pts_init_asin = loss_bbox_fun(
               bbox_pred_init_nm[:,[Asin]],
@@ -1912,8 +1921,10 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
               f'loss_loc{s}':  loss_pts_init_loc,
               f'loss_sin2{s}': loss_pts_init_sin2,
               f'loss_asin{s}': loss_pts_init_asin,
-              f'loss_size{s}': loss_pts_init_size
+              f'loss_lg{s}': loss_pts_init_lg,
             }
+            if not DEBUG_CFG.SET_WIDTH_0:
+              loss_pts_init[f'loss_ws{s}'] = loss_pts_init_ws
         else:
           raise NotImplementedError
 

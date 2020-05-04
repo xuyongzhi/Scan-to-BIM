@@ -63,7 +63,7 @@ class Stanford_Ann():
   UNALIGNED = ['Area_2/storage_9','Area_2/hallway_11',  'Area_2/auditorium_1',
                'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
-  SAMPLES1 = ['Area_5/office_39']
+  SAMPLES1 = ['Area_5/office_40']
   WithColum = ['Area_5/conferenceRoom_2']
   BadColum = ['Area_5/conferenceRoom_1']
 
@@ -93,6 +93,7 @@ class Stanford_Ann():
       data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
       #data_paths = [f+'.ply' for f in self.BadColum]
       data_paths = [f+'.ply' for f in self.SAMPLES1]
+      #data_paths = [f+'.ply' for f in self.UNALIGNED]
 
     if NO_LONG:
       data_paths_new = []
@@ -497,9 +498,16 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
   anno = {}
   if input_style == 'bev':
     voxel_size_prj=0.01
-    sin2 = gt_bboxes[:,4].copy()
-    gt_bboxes /= voxel_size_prj
-    gt_bboxes[:,4] = sin2
+    if obj_rep == 'XYXYSin2' or obj_rep == 'XYXYSin2WZ0Z1':
+      sin2 = gt_bboxes[:,4].copy()
+      gt_bboxes /= voxel_size_prj
+      gt_bboxes[:,4] = sin2
+    elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
+      rot = gt_bboxes[:,4:6].copy()
+      gt_bboxes /= voxel_size_prj
+      gt_bboxes[:,4:6] = rot
+    else:
+      raise NotImplementedError
     anno['voxel_size_prj'] = voxel_size_prj
 
   filename = pcl_file
