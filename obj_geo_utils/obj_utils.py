@@ -65,8 +65,8 @@ class OBJ_REPS_PARSE():
     if obj_rep == 'XYLgWsAbsSin2Z0Z1':
         if allow_illegal:
           bboxes[:,3] = np.clip(bboxes[:,3], None, bboxes[:,2])
-          bboxes[:,4] = np.clip(bboxes[:,3], 0, np.pi/2)
-          bboxes[:,5] = np.clip(bboxes[:,3], -1, 1)
+          bboxes[:,4] = np.clip(bboxes[:,4], 0, np.pi/2)
+          bboxes[:,5] = np.clip(bboxes[:,5], -1, 1)
         else:
           check_lw = np.all( bboxes[:,2] > bboxes[:,3] )
           check_abs = np.all( bboxes[:,4] >=0 ) and  np.all( bboxes[:,4] <= np.pi/2 )
@@ -82,7 +82,7 @@ class OBJ_REPS_PARSE():
             pass
 
   @staticmethod
-  def encode_obj(bboxes, obj_rep_in, obj_rep_out, allow_illegal=False):
+  def encode_obj(bboxes, obj_rep_in, obj_rep_out, allow_illegal=True):
     if isinstance(bboxes, torch.Tensor):
       bboxes_np = bboxes.cpu().data.numpy()
       bboxes_np = OBJ_REPS_PARSE.encode_obj_np(bboxes_np, obj_rep_in, obj_rep_out, allow_illegal)

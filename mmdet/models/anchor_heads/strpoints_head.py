@@ -18,9 +18,11 @@ from tools import debug_utils
 from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
 
 import torchvision as tcv
+import cv2
 
 from configs.common import DIM_PARSE, DEBUG_CFG
 from tools.visual_utils import _show_objs_ls_points_ls_torch, _show_objs_ls_points_ls
+import time
 
 DEBUG = 0
 
@@ -104,7 +106,10 @@ class StrPointsHead(nn.Module):
         elif obj_rep == 'XYXYSin2':
             self.box_extra_dims = 0
         elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
-            self.box_extra_dims = 8
+            if transform_method == 'minAreaRect':
+              self.box_extra_dims = 3
+            if transform_method == 'XYLgWsAbsSin2Z0Z1':
+              self.box_extra_dims = 8
             self.line_constrain_loss = False
 
         self.obj_rep = obj_rep
@@ -352,6 +357,24 @@ class StrPointsHead(nn.Module):
             assert self.box_extra_dims == 8
             assert box_extra.shape[1] == 8
             bbox = box_extra
+            if DEBUG_CFG.SET_WIDTH_0:
+              bbox[:,3] *= 0
+            pass
+
+        elif self.transform_method == 'minAreaRect':
+            assert self.box_extra_dims == 3
+            assert box_extra.shape[1] == 3
+            pts = torch.cat([pts_x[..., None], pts_y[...,None]], dim=-1)
+            bs, np, h,w,_ = pts.shape
+            pts_flat = pts.permute(0, 2,3,1,4).reshape( bs*h*w, np, 2 )
+            t0 = time.time()
+            boxes = []
+            for i in range(pts_flat.shape[0]):
+              pts_i = pts_flat[i].cpu().data.numpy()
+              bi = cv2.minAreaRect(pts_i)
+              boxes.append(bi)
+            t1 = time.time()
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             if DEBUG_CFG.SET_WIDTH_0:
               bbox[:,3] *= 0
             pass
@@ -1965,8 +1988,11 @@ def convert_list_dict_order(f_ls_dict):
 def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
               loss_linec_init, pts_pred
               ):
-  print(f'loss_pts: \n{loss_pts}')
+  np = bbox_pred.shape[0]
   inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
+  pos_n = inds.numel()
+  print(f'loss_pts: \n{loss_pts}')
+  print(f'num points: {np}, pos_n: {pos_n}')
   m = bbox_gt.shape[1]
   bbox_pred = bbox_pred[:,:m]
   bbox_pred_ = bbox_pred[inds].cpu().data.numpy().reshape(-1,m)
@@ -1980,6 +2006,7 @@ def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
                           points_ls = [pts_pred], point_colors='blue', point_thickness=2,
                           obj_colors=['red', 'green'], obj_thickness=[2,1])
 
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_nms_out(det_bboxes, det_labels, num_classes):

@@ -20,7 +20,7 @@ classes= ['wall']
 
 _obj_rep = 'XYXYSin2'
 _obj_rep = 'XYXYSin2WZ0Z1'
-_obj_rep = 'XYLgWsAbsSin2Z0Z1'
+#_obj_rep = 'XYLgWsAbsSin2Z0Z1'
 
 num_ps_long_axis = 9
 #overlap_fun='dil_iou_dis'
@@ -32,7 +32,8 @@ _obj_dim = dim_parse.OBJ_DIM
 if _obj_rep == 'XYXYSin2':
   _transform_method='moment_XYXYSin2'
 elif _obj_rep == 'XYLgWsAbsSin2Z0Z1':
-  _transform_method='XYLgWsAbsSin2Z0Z1'
+  _transform_method = 'minAreaRect'
+  #_transform_method='XYLgWsAbsSin2Z0Z1'
 elif _obj_rep == 'XYXYSin2WZ0Z1':
   _transform_method='moment_XYXYSin2WZ0Z1'
 #*******************************************************************************
@@ -107,7 +108,7 @@ train_cfg = dict(
             type='MaxIoUAssigner',
             pos_iou_thr=0.7,
             neg_iou_thr=0.4,
-            min_pos_iou=0.15,
+            min_pos_iou=0.1,
             ignore_iof_thr=-1,
             overlap_fun=overlap_fun,
             obj_rep=_obj_rep),
@@ -229,7 +230,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1210
+total_epochs = 1250
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -261,7 +262,7 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 1:
+if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

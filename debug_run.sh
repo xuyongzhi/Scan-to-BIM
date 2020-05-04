@@ -8,7 +8,7 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_stem2.py
 
 
-wkdir=bTPV_r50_fpn_RIou_Nla9_beike2d_wado_bs1_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe
+wkdir=sTPV_r50_fpn_XYLgWsAbsSin2Z0Z1_RIou_Nla9_stanford2d_wa_bs1_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe
 CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
