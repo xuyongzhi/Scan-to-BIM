@@ -18,7 +18,7 @@ class PointAssigner(BaseAssigner):
     """
 
     def __init__(self, scale=4, pos_num=3, obj_rep=''):
-        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAsinSin2Z0Z1', 'XYLgWsAbsSin2Z0Z1']
+        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAsinSin2Z0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1']
         self.scale = scale
         self.pos_num = pos_num
         self.obj_rep = obj_rep
@@ -93,6 +93,16 @@ class PointAssigner(BaseAssigner):
                                                               .clamp(min=1e-6)
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)      # [56, 2]
           gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2  # [56, 2]
+
+
+        elif self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
+          assert gt_bboxes.shape[1] == 8
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 8
+            gt_bboxes_ignore = gt_bboxes_ignore[:,:8]
+          gt_bboxes_raw = gt_bboxes.clone()
+          gt_bboxes_wh = gt_bboxes[:,2:3].repeat(1,2)
+          gt_bboxes_xy = gt_bboxes[:,:2]
 
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1':
           assert gt_bboxes.shape[1] == 8

@@ -20,6 +20,7 @@ classes= ['wall']
 
 _obj_rep = 'XYXYSin2'
 _obj_rep = 'XYXYSin2WZ0Z1'
+_obj_rep = 'XYDAsinAsinSin2Z0Z1'
 #_obj_rep = 'XYLgWsAbsSin2Z0Z1'
 
 num_ps_long_axis = 9
@@ -36,6 +37,8 @@ elif _obj_rep == 'XYLgWsAbsSin2Z0Z1':
   #_transform_method='XYLgWsAbsSin2Z0Z1'
 elif _obj_rep == 'XYXYSin2WZ0Z1':
   _transform_method='moment_XYXYSin2WZ0Z1'
+  _transform_method = '4corners'
+elif _obj_rep == 'XYDAsinAsinSin2Z0Z1':
   _transform_method = '4corners'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
@@ -263,7 +266,7 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

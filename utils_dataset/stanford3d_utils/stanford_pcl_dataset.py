@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
@@ -503,9 +503,13 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
       gt_bboxes /= voxel_size_prj
       gt_bboxes[:,4] = sin2
     elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
-      rot = gt_bboxes[:,4:6].copy()
+      rotation = gt_bboxes[:,4:6].copy()
       gt_bboxes /= voxel_size_prj
-      gt_bboxes[:,4:6] = rot
+      gt_bboxes[:,4:6] = rotation
+    elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
+      rotation = gt_bboxes[:,3:6].copy()
+      gt_bboxes /= voxel_size_prj
+      gt_bboxes[:,3:6] = rotation
     else:
       raise NotImplementedError
     anno['voxel_size_prj'] = voxel_size_prj
