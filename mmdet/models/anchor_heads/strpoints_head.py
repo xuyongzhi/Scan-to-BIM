@@ -13,7 +13,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
-from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece
+from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x
 from tools import debug_utils
 from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
 
@@ -102,7 +102,10 @@ class StrPointsHead(nn.Module):
         self.wall_label = 1
         self.line_constrain_loss = True
         if obj_rep == 'XYXYSin2WZ0Z1':
-          self.box_extra_dims = 3
+          if transform_method == '4corners':
+            self.box_extra_dims = 0
+          else:
+            self.box_extra_dims = 3
         elif obj_rep == 'XYXYSin2':
             self.box_extra_dims = 0
         elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
@@ -457,6 +460,31 @@ class StrPointsHead(nn.Module):
                              dim=1)
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
+            pass
+
+        elif self.transform_method == '4corners':
+            assert box_extra is None
+            # pt_0: center
+            # pt_1,2,3,4: the four corners
+            # pt_5,6,7,8: half corners
+
+            box = four_corners_to_box( pts_x[:,:5], pts_y[:,:5] )
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            moment_transfer = (self.moment_transfer * self.moment_mul) + (
+                self.moment_transfer.detach() * (1 - self.moment_mul))
+            moment_width_transfer = moment_transfer[0]
+            moment_height_transfer = moment_transfer[1]
+            half_width = pts_x_std * torch.exp(moment_width_transfer)
+            half_height = pts_y_std * torch.exp(moment_height_transfer)
+            bbox = torch.cat([
+                pts_x_mean - half_width, pts_y_mean - half_height,
+                pts_x_mean + half_width, pts_y_mean + half_height
+            ],
+                             dim=1)
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
 
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
@@ -1957,6 +1985,96 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
           bbox_pred_init_nm_ = bbox_pred_init_nm[ids]
           bbox_gt_init_nm_ = bbox_gt_init_nm[ids]
         return loss_pts_init
+
+def four_corners_to_box( pts_x, pts_y ):
+  assert pts_x.shape[1] == pts_y.shape[1] == 5
+  pts = torch.cat([pts_x[...,None], pts_y[...,None]], dim=-1)
+  center_pred = pts[:,0:1]
+  corners = pts[:,1:5]
+  bs, nc, h, w, d = corners.shape
+  assert nc == 4
+  assert d == 2
+  n = bs*h*w
+
+  # (1) get diagonal length
+  corners = corners.permute(0,2,3,1,4).reshape(n, 4, 2)
+  diag_leng = corners.norm(dim=-1, keepdim=True)
+  out_diag_leng_ave = diag_leng.clamp(min = 1e-4).mean(dim=1)
+  corners_nm = corners / diag_leng # [16384, 4, 2]
+  out_rect_loss_diag_len = diag_leng.squeeze(2).std(1, keepdim=True)
+
+  # (2) sort corners
+  # sort corners by anges. As arcsin is nor differeniable, angles is only used
+  # for sorting, not used for loss.
+  angles = angle_with_x(corners_nm.detach().reshape(n*4,2), scope_id=3) # (0, pi*2]
+  angles = angles.reshape(n,4)
+  angles_s, sort_ids = angles.sort(dim=1)
+  corners_nm = torch.gather(corners_nm, 1, sort_ids[:,:,None].repeat(1,1,2))
+
+  # (3) get |cos(alpha)|
+  cos_corners = []
+  diag_centers = []
+  for i,j in [ (0,1), (1,2), (2,3), (3,0), (0,2), (1,3)]:
+    cos_i = (corners_nm[:,i] * corners_nm[:,j]).sum(-1)
+    diacen_i = (corners_nm[:,i] + corners_nm[:,j])/2
+    cos_corners.append(cos_i[:,None])
+    diag_centers.append(diacen_i[:,None,:])
+
+  cos_corners = torch.cat(cos_corners, dim=-1)
+  diag_centers = torch.cat(diag_centers, dim=1)
+
+  out_cos_corners_abs_ave = cos_corners[:,:4].abs().mean(-1, keepdim=True)
+  out_rec_los_diag_cos = (cos_corners[:,4:6]+1).abs().mean(-1, keepdim=True)
+
+  # (4) get theta
+  diacen_4pts = diacen_6pts[:,:4]
+  diacen_norm = diacen_4pts.norm(dim=1, keepdim=True)
+  diacen_4pts /= diacen_norm
+  diacen_cos, diacen_sin = diacen_4pts[:,:,0], diacen_4pts[:,:,1]
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
+def _four_corners_to_box( pts_x, pts_y ):
+  assert pts_x.shape[1] == pts_y.shape[1] == 4
+  corners = torch.cat([pts_x[...,None], pts_y[...,None]], dim=-1)
+  bs, nc, h, w, d = corners.shape
+  assert nc == 4
+  assert d == 2
+
+  # (1) get diagonal length
+  corners = corners.permute(0,2,3,1,4).reshape(bs*h*w, 4, 2)
+  diag_leng = corners.norm(dim=-1, keepdim=True)
+  diag_leng = diag_leng.clamp(min = 1e-4)
+  corners_nm = corners / diag_leng
+  rect_loss_dl = diag_leng.squeeze(2).std(1)
+
+  # (2) get |cos(alpha)|
+  # sort corners by anges
+  cos_6pairs = []
+  diacen_6pts = []
+  for i in range(3):
+    for j in range(i+1,4):
+      cos_i = (corners_nm[:,i] * corners_nm[:,j]).sum(-1)
+      diacen_i = (corners_nm[:,i] + corners_nm[:,j])/2
+      cos_6pairs.append(cos_i[:,None])
+      diacen_6pts.append(diacen_i[:,None,:])
+
+  cos_abs_6pairs = torch.cat(cos_6pairs, dim=-1).abs()
+  diacen_6pts = torch.cat(diacen_6pts, dim=1)
+
+  cos_abs_6pairs, sort_ids = cos_abs_6pairs.sort(dim=-1)
+  diacen_6pts_ = torch.gather(diacen_6pts, 1, sort_ids[:,:,None].repeat(1,1,2))
+
+  cos_abs_4pairs = cos_abs_6pairs[:,:4]
+  rect_loss_dc = 1 - cos_abs_6pairs[:,4:] # shoudl be 1
+  cos_alpha_abs = cos_abs_4pairs.mean(-1)
+
+  # (3) get theta
+  diacen_4pts = diacen_6pts[:,:4]
+  diacen_norm = diacen_4pts.norm(dim=1, keepdim=True)
+  diacen_4pts /= diacen_norm
+  diacen_cos, diacen_sin = diacen_4pts[:,:,0], diacen_4pts[:,:,1]
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
 
 def cal_composite_score(line_preds):
       assert line_preds.shape[1] == OUT_DIM_FINAL - 1

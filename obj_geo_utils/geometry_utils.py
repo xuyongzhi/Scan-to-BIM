@@ -42,9 +42,6 @@ def angle_dif(val0, val1, aim_scope_id):
 def angle_with_x(vec_start, scope_id=0, debug=0):
   '''
    vec_start: [n,2/3]
-   scope_id=0: [0,pi]
-            1: (-pi/2, pi/2]
-
    angle: [n]
   '''
   assert vec_start.dim() == 2
