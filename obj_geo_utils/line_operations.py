@@ -273,6 +273,7 @@ def rotate_lines_img(lines, img, angle,  obj_rep, debug_rotation=0):
   assert img.ndim == 3
   assert lines.ndim == 2
   assert lines.shape[1] == 5
+  assert img.shape[2] == 4
 
   img_shape = img.shape[:2]
 
