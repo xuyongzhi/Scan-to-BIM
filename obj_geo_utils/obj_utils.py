@@ -181,7 +181,7 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYLgWsA':
         # to XYXYSin2W
         bboxes = np.concatenate([bboxes, bboxes[:,0:1]*0], axis=1)
-        bboxes_csa =  OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes, check_sin2)
+        bboxes_csa =  OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes)
         return bboxes_csa
 
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYZLgWsHA':
