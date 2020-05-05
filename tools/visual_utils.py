@@ -7,11 +7,11 @@ from mmcv.image import imread, imwrite
 import cv2
 from MinkowskiEngine import SparseTensor
 
-from .color import color_val, get_random_color, label2color, _label2color
+from tools.color import color_val, get_random_color, label2color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-ADD_FRAME = 0
+ADD_FRAME = 1
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -463,4 +463,29 @@ def _show_feats(feats, gt_bboxes, stride):
     gt = gt_bboxes[i]
     _show_objs_ls_points_ls( img_3, [gt], obj_rep='XYXYSin2', obj_colors='yellow' )
     pass
+
+def test_rotation_order():
+  u = np.pi/180
+  XYLgWsA= np.array( [
+    [200, 200, 200, 10, 0],
+    [200, 200, 200, 30, 30*u],
+  ] )
+  obj_rep = 'XYLgWsA'
+  img = np.zeros([512,512,3], dtype=np.uint8)
+  #img = draw_XYLgWsA( img, XYLgWsA, 'red')
+  #mmcv.imshow(img)
+
+  corners = OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'RoLine2D_2p').reshape(-1,2)
+  XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'XYZLgWsHA')
+  XYZLgWsHA[:,5] = 1
+  corners_3d = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Bottom_Corners').reshape(-1,3)
+
+  _show_objs_ls_points_ls( (512,512), [XYLgWsA], obj_rep, points_ls=[corners])
+  _show_3d_points_objs_ls([corners_3d], objs_ls=[XYZLgWsHA], obj_rep='XYZLgWsHA' )
+
+
+  pass
+
+if __name__  == '__main__':
+  test_rotation_order()
 

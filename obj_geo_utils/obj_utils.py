@@ -282,6 +282,10 @@ class OBJ_REPS_PARSE():
       bottom_corners = np.concatenate([line_2p[:,:2], z0, line_2p[:,2:4], z0], axis=1)
       return bottom_corners
 
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Bottom_Corners':
+      XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
+      return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'Bottom_Corners')
+
     elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYXYSin2WZ0Z1':
       # XYLgWsA
       XYLgWsA = bboxes[:, [0,1, 3,4, 6]]
@@ -465,7 +469,7 @@ class OBJ_REPS_PARSE():
     angle = bboxes[:,3]
     vec = vec_from_angle_with_x_np(angle)
     # due to y points to bottom, to make clock-wise positive:
-    vec[:,1] *= -1
+    #vec[:,1] *= -1
     corner0 = center - vec * length /2
     corner1 = center + vec * length /2
     line2d_2p = np.concatenate([corner0, corner1], axis=1)
@@ -492,9 +496,6 @@ class OBJ_REPS_PARSE():
     vec = corner1 - corner0
     length = np.linalg.norm(vec, axis=1)[:,None]
     angle = angle_with_x_np(vec, scope_id=2)[:,None]
-    # Because axis-y of img points to bottom for img, it is positive for
-    # anti-clock wise. Change to positive for clock-wise
-    angle = -angle
     bboxes_CLA = np.concatenate([center, length, angle], axis=1)
     return bboxes_CLA
 
@@ -508,7 +509,6 @@ class OBJ_REPS_PARSE():
     angle = angle_with_x_np(vec, scope_id=2)[:,None]
     # Because axis-y of img points to bottom for img, it is positive for
     # anti-clock wise. Change to positive for clock-wise
-    angle = -angle
     width = np.zeros([bboxes.shape[0], 1], dtype=np.float32)
     XYLgWsA = np.concatenate([center, length, width, angle], axis=1)
     return XYLgWsA
@@ -945,9 +945,6 @@ class _OBJ_REPS_PARSE_TORCH():
     vec = corner1 - corner0
     length = vec.norm(dim=1)[:,None]
     angle = angle_with_x(vec, scope_id=2)[:,None]
-    # Because axis-y of img points to bottom for img, it is positive for
-    # anti-clock wise. Change to positive for clock-wise
-    angle = -angle
     bboxes_CLA = torch.cat([center, length, angle], axis=1)
     return bboxes_CLA
 
@@ -974,9 +971,8 @@ def test_3d():
   from tools.visual_utils import _show_3d_points_objs_ls
 
   XYZLgWsHA = np.array([
-                        [ 0,1,0, 5, 1, 2, np.pi/4 ],
-                        [ 0,1,0, 5, 1, 2, -np.pi/4 ],
-                        [ 0,1,0, 5, 1, 2, np.pi/8 ],
+                        [ 0,1,0, 5, 1, 0.5, np.pi/4 ],
+                        [ 0,1,0, 5, 1, 0.5, 0 ],
                         ])
   XYLgWsSin2Sin4Z0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYLgWsSin2Sin4Z0Z1')
   _XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(XYLgWsSin2Sin4Z0Z1, 'XYLgWsSin2Sin4Z0Z1', 'XYZLgWsHA')
@@ -986,9 +982,9 @@ def test_3d():
   print(f'XYZLgWsHA: \n{XYZLgWsHA}')
   print(f'_XYZLgWsHA: \n{_XYZLgWsHA}')
   assert err < 1e-5
-  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA], obj_rep='XYZLgWsHA' )
-  _show_3d_points_objs_ls( objs_ls = [XYLgWsSin2Sin4Z0Z1], obj_rep='XYLgWsSin2Sin4Z0Z1' )
-  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA, _XYZLgWsHA], obj_rep='XYZLgWsHA' )
+  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA], obj_rep='XYZLgWsHA', obj_colors='random' )
+  _show_3d_points_objs_ls( objs_ls = [XYLgWsSin2Sin4Z0Z1], obj_rep='XYLgWsSin2Sin4Z0Z1', obj_colors='random'  )
+  _show_3d_points_objs_ls( objs_ls = [XYZLgWsHA, _XYZLgWsHA], obj_rep='XYZLgWsHA' , obj_colors='random' )
 
 
 if __name__ == '__main__':

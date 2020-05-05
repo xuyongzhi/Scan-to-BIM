@@ -67,7 +67,7 @@ def vec_from_angle_with_x_np(angle):
   '''
   assert angle.ndim == 1
   x = np.cos(angle)[:,None]
-  y = -np.sin(angle)[:,None]
+  y = np.sin(angle)[:,None]
   vec = np.concatenate([x,y], axis=1)
 
   check = 1
@@ -170,8 +170,6 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
   mask = (torch.abs(cz) > 1).to(vec_start.dtype)
   cz = cz * (1 - mask*1e-7)
   angle = torch.asin(cz)
-  # cross is positive for anti-clock wise. change to clock-wise
-  angle = -angle  # [-pi/2, pi/2]
 
   # check :angle or pi-angle
   cosa = torch.sum(vec_start * vec_end,dim=1)
@@ -399,8 +397,9 @@ def test():
   import cv2
   np.set_printoptions(precision=3, suppress=True)
   vec_start = np.array([[1,0]], dtype=np.int32) * 200
-  vec_end = np.array([[0,1]], dtype=np.int32) * 200
+  vec_end = np.array([[1,1]], dtype=np.int32) * 200
   angle = angle_from_vecs_to_vece_np(vec_start, vec_end, scope_id=2)
+  print(f'angle: {angle}')
 
   img = np.zeros([512,512,3], dtype=np.uint8)
   z = 256
