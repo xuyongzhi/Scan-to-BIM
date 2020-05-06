@@ -226,7 +226,6 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
 
 
 def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
-  angle = 45
   if obj_rep != 'XYXYSin2':
     XYXYSin2W = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'XYXYSin2W')
     lines = XYXYSin2W[:,:5]

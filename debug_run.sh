@@ -15,7 +15,7 @@ CP=./work_dirs/${wkdir}/best.pth
 #CP=./checkpoints/beike/Apr23_WaDo_Bev.pth
 
 
-LR=0.01
+LR=0.05
 ROTATE=0
 BASE_PLANE=32
 BS=1
