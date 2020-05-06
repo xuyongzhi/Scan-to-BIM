@@ -2035,8 +2035,8 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
               rotation_weight,
               avg_factor=num_total_samples_init)
 
-            loss_pts_init_asin *= 20
-            loss_pts_init_sin2 *= 20
+            loss_pts_init_asin *= 10
+            loss_pts_init_sin2 *= 10
 
             loss_pts_init = {
               f'loss_loc{s}':  loss_pts_init_loc,
