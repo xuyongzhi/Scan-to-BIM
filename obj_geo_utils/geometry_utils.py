@@ -1,6 +1,7 @@
 ## April 2019 xyz
 import torch, math
 import numpy as np
+import time
 
 '''
 Angle order:
@@ -39,7 +40,7 @@ def angle_dif(val0, val1, aim_scope_id):
       raise NotImplementedError
     return dif
 
-def angle_with_x(vec_start, scope_id=0, debug=0):
+def angle_with_x(vec_start, scope_id=0,  debug=0):
   '''
    vec_start: [n,2/3]
    angle: [n]
@@ -347,6 +348,146 @@ def angle_of_2lines(line0, line1, scope_id=0):
   assert not np.any(np.isnan(angle))
   return angle
 
+def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  stage=None ):
+  '''
+  rect_corners: [batch_size, 4, h, w,2] or  [n,4,2]
+  rect_center: [batch_size, 1, h, w,2] or  [n,1,2]
+  The first one is prediction of center, 1:5 are predictions of four corners
+  bbox_weights: same size as box_out, used for reducing processing time by only processing positive
+
+  box_out: [batch_size, 6, h, w],
+  out_obj_rep: 'XYDAsinAsinSin2Z0Z1'
+  '''
+  record_t = 0
+  if record_t:
+    t0 = time.time()
+  input_ndim = rect_corners.ndim
+  assert input_ndim == 5 or input_ndim == 3
+  if input_ndim == 5:
+    bs, npts, h, w, d = rect_corners.shape
+    n = bs*h*w
+    rect_corners = rect_corners.permute(0,2,3,1,4).reshape(n, npts, 2)
+    if rect_center is not None:
+      assert rect_center.shape == (bs, 1, h, w, d)
+      rect_center = rect_center.permute(0,2,3,1,4).reshape(n, 1, 2)
+  else:
+    n, npts, d = rect_corners.shape
+    if rect_center is not None:
+      assert rect_center.shape == (n, 1, d)
+  assert npts == 4
+  assert d == 2
+
+  #if bbox_weights is not None:
+  #  assert bbox_weights.shape[0] == n
+  #  pos_inds = torch.nonzero(bbox_weights[:,0]).view(-1)
+  #  rect_corners = rect_corners[pos_inds]
+  #  if rect_center is not None:
+  #    rect_center = rect_center[pos_inds]
+  #  n0 = n
+  #  n = pos_inds.numel()
+
+  if rect_center is not None:
+    rect_cor_cen = torch.cat([rect_corners, rect_center], dim=1)
+    center = rect_cor_cen.mean(dim=1, keepdim=True)
+    center_err = rect_center - center
+    out_rect_loss_cen = (center_err).abs().mean(dim=-1)
+  else:
+    center = rect_corners.mean(dim=1, keepdim=True)
+
+  corners = rect_corners - center
+
+  # (1) get diagonal length
+  diag_leng = corners.norm(dim=-1, keepdim=True)
+  diag_leng = diag_leng.clamp(min=1e-4)
+  out_diag_leng_ave = diag_leng.clamp(min = 1e-4).mean(dim=1) * 2
+  corners_nm = corners / diag_leng # [16384, 4, 2]
+  if torch.isnan(corners_nm).any():
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+  out_rect_loss_diag_len = diag_leng.squeeze(2).std(1, keepdim=True)
+
+  # (2) sort corners
+  # sort corners by anges. As arcsin is nor differeniable, angles is only used
+  # for sorting, not used for loss.
+  angles = angle_with_x(corners_nm.detach().reshape(n*4,2), scope_id=3) # (0, pi*2]
+  angles = angles.reshape(n,4)
+  angles_s, sort_ids = angles.sort(dim=1)
+  corners_nm = torch.gather(corners_nm, 1, sort_ids[:,:,None].repeat(1,1,2))
+
+  # (3) get |cos(alpha)|, |sin(alpha)|
+  #cos_corners = []
+  sin_corners = []
+  diag_centers = []
+  for i,j in [ (0,1), (1,2), (2,3), (3,0), (0,2), (1,3)]:
+    cos_i = (corners_nm[:,i] * corners_nm[:,j]).sum(-1)
+    diacen_i = (corners_nm[:,i] + corners_nm[:,j])/2
+    #cos_corners.append(cos_i[:,None])
+    diag_centers.append(diacen_i[:,None,:])
+
+    ze = torch.zeros_like(corners_nm[:,0,0:1])
+    vi = torch.cat([corners_nm[:,i], ze], dim=1)
+    vj = torch.cat([corners_nm[:,j], ze], dim=1)
+    sin_i = torch.cross(vi,vj, dim=1)[:,2:3]
+    sin_corners.append( sin_i )
+
+  #cos_corners = torch.cat(cos_corners, dim=-1)
+  diag_centers = torch.cat(diag_centers, dim=1)
+  sin_corners = torch.cat(sin_corners, dim=-1)
+
+  #out_cos_corners_abs_ave = cos_corners[:,:4].abs().mean(-1, keepdim=True)
+  #out_rec_loss_hwratio = (cos_corners[:,4:6]+1).abs().mean(-1, keepdim=True)
+  out_sin_corners_abs_ave = (sin_corners[:, :4]).abs().mean(-1, keepdim=True)
+  out_rec_loss_hwratio = sin_corners[:, 4:6].abs().mean(-1, keepdim=True)
+
+  # (4) get theta
+  diacen_4pts = diag_centers[:,:4]
+  diacen_norm = diacen_4pts.norm(dim=-1)
+  is_02_long = diacen_norm[:,[0,2]].mean(1) > diacen_norm[:,[1,3]].mean(1)
+  is_02_long = is_02_long.to(torch.float32)[:,None, None]
+  diacen_2pts_long_axis = diacen_4pts[:,[0,2]] * is_02_long + diacen_4pts[:,[1,3]] * (1-is_02_long)
+  diacen_norm_long_axis = diacen_norm[:,[0,2],None] * is_02_long + diacen_norm[:,[1,3],None] * (1-is_02_long)
+  diacen_2pts_long_axis = diacen_2pts_long_axis / diacen_norm_long_axis
+
+  cos_theta_abs = diacen_2pts_long_axis[:,:,0].abs().mean(1, keepdim=True)
+  sin_theta_abs = diacen_2pts_long_axis[:,:,1].abs().mean(1, keepdim=True)
+  sin2_theta = 2*(diacen_2pts_long_axis[:,:,0] * diacen_2pts_long_axis[:,:,1]).mean(1, keepdim=True)
+
+
+  center = center.squeeze(1)
+  rect_loss = torch.cat( [out_rect_loss_diag_len, out_rec_loss_hwratio ], dim = 1)
+  if rect_center is not None:
+    rect_loss = torch.cat([rect_loss, out_rect_loss_cen], dim=1)
+  rect_loss = rect_loss.mean(1, keepdim=True)
+
+  box_out = torch.cat([ center, out_diag_leng_ave, out_sin_corners_abs_ave, sin_theta_abs, sin2_theta  ], dim=1)
+
+  # From  XYDAsinAsinSin2Z0Z1 to out_obj_rep
+  z0z1 = torch.zeros_like(box_out[:,:2])
+  box_out = torch.cat([box_out, z0z1], dim=1)
+  #box_out = OBJ_REPS_PARSE.encode_obj( box_out, 'XYDAsinAsinSin2Z0Z1', out_obj_rep )
+
+  if input_ndim == 5:
+    box_out = box_out.reshape(bs, h, w, 8).permute(0, 3, 1, 2)
+    rect_loss = rect_loss.reshape(bs, h, w, 1).permute(0, 3, 1, 2)
+  if input_ndim == 3:
+    pass
+
+  #if bbox_weights is not None:
+  #  box_out_all = torch.zeros([n0,8], dtype=box_out.dtype, device=box_out.device)
+  #  box_out_all[pos_inds] = box_out
+  #  box_out = box_out_all
+  #  rect_loss_all = torch.zeros([n0,1], dtype=box_out.dtype, device=box_out.device)
+  #  rect_loss_all[pos_inds] = rect_loss
+  #  rect_loss = rect_loss_all
+
+
+  if record_t:
+    t = time.time() - t0
+    print(f'4 corners to rect time: {n}, \t{t:.3f}')
+    print(f'stage: {stage}')
+  return box_out, rect_loss
+
+
 class OBJ_DEF():
   @staticmethod
   def limit_yaw(yaws, yx_zb):
@@ -393,7 +534,7 @@ class OBJ_DEF():
       assert torch.max(bboxes[:,-1]) <= math.pi+ofs
       assert torch.min(bboxes[:,-1]) >= 0-ofs
 
-def test():
+def test_rotation_order():
   import cv2
   np.set_printoptions(precision=3, suppress=True)
   vec_start = np.array([[1,0]], dtype=np.int32) * 200
@@ -411,6 +552,8 @@ def test():
 
   pass
 
+def test_four_corners_to_box():
+  pass
 
 if __name__ == '__main__':
   test()

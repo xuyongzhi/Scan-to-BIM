@@ -24,10 +24,10 @@ FILTER_EDGES=1
 REL=0
 #CLS=ad
 CLS=a
-#CLS=abcd
+CLS=abc
 #CLS=A
 #CLS=c
-CLS=abci
+#CLS=abci
 
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
 #--resume $CP 

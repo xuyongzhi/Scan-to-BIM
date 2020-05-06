@@ -5,7 +5,7 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
       vec_from_angle_with_x_np, angle_with_x
 import cv2
 import torch
-from obj_geo_utils.geometry_utils import limit_period_np
+from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box
 
 
 class OBJ_REPS_PARSE():
@@ -48,12 +48,14 @@ class OBJ_REPS_PARSE():
     'XYXYSin2': 5,
     'XYXYSin2W': 6,
     'RoLine2D_2p': 4,
-    'RoLine2D_CenterLengthAngle': 4,
+    'XYLgA': 4,
 
     'XYXYSin2WZ0Z1': 8,
     'Bottom_Corners': 3+3,
 
     'XYDAsinAsinSin2Z0Z1': 8,
+
+    'Rect4CornersZ0Z1': 8,
 
   }
   _obj_reps = _obj_dims.keys()
@@ -145,7 +147,13 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1'  and obj_rep_out == 'XYXYSin2WZ0Z1':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYXYSin2WZ0Z1(bboxes)
 
+    elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'Rect4CornersZ0Z1':
+      return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_Rect4CornersZ0Z1(bboxes)
+
     # extra  -------------------------------------------------------------------
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Rect4CornersZ0Z1':
+      XYDAsinAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYDAsinAsinSin2Z0Z1')
+      return OBJ_REPS_PARSE.encode_obj(XYDAsinAsinSin2Z0Z1, 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1'  )
 
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'XYLgWsA':
       XYLgWsAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYDAsinAsinSin2Z0Z1', 'XYLgWsAsinSin2Z0Z1')
@@ -275,7 +283,7 @@ class OBJ_REPS_PARSE():
       return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_XYLgWsAsinSin2Z0Z1(bboxes)
 
     elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'XYXYSin2W':
-      bboxes_s2t = OBJ_REPS_PARSE.CenSizeAngle_TO_UpRight_xyxy_sin2a_thick(bboxes)
+      bboxes_s2t = OBJ_REPS_PARSE.XYLgWsA_TO_XYXYSin2W(bboxes)
       check = 1
       if check:
         bboxes_c = OBJ_REPS_PARSE.encode_obj(bboxes_s2t, 'XYXYSin2W', 'XYLgWsA')
@@ -287,18 +295,18 @@ class OBJ_REPS_PARSE():
           pass
       return bboxes_s2t
 
-    elif obj_rep_in == 'RoLine2D_CenterLengthAngle' and obj_rep_out == 'RoLine2D_2p':
-      return OBJ_REPS_PARSE.CenterLengthAngle_TO_RoLine2D_2p(bboxes)
+    elif obj_rep_in == 'XYLgA' and obj_rep_out == 'RoLine2D_2p':
+      return OBJ_REPS_PARSE.XYLgA_TO_RoLine2D_2p(bboxes)
 
-    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'RoLine2D_CenterLengthAngle':
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYLgA':
       return OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(bboxes)
 
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYLgWsA':
       return OBJ_REPS_PARSE.RoLine2D_2p_TO_XYLgWsA(bboxes)
 
-    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'RoLine2D_CenterLengthAngle':
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYLgA':
       lines_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'RoLine2D_2p')
-      lines_cla = OBJ_REPS_PARSE.encode_obj(lines_2p, 'RoLine2D_2p', 'RoLine2D_CenterLengthAngle')
+      lines_cla = OBJ_REPS_PARSE.encode_obj(lines_2p, 'RoLine2D_2p', 'XYLgA')
       return lines_cla
 
 
@@ -428,7 +436,6 @@ class OBJ_REPS_PARSE():
     bboxes_new[:,7] = zc + height/2
     return bboxes_new
 
-
   @staticmethod
   def XYZLgWsHA_to_XYLgWsAsinSin2Z0Z1(bboxes_csa):
     n = bboxes_csa.shape[0]
@@ -542,13 +549,11 @@ class OBJ_REPS_PARSE():
     return RoLine2D_2p
 
   @staticmethod
-  def CenterLengthAngle_TO_RoLine2D_2p(bboxes):
+  def XYLgA_TO_RoLine2D_2p(bboxes):
     center = bboxes[:,:2]
     length = bboxes[:,2:3]
     angle = bboxes[:,3]
     vec = vec_from_angle_with_x_np(angle)
-    # due to y points to bottom, to make clock-wise positive:
-    #vec[:,1] *= -1
     corner0 = center - vec * length /2
     corner1 = center + vec * length /2
     line2d_2p = np.concatenate([corner0, corner1], axis=1)
@@ -593,7 +598,7 @@ class OBJ_REPS_PARSE():
     return XYLgWsA
 
   @staticmethod
-  def CenSizeAngle_TO_UpRight_xyxy_sin2a_thick(bboxes):
+  def XYLgWsA_TO_XYXYSin2W(bboxes):
     '''
     In the input , x either y can be the longer one.
     If y is the longer one, angle = angle + 90.
@@ -606,7 +611,7 @@ class OBJ_REPS_PARSE():
     thickness = size.min(1)[:,None]
 
     line2d_angle = np.concatenate([center, length, angle], axis=1)
-    line2d_2p = OBJ_REPS_PARSE.CenterLengthAngle_TO_RoLine2D_2p(line2d_angle)
+    line2d_2p = OBJ_REPS_PARSE.XYLgA_TO_RoLine2D_2p(line2d_angle)
     line2d_sin2 = OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(line2d_2p)
     line2d_sin2tck = np.concatenate([line2d_sin2, thickness], axis=1)
 
@@ -776,6 +781,36 @@ class OBJ_REPS_PARSE():
     XYLgWsA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYDAsinAsinSin2Z0Z1', 'XYLgWsA')
     XYXYSin2W = OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA','XYXYSin2W')
     return np.concatenate([XYXYSin2W, bboxes[:,6:8]], axis=1)
+
+  @staticmethod
+  def XYDAsinAsinSin2Z0Z1_TO_Rect4CornersZ0Z1(bboxes):
+    '''
+    The 4 corners are stored in clock-wise order in img coordinate system.
+    The Oridinal one is random
+    '''
+    center = bboxes[:,:2]
+    diag = bboxes[:,2:3]
+    abs_sin_alpha = bboxes[:,3]
+    abs_sin_theta = bboxes[:,4]
+    sin2_theta = bboxes[:,5]
+
+    alpha = np.arcsin(abs_sin_alpha)
+    theta_abs = np.arcsin(abs_sin_theta)
+    is_pos = sin2_theta>0
+    theta = theta_abs * is_pos - theta_abs * (1-is_pos)
+
+    beta1 = theta - alpha/2
+    beta2 = theta + alpha/2
+
+    vec_1 = vec_from_angle_with_x_np(beta1) * diag / 2
+    vec_2 = vec_from_angle_with_x_np(beta2) * diag / 2
+    corner0 = center - vec_1
+    corner2 = center + vec_1
+    corner1 = center - vec_2
+    corner3 = center + vec_2
+
+    rect_4corners = np.concatenate([corner0, corner1, corner2, corner3], axis=1)
+    return rect_4corners
 
 class GraphUtils:
   @staticmethod
@@ -1121,6 +1156,36 @@ def test_2d_XYDAsinAsinSin2Z0Z1():
   _show_objs_ls_points_ls( (512,512), [XYZLgWsHA], 'XYZLgWsHA' )
   _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1], 'XYDAsinAsinSin2Z0Z1', points_ls=[corners])
 
+def test_4corners():
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+  u = np.pi/180
+  XYZLgWsHA = np.array([
+    [200, 300, 0, 100, 20, 0, -45*u ],
+    [200, 200, 0, 200, 30, 0, 45*u ],
+    [300, 300, 0, 200, 200, 0, 80*u ],
+  ])
+  n = XYZLgWsHA.shape[0]
+  Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1').reshape(n, 4, 2)
+  XYDAsinAsinSin2Z0Z1, rect_loss = four_corners_to_box( torch.from_numpy( Rect4CornersZ0Z1 ) )
+  XYDAsinAsinSin2Z0Z1 = XYDAsinAsinSin2Z0Z1.numpy()
+  rect_loss = rect_loss.numpy()
+  assert np.max(np.abs(rect_loss)) < 1e-5
+
+  XYDAsinAsinSin2Z0Z1_c = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYDAsinAsinSin2Z0Z1')
+  err = XYDAsinAsinSin2Z0Z1_c - XYDAsinAsinSin2Z0Z1
+  merr = np.max(np.abs(err))
+  print(f'err: {merr}\n{err}')
+  if not merr < 1e-7:
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+  pass
+
+  for i in range(4):
+    #_show_objs_ls_points_ls( (512,512), [XYZLgWsHA], 'XYZLgWsHA', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+    _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+    _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_c], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+  pass
+
 def test_3d():
   from tools.visual_utils import _show_3d_points_objs_ls
 
@@ -1142,7 +1207,8 @@ def test_3d():
 
 
 if __name__ == '__main__':
-  test_2d_XYDAsinAsinSin2Z0Z1()
+  #test_2d_XYDAsinAsinSin2Z0Z1()
+  test_4corners()
 
 
 

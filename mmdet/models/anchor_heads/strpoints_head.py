@@ -13,8 +13,8 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
-from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x
-from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box
+#from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from tools import debug_utils
 from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
 
@@ -337,7 +337,7 @@ class StrPointsHead(nn.Module):
           normal_init(self.edge_relation_cls, std=0.01, bias=bias_cls)
 
 
-    def points2bbox(self, pts, y_first=True, out_line_constrain=False, box_extra=None):
+    def points2bbox(self, pts, y_first=True, out_line_constrain=False, box_extra=None, stage=None):
         """
         Converting the points set into bounding box.
         :param pts: the input points sets (fields), each points
@@ -346,6 +346,8 @@ class StrPointsHead(nn.Module):
             [y1, x1, y2, x2 ... yn, xn], otherwise the point set is
             represented as [x1, y1, x2, y2 ... xn, yn].
         :return: each points set is converting to a bbox [x1, y1, x2, y2].
+
+        bbox_weights: used for reducing processing time
         """
         assert pts.shape[1] == self.num_points * 2
         pts_reshape = pts.view(pts.shape[0], -1, 2, *pts.shape[2:])
@@ -472,8 +474,9 @@ class StrPointsHead(nn.Module):
             # pt_0: center
             # pt_1,2,3,4: the four corners
             # pt_5,6,7,8: half corners
+            pts = torch.cat([ pts_x[...,None], pts_y[...,None] ], dim=-1)
 
-            bbox, rect_loss = four_corners_to_box( pts_x[:,:5], pts_y[:,:5], self.obj_rep )
+            bbox, rect_loss = four_corners_to_box( rect_corners = pts[:,1:5], rect_center = pts[:,0:1], stage=stage )
             if out_line_constrain:
               bbox = torch.cat([bbox, rect_loss], dim=1)
 
@@ -920,7 +923,8 @@ class StrPointsHead(nn.Module):
         bbox_pred_init = self.points2bbox(
             pts_pred_init, y_first=False,
             out_line_constrain=self.line_constrain_loss,
-            box_extra=box_extra_init)
+            box_extra=box_extra_init,
+            stage='loss_single_init')
         bbox_gt_refine = bbox_gt_refine.reshape(-1, self.obj_dim)
         bbox_weights_refine = bbox_weights_refine.reshape(-1, self.obj_dim)
         if box_extra_refine is not None:
@@ -929,7 +933,8 @@ class StrPointsHead(nn.Module):
         bbox_pred_refine = self.points2bbox(
             pts_pred_refine, y_first=False,
             out_line_constrain=self.line_constrain_loss,
-            box_extra=box_extra_refine)
+            box_extra=box_extra_refine,
+            stage='loss_single_refine')
         normalize_term = self.point_base_scale * stride
 
         if self.obj_rep == 'box_scope':
@@ -1008,13 +1013,13 @@ class StrPointsHead(nn.Module):
         if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
           print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
           print(f'stride: {stride}')
-          show_pred(self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_linec_init, pts_pred_init)
-          show_pred(self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_linec_refine, pts_pred_refine)
+          show_pred('init',self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_linec_init, pts_pred_init)
+          show_pred('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_linec_refine, pts_pred_refine)
 
 
         return loss_cls, loss_pts_init, loss_pts_refine, loss_linec_init, loss_linec_refine
 
-    def get_bbox_from_pts(self, center_list, pts_preds, box_extras):
+    def get_bbox_from_pts(self, center_list, pts_preds, box_extras, stage=None):
         if self.box_extra_dims > 0:
           assert len(box_extras) == len(pts_preds) and pts_preds[0].shape[2:] == box_extras[0].shape[2:]
         else:
@@ -1028,7 +1033,7 @@ class StrPointsHead(nn.Module):
                 else:
                   box_extra_i = None
                 bbox_preds_init = self.points2bbox(
-                    pts_preds[i_lvl].detach(), box_extra=box_extra_i )
+                    pts_preds[i_lvl].detach(), box_extra=box_extra_i, stage=stage+'_get_bbox_from_pts' )
                 if self.transform_method == 'center_size_istopleft':
                   raise NotImplementedError
                 elif self.obj_rep == 'XYXY':
@@ -1143,7 +1148,7 @@ class StrPointsHead(nn.Module):
                                                        img_metas)
         pts_coordinate_preds_refine = self.offset_to_pts(
             center_list, pts_preds_refine)
-        bbox_list_initres = self.get_bbox_from_pts(center_list, pts_preds_init, box_extra_init)
+        bbox_list_initres = self.get_bbox_from_pts(center_list, pts_preds_init, box_extra_init, stage='init')
         #debug_utils.show_shapes(pts_preds_init, 'StrPointsHead init')
         #debug_utils.show_shapes(bbox_list_initres, 'StrPointsHead init bbox')
         cls_reg_targets_refine = point_target(
@@ -1170,7 +1175,7 @@ class StrPointsHead(nn.Module):
         if 'final' in self.cls_types:
           center_list, valid_flag_list = self.get_points(featmap_sizes,
                                                        img_metas)
-          bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine, box_extra_refine)
+          bbox_list_refineres = self.get_bbox_from_pts(center_list, pts_preds_refine, box_extra_refine, stage='refine')
           #debug_utils.show_shapes(pts_preds_refine, 'StrPointsHead refine')
           #debug_utils.show_shapes(bbox_list_refineres, 'StrPointsHead refine bbox')
           cls_reg_targets_final = point_target(
@@ -2052,95 +2057,6 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
           bbox_gt_init_nm_ = bbox_gt_init_nm[ids]
         return loss_pts_init
 
-def four_corners_to_box( pts_x, pts_y, out_obj_rep ):
-  '''
-  pts_x, pts_y: [batch_size, 5, h, w]  [n,5]
-  The first one is prediction of center, 1:5 are predictions of four corners
-
-  box_out: [batch_size, 6, h, w],
-  '''
-  assert pts_x.shape[1] == pts_y.shape[1] == 5
-  assert out_obj_rep == 'XYDAsinAsinSin2Z0Z1'
-  pts = torch.cat([pts_x[...,None], pts_y[...,None]], dim=-1)
-  input_ndim = pts.ndim
-  assert pts.ndim == 5 or pts.ndim == 3
-  if pts.ndim == 5:
-    bs, npts, h, w, d = pts.shape
-    n = bs*h*w
-    pts = pts.permute(0,2,3,1,4).reshape(n, npts, 2)
-  else:
-    n, npts, d = pts.shape
-  assert npts == 5
-  assert d == 2
-  center = pts.mean(dim=1, keepdim=True)
-  pts = pts - center
-
-  center_err = pts[:,0:1]
-  out_rect_loss_cen = (center_err).abs().mean(dim=-1,keepdim=True)
-  corners = pts[:,1:5]
-
-  # (1) get diagonal length
-  diag_leng = corners.norm(dim=-1, keepdim=True)
-  out_diag_leng_ave = diag_leng.clamp(min = 1e-4).mean(dim=1) * 2
-  corners_nm = corners / diag_leng # [16384, 4, 2]
-  out_rect_loss_diag_len = diag_leng.squeeze(2).std(1, keepdim=True)
-
-  # (2) sort corners
-  # sort corners by anges. As arcsin is nor differeniable, angles is only used
-  # for sorting, not used for loss.
-  angles = angle_with_x(corners_nm.detach().reshape(n*4,2), scope_id=3) # (0, pi*2]
-  angles = angles.reshape(n,4)
-  angles_s, sort_ids = angles.sort(dim=1)
-  corners_nm = torch.gather(corners_nm, 1, sort_ids[:,:,None].repeat(1,1,2))
-
-  # (3) get |cos(alpha)|
-  cos_corners = []
-  diag_centers = []
-  for i,j in [ (0,1), (1,2), (2,3), (3,0), (0,2), (1,3)]:
-    cos_i = (corners_nm[:,i] * corners_nm[:,j]).sum(-1)
-    diacen_i = (corners_nm[:,i] + corners_nm[:,j])/2
-    cos_corners.append(cos_i[:,None])
-    diag_centers.append(diacen_i[:,None,:])
-
-  cos_corners = torch.cat(cos_corners, dim=-1)
-  diag_centers = torch.cat(diag_centers, dim=1)
-
-  out_cos_corners_abs_ave = cos_corners[:,:4].abs().mean(-1, keepdim=True)
-  out_rec_loss_diag_cos = (cos_corners[:,4:6]+1).abs().mean(-1, keepdim=True)
-  out_sin_corners_abs_ave = torch.sqrt(1 - out_cos_corners_abs_ave**2)
-
-  # (4) get theta
-  diacen_4pts = diag_centers[:,:4]
-  diacen_norm = diacen_4pts.norm(dim=-1)
-  is_02_long = diacen_norm[:,[0,2]].mean(1) > diacen_norm[:,[1,3]].mean(1)
-  is_02_long = is_02_long.to(torch.float32)[:,None, None]
-  diacen_2pts_long_axis = diacen_4pts[:,[0,2]] * is_02_long + diacen_4pts[:,[1,3]] * (1-is_02_long)
-  diacen_norm_long_axis = diacen_norm[:,[0,2],None] * is_02_long + diacen_norm[:,[1,3],None] * (1-is_02_long)
-  diacen_2pts_long_axis = diacen_2pts_long_axis / diacen_norm_long_axis
-
-  cos_theta_abs = diacen_2pts_long_axis[:,:,0].abs().mean(1, keepdim=True)
-  sin_theta_abs = diacen_2pts_long_axis[:,:,1].abs().mean(1, keepdim=True)
-  sin2_theta = (diacen_2pts_long_axis[:,:,0] * diacen_2pts_long_axis[:,:,1]).mean(1, keepdim=True)
-  pass
-
-
-  center = center.squeeze(1)
-  rect_loss = (  out_rect_loss_diag_len + out_rec_loss_diag_cos ) / 2
-  box_out = torch.cat([ center, out_diag_leng_ave, out_sin_corners_abs_ave, sin_theta_abs, sin2_theta  ], dim=1)
-
-  # From  XYDAsinAsinSin2Z0Z1 to out_obj_rep
-  z0z1 = torch.zeros_like(box_out[:,:2])
-  box_out = torch.cat([box_out, z0z1], dim=1)
-  #box_out = OBJ_REPS_PARSE.encode_obj( box_out, 'XYDAsinAsinSin2Z0Z1', out_obj_rep )
-
-  if input_ndim == 5:
-    box_out = box_out.reshape(bs, h, w, 8).permute(0, 3, 1, 2)
-    rect_loss = rect_loss.reshape(bs, h, w, 1).permute(0, 3, 1, 2)
-  if input_ndim == 3:
-    pass
-
-  return box_out, rect_loss
-
 def cal_composite_score(line_preds):
       assert line_preds.shape[1] == OUT_DIM_FINAL - 1
       bboxes_refine, bboxes_init, points_refine, points_init, score_refine, \
@@ -2168,10 +2084,16 @@ def convert_list_dict_order(f_ls_dict):
   return f_dict_ls
 
 
-def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
+def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
               loss_linec_init, pts_pred
               ):
   np = bbox_pred.shape[0]
+  if obj_rep == 'XYDAsinAsinSin2Z0Z1':
+    npts = 5
+    pts_pred = pts_pred.reshape(np,-1,2)[:,:npts].reshape(np,-1)
+
+  print(f'\n------------------------------------')
+  print(f'stage:{stage}')
   inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
   pos_n = inds.numel()
   print(f'loss_pts: \n{loss_pts}')
@@ -2183,9 +2105,12 @@ def show_pred(obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
   pts_pred = pts_pred[inds].cpu().data.numpy().reshape(-1,2)
 
   errs = bbox_pred_ - bbox_gt_
+  print(f'obj_rep:{obj_rep}\nerr:{errs}')
+  print(f'bbox_pred_:\n{bbox_pred_}')
+  print(f'bbox_gt_:\n{bbox_gt_}')
 
   #_show_objs_ls_points_ls( (512,512), [bbox_gt, ], obj_rep = obj_rep)
-  _show_objs_ls_points_ls( (512,512), [bbox_gt_, bbox_pred_], obj_rep = obj_rep,
+  _show_objs_ls_points_ls( (800, 800), [bbox_gt_, bbox_pred_], obj_rep = obj_rep,
                           points_ls = [pts_pred], point_colors='blue', point_thickness=2,
                           obj_colors=['red', 'green'], obj_thickness=[2,1])
 
