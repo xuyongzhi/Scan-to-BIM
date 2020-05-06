@@ -3,7 +3,8 @@ import torch
 from .assign_result import AssignResult
 from .base_assigner import BaseAssigner
 
-from configs.common import DEBUG_CFG
+from configs.common import DEBUG_CFG, NetParameters
+level_fac = NetParameters.fpn_level_wh_scale_factor
 DEBUG = 0
 
 class PointAssigner(BaseAssigner):
@@ -101,7 +102,7 @@ class PointAssigner(BaseAssigner):
             assert gt_bboxes_ignore.shape[1] == 8
             gt_bboxes_ignore = gt_bboxes_ignore[:,:8]
           gt_bboxes_raw = gt_bboxes.clone()
-          gt_bboxes_wh = gt_bboxes[:,2:3].repeat(1,2)
+          gt_bboxes_wh = gt_bboxes[:,2:3].repeat(1,2) * level_fac
           gt_bboxes_xy = gt_bboxes[:,:2]
 
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1':
@@ -211,7 +212,10 @@ class PointAssigner(BaseAssigner):
             import numpy as np
             filename = img_meta['filename']
             points_scope = points.max(0)[0][:2].int()
-            print(f'{filename}')
+            print(f'\n\n{filename}\n')
+            print(f'lvl_min: {lvl_min}')
+            print(f'lvl_max: {lvl_max}')
+            print(f'gt_bboxes_lvl: {gt_bboxes_lvl}')
 
             pos_inds = torch.nonzero(assigned_gt_inds).squeeze()
             pos_gt_inds = assigned_gt_inds[pos_inds].cpu().data.numpy() - 1
@@ -236,6 +240,8 @@ class PointAssigner(BaseAssigner):
               w = points_scope[0] + 100
               _show_objs_ls_points_ls((h,w), [gt_bboxes_raw, missed_gt_bboxes], obj_rep=self.obj_rep, points_ls=[pos_points], obj_colors=['red', 'green'])
               for i in range(len(pos_inds)):
+                l = gt_bboxes_lvl[ pos_gt_inds[i] ]
+                print(f'level: {l}')
                 pos_gt_i = gt_bboxes_raw[pos_gt_inds[i]].reshape(-1, gt_bboxes_raw.shape[1])
                 _show_objs_ls_points_ls((h,w), [gt_bboxes_raw, pos_gt_i], obj_rep=self.obj_rep, points_ls = [pos_points[i:i+1]], obj_colors=['red', 'green'])
               import pdb; pdb.set_trace()  # XXX BREAKPOINT

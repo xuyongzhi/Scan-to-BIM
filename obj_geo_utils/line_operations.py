@@ -226,17 +226,26 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
 
 
 def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
+  angle = 45
   if obj_rep != 'XYXYSin2':
-    lines = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'XYXYSin2')
+    XYXYSin2W = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'XYXYSin2W')
+    lines = XYXYSin2W[:,:5]
   else:
     lines = bboxes
 
-  rotate_lines, new_img = rotate_lines_img(lines, img, angle, 'XYXYSin2')
-
+  rotate_lines, new_img, scale = rotate_lines_img(lines, img, angle, 'XYXYSin2')
   if obj_rep == 'XYXYSin2':
-    rotated_bboxes = rotate_lines
-  elif obj_rep == 'XYXYSin2WZ0Z1':
+    return rotate_lines, new_img
+
+  width = XYXYSin2W[:,5:6] * scale
+  r_XYXYSin2W = np.concatenate([ rotate_lines, width ], axis=1)
+
+  if obj_rep == 'XYXYSin2WZ0Z1':
     rotated_bboxes = np.concatenate([rotate_lines, bboxes[:,5:8]], axis=1)
+    rotated_bboxes[:,5] *= scale
+  elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
+    XYXYSin2WZ0Z1 = np.concatenate([ r_XYXYSin2W, bboxes[:,6:] ], axis=1)
+    rotated_bboxes = OBJ_REPS_PARSE.encode_obj( XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', obj_rep)
   elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
     rotated_bboxes = OBJ_REPS_PARSE.encode_obj(rotate_lines, 'XYXYSin2', obj_rep)
     rotated_bboxes[:, [6,7]] = bboxes[:, [6,7]]
@@ -257,6 +266,8 @@ def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
     scale = scales.mean()
     rotated_bboxes[:, 3] = bboxes[:, 3] * scale
     pass
+  else:
+    raise NotImplementedError
 
   rotated_bboxes = rotated_bboxes.astype(np.float32)
   show = 0
@@ -371,7 +382,7 @@ def rotate_lines_img(lines, img, angle,  obj_rep, debug_rotation=0):
       lines_rotated = lines_rotated[:-4]
     pass
 
-  return  lines_rotated, new_img
+  return  lines_rotated, new_img, scale
 
 
 def gen_corners_from_lines_th(lines, labels, obj_rep):

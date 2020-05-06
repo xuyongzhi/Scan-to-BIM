@@ -162,3 +162,7 @@ class DEBUG_CFG:
   SPARSE_BEV = 0
 
   OUT_CORNER_HM_ONLY = 0
+
+
+class NetParameters:
+  fpn_level_wh_scale_factor = 0.5

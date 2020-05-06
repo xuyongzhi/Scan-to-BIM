@@ -28,9 +28,12 @@ def _show_objs_ls_points_ls_torch(img,
                             ):
   if isinstance(img, torch.Tensor):
     img = img.cpu().numpy()
-  objs_ls = [o.cpu().numpy() for o in objs_ls]
+  if objs_ls is not None:
+    objs_ls = [o.cpu().data.numpy() for o in objs_ls]
+  if points_ls is not None:
+    points_ls = [o.cpu().data.numpy() for o in points_ls]
   if obj_scores_ls is not None:
-    obj_scores_ls = [s.cpu().numpy() for s in obj_scores_ls]
+    obj_scores_ls = [s.cpu().data.numpy() for s in obj_scores_ls]
   _show_objs_ls_points_ls(img, objs_ls, obj_rep,
                           points_ls=points_ls,
                           obj_colors=obj_colors,

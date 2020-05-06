@@ -1,7 +1,7 @@
 # xyz
 
 #export CUDA_LAUNCH_BLOCKING=1
-#export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=1
 
 CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
@@ -16,7 +16,7 @@ CP=./work_dirs/${wkdir}/best.pth
 
 
 LR=0.01
-ROTATE=0
+ROTATE=1
 BASE_PLANE=32
 BS=1
 DATA_TYPES=cnx
@@ -24,7 +24,7 @@ FILTER_EDGES=1
 REL=0
 #CLS=ad
 CLS=a
-CLS=abc
+#CLS=abc
 #CLS=A
 #CLS=c
 #CLS=abci

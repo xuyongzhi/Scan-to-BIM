@@ -161,8 +161,8 @@ train_pipeline = [
     dict(type='LoadAnnotations', with_bbox=True),
     dict(type='PadToSameHW_ForRotation',obj_rep=_obj_rep,pad_border_make_bboxes_pos=True),
     dict(type='ResizeImgLine', obj_rep=_obj_rep, img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
-    dict(type='RandomLineFlip', flip_ratio=0.6, obj_rep=_obj_rep, direction='random'),
-    dict(type='RandomRotate', rotate_ratio=0.8, obj_rep=_obj_rep),
+    dict(type='RandomLineFlip', flip_ratio=0.0, obj_rep=_obj_rep, direction='random'),
+    dict(type='RandomRotate', rotate_ratio=1.0, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_relations']),
@@ -261,8 +261,10 @@ if DATA == 'beike2d':
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
   #load_from = './checkpoints/sfd/_d_May4_XYXYSin2_wadoco.pth'
-  load_from = './checkpoints/sfd/_d_May6_XYDAsinAsinSin2Z0Z1.pth'
-#load_from = None
+  #load_from = './checkpoints/sfd/_d_May6_XYDAsinAsinSin2Z0Z1_wabeco.pth'
+  #load_from = './checkpoints/sfd/_d_May6_XYDAsinAsinSin2Z0Z1.pth'
+  load_from = './checkpoints/sfd/_d_May6_XYDAsinAsinSin2Z0Z1_wa.pth'
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]

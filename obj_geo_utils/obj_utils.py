@@ -147,6 +147,9 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1'  and obj_rep_out == 'XYXYSin2WZ0Z1':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYXYSin2WZ0Z1(bboxes)
 
+    elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1'  and obj_rep_out == 'XYXYSin2W':
+      return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYXYSin2WZ0Z1(bboxes)[:,:6]
+
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'Rect4CornersZ0Z1':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_Rect4CornersZ0Z1(bboxes)
 
@@ -1208,7 +1211,6 @@ def test_3d():
 
 if __name__ == '__main__':
   #test_2d_XYDAsinAsinSin2Z0Z1()
-  test_4corners()
-
+  pass
 
 

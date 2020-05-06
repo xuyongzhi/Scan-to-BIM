@@ -2,6 +2,7 @@
 import torch, math
 import numpy as np
 import time
+np.set_printoptions(precision=3,suppress=True)
 
 '''
 Angle order:
@@ -348,7 +349,7 @@ def angle_of_2lines(line0, line1, scope_id=0):
   assert not np.any(np.isnan(angle))
   return angle
 
-def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  stage=None ):
+def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weights=None, bbox_gt=None):
   '''
   rect_corners: [batch_size, 4, h, w,2] or  [n,4,2]
   rect_center: [batch_size, 1, h, w,2] or  [n,1,2]
@@ -358,6 +359,8 @@ def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  sta
   box_out: [batch_size, 6, h, w],
   out_obj_rep: 'XYDAsinAsinSin2Z0Z1'
   '''
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_objs_ls_points_ls_torch
+
   record_t = 0
   if record_t:
     t0 = time.time()
@@ -377,14 +380,15 @@ def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  sta
   assert npts == 4
   assert d == 2
 
-  #if bbox_weights is not None:
-  #  assert bbox_weights.shape[0] == n
-  #  pos_inds = torch.nonzero(bbox_weights[:,0]).view(-1)
-  #  rect_corners = rect_corners[pos_inds]
-  #  if rect_center is not None:
-  #    rect_center = rect_center[pos_inds]
-  #  n0 = n
-  #  n = pos_inds.numel()
+  if bbox_weights is not None:
+    assert bbox_weights.shape[0] == n
+    pos_inds = torch.nonzero(bbox_weights[:,0]).view(-1)
+    rect_corners = rect_corners[pos_inds]
+    bbox_gt = bbox_gt[pos_inds]
+    if rect_center is not None:
+      rect_center = rect_center[pos_inds]
+    n0 = n
+    n = pos_inds.numel()
 
   if rect_center is not None:
     rect_cor_cen = torch.cat([rect_corners, rect_center], dim=1)
@@ -417,12 +421,12 @@ def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  sta
   # (3) get |cos(alpha)|, |sin(alpha)|
   #cos_corners = []
   sin_corners = []
-  diag_centers = []
+  central_corners = []
   for i,j in [ (0,1), (1,2), (2,3), (3,0), (0,2), (1,3)]:
     cos_i = (corners_nm[:,i] * corners_nm[:,j]).sum(-1)
-    diacen_i = (corners_nm[:,i] + corners_nm[:,j])/2
+    cen_cor_i = (corners_nm[:,i] + corners_nm[:,j])/2
     #cos_corners.append(cos_i[:,None])
-    diag_centers.append(diacen_i[:,None,:])
+    central_corners.append(cen_cor_i[:,None,:])
 
     ze = torch.zeros_like(corners_nm[:,0,0:1])
     vi = torch.cat([corners_nm[:,i], ze], dim=1)
@@ -431,7 +435,7 @@ def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  sta
     sin_corners.append( sin_i )
 
   #cos_corners = torch.cat(cos_corners, dim=-1)
-  diag_centers = torch.cat(diag_centers, dim=1)
+  central_corners = torch.cat(central_corners, dim=1)
   sin_corners = torch.cat(sin_corners, dim=-1)
 
   #out_cos_corners_abs_ave = cos_corners[:,:4].abs().mean(-1, keepdim=True)
@@ -440,17 +444,17 @@ def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  sta
   out_rec_loss_hwratio = sin_corners[:, 4:6].abs().mean(-1, keepdim=True)
 
   # (4) get theta
-  diacen_4pts = diag_centers[:,:4]
-  diacen_norm = diacen_4pts.norm(dim=-1)
-  is_02_long = diacen_norm[:,[0,2]].mean(1) > diacen_norm[:,[1,3]].mean(1)
+  central_corners = central_corners[:,:4]
+  cencor_norm = central_corners.norm(dim=-1)
+  is_02_long = cencor_norm[:,[0,2]].mean(1) > cencor_norm[:,[1,3]].mean(1)
   is_02_long = is_02_long.to(torch.float32)[:,None, None]
-  diacen_2pts_long_axis = diacen_4pts[:,[0,2]] * is_02_long + diacen_4pts[:,[1,3]] * (1-is_02_long)
-  diacen_norm_long_axis = diacen_norm[:,[0,2],None] * is_02_long + diacen_norm[:,[1,3],None] * (1-is_02_long)
-  diacen_2pts_long_axis = diacen_2pts_long_axis / diacen_norm_long_axis
+  diacen_2pts_long_axis = central_corners[:,[0,2]] * is_02_long + central_corners[:,[1,3]] * (1-is_02_long)
+  cencor_norm_long_axis = cencor_norm[:,[0,2],None] * is_02_long + cencor_norm[:,[1,3],None] * (1-is_02_long)
+  diacen_2pts_long_axis = diacen_2pts_long_axis / cencor_norm_long_axis
 
-  cos_theta_abs = diacen_2pts_long_axis[:,:,0].abs().mean(1, keepdim=True)
-  sin_theta_abs = diacen_2pts_long_axis[:,:,1].abs().mean(1, keepdim=True)
   sin2_theta = 2*(diacen_2pts_long_axis[:,:,0] * diacen_2pts_long_axis[:,:,1]).mean(1, keepdim=True)
+  sin_theta_abs = diacen_2pts_long_axis[:,:,1].abs().mean(1, keepdim=True)
+  #cos_theta_abs = diacen_2pts_long_axis[:,:,0].abs().mean(1, keepdim=True)
 
 
   center = center.squeeze(1)
@@ -472,13 +476,19 @@ def four_corners_to_box( rect_corners, rect_center=None, bbox_weights=None,  sta
   if input_ndim == 3:
     pass
 
-  #if bbox_weights is not None:
-  #  box_out_all = torch.zeros([n0,8], dtype=box_out.dtype, device=box_out.device)
-  #  box_out_all[pos_inds] = box_out
-  #  box_out = box_out_all
-  #  rect_loss_all = torch.zeros([n0,1], dtype=box_out.dtype, device=box_out.device)
-  #  rect_loss_all[pos_inds] = rect_loss
-  #  rect_loss = rect_loss_all
+  if bbox_weights is not None:
+    if n>0 and 0:
+      rect_corners = (corners + center[:,None]).reshape(-1,2)
+      _show_objs_ls_points_ls_torch( (512,512), [box_out, bbox_gt], 'XYDAsinAsinSin2Z0Z1', [rect_corners], obj_colors=['green','red'], point_colors='blue' )
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+    box_out_all = torch.zeros([n0,8], dtype=box_out.dtype, device=box_out.device)
+    box_out_all[pos_inds] = box_out
+    box_out = box_out_all
+    rect_loss_all = torch.zeros([n0,1], dtype=box_out.dtype, device=box_out.device)
+    rect_loss_all[pos_inds] = rect_loss
+    rect_loss = rect_loss_all
+    pass
 
 
   if record_t:
@@ -552,9 +562,81 @@ def test_rotation_order():
 
   pass
 
-def test_four_corners_to_box():
+
+def test_4corners():
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  u = np.pi/180
+  #XYDAsinAsinSin2Z0Z1 = np.array([
+  #  [200, 300, 100, 0.707, 1, 0, 0, 0 ],
+  #])
+
+
+  XYZLgWsHA = np.array([
+    [200, 300, 0, 100, 20, 0, -45*u ],
+  ])
+  XYDAsinAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj( XYZLgWsHA, 'XYZLgWsHA', 'XYDAsinAsinSin2Z0Z1' )
+  n = XYDAsinAsinSin2Z0Z1.shape[0]
+
+  Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYDAsinAsinSin2Z0Z1, 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1').reshape(n, 4, 2)
+  print('Rect4CornersZ0Z1\n', Rect4CornersZ0Z1)
+  corners = Rect4CornersZ0Z1
+
+  #corners = np.array(
+  # [[219.131, 346.195],
+  #  [180.869, 346.195],
+  #  [180.869, 253.805],
+  #  [219.131, 253.805]])[None,:,:]
+
+  XYDAsinAsinSin2Z0Z1_1, rect_loss = four_corners_to_box( torch.from_numpy( corners ) )
+  XYDAsinAsinSin2Z0Z1_1 = XYDAsinAsinSin2Z0Z1_1.numpy()
+
+  XYDAsinAsinSin2Z0Z1_2, rect_loss = four_corners_to_box( torch.from_numpy( corners[:,[2,1,0,3]] ) )
+  XYDAsinAsinSin2Z0Z1_2 = XYDAsinAsinSin2Z0Z1_2.numpy()
+
+  XYDAsinAsinSin2Z0Z1_3, rect_loss = four_corners_to_box( torch.from_numpy( corners[:,[2,0,3,1]] ) )
+  XYDAsinAsinSin2Z0Z1_3 = XYDAsinAsinSin2Z0Z1_3.numpy()
+  err = np.max(np.abs(XYDAsinAsinSin2Z0Z1_3 - XYDAsinAsinSin2Z0Z1))
+  print(f'err:{err}')
+
+  _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_1], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2)], point_colors=['green'])
+  _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_2], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2)], point_colors=['green'])
+  _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_3], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2)], point_colors=['green'])
+  #for i in range(4):
+  #  _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_1], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+
+def test_4corners_1():
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  u = np.pi/180
+  XYZLgWsHA = np.array([
+    [200, 300, 0, 100, 20, 0, -45*u ],
+    [200, 200, 0, 200, 30, 0, 45*u ],
+    [300, 300, 0, 200, 200, 0, 80*u ],
+  ])
+  n = XYZLgWsHA.shape[0]
+  Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1').reshape(n, 4, 2)
+  XYDAsinAsinSin2Z0Z1, rect_loss = four_corners_to_box( torch.from_numpy( Rect4CornersZ0Z1 ) )
+  XYDAsinAsinSin2Z0Z1 = XYDAsinAsinSin2Z0Z1.numpy()
+  print('XYDAsinAsinSin2Z0Z1\n', XYDAsinAsinSin2Z0Z1)
+  rect_loss = rect_loss.numpy()
+  assert np.max(np.abs(rect_loss)) < 1e-5
+
+  XYDAsinAsinSin2Z0Z1_c = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYDAsinAsinSin2Z0Z1')
+  err = XYDAsinAsinSin2Z0Z1_c - XYDAsinAsinSin2Z0Z1
+  merr = np.max(np.abs(err))
+  print(f'err: {merr}\n{err}')
+  if not merr < 1e-7:
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+  pass
+
+  for i in range(4):
+    #_show_objs_ls_points_ls( (512,512), [XYZLgWsHA], 'XYZLgWsHA', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+    _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+    _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_c], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
   pass
 
 if __name__ == '__main__':
-  test()
+  test_4corners()
 
