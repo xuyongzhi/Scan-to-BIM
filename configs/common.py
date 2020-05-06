@@ -165,4 +165,4 @@ class DEBUG_CFG:
 
 
 class NetParameters:
-  fpn_level_wh_scale_factor = 0.3
+  fpn_level_wh_scale_factor = 0.5

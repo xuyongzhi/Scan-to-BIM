@@ -2023,16 +2023,15 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
             # This is very important. Without the loss weight, the net will not
             # converge.
             #rotation_weight = bbox_gt_init_nm[:, Dl].view(-1,1) * 1
-            rotation_weight = bbox_weights_init[:, Asin]
             loss_pts_init_asin = loss_bbox_fun(
               bbox_pred_init_nm[:,[Asin]],
               bbox_gt_init_nm[:,  [Asin]],
-              rotation_weight,
+              bbox_weights_init[:,[Asin]],
               avg_factor=num_total_samples_init)
             loss_pts_init_sin2 = loss_bbox_fun(
               bbox_pred_init_nm[:,[Sin2]],
               bbox_gt_init_nm[:,  [Sin2]],
-              rotation_weight,
+              bbox_weights_init[:,[Sin2]],
               avg_factor=num_total_samples_init)
 
             loss_pts_init_asin *= 10
