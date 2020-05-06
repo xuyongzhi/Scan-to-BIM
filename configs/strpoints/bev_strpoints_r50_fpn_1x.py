@@ -37,9 +37,8 @@ elif _obj_rep == 'XYLgWsAbsSin2Z0Z1':
   #_transform_method='XYLgWsAbsSin2Z0Z1'
 elif _obj_rep == 'XYXYSin2WZ0Z1':
   _transform_method='moment_XYXYSin2WZ0Z1'
-  _transform_method = '4corners'
 elif _obj_rep == 'XYDAsinAsinSin2Z0Z1':
-  _transform_method = '4corners'
+  _transform_method = '4corners_to_rect'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 

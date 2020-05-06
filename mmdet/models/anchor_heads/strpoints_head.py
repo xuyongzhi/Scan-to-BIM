@@ -104,7 +104,7 @@ class StrPointsHead(nn.Module):
         self.line_constrain_loss = True
         self.obj_rep = obj_rep
         if obj_rep == 'XYXYSin2WZ0Z1':
-            if transform_method == '4corners':
+            if transform_method == '4corners_to_rect':
               self.box_extra_dims = 2
             else:
               assert transform_method == 'moment_XYXYSin2WZ0Z1'
@@ -118,7 +118,7 @@ class StrPointsHead(nn.Module):
               self.box_extra_dims = 8
             self.line_constrain_loss = False
         elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
-            assert transform_method == '4corners'
+            assert transform_method == '4corners_to_rect'
             self.box_extra_dims = 2
 
         self.dim_parse = DIM_PARSE(self.obj_rep, num_classes)
@@ -469,7 +469,7 @@ class StrPointsHead(nn.Module):
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
 
-        elif self.transform_method == '4corners':
+        elif self.transform_method == '4corners_to_rect':
             assert box_extra.shape[1] == 2
             # pt_0: center
             # pt_1,2,3,4: the four corners
