@@ -188,11 +188,12 @@ def update_config(cfg, args, split):
           #  cfg['work_dir'] += '_' + str(cfg['IMAGE_SIZE'])
           #if 'TOPVIEW' in cfg:
           #  cfg['work_dir'] += '_' + cfg['TOPVIEW']
-          if 'rotate_ratio' in cfg['train_pipeline'][4]:
-            if cfg['train_pipeline'][4]['rotate_ratio'] == 0:
-              cfg['work_dir'] += '_NR'
+          if 'rotate_ratio' in cfg['train_pipeline'][5]:
+            if cfg['train_pipeline'][5]['rotate_ratio'] == 0:
+              cfg['work_dir'] += '_NR_'
             else:
-              cfg['work_dir'] += '_RA'
+              pass
+              #cfg['work_dir'] += '_RA'
           #if 'method' in cfg['img_norm_cfg']:
           #  cfg['work_dir'] += '_Norm' + cfg['img_norm_cfg']['method']
 
