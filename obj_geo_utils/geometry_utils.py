@@ -349,6 +349,44 @@ def angle_of_2lines(line0, line1, scope_id=0):
   assert not np.any(np.isnan(angle))
   return angle
 
+def sort_four_corners( pred_corners, pred_center=None ):
+  '''
+  pred_corners: [batch_size, 4, h, w,2] or  [n,4,2]
+  '''
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_objs_ls_points_ls_torch
+  input_ndim = pred_corners.ndim
+  assert input_ndim == 5 or input_ndim == 3
+  if input_ndim == 5:
+    bs, npts, h, w, d = pred_corners.shape
+    n = bs*h*w
+    pred_corners = pred_corners.permute(0,2,3,1,4).reshape(n, npts, 2)
+    if pred_center is not None:
+      assert pred_center.shape == (bs, 1, h, w, d)
+      pred_center = pred_center.permute(0,2,3,1,4).reshape(n, 1, 2)
+  else:
+    n, npts, d = pred_corners.shape
+    if pred_center is not None:
+      assert pred_center.shape == (n, 1, d)
+  assert npts == 4
+  assert d == 2
+
+  if pred_center is not None:
+    pred_cor_cen = torch.cat([pred_corners, pred_center], dim=1)
+    center = pred_cor_cen.mean(dim=1, keepdim=True)
+    pred_center_err = pred_center - center
+    out_rect_loss_cen = (pred_center_err).abs().mean(dim=-1)
+  else:
+    center = pred_corners.mean(dim=1, keepdim=True)
+
+  corners = pred_corners - center
+
+  angles = angle_with_x(corners.detach().reshape(n*4,2), scope_id=3) # (0, pi*2]
+  angles = angles.reshape(n,4)
+  angles_s, sort_ids = angles.sort(dim=1)
+  corners_new = torch.gather(corners, 1, sort_ids[:,:,None].repeat(1,1,2))
+  corners_new += center
+  return corners_new
+
 def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weights=None, bbox_gt=None):
   '''
   rect_corners: [batch_size, 4, h, w,2] or  [n,4,2]
@@ -637,6 +675,33 @@ def test_4corners_1():
     _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_c], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
   pass
 
+def test_sort_corners():
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+  corners_raw = np.array([[
+    [10, 20],
+    [200, 20],
+    [30, 500],
+    [400, 400]
+  ]]).astype(np.float32)
+  corners_raw = np.array([[
+    [10, 20],
+    [200, 20],
+    [420, 500],
+    [400, 400]
+  ]]).astype(np.float32)
+  corners_raw = corners_raw[:,[1,3,0,2]]
+  corners_raw_t = torch.from_numpy(corners_raw)
+  corners_sort = sort_four_corners(corners_raw_t).numpy()
+
+  #pts_raw = np.concatenate([corners_raw, corners_raw], -1).reshape(-1,4)
+  #pts_sort = np.concatenate([corners_sort, corners_sort], -1).reshape(-1,4)
+  ids_raw = np.arange(4)
+  ids_sort = np.arange(4)
+  _show_objs_ls_points_ls( (512,512), points_ls = [corners_raw.reshape(-1,2)], point_scores_ls=[ids_raw], point_thickness=3 )
+  _show_objs_ls_points_ls( (512,512), points_ls = [corners_sort.reshape(-1,2)], point_scores_ls=[ids_raw], point_thickness=3 )
+  pass
+
 if __name__ == '__main__':
-  test_4corners()
+  #test_4corners()
+  test_sort_corners()
 

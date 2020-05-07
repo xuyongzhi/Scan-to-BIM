@@ -482,6 +482,8 @@ class StrPointsHead(nn.Module):
 
             pass
 
+        elif self.transform_method == 'sort_4corners':
+
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
             assert self.box_extra_dims == 3 and box_extra.shape[1] == self.box_extra_dims
             if not box_extra.shape[2:] == pts_x.shape[2:]:

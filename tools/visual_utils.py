@@ -50,6 +50,7 @@ def _show_objs_ls_points_ls(img,
                             obj_colors='random',
                             obj_scores_ls=None,
                             point_colors='red',
+                            point_scores_ls=None,
                             out_file=None,
                             obj_thickness=1,
                             point_thickness=1,
@@ -61,7 +62,8 @@ def _show_objs_ls_points_ls(img,
   assert obj_rep in OBJ_REPS_PARSE._obj_reps
   img = _draw_objs_ls_points_ls(img, objs_ls, obj_rep, points_ls, obj_colors,
       point_colors=point_colors, out_file=out_file, obj_thickness=obj_thickness,
-      point_thickness=point_thickness, obj_scores_ls=obj_scores_ls )
+      point_thickness=point_thickness, obj_scores_ls=obj_scores_ls,
+      point_scores_ls=point_scores_ls)
   if not only_save:
     mmcv.imshow(img)
 
@@ -75,6 +77,7 @@ def _draw_objs_ls_points_ls(img,
                             obj_thickness=1,
                             point_thickness=1,
                             obj_scores_ls=None,
+                            point_scores_ls=None,
                             obj_cats_ls=None,
                             text_colors_ls='green',
                             ):
@@ -97,6 +100,8 @@ def _draw_objs_ls_points_ls(img,
       point_colors = [point_colors] * len(points_ls)
     if not isinstance(point_thickness, list):
       point_thickness = [point_thickness] * len(points_ls)
+    if not isinstance(point_scores_ls, list):
+      point_scores_ls = [point_scores_ls] * len(points_ls)
 
   img = _read_img(img)
   if objs_ls is not None:
@@ -110,18 +115,33 @@ def _draw_objs_ls_points_ls(img,
 
   if points_ls is not None:
     for i, points in enumerate(points_ls):
-      img = _draw_points(img, points, point_colors[i], point_thickness[i])
+      img = _draw_points(img, points, point_colors[i], point_thickness[i], point_scores=point_scores_ls[i])
   if out_file is not None:
     mmcv.imwrite(img, out_file)
     print('\n',out_file)
   return img
 
-def _draw_points(img, points, color, point_thickness):
+def _draw_points(img, points, color, point_thickness, point_scores=None, font_scale=0.5, text_color='green'):
     points = np.round(points).astype(np.int32)
+    h, w = img.shape[:2]
+    text_color = _get_color(text_color)
     for i in range(points.shape[0]):
       p = points[i]
       c = _get_color(color)
       cv2.circle(img, (p[0], p[1]), 2, c, thickness=point_thickness)
+
+      if point_scores is not None:
+        try:
+          label_text = '{:d}'.format(point_scores[i]) # score
+          #label_text = '{:.01f}'.format(point_scores[i]) # score
+        except:
+          label_text = str(point_scores[i]) # score
+
+        ofs = 10
+        x = min(max(p[0] - 2, ofs), w-ofs)
+        y = min(max(p[1] - 4, ofs), h-ofs)
+        cv2.putText(img, label_text, (x, y),
+                    cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
     return img
 
 
