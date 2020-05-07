@@ -264,7 +264,7 @@ elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
   load_from = './checkpoints/sfd/_d_May7_4corners.pth'
   load_from = './checkpoints/sfd/_d_May7_4corners_2.pth'
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
