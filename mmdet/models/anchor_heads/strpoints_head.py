@@ -13,7 +13,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
-from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box, align_four_corners
+from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box, sort_four_corners, align_pred_gt_bboxes
 #from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from tools import debug_utils
 from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
@@ -25,7 +25,7 @@ from configs.common import DIM_PARSE, DEBUG_CFG
 from tools.visual_utils import _show_objs_ls_points_ls_torch, _show_objs_ls_points_ls
 import time
 
-DEBUG = 0
+DEBUG = 1
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -123,6 +123,8 @@ class StrPointsHead(nn.Module):
         elif obj_rep == 'Rect4CornersZ0Z1':
             assert transform_method == 'sort_4corners'
             self.box_extra_dims = 2
+
+        self.line_constrain_loss = False
 
         self.dim_parse = DIM_PARSE(self.obj_rep, num_classes)
         self.obj_dim = self.dim_parse.OBJ_DIM
@@ -491,7 +493,10 @@ class StrPointsHead(nn.Module):
               gt_corners = bbox_gt[:,:8].reshape(-1,4,2)
             else:
               gt_corners = None
-            bbox, rect_loss = align_four_corners( pred_corners = pts_xy[:,1:5], pred_center = pts_xy[:,0:1], gt_corners =  gt_corners)
+            #t0 = time.time()
+            bbox, rect_loss = sort_four_corners( pred_corners = pts_xy[:,1:5], pred_center = pts_xy[:,0:1])
+            #t = time.time() - t0
+            #print(f'\n\t sort t:{t}')
             z0z1 = box_extra * 0
             bbox = torch.cat([bbox, z0z1], dim=1)
             if out_line_constrain:
@@ -1004,6 +1009,10 @@ class StrPointsHead(nn.Module):
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,4] = bbox_pred_refine[:,4]
           bbox_gt_refine_nm[:,4] = bbox_gt_refine[:,4]
+          #bbox_pred_refine_nm[:, self.obj_dim] = bbox_pred_refine[:, self.obj_dim]
+        elif self.obj_rep == 'Rect4CornersZ0Z1':
+          bbox_pred_refine_nm = bbox_pred_refine / normalize_term
+          bbox_gt_refine_nm = bbox_gt_refine / normalize_term
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
@@ -1014,6 +1023,7 @@ class StrPointsHead(nn.Module):
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,[AsinCor, Asin, Sin2]] = bbox_pred_refine[:,[AsinCor, Asin, Sin2]]
           bbox_gt_refine_nm[:,[AsinCor, Asin, Sin2]] = bbox_gt_refine[:,[AsinCor, Asin, Sin2]]
+
 
         loss_pts_refine = cal_loss_bbox('refine', self.obj_rep, self.loss_bbox_refine,
                                   bbox_pred_refine_nm, bbox_gt_refine_nm,
@@ -1327,11 +1337,11 @@ class StrPointsHead(nn.Module):
         if self.corner_hm:
           loss_dict_all.update(loss_corner_hm)
 
-        if DEBUG and 0:
+        if DEBUG and 1:
           loss_dict_all_new = {}
           #for e in ['loss_ptsR', 'loss_clsF']:
           for e in loss_dict_all.keys():
-            if 'asin'  in e:
+            if 'I'  in e:
               loss_dict_all_new[e] =   loss_dict_all[e]
           return loss_dict_all_new
         return loss_dict_all
@@ -1990,6 +2000,30 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
               loss_pts_init[f'loss_wd{s}'] = loss_pts_init_width
               #loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
 
+        elif obj_rep == 'Rect4CornersZ0Z1':
+          #t0 = time.time()
+          ids = torch.nonzero(bbox_weights_init[:,0]).squeeze().view(-1)
+          if ids.numel() > 0:
+            bbox_pred_init_nm_aligned = align_pred_gt_bboxes( bbox_pred_init_nm[ids][:,:10], bbox_gt_init_nm[ids], obj_rep )
+            bbox_pred_init_nm[ids] = torch.cat([bbox_pred_init_nm_aligned, bbox_pred_init_nm[ids][:,10:]], dim=1)
+          #t = time.time() - t0
+          #print(f'\n\t align t:{t}')
+          loss_pts_init_cor = loss_bbox_fun(
+            bbox_pred_init_nm[:, :8],
+            bbox_gt_init_nm  [:, :8],
+            bbox_weights_init[:, :8],
+            avg_factor=num_total_samples_init)
+          loss_pts_init_z = loss_bbox_fun(
+            bbox_pred_init_nm[:, 8:10],
+            bbox_gt_init_nm  [:, 8:10],
+            bbox_weights_init[:, 8:10],
+            avg_factor=num_total_samples_init)
+
+          loss_pts_init = {
+                f'loss_cor{s}': loss_pts_init_cor,
+          }
+          pass
+
         elif obj_rep == 'XYLgWsAsinSin2Z0Z1' or obj_rep == 'XYLgWsAbsSin2Z0Z1':
             Xc, Yc, Lg, Ws, Asin, Sin2, Z0, Z1 = range(8)
 
@@ -2135,7 +2169,7 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
   pts_pred = pts_pred[inds].cpu().data.numpy().reshape(-1,2)
 
   errs = bbox_pred_ - bbox_gt_
-  print(f'obj_rep:{obj_rep}\nerr:{errs}')
+  print(f'obj_rep:{obj_rep}\nerr:\n{errs}')
   print(f'bbox_pred_:\n{bbox_pred_}')
   print(f'bbox_gt_:\n{bbox_gt_}')
 
@@ -2144,7 +2178,6 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
                           points_ls = [pts_pred], point_colors='blue', point_thickness=2,
                           obj_colors=['red', 'green'], obj_thickness=[2,1])
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_nms_out(det_bboxes, det_labels, num_classes):

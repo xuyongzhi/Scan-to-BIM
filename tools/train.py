@@ -18,7 +18,7 @@ from mmdet.models import build_detector
 import shutil
 import numpy as np
 
-#torch.autograd.set_detect_anomaly(True)
+torch.autograd.set_detect_anomaly(True)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')

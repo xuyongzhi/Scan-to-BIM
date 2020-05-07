@@ -843,7 +843,8 @@ class OBJ_REPS_PARSE():
 
     rect_4corners = np.concatenate([corner0, corner1, corner2, corner3], axis=1)
     tmp = torch.from_numpy( rect_4corners.reshape(n, 4, 2) )
-    rect_4corners = sort_four_corners(tmp).reshape(n, 8).numpy()
+    rect_4corners, _ = sort_four_corners(tmp)
+    rect_4corners = rect_4corners.reshape(n, 8).numpy()
 
     bboxes = np.concatenate([rect_4corners, bboxes[:,6:8]], -1)
     return bboxes

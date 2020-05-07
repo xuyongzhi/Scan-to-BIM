@@ -100,6 +100,7 @@ class PointAssigner(BaseAssigner):
           assert gt_bboxes.shape[1] == 10
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 10
+          gt_bboxes_raw = gt_bboxes.clone()
           XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(gt_bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
           gt_bboxes_xy = XYZLgWsHA[:,:2]
           gt_bboxes_wh = XYZLgWsHA[:,3:4].repeat(1,2) * level_fac
