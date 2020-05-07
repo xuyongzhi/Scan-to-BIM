@@ -262,7 +262,8 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-  load_from = './checkpoints/sfd/Rect4CornersZ0Z1_1.pth'
+  load_from = './checkpoints/sfd/Rect4CornersZ0Z1_R.pth'
+  #load_from = './checkpoints/sfd/Rect4CornersZ0Z1_NR.pth'
 load_from = None
 resume_from = None
 auto_resume = True
