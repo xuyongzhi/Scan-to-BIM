@@ -242,7 +242,9 @@ class PointAssigner(BaseAssigner):
               if is_gt_out_scope.all():
                 print('\n\tthe missed gts are out of scope\n')
               else:
-                assert False, "miss gt"
+                import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                pass
+                #assert False, "miss gt"
             if 1:
               pos_points = points[:,:2][pos_inds].cpu().data.numpy().reshape(-1,2)
               h = points_scope[1] + 100

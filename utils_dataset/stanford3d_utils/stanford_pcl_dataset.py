@@ -17,6 +17,8 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 SMALL_DATA = 1
 NO_LONG = 1
 
+BAD_INSTANCES = ['Area_3/office_7']
+
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
 _raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
                   'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
@@ -60,12 +62,15 @@ class Stanford_CLSINFO(object):
 class Stanford_Ann():
   EASY = ['Area_1/office_16']
   LONG = ['Area_1/hallway_2', 'Area_1/hallway_6' , 'Area_3/hallway_1' , 'Area_3/hallway_4' , 'Area_5/hallway_2' , 'Area_5/hallway_1']
-  UNALIGNED = ['Area_2/storage_9','Area_2/hallway_11',  'Area_2/auditorium_1',
+  UNALIGNED = ['Area_2/storage_9','Area_2/hallway_11',  'Area_2/auditorium_1', 'Area_2/auditorium_2',
                'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
-  SAMPLES1 = ['Area_3/office_7']
+  SAMPLES1 = ['Area_2/auditorium_1']
+  DIFFICULT = ['Area_2/auditorium_2']
   WithColum = ['Area_5/conferenceRoom_2']
   BadColum = ['Area_5/conferenceRoom_1']
+
+  ALIGN_GOOD = ['Area_2/conferenceRoom_1']
 
   GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']+\
                       ['Area_3/office_7']
@@ -91,9 +96,9 @@ class Stanford_Ann():
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
-      data_paths = [f+'.ply' for f in self.GoodSamples_Area5]
+      data_paths = [f+'.ply' for f in self.DIFFICULT]
       #data_paths = [f+'.ply' for f in self.BadColum]
-      data_paths = [f+'.ply' for f in self.SAMPLES1]
+      #data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
 
     if NO_LONG:
@@ -209,11 +214,13 @@ class Stanford_Ann():
     _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
     _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
 
-    gt_bboxes_3d_raw[:,:4] /= 0.02
-    corners /= 0.02
+    assert self.obj_rep == 'XYXYSin2WZ0Z1'
+    sin2 = gt_bboxes_3d_raw[:,4].copy()
+    gt_bboxes_3d_raw /= 0.01
+    gt_bboxes_3d_raw[:,4] = sin2
+    corners /= 0.01
     obj_cats = np.array(kp_cats)[gt_labels]
-    _show_objs_ls_points_ls((512,512), [gt_bboxes_3d_raw], self.obj_rep, points_ls=[corners], obj_scores_ls=[obj_cats])
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    _show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], self.obj_rep, points_ls=[corners], obj_scores_ls=[obj_cats])
     pass
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
@@ -584,7 +591,7 @@ def main3d():
   obj_rep = 'XYXYSin2WZ0Z1'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
   img_prefix = './train.txt'
-  img_prefix = './test.txt'
+  #img_prefix = './test.txt'
   classes = Stanford_CLSINFO.classes_order
   max_num_points = 50 * 1e4
   max_num_points = None
