@@ -226,7 +226,6 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
 
 
 def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
-  angle = 30
   if obj_rep != 'XYXYSin2':
     XYXYSin2W = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'XYXYSin2W')
     lines = XYXYSin2W[:,:5]
@@ -239,36 +238,9 @@ def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
 
   width = XYXYSin2W[:,5:6] * scale
   r_XYXYSin2W = np.concatenate([ rotate_lines, width ], axis=1)
-
-  if obj_rep == 'XYXYSin2WZ0Z1':
-    rotated_bboxes = np.concatenate([rotate_lines, bboxes[:,5:8]], axis=1)
-    rotated_bboxes[:,5] *= scale
-  elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
-    XYXYSin2WZ0Z1 = np.concatenate([ r_XYXYSin2W, bboxes[:,6:] ], axis=1)
-    rotated_bboxes = OBJ_REPS_PARSE.encode_obj( XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', obj_rep)
-  elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
-    rotated_bboxes = OBJ_REPS_PARSE.encode_obj(rotate_lines, 'XYXYSin2', obj_rep)
-    rotated_bboxes[:, [6,7]] = bboxes[:, [6,7]]
-    scales = bboxes[:, 2] / rotated_bboxes[:,2]
-    if not abs(scales.min() - scales.max()) < 1e-4:
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
-    scale = scales.mean()
-    rotated_bboxes[:, 3] = bboxes[:, 3] * scale
-    pass
-  elif obj_rep == 'XYLgWsAsinSin2Z0Z1':
-    rotated_bboxes = OBJ_REPS_PARSE.encode_obj(rotate_lines, 'XYXYSin2', obj_rep)
-    rotated_bboxes[:, [6,7]] = bboxes[:, [6,7]]
-    scales = bboxes[:, 2] / rotated_bboxes[:,2]
-    if not abs(scales.min() - scales.max()) < 1e-4:
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
-    scale = scales.mean()
-    rotated_bboxes[:, 3] = bboxes[:, 3] * scale
-    pass
-  else:
-    raise NotImplementedError
-
+  if obj_rep == 'Rect4CornersZ0Z1':
+    XYXYSin2WZ0Z1 = np.concatenate([ r_XYXYSin2W, bboxes[:,[-2,-1]] ], axis=1)
+  rotated_bboxes = OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', obj_rep)
   rotated_bboxes = rotated_bboxes.astype(np.float32)
   show = 0
   if show:
@@ -279,6 +251,7 @@ def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
 def rotate_lines_img(lines, img, angle,  obj_rep, debug_rotation=0):
   '''
   The img sizes of input  and output are the same.
+  angle in degree
   '''
   assert obj_rep == 'XYXYSin2'
   assert img.ndim == 3

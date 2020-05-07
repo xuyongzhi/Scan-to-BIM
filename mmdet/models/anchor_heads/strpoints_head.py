@@ -13,7 +13,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
-from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box
+from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box, sort_four_corners
 #from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from tools import debug_utils
 from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
@@ -119,6 +119,9 @@ class StrPointsHead(nn.Module):
             self.line_constrain_loss = False
         elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
             assert transform_method == '4corners_to_rect'
+            self.box_extra_dims = 2
+        elif obj_rep == 'Rect4CornersZ0Z1':
+            assert transform_method == 'sort_4corners'
             self.box_extra_dims = 2
 
         self.dim_parse = DIM_PARSE(self.obj_rep, num_classes)
@@ -483,6 +486,9 @@ class StrPointsHead(nn.Module):
             pass
 
         elif self.transform_method == 'sort_4corners':
+            bbox, rect_loss = sort_4corners( pred_corners = pts[:,1:5], pred_center = pts[:,0:1] )
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
 
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
             assert self.box_extra_dims == 3 and box_extra.shape[1] == self.box_extra_dims

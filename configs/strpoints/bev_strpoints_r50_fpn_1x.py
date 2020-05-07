@@ -21,7 +21,8 @@ classes= ['wall']
 _obj_rep = 'XYXYSin2'
 _obj_rep = 'XYXYSin2WZ0Z1'
 _obj_rep = 'XYDAsinAsinSin2Z0Z1'
-#_obj_rep = 'XYLgWsAbsSin2Z0Z1'
+_obj_rep = 'XYZLgWsHA'
+_obj_rep = 'Rect4CornersZ0Z1'
 
 num_ps_long_axis = 9
 #overlap_fun='dil_iou_dis'
@@ -39,6 +40,8 @@ elif _obj_rep == 'XYXYSin2WZ0Z1':
   _transform_method='moment_XYXYSin2WZ0Z1'
 elif _obj_rep == 'XYDAsinAsinSin2Z0Z1':
   _transform_method = '4corners_to_rect'
+elif _obj_rep == 'Rect4CornersZ0Z1':
+  _transform_method = 'sort_4corners'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 

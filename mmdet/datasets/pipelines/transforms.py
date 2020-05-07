@@ -138,6 +138,11 @@ class ResizeImgLine(object):
               bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, img_shape[1] - 1)
               bboxes[:, 1:4:2] = np.clip(bboxes[:, 1:4:2], 0, img_shape[0] - 1)
               results[key][:,:4] = bboxes
+            elif self.obj_rep == 'Rect4CornersZ0Z1':
+              bboxes = results[key][:,:8] * results['scale_factor']
+              bboxes[:, 0:8:2] = np.clip(bboxes[:, 0:8:2], 0, img_shape[1] - 1)
+              bboxes[:, 1:9:2] = np.clip(bboxes[:, 1:9:2], 0, img_shape[0] - 1)
+              results[key][:,:8] = bboxes
             elif self.obj_rep == 'XYXYSin2WZ0Z1':
               bboxes = results[key][:,:4] * results['scale_factor']
               bboxes[:, 0:4:2] = np.clip(bboxes[:, 0:4:2], 0, img_shape[1] - 1)
@@ -441,7 +446,7 @@ class RandomLineFlip(object):
         if flip_ratio is not None:
             assert flip_ratio >= 0 and flip_ratio <= 1
         assert direction in ['horizontal', 'vertical', 'random']
-        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1']
+        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1']
 
     def bbox_flip(self, bboxes, img_shape, direction, obj_rep):
         """Flip bboxes horizontally.
@@ -454,6 +459,8 @@ class RandomLineFlip(object):
           return self.bbox_flip_scope(bboxes, img_shape, direction)
         elif obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
           return self.bbox_flip_XYXYSin2(bboxes, img_shape, direction, obj_rep)
+        elif obj_rep == 'Rect4CornersZ0Z1':
+          return self.bbox_flip_Rect4CornersZ0Z1(bboxes, img_shape, direction, obj_rep)
         elif self.obj_rep=='XYLgWsAbsSin2Z0Z1' or self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
           return self.bbox_flip_XYLgWsAbsSin2Z0Z1(bboxes, img_shape, direction)
         elif obj_rep == 'XYLgWsSin2Sin4Z0Z1':
@@ -463,6 +470,24 @@ class RandomLineFlip(object):
         else:
           raise NotImplementedError
 
+    def bbox_flip_Rect4CornersZ0Z1(self, bboxes, img_shape, direction, obj_rep):
+        assert obj_rep == 'Rect4CornersZ0Z1'
+        flipped = bboxes.copy()
+        if direction == 'horizontal':
+            w = img_shape[1]
+            flipped[..., 0:8:2] = w - bboxes[..., 0:8:2] - 1
+        elif direction == 'vertical':
+            h = img_shape[0]
+            flipped[..., 1:9:2] = h - bboxes[..., 1:9:2] - 1
+        else:
+            raise ValueError(
+                'Invalid flipping direction "{}"'.format(direction))
+        flipped = OBJ_REPS_PARSE.update_corners_order( flipped, obj_rep )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        #mask = (np.abs(flipped[:,-1]) >2).reshape(-1,1)
+        #flipped = flipped - mask * flipped * 2
+        #print('\nflipped\n')
+        return flipped
     def bbox_flip_XYLgWsAbsSin2Z0Z1(self, bboxes, img_shape, direction):
         assert bboxes.shape[-1] == 8
         flipped = bboxes.copy()
@@ -674,7 +699,7 @@ class PadToSameHW_ForRotation(object):
         self.obj_rep = obj_rep
         self.pad_val = pad_val
         self.pad_border_make_bboxes_pos = pad_border_make_bboxes_pos
-        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1']
+        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1']
 
     def _pad_img(self, results):
         #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], 'XYXYSin2')
@@ -702,6 +727,9 @@ class PadToSameHW_ForRotation(object):
         if self.obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
           gt_bboxes[:,[0,2]] += wpad0
           gt_bboxes[:,[1,3]] += hpad0
+        elif self.obj_rep == 'Rect4CornersZ0Z1':
+          gt_bboxes[:,0:8:2] += wpad0
+          gt_bboxes[:,1:9:2] += hpad0
         elif self.obj_rep == 'XYLgWsAbsSin2Z0Z1' or self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
           gt_bboxes[:,0] += wpad0
           gt_bboxes[:,1] += hpad0
@@ -1335,7 +1363,7 @@ class RandomRotate(object):
         self.obj_rep = obj_rep
         if rotate_ratio is not None:
             assert rotate_ratio >= 0 and rotate_ratio <= 1
-        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1']
+        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1']
 
     def __call__(self, results):
         if 'rotate' not in results:

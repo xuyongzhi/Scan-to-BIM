@@ -510,6 +510,8 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
       rotation = gt_bboxes[:,3:6].copy()
       gt_bboxes /= voxel_size_prj
       gt_bboxes[:,3:6] = rotation
+    elif obj_rep == 'Rect4CornersZ0Z1':
+      gt_bboxes /= voxel_size_prj
     else:
       raise NotImplementedError
     anno['voxel_size_prj'] = voxel_size_prj

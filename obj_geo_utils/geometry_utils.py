@@ -504,12 +504,12 @@ def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weig
   box_out = torch.cat([ center, out_diag_leng_ave, out_sin_corners_abs_ave, sin_theta_abs, sin2_theta  ], dim=1)
 
   # From  XYDAsinAsinSin2Z0Z1 to out_obj_rep
-  z0z1 = torch.zeros_like(box_out[:,:2])
-  box_out = torch.cat([box_out, z0z1], dim=1)
+  #z0z1 = torch.zeros_like(box_out[:,:2])
+  #box_out = torch.cat([box_out, z0z1], dim=1)
   #box_out = OBJ_REPS_PARSE.encode_obj( box_out, 'XYDAsinAsinSin2Z0Z1', out_obj_rep )
 
   if input_ndim == 5:
-    box_out = box_out.reshape(bs, h, w, 8).permute(0, 3, 1, 2)
+    box_out = box_out.reshape(bs, h, w, 6).permute(0, 3, 1, 2)
     rect_loss = rect_loss.reshape(bs, h, w, 1).permute(0, 3, 1, 2)
   if input_ndim == 3:
     pass
@@ -673,6 +673,7 @@ def test_4corners_1():
     #_show_objs_ls_points_ls( (512,512), [XYZLgWsHA], 'XYZLgWsHA', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
     _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
     _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_c], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def test_sort_corners():

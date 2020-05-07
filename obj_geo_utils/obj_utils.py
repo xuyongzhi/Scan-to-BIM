@@ -5,7 +5,7 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
       vec_from_angle_with_x_np, angle_with_x
 import cv2
 import torch
-from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box
+from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box, sort_four_corners
 
 
 class OBJ_REPS_PARSE():
@@ -55,7 +55,7 @@ class OBJ_REPS_PARSE():
 
     'XYDAsinAsinSin2Z0Z1': 8,
 
-    'Rect4CornersZ0Z1': 8,
+    'Rect4CornersZ0Z1': 10,
 
   }
   _obj_reps = _obj_dims.keys()
@@ -150,14 +150,42 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1'  and obj_rep_out == 'XYXYSin2W':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYXYSin2WZ0Z1(bboxes)[:,:6]
 
+    # Rect4CornersZ0Z1 -------------------------------------------------------------------
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'Rect4CornersZ0Z1':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_Rect4CornersZ0Z1(bboxes)
 
-    # extra  -------------------------------------------------------------------
+    elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYDAsinAsinSin2Z0Z1':
+      bboxes_t = torch.from_numpy(bboxes[:,:8].reshape(-1,4,2))
+      XYDAsinAsinSin2, rect_loss = four_corners_to_box(bboxes_t)
+      XYDAsinAsinSin2 = XYDAsinAsinSin2.numpy()
+      XYDAsinAsinSin2Z0Z1 = np.concatenate([XYDAsinAsinSin2, bboxes[:,8:10]], -1)
+      return XYDAsinAsinSin2Z0Z1
+
+    elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYZLgWsHA':
+      XYDAsinAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYDAsinAsinSin2Z0Z1')
+      return OBJ_REPS_PARSE.encode_obj(XYDAsinAsinSin2Z0Z1, 'XYDAsinAsinSin2Z0Z1', 'XYZLgWsHA')
+
+    elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYLgWsA':
+      XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
+      return XYZLgWsHA[:,[0,1,3,4,6]]
+
     elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Rect4CornersZ0Z1':
       XYDAsinAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYDAsinAsinSin2Z0Z1')
       return OBJ_REPS_PARSE.encode_obj(XYDAsinAsinSin2Z0Z1, 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1'  )
 
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'Rect4CornersZ0Z1':
+      XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
+      return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1')
+
+    elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'RoLine2D_2p':
+      XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
+      return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'RoLine2D_2p')
+
+    elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYXYSin2W':
+      XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
+      return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')[:,:6]
+
+    # extra  -------------------------------------------------------------------
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'XYLgWsA':
       XYLgWsAsinSin2Z0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYDAsinAsinSin2Z0Z1', 'XYLgWsAsinSin2Z0Z1')
       return OBJ_REPS_PARSE.encode_obj(XYLgWsAsinSin2Z0Z1, 'XYLgWsAsinSin2Z0Z1', 'XYLgWsA')
@@ -788,9 +816,10 @@ class OBJ_REPS_PARSE():
   @staticmethod
   def XYDAsinAsinSin2Z0Z1_TO_Rect4CornersZ0Z1(bboxes):
     '''
-    The 4 corners are stored in clock-wise order in img coordinate system.
-    The Oridinal one is random
+    The 4 corners are stored in clock-wise order in img coordinate system, starting from 0 to 2pi.
+    The order is same with geometry_utils.py / sort_four_corners
     '''
+    n = bboxes.shape[0]
     center = bboxes[:,:2]
     diag = bboxes[:,2:3]
     abs_sin_alpha = bboxes[:,3]
@@ -813,7 +842,11 @@ class OBJ_REPS_PARSE():
     corner3 = center + vec_2
 
     rect_4corners = np.concatenate([corner0, corner1, corner2, corner3], axis=1)
-    return rect_4corners
+    tmp = torch.from_numpy( rect_4corners.reshape(n, 4, 2) )
+    rect_4corners = sort_four_corners(tmp).reshape(n, 8).numpy()
+
+    bboxes = np.concatenate([rect_4corners, bboxes[:,6:8]], -1)
+    return bboxes
 
 class GraphUtils:
   @staticmethod
@@ -1159,34 +1192,39 @@ def test_2d_XYDAsinAsinSin2Z0Z1():
   _show_objs_ls_points_ls( (512,512), [XYZLgWsHA], 'XYZLgWsHA' )
   _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1], 'XYDAsinAsinSin2Z0Z1', points_ls=[corners])
 
-def test_4corners():
+def test_Rect4CornersZ0Z1():
+  from obj_geo_utils.line_operations import rotate_bboxes_img
   from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
   u = np.pi/180
   XYZLgWsHA = np.array([
-    [200, 300, 0, 100, 20, 0, -45*u ],
+    [200, 300, 0, 100, 0, 0, -45*u ],
     [200, 200, 0, 200, 30, 0, 45*u ],
     [300, 300, 0, 200, 200, 0, 80*u ],
   ])
   n = XYZLgWsHA.shape[0]
-  Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1').reshape(n, 4, 2)
-  XYDAsinAsinSin2Z0Z1, rect_loss = four_corners_to_box( torch.from_numpy( Rect4CornersZ0Z1 ) )
-  XYDAsinAsinSin2Z0Z1 = XYDAsinAsinSin2Z0Z1.numpy()
-  rect_loss = rect_loss.numpy()
-  assert np.max(np.abs(rect_loss)) < 1e-5
+  Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1')
+  corners4 = Rect4CornersZ0Z1[:,:8].reshape(n,4,2)
 
-  XYDAsinAsinSin2Z0Z1_c = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYDAsinAsinSin2Z0Z1')
-  err = XYDAsinAsinSin2Z0Z1_c - XYDAsinAsinSin2Z0Z1
+  XYZLgWsHA_c = OBJ_REPS_PARSE.encode_obj( Rect4CornersZ0Z1, 'Rect4CornersZ0Z1', 'XYZLgWsHA' )
+  err = XYZLgWsHA_c - XYZLgWsHA
   merr = np.max(np.abs(err))
   print(f'err: {merr}\n{err}')
-  if not merr < 1e-7:
+  if not merr < 1e-5:
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
   pass
 
-  for i in range(4):
-    #_show_objs_ls_points_ls( (512,512), [XYZLgWsHA], 'XYZLgWsHA', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
-    _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
-    _show_objs_ls_points_ls( (512,512), [XYDAsinAsinSin2Z0Z1_c], 'XYDAsinAsinSin2Z0Z1', points_ls=[Rect4CornersZ0Z1.reshape(-1, 2), Rect4CornersZ0Z1[:,i]], point_colors=['green', 'red'])
+  pids = np.repeat( np.arange(4).reshape([1,4]), n, 0 ).reshape(-1)
+  _show_objs_ls_points_ls( (512,512), [Rect4CornersZ0Z1], 'Rect4CornersZ0Z1', points_ls=[corners4.reshape(-1, 2)], point_colors=['green', 'red'], point_scores_ls=[pids])
+
+  img = np.zeros([512,512,4], dtype=np.uint8)
+  for i in range(5):
+    angle = np.random.rand() * 180
+    print(f'angle: {angle}')
+    bboxes_r, img_r = rotate_bboxes_img( Rect4CornersZ0Z1, img, angle, 'Rect4CornersZ0Z1' )
+    corners4 = bboxes_r[:,:8].reshape(n,4,2)
+    _show_objs_ls_points_ls( img_r[:,:,0:3], [bboxes_r], 'Rect4CornersZ0Z1', points_ls=[corners4.reshape(-1, 2)], point_colors=['green', 'red'], point_scores_ls=[pids])
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def test_3d():
@@ -1211,6 +1249,7 @@ def test_3d():
 
 if __name__ == '__main__':
   #test_2d_XYDAsinAsinSin2Z0Z1()
+  test_Rect4CornersZ0Z1()
   pass
 
 
