@@ -101,7 +101,7 @@ class StrPointsHead(nn.Module):
                  ):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
-        self.line_constrain_loss = True
+        self.line_constrain_loss = False
         self.obj_rep = obj_rep
         if obj_rep == 'XYXYSin2WZ0Z1':
             if transform_method == '4corners_to_rect':
@@ -123,8 +123,6 @@ class StrPointsHead(nn.Module):
         elif obj_rep == 'Rect4CornersZ0Z1':
             assert transform_method == 'sort_4corners'
             self.box_extra_dims = 2
-
-        self.line_constrain_loss = False
 
         self.dim_parse = DIM_PARSE(self.obj_rep, num_classes)
         self.obj_dim = self.dim_parse.OBJ_DIM

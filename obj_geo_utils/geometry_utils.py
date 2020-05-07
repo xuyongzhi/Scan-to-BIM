@@ -419,7 +419,8 @@ def sort_four_corners( pred_corners, pred_center=None ):
 
   if pred_center is not None:
     pred_cor_cen = torch.cat([pred_corners, pred_center], dim=1)
-    center = pred_cor_cen.mean(dim=1, keepdim=True)
+    #center = pred_cor_cen.mean(dim=1, keepdim=True)
+    center = pred_corners.mean(dim=1, keepdim=True)
     pred_center_err = pred_center - center
     out_rect_loss_cen = (pred_center_err).abs().mean(dim=-1)
   else:
@@ -444,6 +445,7 @@ def sort_four_corners( pred_corners, pred_center=None ):
     rect_loss = out_rect_loss_cen
   else:
     rect_loss = loss_diag_len + loss_diag_sum
+    rect_loss = None
 
   corners = corners + center
   if input_ndim == 5:

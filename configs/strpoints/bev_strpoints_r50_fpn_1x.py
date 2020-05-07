@@ -236,7 +236,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1250
+total_epochs = 510
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -262,11 +262,8 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-  #load_from = './checkpoints/sfd/_d_May4_XYXYSin2_wadoco.pth'
-  #load_from = './checkpoints/sfd/_d_May6_XYDAsinAsinSin2Z0Z1_wabeco.pth'
-  #load_from = './checkpoints/sfd/_d_May6_XYDAsinAsinSin2Z0Z1.pth'
-  load_from = './checkpoints/sfd/_d_May6_XYDAsinAsinSin2Z0Z1_wa.pth'
-load_from = None
+  load_from = './checkpoints/sfd/_d_May7_4corners.pth'
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
