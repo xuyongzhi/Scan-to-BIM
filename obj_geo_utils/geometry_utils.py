@@ -749,11 +749,15 @@ def test_sort_corners():
 
   XYZLgWsHA = np.array([
     [300, 300, 0, 200, 20, 0, -40*u ],
-    [120, 120, 0, 100, 20, 0, -50*u ],
+    [120, 120, 0, 100, 20, 0, 15*u ],
   ])
   n = XYZLgWsHA.shape[0]
   Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1')
   gt_corners = Rect4CornersZ0Z1[:,:8].reshape(n, 4, 2)
+  c_XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(Rect4CornersZ0Z1, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
+  err = np.sum(np.abs(c_XYZLgWsHA - XYZLgWsHA))
+  print(f'err: {err}')
+  assert err < 1e-7
 
   corners_raw = np.array([
     [
@@ -764,7 +768,7 @@ def test_sort_corners():
   ],
     [
     [50, 100],
-    [140, 200],
+    [190, 120],
     [220, 100],
     [50, 150]
   ]
