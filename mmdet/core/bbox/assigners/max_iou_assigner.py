@@ -58,7 +58,7 @@ class MaxIoUAssigner(BaseAssigner):
         self.ignore_wrt_candidates = ignore_wrt_candidates
         self.gpu_assign_thr = gpu_assign_thr
         self.overlap_fun = overlap_fun
-        assert obj_rep in ['XYXYSin2', 'XYLgWsAsinSin2Z0Z1', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1']
+        assert obj_rep in ['XYXYSin2', 'XYLgWsAsinSin2Z0Z1', 'XYXYSin2WZ0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1']
         if obj_rep == 'corner':
           assert ref_radius is not None
         self.obj_rep = obj_rep
@@ -137,6 +137,17 @@ class MaxIoUAssigner(BaseAssigner):
               assert gt_bboxes_ignore.shape[1] == 5
               gt_bboxes_ignore = box_encode_fn(gt_bboxes_ignore, self.obj_rep, 'XYZLgWsHA')
 
+        elif self.obj_rep == 'Rect4CornersZ0Z1':
+          assert self.overlap_fun == 'dil_iou_dis_rotated_3d'
+          assert bboxes.shape[1] == 10
+          assert gt_bboxes.shape[1] == 10
+          box_encode_fn = OBJ_REPS_PARSE.encode_obj
+          bboxes = box_encode_fn(bboxes, self.obj_rep, 'XYZLgWsHA', allow_illegal=True)
+          gt_bboxes = box_encode_fn(gt_bboxes, self.obj_rep, 'XYZLgWsHA')
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 10
+            gt_bboxes_ignore = box_encode_fn(gt_bboxes_ignore, self.obj_rep, 'XYZLgWsHA')
+
         elif self.obj_rep == 'XYXYSin2WZ0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1' or self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
           assert self.overlap_fun == 'dil_iou_dis_rotated_3d'
           assert bboxes.shape[1] == 8
@@ -145,7 +156,7 @@ class MaxIoUAssigner(BaseAssigner):
           bboxes = box_encode_fn(bboxes, self.obj_rep, 'XYZLgWsHA', allow_illegal=True)
           gt_bboxes = box_encode_fn(gt_bboxes, self.obj_rep, 'XYZLgWsHA')
           if gt_bboxes_ignore is not None:
-            assert gt_bboxes_ignore.shape[1] == 5
+            assert gt_bboxes_ignore.shape[1] == 8
             gt_bboxes_ignore = box_encode_fn(gt_bboxes_ignore, self.obj_rep, 'XYZLgWsHA')
 
         elif self.obj_rep == 'corner':

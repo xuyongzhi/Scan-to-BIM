@@ -160,6 +160,8 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
 
   norm_start = torch.norm(vec_start, dim=1, keepdim=True)
   norm_end = torch.norm(vec_end, dim=1, keepdim=True)
+  norm_start = norm_start.clamp(min=1e-4)
+  norm_end = norm_end.clamp(min=1e-4)
   #assert norm_start.min() > 1e-4 and norm_end.min() > 1e-4 # return nan
   vec_start = vec_start / norm_start
   vec_end = vec_end / norm_end
@@ -348,6 +350,81 @@ def angle_of_2lines(line0, line1, scope_id=0):
     raise NotImplementedError
   assert not np.any(np.isnan(angle))
   return angle
+
+def align_four_corners( pred_corners,  pred_center=None, gt_corners=None ):
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_objs_ls_points_ls_torch
+  input_ndim = pred_corners.ndim
+  assert input_ndim == 5 or input_ndim == 3
+  if input_ndim == 5:
+    bs, npts, h, w, d = pred_corners.shape
+    n = bs*h*w
+    pred_corners = pred_corners.permute(0,2,3,1,4).reshape(n, npts, 2)
+    if pred_center is not None:
+      assert pred_center.shape == (bs, 1, h, w, d)
+      pred_center = pred_center.permute(0,2,3,1,4).reshape(n, 1, 2)
+  else:
+    n, npts, d = pred_corners.shape
+    if pred_center is not None:
+      assert pred_center.shape == (n, 1, d)
+  assert npts == 4
+  assert d == 2
+
+  if pred_center is not None:
+    pred_cor_cen = torch.cat([pred_corners, pred_center], dim=1)
+    center = pred_cor_cen.mean(dim=1, keepdim=True)
+    pred_center_err = pred_center - center
+    out_rect_loss_cen = (pred_center_err).abs().mean(dim=-1)
+  else:
+    center = pred_corners.mean(dim=1, keepdim=True)
+
+  corners = pred_corners - center
+
+  # 1. sort by angles, start from 0 to 2pi
+  angles = angle_with_x(corners.detach().reshape(n*4,2), scope_id=3) # (0, pi*2]
+  angles = angles.reshape(n,4)
+  angles_s, sort_ids = angles.sort(dim=1)
+  corners_new = torch.gather(corners, 1, sort_ids[:,:,None].repeat(1,1,2))
+  corners_new += center
+
+  # align with gt
+  method = ['first_corner_angle_min', 'sum_loc_min'][1]
+  if gt_corners is not None:
+    assert gt_corners.shape == (n, 4, 2)
+    if method == 'first_corner_angle_min':
+      gt_center = gt_corners.mean(dim=1, keepdim=True)
+      gt_corners = gt_corners - gt_center
+      gt0_angles = angle_with_x(gt_corners[:,0,:], scope_id=3)[:,None]
+      angles_dif = angles_s - gt0_angles
+      # to [-pi, pi]
+      angles_dif = limit_period( angles_dif, 0.5, 2*np.pi ).abs()
+      start_ids = angles_dif.argmin(1)[:,None]
+    elif method == 'sum_loc_min':
+      device = pred_corners.device
+      loc_difs = []
+      for i in range(4):
+        ids_i  = (torch.arange(4).to(device) + i) % 4
+        cors_i = torch.index_select( corners_new, 1, ids_i )
+        dif_i = (cors_i - gt_corners).norm(dim=2).sum(1,keepdim=True)
+        loc_difs.append( dif_i )
+      loc_difs = torch.cat(loc_difs, dim=1)
+      start_ids = loc_difs.argmin(1)[:,None]
+    assert start_ids.shape == (n,1)
+    tmp  = torch.arange(4).view(-1,4).to(start_ids.device)
+    align_ids = start_ids + tmp
+    align_ids = align_ids % 4
+    corners_aligned = torch.gather(  corners_new, 1, align_ids[:,:,None].repeat(1,1,2) )
+    corners_new = corners_aligned
+
+  # 2. the loss as a rect: same diagonal length, same alpha
+  loss_diag_len = corners.norm(dim=-1).std(dim=-1,keepdim=True)
+  rect_loss = loss_diag_len
+
+  if input_ndim == 5:
+    bboxes_out = corners_new.reshape(bs, h, w, 8).permute(0, 3, 1, 2)
+    rect_loss = rect_loss.reshape(bs, h, w, 1).permute(0, 3, 1, 2)
+  elif input_ndim == 3:
+    bboxes_out = corners_new.reshape(n,8)
+  return bboxes_out, rect_loss
 
 def sort_four_corners( pred_corners, pred_center=None ):
   '''
@@ -678,28 +755,47 @@ def test_4corners_1():
 
 def test_sort_corners():
   from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
-  corners_raw = np.array([[
-    [10, 20],
-    [200, 20],
-    [30, 500],
-    [400, 400]
-  ]]).astype(np.float32)
-  corners_raw = np.array([[
-    [10, 20],
-    [200, 20],
-    [420, 500],
-    [400, 400]
-  ]]).astype(np.float32)
-  corners_raw = corners_raw[:,[1,3,0,2]]
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  u = np.pi/180
+
+  XYZLgWsHA = np.array([
+    [300, 300, 0, 200, 20, 0, -40*u ],
+    [120, 120, 0, 100, 20, 0, -50*u ],
+  ])
+  n = XYZLgWsHA.shape[0]
+  Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1')
+  gt_corners = Rect4CornersZ0Z1[:,:8].reshape(n, 4, 2)
+
+  corners_raw = np.array([
+    [
+    [320, 200],
+    [240, 406],
+    [ 400, 200],
+    [250, 400],
+  ],
+    [
+    [50, 100],
+    [140, 200],
+    [220, 100],
+    [50, 150]
+  ]
+  ]).astype(np.float32)
+  #corners_raw = corners_raw[:,[1,3,0,2]]
   corners_raw_t = torch.from_numpy(corners_raw)
-  corners_sort = sort_four_corners(corners_raw_t).numpy()
+  gt_corners_t = torch.from_numpy(gt_corners)
+  #corners_sort, rect_loss = align_four_corners(corners_raw_t)
+  corners_sort, rect_loss = align_four_corners(corners_raw_t, gt_corners=gt_corners_t)
+  corners_sort = corners_sort.numpy()
+  print(f'rect_loss: {rect_loss}')
 
   #pts_raw = np.concatenate([corners_raw, corners_raw], -1).reshape(-1,4)
   #pts_sort = np.concatenate([corners_sort, corners_sort], -1).reshape(-1,4)
-  ids_raw = np.arange(4)
-  ids_sort = np.arange(4)
-  _show_objs_ls_points_ls( (512,512), points_ls = [corners_raw.reshape(-1,2)], point_scores_ls=[ids_raw], point_thickness=3 )
-  _show_objs_ls_points_ls( (512,512), points_ls = [corners_sort.reshape(-1,2)], point_scores_ls=[ids_raw], point_thickness=3 )
+  ids_raw = np.repeat(np.arange(4).reshape(-1,4), n, 0).reshape(-1)
+  _show_objs_ls_points_ls( (512,512),  [Rect4CornersZ0Z1 ], 'Rect4CornersZ0Z1',
+                          points_ls = [corners_raw.reshape(-1,2) , gt_corners.reshape(-1,2) ], point_scores_ls=[ids_raw, ids_raw], point_thickness=3 )
+  _show_objs_ls_points_ls( (512,512),  [Rect4CornersZ0Z1], 'Rect4CornersZ0Z1',
+                          points_ls = [corners_sort.reshape(-1,2)  , gt_corners.reshape(-1,2)], point_scores_ls=[ids_raw, ids_raw], point_thickness=3 )
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 if __name__ == '__main__':

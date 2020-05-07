@@ -13,7 +13,7 @@ from ..builder import build_loss
 from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
-from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box, sort_four_corners
+from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box, align_four_corners
 #from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from tools import debug_utils
 from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
@@ -477,17 +477,25 @@ class StrPointsHead(nn.Module):
             # pt_0: center
             # pt_1,2,3,4: the four corners
             # pt_5,6,7,8: half corners
-            pts = torch.cat([ pts_x[...,None], pts_y[...,None] ], dim=-1)
+            pts_xy = torch.cat([ pts_x[...,None], pts_y[...,None] ], dim=-1)
 
-            bbox, rect_loss = four_corners_to_box( rect_corners = pts[:,1:5], rect_center = pts[:,0:1], stage=stage, bbox_weights=bbox_weights, bbox_gt = bbox_gt )
+            bbox, rect_loss = four_corners_to_box( rect_corners = pts_xy[:,1:5], rect_center = pts_xy[:,0:1], stage=stage, bbox_weights=bbox_weights, bbox_gt = bbox_gt )
             if out_line_constrain:
               bbox = torch.cat([bbox, rect_loss], dim=1)
 
             pass
 
         elif self.transform_method == 'sort_4corners':
-            bbox, rect_loss = sort_4corners( pred_corners = pts[:,1:5], pred_center = pts[:,0:1] )
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pts_xy = torch.cat([ pts_x[...,None], pts_y[...,None] ], dim=-1)
+            if bbox_gt is not None:
+              gt_corners = bbox_gt[:,:8].reshape(-1,4,2)
+            else:
+              gt_corners = None
+            bbox, rect_loss = align_four_corners( pred_corners = pts_xy[:,1:5], pred_center = pts_xy[:,0:1], gt_corners =  gt_corners)
+            z0z1 = box_extra * 0
+            bbox = torch.cat([bbox, z0z1], dim=1)
+            if out_line_constrain:
+              bbox = torch.cat([bbox, rect_loss], dim=1)
             pass
 
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
@@ -957,6 +965,9 @@ class StrPointsHead(nn.Module):
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,4] = bbox_pred_init[:,4]
           bbox_gt_init_nm[:,4] = bbox_gt_init[:,4]
+        elif self.obj_rep == 'Rect4CornersZ0Z1':
+          bbox_pred_init_nm = bbox_pred_init / normalize_term
+          bbox_gt_init_nm = bbox_gt_init / normalize_term
         elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1':
           Xc, Yc, Lg, Ws, Asin, Sin2, Z0, Z1 = range(8)
           bbox_pred_init_nm = bbox_pred_init / normalize_term
@@ -1064,6 +1075,14 @@ class StrPointsHead(nn.Module):
                   bbox_center = torch.cat([center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
                   bbox_i = bbox_center + bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
                   bbox_i = torch.cat([bbox_i, istopleft], dim=1)
+                  bbox.append(bbox_i)
+                elif self.obj_rep == 'Rect4CornersZ0Z1':
+                  assert self.transform_method == 'sort_4corners'
+                  assert bbox_preds_init.shape[1] == 10
+                  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,10)
+                  bbox_i *=  self.point_strides[i_lvl]
+                  bbox_center = center[i_lvl][:, :2].repeat(1,4)
+                  bbox_i[:, :8] += bbox_center
                   bbox.append(bbox_i)
                 elif self.obj_rep == 'XYXYSin2WZ0Z1':
                   assert self.transform_method == 'moment_XYXYSin2WZ0Z1'

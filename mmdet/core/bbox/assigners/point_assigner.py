@@ -19,7 +19,7 @@ class PointAssigner(BaseAssigner):
     """
 
     def __init__(self, scale=4, pos_num=3, obj_rep=''):
-        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAsinSin2Z0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1']
+        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAsinSin2Z0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1']
         self.scale = scale
         self.pos_num = pos_num
         self.obj_rep = obj_rep
@@ -95,6 +95,14 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = gt_bboxes_wh.unsqueeze(1).repeat(1,2)      # [56, 2]
           gt_bboxes_xy = (gt_bboxes[:, :2] + gt_bboxes[:, 2:]) / 2  # [56, 2]
 
+        elif self.obj_rep == 'Rect4CornersZ0Z1':
+          from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+          assert gt_bboxes.shape[1] == 10
+          if gt_bboxes_ignore is not None:
+            assert gt_bboxes_ignore.shape[1] == 10
+          XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(gt_bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
+          gt_bboxes_xy = XYZLgWsHA[:,:2]
+          gt_bboxes_wh = XYZLgWsHA[:,3:4].repeat(1,2) * level_fac
 
         elif self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
           assert gt_bboxes.shape[1] == 8
