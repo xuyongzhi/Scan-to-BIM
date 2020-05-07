@@ -88,7 +88,7 @@ def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
 
 # Rotate 2d ---------------------------------------------------------------------------
 
-def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=2):
+def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1):
   '''
   XYLgWsA
   bbox: [cx, cy, size_x, size_y, angle]
@@ -104,12 +104,12 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=2):
   bboxes1[:,-1] *= 180/np.pi
   bboxes2[:,-1] *= 180/np.pi
 
-  bboxes1[:,2:4] = torch.clamp(bboxes1[:,2:4], min=min_size)
-  bboxes2[:,2:4] = torch.clamp(bboxes2[:,2:4], min=min_size)
+  bboxes1[:,2:4] = bboxes1[:,2:4].clamp( min=min_size)
+  bboxes2[:,2:4] = bboxes2[:,2:4].clamp( min=min_size)
   if bboxes1.shape[0] > 0:
-    assert bboxes1[:,2:4].min() > 1
+    assert bboxes1[:,2:4].min() >= 1
   if bboxes2.shape[0] > 0:
-    assert bboxes2[:,2:4].min() > 1
+    assert bboxes2[:,2:4].min() >= 1
   ious_2d = _C.box_iou_rotated(bboxes1, bboxes2)
   if torch.isnan(ious_2d).any():
     print("nan iou from rotated_bbox_overlaps")

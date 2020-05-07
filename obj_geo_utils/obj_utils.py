@@ -429,6 +429,8 @@ class OBJ_REPS_PARSE():
     bboxes_new[:,:2] = bboxes[:,:2]
     diag = bboxes[:,2]
     abs_sin_alpha = bboxes[:,3]
+    assert np.all(abs_sin_alpha < 1.1)
+    abs_sin_alpha = np.clip(abs_sin_alpha, a_min=0, a_max=1)
     alpha = np.arcsin(abs_sin_alpha)
     length = diag * np.cos(alpha / 2)
     width = diag * np.sin(alpha / 2)
@@ -528,6 +530,8 @@ class OBJ_REPS_PARSE():
     bboxes_csa[:, 5] = bboxes_s2s4[:, 7] - bboxes_s2s4[:, 6]
     sin2theta = bboxes_s2s4[:, 4]
     sin4theta = bboxes_s2s4[:, 5]
+    assert np.all(sin2theta < 1.1)
+    sin2theta = np.clip(sin2_theta, a_min=-1, a_max=1)
     theta_0 = np.arcsin(sin2theta) / 2
     theta_1 = limit_period_np( np.pi/2 - theta_0, 0.5, np.pi )
     flag = (sin2theta * sin4theta >= 0).astype(np.int)
@@ -826,6 +830,8 @@ class OBJ_REPS_PARSE():
     abs_sin_theta = bboxes[:,4]
     sin2_theta = bboxes[:,5]
 
+    assert np.all(abs_sin_alpha < 1.001)
+    abs_sin_alpha = np.clip(abs_sin_alpha, a_min=0, a_max=1)
     alpha = np.arcsin(abs_sin_alpha)
     theta_abs = np.arcsin(abs_sin_theta)
     is_pos = sin2_theta>0

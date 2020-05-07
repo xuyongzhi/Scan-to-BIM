@@ -144,6 +144,7 @@ class MaxIoUAssigner(BaseAssigner):
           box_encode_fn = OBJ_REPS_PARSE.encode_obj
           bboxes = box_encode_fn(bboxes, self.obj_rep, 'XYZLgWsHA', allow_illegal=True)
           gt_bboxes = box_encode_fn(gt_bboxes, self.obj_rep, 'XYZLgWsHA')
+          bboxes[:, 3:6] = bboxes[:, 3:6].clamp(min=1)
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 10
             gt_bboxes_ignore = box_encode_fn(gt_bboxes_ignore, self.obj_rep, 'XYZLgWsHA')
