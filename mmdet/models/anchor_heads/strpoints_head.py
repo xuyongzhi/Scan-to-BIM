@@ -27,7 +27,8 @@ import time
 
 RECORD_TIME = 0
 
-DEBUG = 1
+DEBUG = 0
+_shape_constrain_dim = 0
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -103,7 +104,7 @@ class StrPointsHead(nn.Module):
                  ):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
-        self.line_constrain_loss = False
+        self.shape_constrain_dim = True
         self.obj_rep = obj_rep
         if obj_rep == 'XYXYSin2WZ0Z1':
             if transform_method == '4corners_to_rect':
@@ -118,13 +119,15 @@ class StrPointsHead(nn.Module):
               self.box_extra_dims = 3
             if transform_method == 'XYLgWsAbsSin2Z0Z1':
               self.box_extra_dims = 8
-            self.line_constrain_loss = False
+            self.shape_constrain_dim = False
         elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
             assert transform_method == '4corners_to_rect'
             self.box_extra_dims = 2
         elif obj_rep == 'Rect4CornersZ0Z1':
             assert transform_method == 'sort_4corners'
             self.box_extra_dims = 2
+            self.shape_constrain_dim = 2 + 10
+            self.shape_constrain_dim = _shape_constrain_dim
 
         self.dim_parse = DIM_PARSE(self.obj_rep, num_classes)
         self.obj_dim = self.dim_parse.OBJ_DIM
@@ -152,8 +155,8 @@ class StrPointsHead(nn.Module):
         self.cls_types = cls_types
         self.loss_bbox_init = build_loss(loss_bbox_init)
         self.loss_bbox_refine = build_loss(loss_bbox_refine)
-        self.loss_line_constrain_init = build_loss(loss_bbox_init)
-        self.loss_line_constrain_refine = build_loss(loss_bbox_refine)
+        self.loss_shape_constrain_init = build_loss(loss_bbox_init)
+        self.loss_shape_constrain_refine = build_loss(loss_bbox_refine)
         self.use_grid_points = use_grid_points
         self.center_init = center_init
         self.transform_method = transform_method
@@ -342,7 +345,7 @@ class StrPointsHead(nn.Module):
           normal_init(self.edge_relation_cls, std=0.01, bias=bias_cls)
 
 
-    def points2bbox(self, pts, y_first=True, out_line_constrain=False, box_extra=None, stage=None, bbox_weights=None, bbox_gt=None):
+    def points2bbox(self, pts, y_first=True, out_shape_constrain=False, box_extra=None, stage=None, bbox_weights=None, bbox_gt=None):
         """
         Converting the points set into bounding box.
         :param pts: the input points sets (fields), each points
@@ -470,7 +473,7 @@ class StrPointsHead(nn.Module):
                 sin_2theta
             ],
                              dim=1)
-            if out_line_constrain:
+            if out_shape_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
 
@@ -482,7 +485,7 @@ class StrPointsHead(nn.Module):
             pts_xy = torch.cat([ pts_x[...,None], pts_y[...,None] ], dim=-1)
 
             bbox, rect_loss = four_corners_to_box( rect_corners = pts_xy[:,1:5], rect_center = pts_xy[:,0:1], stage=stage, bbox_weights=bbox_weights, bbox_gt = bbox_gt )
-            if out_line_constrain:
+            if out_shape_constrain:
               bbox = torch.cat([bbox, rect_loss], dim=1)
 
             pass
@@ -495,13 +498,20 @@ class StrPointsHead(nn.Module):
               gt_corners = None
             #t0 = time.time()
             bbox, rect_loss = sort_four_corners( pred_corners = pts_xy[:,0:4])
-            #bbox, rect_loss = sort_four_corners( pred_corners = pts_xy[:,0:4], pred_center = pts_xy[:,4:5])
+
             #t = time.time() - t0
             #print(f'\n\t sort t:{t}')
             z0z1 = box_extra * 0
             bbox = torch.cat([bbox, z0z1], dim=1)
-            if out_line_constrain:
-              bbox = torch.cat([bbox, rect_loss], dim=1)
+
+            if out_shape_constrain:
+              #remaining_pts_loss = get_remaining_pts_loss(pts_xy[:,0:4], pts_xy[:,4:5], pts_xy[:,5:9])
+              #bbox = torch.cat([bbox, remaining_pts_loss], dim=1)
+              #assert out_shape_constrain == remaining_pts_loss.shape[1]
+
+              pred_cen = pts_xy[:,4:5].reshape(bbox.shape[0], 2)
+              half_box, _ = sort_four_corners( pred_corners = pts_xy[:,5:9] )
+              bbox = torch.cat([bbox, pred_cen, half_box, z0z1], dim=1)
             pass
 
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
@@ -553,7 +563,7 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height,
                 sin_2theta, width_z0_z1
             ], dim=1)
-            if out_line_constrain:
+            if out_shape_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
 
@@ -598,7 +608,7 @@ class StrPointsHead(nn.Module):
                 abs_sin, sin_2theta, z0z1
               ], dim=1)
 
-            if out_line_constrain:
+            if out_shape_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             pass
         else:
@@ -944,7 +954,7 @@ class StrPointsHead(nn.Module):
         pts_pred_init = pts_pred_init.reshape(-1, 2 * self.num_points)
         bbox_pred_init = self.points2bbox(
             pts_pred_init, y_first=False,
-            out_line_constrain=self.line_constrain_loss,
+            out_shape_constrain=self.shape_constrain_dim,
             box_extra=box_extra_init,
             bbox_weights = bbox_weights_init,
             bbox_gt = bbox_gt_init,
@@ -956,7 +966,7 @@ class StrPointsHead(nn.Module):
         pts_pred_refine = pts_pred_refine.reshape(-1, 2 * self.num_points)
         bbox_pred_refine = self.points2bbox(
             pts_pred_refine, y_first=False,
-            out_line_constrain=self.line_constrain_loss,
+            out_shape_constrain=self.shape_constrain_dim,
             box_extra=box_extra_refine,
             bbox_weights = bbox_weights_refine,
             bbox_gt = bbox_gt_refine,
@@ -992,15 +1002,9 @@ class StrPointsHead(nn.Module):
                                   bbox_weights_init, num_total_samples_init,
                                   self.transform_method)
 
-        if self.line_constrain_loss:
-          assert bbox_pred_init.shape[1] == self.obj_dim + 1
-          gt_line_constrain_init = torch.zeros_like(bbox_gt_init)[:,0:1]
-          line_cons_weights_init = bbox_weights_init[:,0:1]
-          loss_linec_init = self.loss_line_constrain_init(
-              bbox_pred_init[:,self.obj_dim:],
-              gt_line_constrain_init,
-              line_cons_weights_init,
-              avg_factor=num_total_samples_init)
+        if self.shape_constrain_dim and self.obj_rep!='Rect4CornersZ0Z1':
+          assert bbox_pred_init.shape[1] == self.obj_dim + self.shape_constrain_dim
+          loss_shape_init = cal_shape_constrain_loss(bbox_pred_init, bbox_weights_init, self.obj_dim, self.shape_constrain_dim, self.loss_shape_constrain_init, num_total_samples_init)
 
         if self.obj_rep == 'box_scope':
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
@@ -1031,27 +1035,21 @@ class StrPointsHead(nn.Module):
                                   bbox_weights_refine, num_total_samples_refine,
                                   self.transform_method)
 
-        if self.line_constrain_loss:
-          assert bbox_pred_refine.shape[1] == self.obj_dim + 1
-          gt_line_constrain_refine = torch.zeros_like(bbox_gt_refine)[:,0:1]
-          line_cons_weights_refine = bbox_weights_refine[:,0:1]
-          loss_linec_refine = self.loss_line_constrain_refine(
-              bbox_pred_refine[:,self.obj_dim:],
-              gt_line_constrain_refine,
-              line_cons_weights_refine,
-              avg_factor=num_total_samples_refine)
+        if self.shape_constrain_dim and self.obj_rep != 'Rect4CornersZ0Z1':
+          assert bbox_pred_refine.shape[1] == self.obj_dim + self.shape_constrain_dim
+          loss_shape_refine = cal_shape_constrain_loss(bbox_pred_refine, bbox_weights_refine, self.obj_dim, self.shape_constrain_dim, self.loss_shape_constrain_refine, num_total_samples_refine)
         else:
-          loss_linec_init  = None
-          loss_linec_refine = None
+          loss_shape_init  = None
+          loss_shape_refine = None
 
         if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
           print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
           print(f'stride: {stride}')
-          show_pred('init',self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_linec_init, pts_pred_init)
-          show_pred('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_linec_refine, pts_pred_refine)
+          show_pred('init',self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_shape_init, pts_pred_init)
+          show_pred('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_shape_refine, pts_pred_refine)
 
 
-        return loss_cls, loss_pts_init, loss_pts_refine, loss_linec_init, loss_linec_refine
+        return loss_cls, loss_pts_init, loss_pts_refine, loss_shape_init, loss_shape_refine
 
     def get_bbox_from_pts(self, center_list, pts_preds, box_extras, stage=None):
         if self.box_extra_dims > 0:
@@ -1275,7 +1273,7 @@ class StrPointsHead(nn.Module):
         #-----------------------------------------------------------------------
         # compute loss per level
         losses_cls, losses_pts_init, losses_pts_refine,\
-          loss_linec_init, loss_linec_refine\
+          loss_shape_init, loss_shape_refine\
             = multi_apply(
             self.loss_single,
             cls_scores,
@@ -1299,9 +1297,9 @@ class StrPointsHead(nn.Module):
         for ele in losses_pts_refine[0].keys():
           loss_dict_all[ele] = [l[ele] for l in losses_pts_refine]
 
-        if self.line_constrain_loss:
-          loss_dict_all['loss_clI'] = loss_linec_init
-          loss_dict_all['loss_clR'] = loss_linec_refine
+        if loss_shape_init[0] is not None:
+          loss_dict_all['loss_shaI'] = loss_shape_init
+          loss_dict_all['loss_shaR'] = loss_shape_refine
         for c in self.cls_types:
           cstr = {'init':'I', 'refine':'R', 'final':'F'}[c]
           loss_dict_all['loss_cls'+cstr] = []
@@ -2010,11 +2008,12 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
               #loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
 
         elif obj_rep == 'Rect4CornersZ0Z1':
+
           #t0 = time.time()
           ids = torch.nonzero(bbox_weights_init[:,0]).squeeze().view(-1)
           if ids.numel() > 0:
-            bbox_pred_init_nm_aligned = align_pred_gt_bboxes( bbox_pred_init_nm[ids][:,:10], bbox_gt_init_nm[ids], obj_rep )
-            bbox_pred_init_nm[ids] = torch.cat([bbox_pred_init_nm_aligned, bbox_pred_init_nm[ids][:,10:]], dim=1)
+            bbox_pred_init_nm[ids][:,:10] = align_pred_gt_bboxes( bbox_pred_init_nm[ids][:,:10], bbox_gt_init_nm[ids], obj_rep )
+
           #t = time.time() - t0
           #print(f'\n\t align t:{t}')
           loss_pts_init_cor = loss_bbox_fun(
@@ -2027,10 +2026,37 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
             bbox_gt_init_nm  [:, 8:10],
             bbox_weights_init[:, 8:10],
             avg_factor=num_total_samples_init)
-
           loss_pts_init = {
                 f'loss_cor{s}': loss_pts_init_cor,
           }
+
+          if bbox_pred_init_nm.shape[1] == 22:
+              is_cal_cen_loss = True
+              is_cal_half_box_loss = False
+              if is_cal_cen_loss:
+                  assert bbox_pred_init_nm.shape[1] >= 10 + 2
+                  gt_center = bbox_gt_init_nm[:,:8].reshape(-1,4,2).mean(dim=1)
+                  loss_pts_cen = loss_bbox_fun(
+                    bbox_pred_init_nm[:, 10:12],
+                    gt_center,
+                    bbox_weights_init[:, 0:2],
+                    avg_factor=num_total_samples_init)
+                  loss_pts_init[f'loss_cen{s}'] = loss_pts_cen
+
+              if is_cal_half_box_loss:
+                  assert bbox_pred_init_nm.shape[1] >= 12 + 10
+                  gt_half_bboxes = bbox_gt_init_nm.clone()
+                  tmp = (bbox_gt_init_nm[:,:8].view(-1,4,2) - gt_center[:,None,:])/2 + gt_center[:,None,:]
+                  gt_half_bboxes[:,:8] = tmp.view(-1,8)
+                  if ids.numel() > 0:
+                    bbox_pred_init_nm[ids][:,12:22] = align_pred_gt_bboxes( bbox_pred_init_nm[ids][:,12:22], gt_half_bboxes[ids], obj_rep )
+                  loss_pts_half = loss_bbox_fun(
+                    bbox_pred_init_nm[:, 12:20],
+                    gt_half_bboxes[:,:8],
+                    bbox_weights_init[:, :8],
+                    avg_factor=num_total_samples_init)
+                  loss_pts_init[f'loss_half{s}'] = loss_pts_half
+
           pass
 
         elif obj_rep == 'XYLgWsAsinSin2Z0Z1' or obj_rep == 'XYLgWsAbsSin2Z0Z1':
@@ -2130,6 +2156,18 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
           pass
         return loss_pts_init
 
+
+def cal_shape_constrain_loss(bbox_pred_init, bbox_weights_init, obj_dim, shape_constrain_dim, loss_shape_constrain_init, num_total_samples_init):
+    assert bbox_pred_init.shape[1] == obj_dim + shape_constrain_dim
+    gt_line_constrain_init = torch.zeros_like(bbox_pred_init)[:,0:1].repeat(1, shape_constrain_dim)
+    line_cons_weights_init = bbox_weights_init[:,0:1].repeat(1, shape_constrain_dim)
+    loss_shape_init = loss_shape_constrain_init(
+        bbox_pred_init[:,obj_dim:],
+        gt_line_constrain_init,
+        line_cons_weights_init,
+        avg_factor=num_total_samples_init)
+    return loss_shape_init
+
 def cal_composite_score(line_preds):
       assert line_preds.shape[1] == OUT_DIM_FINAL - 1
       bboxes_refine, bboxes_init, points_refine, points_init, score_refine, \
@@ -2141,6 +2179,19 @@ def cal_composite_score(line_preds):
       line_preds = torch.cat([line_preds, score_composite], dim=1)
       return line_preds
 
+
+def get_remaining_pts_loss(pts_rect, pts_cen, pts_half_rect):
+  assert pts_rect.shape[1:] == (4,2) == pts_half_rect.shape[1:]
+  assert pts_cen.shape[1:] == (1,2)
+  n = pts_cen.shape[0]
+  center = pts_rect.mean(dim=1, keepdim=True)
+  cen_loss = pts_cen - center
+
+  aim_pts_half_rect = (pts_rect - center)/2
+  pts_half_rect = pts_half_rect - center
+  half_loss = pts_half_rect - aim_pts_half_rect
+  remaining_pts_loss = torch.cat([cen_loss, half_loss], dim=1).reshape(n,10)
+  return remaining_pts_loss
 
 def convert_list_dict_order(f_ls_dict):
   '''
@@ -2158,7 +2209,7 @@ def convert_list_dict_order(f_ls_dict):
 
 
 def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
-              loss_linec_init, pts_pred
+              loss_shape_init, pts_pred
               ):
   np = bbox_pred.shape[0]
   if obj_rep == 'XYDAsinAsinSin2Z0Z1':
