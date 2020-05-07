@@ -441,8 +441,9 @@ def sort_four_corners( pred_corners, pred_center=None ):
   loss_diag_sum = dia_sum_0 + dia_sum_1
 
   if pred_center is not None:
+    rect_loss = loss_diag_len + loss_diag_sum
     #rect_loss = out_rect_loss_cen + loss_diag_len + loss_diag_sum
-    rect_loss = out_rect_loss_cen
+    #rect_loss = out_rect_loss_cen
   else:
     rect_loss = loss_diag_len + loss_diag_sum
     rect_loss = None
@@ -450,7 +451,8 @@ def sort_four_corners( pred_corners, pred_center=None ):
   corners = corners + center
   if input_ndim == 5:
     bboxes_out = corners.reshape(bs, h, w, 8).permute(0, 3, 1, 2)
-    rect_loss = rect_loss.reshape(bs, h, w, 1).permute(0, 3, 1, 2)
+    if rect_loss is not None:
+      rect_loss = rect_loss.reshape(bs, h, w, 1).permute(0, 3, 1, 2)
   elif input_ndim == 3:
     bboxes_out = corners.reshape(n,8)
   return bboxes_out, rect_loss

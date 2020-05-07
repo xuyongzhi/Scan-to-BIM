@@ -492,7 +492,8 @@ class StrPointsHead(nn.Module):
             else:
               gt_corners = None
             #t0 = time.time()
-            bbox, rect_loss = sort_four_corners( pred_corners = pts_xy[:,1:5], pred_center = pts_xy[:,0:1])
+            bbox, rect_loss = sort_four_corners( pred_corners = pts_xy[:,0:4])
+            #bbox, rect_loss = sort_four_corners( pred_corners = pts_xy[:,0:4], pred_center = pts_xy[:,4:5])
             #t = time.time() - t0
             #print(f'\n\t sort t:{t}')
             z0z1 = box_extra * 0
@@ -1335,7 +1336,7 @@ class StrPointsHead(nn.Module):
         if self.corner_hm:
           loss_dict_all.update(loss_corner_hm)
 
-        if DEBUG and 1:
+        if DEBUG and 0:
           loss_dict_all_new = {}
           #for e in ['loss_ptsR', 'loss_clsF']:
           for e in loss_dict_all.keys():
