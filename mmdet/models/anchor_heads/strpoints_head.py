@@ -25,6 +25,8 @@ from configs.common import DIM_PARSE, DEBUG_CFG
 from tools.visual_utils import _show_objs_ls_points_ls_torch, _show_objs_ls_points_ls
 import time
 
+RECORD_TIME = 0
+
 DEBUG = 1
 
 @HEADS.register_module
@@ -1139,6 +1141,8 @@ class StrPointsHead(nn.Module):
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
+        if RECORD_TIME:
+          t0 = time.time()
 
         #_show_objs_ls_points_ls_torch((512,512), gt_bboxes, self.obj_rep)
 
@@ -1266,6 +1270,8 @@ class StrPointsHead(nn.Module):
           box_extra_refine = [e.permute(0,2,3,1).reshape(bs, -1, self.box_extra_dims) for e in box_extra_refine]
         else:
           assert box_extra_init[0] is None
+        if RECORD_TIME:
+          t1 = time.time()
         #-----------------------------------------------------------------------
         # compute loss per level
         losses_cls, losses_pts_init, losses_pts_refine,\
@@ -1343,6 +1349,10 @@ class StrPointsHead(nn.Module):
             if 'I'  in e:
               loss_dict_all_new[e] =   loss_dict_all[e]
           return loss_dict_all_new
+        if RECORD_TIME:
+          t_A = t1 - t0
+          t_B = time.time() - t1
+          print(f't_A: {t_A:.3f}\nt loss: {t_B:.3f}')
         return loss_dict_all
 
     def get_wall_pos(self,  gt_labels, pos_inds_list, gt_inds_per_pos_list):
