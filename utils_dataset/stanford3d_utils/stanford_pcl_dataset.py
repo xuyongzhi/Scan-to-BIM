@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 1
+SMALL_DATA = 0
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7']
