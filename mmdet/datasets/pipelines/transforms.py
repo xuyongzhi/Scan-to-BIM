@@ -739,7 +739,9 @@ class PadToSameHW_ForRotation(object):
         results['img'] = padded_img
         results['pad_shape'] = padded_img.shape
         results['gt_bboxes'] = gt_bboxes
-        assert results['gt_bboxes'][:,:4].min() >= 0
+        if not results['gt_bboxes'][:,:4].min() >= -1:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         if padded_img.shape[:2] != (hw,hw):
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass

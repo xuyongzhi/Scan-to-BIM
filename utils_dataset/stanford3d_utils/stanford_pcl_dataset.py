@@ -63,11 +63,12 @@ class Stanford_Ann():
   UNALIGNED = ['Area_2/storage_9','Area_2/hallway_11',  'Area_2/auditorium_1',
                'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
-  SAMPLES1 = ['Area_5/office_40']
+  SAMPLES1 = ['Area_3/office_7']
   WithColum = ['Area_5/conferenceRoom_2']
   BadColum = ['Area_5/conferenceRoom_1']
 
-  GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
+  GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']+\
+                      ['Area_3/office_7']
 
   def __init__(self, input_style, data_root, phase, voxel_size=None):
     assert input_style in ['pcl', 'bev']
