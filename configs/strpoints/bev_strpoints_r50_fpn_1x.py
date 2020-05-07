@@ -207,7 +207,7 @@ elif DATA == 'stanford2d':
 
 data = dict(
     imgs_per_gpu=7,
-    workers_per_gpu=2,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         obj_rep = _obj_rep,

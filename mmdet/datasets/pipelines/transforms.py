@@ -704,7 +704,7 @@ class PadToSameHW_ForRotation(object):
     def _pad_img(self, results):
         #_show_objs_ls_points_ls(results['img'][:,:,0], [results['gt_bboxes']], 'XYXYSin2')
         gt_bboxes = results['gt_bboxes'].copy()
-        box_boader = max(0, -gt_bboxes[:,:4].min())+1
+        box_boader = int(max(0, -gt_bboxes[:,:4].min())+1)
         corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes, self.obj_rep, 'RoLine2D_2p')
         min_corners = corners.reshape(-1,2).min(0).astype(np.int32)
         min_border = max(3, box_boader)
