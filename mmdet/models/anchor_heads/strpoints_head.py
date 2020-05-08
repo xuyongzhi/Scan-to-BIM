@@ -28,7 +28,6 @@ import time
 RECORD_TIME = 0
 
 DEBUG = 0
-_shape_constrain_dim = 0
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
@@ -127,7 +126,7 @@ class StrPointsHead(nn.Module):
             assert transform_method == 'sort_4corners'
             self.box_extra_dims = 2
             self.shape_constrain_dim = 2 + 10
-            self.shape_constrain_dim = _shape_constrain_dim
+            self.shape_constrain_dim = 0
 
         self.dim_parse = DIM_PARSE(self.obj_rep, num_classes)
         self.obj_dim = self.dim_parse.OBJ_DIM
@@ -649,6 +648,18 @@ class StrPointsHead(nn.Module):
         ], 1)
         return grid_yx, regressed_bbox
 
+    def auto_adjust_pts_by_partial(self, pts):
+      if self.obj_rep not in ['Rect4CornersZ0Z1']:
+        return pts
+      bs, pts_dim, h, w = pts.shape
+      assert pts_dim == 18
+      rect_corners = pts[:,:8,:,:].detach().view(bs, 4, 2, h, w)
+      center = rect_corners.mean(dim=1, keepdim=True)
+      half_corners = (rect_corners - center)/2 + center
+      half_corners = half_corners.view(bs, 8, h, w)
+      new_pts = torch.cat( [pts[:,:8], center.squeeze(1), half_corners], dim = 1)
+      return new_pts
+
     def forward_single(self, x, stride, scale_learn):
         dcn_base_offset = self.dcn_base_offset.type_as(x)
         # If we use center_init, the initial reppoints is from center points.
@@ -670,6 +681,7 @@ class StrPointsHead(nn.Module):
         # initialize reppoints
         pts_feat_init = self.relu(self.reppoints_pts_init_conv(pts_feat))
         pts_out_init = self.reppoints_pts_init_out( pts_feat_init )
+        pts_out_init = self.auto_adjust_pts_by_partial(pts_out_init)
         if self.box_extra_dims >0:
           box_extra_init = self.box_extra_init_out(pts_feat_init)
 
@@ -692,6 +704,7 @@ class StrPointsHead(nn.Module):
 
         pts_feat_refine = self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset))
         pts_out_refine = self.reppoints_pts_refine_out( pts_feat_refine )
+        pts_out_refine = self.auto_adjust_pts_by_partial(pts_out_refine)
         if self.box_extra_dims >0:
           box_extra_refine = self.box_extra_refine_out(pts_feat_refine)
 

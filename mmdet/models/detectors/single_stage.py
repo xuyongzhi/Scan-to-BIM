@@ -148,7 +148,7 @@ class SingleStageDetector(BaseDetector):
               else:
                 assert outs[i][j] is None
         if SHOW_TRAIN_RES:
-          self.show_train_res(img, gt_bboxes, img_metas, outs, score_threshold=(0.1,1))
+          self.show_train_res(img, gt_bboxes, img_metas, outs, score_threshold=(0.5,1))
           pass
         return losses
 
