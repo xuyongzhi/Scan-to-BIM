@@ -681,7 +681,7 @@ class StrPointsHead(nn.Module):
         # initialize reppoints
         pts_feat_init = self.relu(self.reppoints_pts_init_conv(pts_feat))
         pts_out_init = self.reppoints_pts_init_out( pts_feat_init )
-        pts_out_init = self.auto_adjust_pts_by_partial(pts_out_init)
+        #pts_out_init = self.auto_adjust_pts_by_partial(pts_out_init)
         if self.box_extra_dims >0:
           box_extra_init = self.box_extra_init_out(pts_feat_init)
 
@@ -704,7 +704,7 @@ class StrPointsHead(nn.Module):
 
         pts_feat_refine = self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset))
         pts_out_refine = self.reppoints_pts_refine_out( pts_feat_refine )
-        pts_out_refine = self.auto_adjust_pts_by_partial(pts_out_refine)
+        #pts_out_refine = self.auto_adjust_pts_by_partial(pts_out_refine)
         if self.box_extra_dims >0:
           box_extra_refine = self.box_extra_refine_out(pts_feat_refine)
 
