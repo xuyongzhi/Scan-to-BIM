@@ -49,6 +49,7 @@ def _show_objs_ls_points_ls(img,
                             points_ls=None,
                             obj_colors='random',
                             obj_scores_ls=None,
+                            obj_cats_ls=None,
                             point_colors='red',
                             point_scores_ls=None,
                             out_file=None,
@@ -63,6 +64,7 @@ def _show_objs_ls_points_ls(img,
   img = _draw_objs_ls_points_ls(img, objs_ls, obj_rep, points_ls, obj_colors,
       point_colors=point_colors, out_file=out_file, obj_thickness=obj_thickness,
       point_thickness=point_thickness, obj_scores_ls=obj_scores_ls,
+      obj_cats_ls = obj_cats_ls,
       point_scores_ls=point_scores_ls)
   if not only_save:
     mmcv.imshow(img)
@@ -77,8 +79,8 @@ def _draw_objs_ls_points_ls(img,
                             obj_thickness=1,
                             point_thickness=1,
                             obj_scores_ls=None,
+                            obj_cats_ls = None,
                             point_scores_ls=None,
-                            obj_cats_ls=None,
                             text_colors_ls='green',
                             ):
   if objs_ls is not None:
@@ -171,8 +173,12 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
       assert isinstance(color, str)
       colors = [_get_color(color) for i in range(n)]
 
-    if cats is not None and not isinstance(cats, list):
-      cats = [cats] * n
+    if cats is not None:
+      if isinstance(cats, np.ndarray) or isinstance(cats, list):
+        cats = np.array(cats).reshape(-1)
+        assert len(cats) == n
+      else:
+        cats = [cats] * n
     if scores is not None:
       scores = scores.reshape(-1)
       assert scores.shape[0] == n
@@ -191,7 +197,7 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
 
         label_text = ''
         if cats is not None:
-          label_text += cats[i] + ' '
+          label_text += str(cats[i]) + '-'
         if scores is not None:
           try:
             label_text += '{:.01f}'.format(scores[i]) # score

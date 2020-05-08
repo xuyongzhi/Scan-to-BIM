@@ -1045,8 +1045,8 @@ class StrPointsHead(nn.Module):
         if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
           print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
           print(f'stride: {stride}')
-          show_pred('init',self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_shape_init, pts_pred_init)
-          show_pred('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_shape_refine, pts_pred_refine)
+          show_pred('init',self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_shape_init, pts_pred_init, cls_score['refine'])
+          show_pred('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_shape_refine, pts_pred_refine, cls_score['refine'])
 
 
         return loss_cls, loss_pts_init, loss_pts_refine, loss_shape_init, loss_shape_refine
@@ -2221,7 +2221,7 @@ def convert_list_dict_order(f_ls_dict):
 
 
 def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
-              loss_shape_init, pts_pred
+              loss_shape_init, pts_pred, cls_scores
               ):
   np = bbox_pred.shape[0]
   if obj_rep == 'XYDAsinAsinSin2Z0Z1':
@@ -2240,6 +2240,10 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
   bbox_gt_ = bbox_gt[inds].cpu().data.numpy().reshape(-1,m)
   pts_pred = pts_pred[inds].cpu().data.numpy().reshape(-1,2)
 
+  cls_scores = cls_scores.sigmoid()
+  scores, labels = cls_scores.permute(0,2,3,1).max(dim=-1)
+  scores = scores.reshape(-1,1)[inds].cpu().data.numpy()
+  labels = labels.reshape(-1,1)[inds].cpu().data.numpy()
   errs = bbox_pred_ - bbox_gt_
   print(f'obj_rep:{obj_rep}\nerr:\n{errs}')
   print(f'bbox_pred_:\n{bbox_pred_}')
@@ -2248,6 +2252,7 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
   #_show_objs_ls_points_ls( (512,512), [bbox_gt, ], obj_rep = obj_rep)
   _show_objs_ls_points_ls( (800, 800), [bbox_gt_, bbox_pred_], obj_rep = obj_rep,
                           points_ls = [pts_pred], point_colors='blue', point_thickness=2,
+                          obj_scores_ls = [None, scores], obj_cats_ls=[None, labels],
                           obj_colors=['red', 'green'], obj_thickness=[2,1])
 
   pass
