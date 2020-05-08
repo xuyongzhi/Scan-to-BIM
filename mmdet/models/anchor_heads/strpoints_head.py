@@ -504,7 +504,7 @@ class StrPointsHead(nn.Module):
             z0z1 = box_extra * 0
             bbox = torch.cat([bbox, z0z1], dim=1)
 
-            if out_shape_constrain:
+            if out_shape_constrain == 12:
               #remaining_pts_loss = get_remaining_pts_loss(pts_xy[:,0:4], pts_xy[:,4:5], pts_xy[:,5:9])
               #bbox = torch.cat([bbox, remaining_pts_loss], dim=1)
               #assert out_shape_constrain == remaining_pts_loss.shape[1]
