@@ -150,6 +150,32 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1'  and obj_rep_out == 'XYXYSin2W':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYXYSin2WZ0Z1(bboxes)[:,:6]
 
+    # XYXYSin2 -------------------------------------------------------------------
+    elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'XYXYSin2W':
+      bboxes_s2t = OBJ_REPS_PARSE.XYLgWsA_TO_XYXYSin2W(bboxes)
+      check = 1
+      if check and bboxes.shape[0]>0:
+        bboxes_c = OBJ_REPS_PARSE.encode_obj(bboxes_s2t, 'XYXYSin2W', 'XYLgWsA')
+        err = bboxes_c - bboxes
+        err[:,-1] = limit_period_np(err[:,-1], 0.5, np.pi)
+        err = np.abs(err).max()
+        if not (err.size==0 or np.abs(err).max() < 1e-3):
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+      return bboxes_s2t
+
+    if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYXYSin2':
+      return OBJ_REPS_PARSE.encode_obj(bboxes[:,[0,1,3,4,6]], 'XYLgWsA', 'XYXYSin2W')[:,:5]
+
+    # RoLine2D_2p --------------------------------------------------------------
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYLgWsA':
+      return OBJ_REPS_PARSE.RoLine2D_2p_TO_XYLgWsA(bboxes)
+
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYZLgWsHA':
+      XYLgWsA = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'XYLgWsA')
+      ze = XYLgWsA[:,0:1] * 0
+      return np.concatenate([ XYLgWsA[:,:2],ze,XYLgWsA[:,2:4], ze, XYLgWsA[:,4:5] ], axis=1)
+
     # Rect4CornersZ0Z1 -------------------------------------------------------------------
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'Rect4CornersZ0Z1':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_Rect4CornersZ0Z1(bboxes)
@@ -184,6 +210,10 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYXYSin2W':
       XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
       return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')[:,:6]
+
+    elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYXYSin2':
+      return OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYXYSin2W')[:,:5]
+
 
     # extra  -------------------------------------------------------------------
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'XYLgWsA':
@@ -313,18 +343,6 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'XYLgWsAsinSin2Z0Z1':
       return OBJ_REPS_PARSE.UpRight_xyxy_sin2a_TO_XYLgWsAsinSin2Z0Z1(bboxes)
 
-    elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'XYXYSin2W':
-      bboxes_s2t = OBJ_REPS_PARSE.XYLgWsA_TO_XYXYSin2W(bboxes)
-      check = 1
-      if check:
-        bboxes_c = OBJ_REPS_PARSE.encode_obj(bboxes_s2t, 'XYXYSin2W', 'XYLgWsA')
-        err = bboxes_c - bboxes
-        err[:,-1] = limit_period_np(err[:,-1], 0.5, np.pi)
-        err = np.abs(err).max()
-        if not (err.size==0 or np.abs(err).max() < 1e-3):
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          pass
-      return bboxes_s2t
 
     elif obj_rep_in == 'XYLgA' and obj_rep_out == 'RoLine2D_2p':
       return OBJ_REPS_PARSE.XYLgA_TO_RoLine2D_2p(bboxes)
@@ -594,7 +612,7 @@ class OBJ_REPS_PARSE():
     line2d_2p = np.concatenate([corner0, corner1], axis=1)
 
     check=1
-    if check:
+    if check and bboxes.shape[0]>0:
       bboxes_c = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(line2d_2p)
       err0 = bboxes - bboxes_c
       err0[:,3] = limit_period_np(err0[:,3] , 0.5, np.pi)
@@ -857,24 +875,28 @@ class OBJ_REPS_PARSE():
 
 class GraphUtils:
   @staticmethod
-  def optimize_graph(lines_in, scores=None, labels=None,
-                     obj_rep='XYXYSin2',
+  def optimize_graph(bboxes_in, scores=None, labels=None,
+                     obj_rep=None,
                      opt_graph_cor_dis_thr=0, min_out_length=0):
     '''
-      lines_in: [n,5]
+      bboxes_in: [n,5/7/..]
       Before optimization, all lines with length < opt_graph_cor_dis_thr are deleted.
       After optimization, all lines with length < min_out_length are deleted.
     '''
     from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    assert obj_rep in ['XYXYSin2', 'XYZLgWsHA']
     assert opt_graph_cor_dis_thr>0
-    num_in = lines_in.shape[0]
+    num_in = bboxes_in.shape[0]
 
     # filter short lines
-    line_length_in = np.linalg.norm(lines_in[:,2:4] - lines_in[:,:2], axis=1)
+    if obj_rep == 'XYXYSin2':
+      line_length_in = np.linalg.norm(bboxes_in[:,2:4] - bboxes_in[:,:2], axis=1)
+    elif obj_rep == 'XYZLgWsHA':
+      line_length_in = bboxes_in[:,3]
     valid_line_mask = line_length_in > opt_graph_cor_dis_thr
     valid_inds_0 = np.where(valid_line_mask)[0]
-    del_lines = lines_in[valid_line_mask==False]
-    lines_in = lines_in[valid_line_mask]
+    del_lines = bboxes_in[valid_line_mask==False].copy()
+    bboxes_valid = bboxes_in[valid_line_mask].copy()
     if scores is not None:
       scores = scores[valid_line_mask]
     if labels is not None:
@@ -882,14 +904,15 @@ class GraphUtils:
 
     #
     if obj_rep != 'XYXYSin2':
-      lines_in = OBJ_REPS_PARSE.encode_obj(lines_in, obj_rep, 'XYXYSin2')
-    num_line = lines_in.shape[0]
+      bboxes_valid_org_rep = bboxes_valid.copy()
+      bboxes_valid = OBJ_REPS_PARSE.encode_obj(bboxes_valid, obj_rep, 'XYXYSin2')
+    num_line = bboxes_valid.shape[0]
     if scores is None and labels is None:
       lab_sco_lines = None
     else:
       lab_sco_lines = np.concatenate([labels.reshape(num_line,1), scores.reshape(num_line,1)], axis=1)
     corners_in, lab_sco_cors, corIds_per_line, num_cor_uq_org = \
-          GraphUtils.gen_corners_from_lines_np(lines_in, lab_sco_lines, 'XYXYSin2')
+          GraphUtils.gen_corners_from_lines_np(bboxes_valid, lab_sco_lines, 'XYXYSin2')
     if scores is None and labels is None:
       labels_cor = None
       scores_cor = None
@@ -903,15 +926,18 @@ class GraphUtils:
     #corners_merged = round_positions(corners_merged, 1000)
     corners_merged_per_line = corners_merged[corIds_per_line]
 
-    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', obj_rep)
-
+    bboxes_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', obj_rep)
+    if obj_rep == 'XYZLgWsHA':
+      bboxes_merged[:, [2,4,5]] = bboxes_valid_org_rep[:, [2,4,5]]
+      line_length_out = bboxes_merged[:,3]
+    else:
+      line_length_out = np.linalg.norm(bboxes_merged[:,2:4] - bboxes_merged[:,:2], axis=1)
 
     # remove short lines
-    line_length_out = np.linalg.norm(lines_merged[:,2:4] - lines_merged[:,:2], axis=1)
     valid_mask_1 = line_length_out > min_out_length
     valid_inds = np.where(valid_mask_1)[0]
     rm_num = line_length_out.shape[0] - valid_inds.shape[0]
-    lines_merged = lines_merged[valid_inds]
+    bboxes_merged = bboxes_merged[valid_inds]
 
     valid_inds_final = valid_inds_0[valid_inds]
 
@@ -924,7 +950,7 @@ class GraphUtils:
       line_labels_merged = line_labels_merged[valid_inds]
       line_scores_merged = line_scores_merged[valid_inds]
 
-    if valid_inds_final.shape[0] != lines_merged.shape[0]:
+    if valid_inds_final.shape[0] != bboxes_merged.shape[0]:
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
@@ -954,7 +980,7 @@ class GraphUtils:
             _show_objs_ls_points_ls( (h,w), [lines_in, lines_in[line_merging_del_inds]], obj_colors=['green', 'red'], obj_thickness=[3,2],)
 
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          _show_objs_ls_points_ls( (h,w), [lines_in, lines_merged], obj_colors=['green', 'red'], obj_thickness=[3,2],
+          _show_objs_ls_points_ls( (h,w), [lines_in, bboxes_merged], obj_colors=['green', 'red'], obj_thickness=[3,2],
                       points_ls=[corners_in, corners_merged], point_colors=['green', 'red'], point_thickness=[3,2] )
         else:
           if dn>0:
@@ -964,17 +990,17 @@ class GraphUtils:
 
           print('\nCompare org and merged')
           _show_3d_points_objs_ls( points_ls=[deleted_corners],
-            objs_ls = [lines_in, lines_merged], obj_rep='XYXYSin2',
+            objs_ls = [lines_in, bboxes_merged], obj_rep='XYXYSin2',
             obj_colors=['blue', 'red'], thickness=[3,2],)
 
           print('\nMerged result')
           _show_3d_points_objs_ls( points_ls=[deleted_corners],
-            objs_ls = [lines_merged], obj_rep='XYXYSin2',
+            objs_ls = [bboxes_merged], obj_rep='XYXYSin2',
             obj_colors='random', thickness=5,)
 
         pass
 
-    return lines_merged, line_scores_merged, line_labels_merged, valid_inds_final
+    return bboxes_merged, line_scores_merged, line_labels_merged, valid_inds_final
 
   @staticmethod
   def gen_corners_from_lines_np(lines, labels=None, obj_rep='XYXYSin2', flag=''):

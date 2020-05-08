@@ -11,13 +11,46 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,
 
 SHOW_EACH_CLASS = False
 
+def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
+    dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
+    dim_parse_out = DIM_PARSE(obj_rep_out, len(classes)+1)
+    re_s, re_e = dim_parse.OUT_ORDER['bbox_refine']
+    in_s, in_e = dim_parse.OUT_ORDER['bbox_init']
+
+    num_img = len(results)
+    for i in range(num_img):
+      det_bboxes = results[i]['det_bboxes']
+      gt_bboxes = results[i]['gt_bboxes']
+      gt_bboxes = [[ OBJ_REPS_PARSE.encode_obj(gt_bboxes[0][0], obj_rep_org, obj_rep_out) ]]
+      num_level = len(det_bboxes)
+      for l in range(num_level):
+          assert det_bboxes[l].shape[1] == dim_parse.OUT_DIM_FINAL
+          _show_objs_ls_points_ls( (512,512), [det_bboxes[l][:,re_s:re_e]], obj_rep_org )
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          bbox_refine = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, re_s:re_e], obj_rep_org, obj_rep_out)
+          bbox_init = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, in_s:in_e], obj_rep_org, obj_rep_out)
+          det_bboxes_new = np.concatenate([ bbox_refine, bbox_init, det_bboxes[l][:,in_e:] ], axis=1)
+          _show_objs_ls_points_ls( (512,512), [ bbox_refine ], obj_rep_out )
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          if not det_bboxes_new.shape[1] == dim_parse_out.OUT_DIM_FINAL:
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
+          det_bboxes[l] = det_bboxes_new
+
+      results[i]['det_bboxes'] = det_bboxes
+      results[i]['gt_bboxes'] = gt_bboxes
+    return results, obj_rep_out
+
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     filter_edges = data_test_cfg['filter_edges']
     classes = data_test_cfg['classes']
     obj_rep = data_test_cfg['obj_rep']
-    dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
     num_imgs = len(results)
     assert len(data_loader) == num_imgs
+
+    results, obj_rep = change_result_rep(results, classes, obj_rep, 'XYZLgWsHA')
+    dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
+
     results_datas = []
     catid_2_cat = dataset._catid_2_cat
     for i_img, data in enumerate(data_loader):

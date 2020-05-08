@@ -1801,9 +1801,11 @@ class StrPointsHead(nn.Module):
                 raise NotImplementedError
             bbox_pos_center = points[:, :2].repeat(1, num_loc)
             xys = bbox_pred[:,:num_loc*2] * self.point_strides[i_lvl]+ bbox_pos_center
-            xys[:, 0::2] = xys[:, 0::2].clamp(min=0, max=img_shape[1])
-            xys[:, 1::2] = xys[:, 1::2].clamp(min=0, max=img_shape[0])
+            #xys[:, 0::2] = xys[:, 0::2].clamp(min=0, max=img_shape[1])
+            #xys[:, 1::2] = xys[:, 1::2].clamp(min=0, max=img_shape[0])
             bboxes_0 = torch.cat([ xys, bbox_pred[:, num_loc*2 : self.dim_parse.OBJ_DIM] ], dim=1)
+
+            #_show_objs_ls_points_ls_torch( (1024,1024), [bboxes_0], self.obj_rep )
 
             if self.dim_parse.OUT_EXTAR_DIM > 0:
               _bboxes_refine, bboxes_init, points_refine, points_init, \
@@ -1855,7 +1857,7 @@ class StrPointsHead(nn.Module):
             det_inds = mlvl_inds[nms_inds]
             assert det_bboxes.shape[1] == self.dim_parse.NMS_OUT_DIM
             if DEBUG_CFG.SHOW_NMS_OUT:
-              show_nms_out(det_bboxes, det_labels, self.num_classes)
+              show_nms_out(det_bboxes, det_labels, self.num_classes, self.obj_rep)
             return (det_bboxes, det_labels), det_inds
         else:
             return (mlvl_bboxes, mlvl_scores), mlvl_inds
@@ -2257,13 +2259,13 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
 
   pass
 
-def show_nms_out(det_bboxes, det_labels, num_classes):
-  dim_parse = DIM_PARSE(num_classes)
+def show_nms_out(det_bboxes, det_labels, num_classes, obj_rep):
+  dim_parse = DIM_PARSE(obj_rep, num_classes)
   bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final,\
     score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center,\
     score_composite =\
       dim_parse.parse_bboxes_out(det_bboxes, 'nms_out')
-  debug_utils._show_lines_ls_points_ls((512,512), [bboxes_refine.cpu().data.numpy()])
+  _show_objs_ls_points_ls_torch( (512,512), [bboxes_refine], obj_rep )
   pass
 
 def show_relations(gt_bboxes, gt_relations):
