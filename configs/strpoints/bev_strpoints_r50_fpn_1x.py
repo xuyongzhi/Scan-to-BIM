@@ -265,7 +265,7 @@ elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Rect4CornersZ0Z1_r.pth'
   #load_from = './checkpoints/sfd/Rect4CornersZ0Z1_nr.pth'
   load_from = '/home/z/Research/mmdetection/work_dirs/SFD_BP/May8/Area_2_auditorium_1/sTPV_r50_fpn_Rect4CornersZ0Z1_RIou_Nla9_stanford2d_wabecowi_bs1_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe/best.pth'
-load_from = None
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]

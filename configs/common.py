@@ -124,6 +124,12 @@ class DIM_PARSE:
       bboxes_clean = np.concatenate([ bboxes_init, score_refine ], axis=1 )
     return bboxes_clean
 
+  def get_points_refine(self, bboxes_out, stage):
+    bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final,\
+      score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center,\
+      score_composite = self.parse_bboxes_out(bboxes_out, stage)
+    return points_refine
+
 
 
 class DEBUG_CFG:
@@ -150,7 +156,7 @@ class DEBUG_CFG:
   VISUALIZE_VALID_LOSS_SAMPLES = 0
 
   VISUAL_RESNET_FEAT_OUT = 0
-  SHOW_TRAIN_RES = 0
+  SHOW_TRAIN_RES = 1
   SHOW_NMS_OUT = 0
   CHECK_POINT_ASSIGN = False
   SHOW_RELATION_IN_TRAIN = 0

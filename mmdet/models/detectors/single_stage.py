@@ -148,7 +148,7 @@ class SingleStageDetector(BaseDetector):
               else:
                 assert outs[i][j] is None
         if SHOW_TRAIN_RES:
-          self.show_train_res(img, gt_bboxes, img_metas, outs, score_threshold=(0.3,1))
+          self.show_train_res(img, gt_bboxes, img_metas, outs, score_threshold=(0.8,1))
           pass
         return losses
 
@@ -163,23 +163,29 @@ class SingleStageDetector(BaseDetector):
           _det_bboxes0 = det_bboxes.cpu().data.numpy()
           assert not 'background' in img_metas[0]['classes']
           dim_parse = DIM_PARSE( self.obj_rep, len(img_metas[0]['classes'])+1 )
+          obj_dim = dim_parse.OBJ_DIM
           _det_bboxes1 = dim_parse.clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
           _det_bboxes = [_det_bboxes1]
           ngt = len(_gt_bboxes[0])
           ndt = len(_det_bboxes[0])
+          _det_points = dim_parse.get_points_refine(_det_bboxes0, 'final').reshape(ndt,9,2)
           print(f'gt num={ngt}, det num={ndt}')
 
-          mask0 = _det_bboxes[0][:,5] >= score_threshold[0]
-          mask1 = _det_bboxes[0][:,5] <= score_threshold[1]
+          mask0 = _det_bboxes[0][:,obj_dim] >= score_threshold[0]
+          mask1 = _det_bboxes[0][:,obj_dim] <= score_threshold[1]
           mask =  mask0 * mask1
+          _det_points = _det_points[mask].reshape(-1,2)
 
           #debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
           #debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
           _show_objs_ls_points_ls((512,512),
-                                  objs_ls = [_gt_bboxes[0][:,:5], _det_bboxes[0][mask][:,:5]],
-                                  obj_scores_ls = [None, _det_bboxes[0][mask][:,5]],
-                                  obj_colors=['red','green'],  obj_rep=self.obj_rep )
-          _show_objs_ls_points_ls(img[:,:,0], [_gt_bboxes[0]], obj_rep=self.obj_rep)
+                                  objs_ls = [_gt_bboxes[0][:,:obj_dim], _det_bboxes[0][mask][:,:obj_dim]],
+                                  obj_scores_ls = [None, _det_bboxes[0][mask][:,obj_dim]],
+                                  obj_colors=['red','green'],  obj_rep=self.obj_rep,
+                                  points_ls = [_det_points], point_colors='blue', point_thickness=2,
+                                  )
+          #_show_objs_ls_points_ls(img[:,:,0], [_gt_bboxes[0]], obj_rep=self.obj_rep)
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None, gt_relations=None):

@@ -1778,30 +1778,42 @@ class StrPointsHead(nn.Module):
             mlvl_inds.append( topk_inds + flat_inds_last )
             flat_inds_last += cls_score.shape[0]
 
-            ze = torch.zeros_like(points[:,0:1])
-            bbox_pos_center = points[:, :2].repeat(1, 2)
-            xyxy = bbox_pred[:,:4] * self.point_strides[i_lvl]+ bbox_pos_center
-            x1 = xyxy[:, 0].clamp(min=0, max=img_shape[1])
-            y1 = xyxy[:, 1].clamp(min=0, max=img_shape[0])
-            x2 = xyxy[:, 2].clamp(min=0, max=img_shape[1])
-            y2 = xyxy[:, 3].clamp(min=0, max=img_shape[0])
-            bboxes = torch.stack([x1, y1, x2, y2], dim=-1)
+            #if self.obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
+            #    ze = torch.zeros_like(points[:,0:1])
+            #    bbox_pos_center = points[:, :2].repeat(1, 2)
+            #    xyxy = bbox_pred[:,:4] * self.point_strides[i_lvl]+ bbox_pos_center
+            #    x1 = xyxy[:, 0].clamp(min=0, max=img_shape[1])
+            #    y1 = xyxy[:, 1].clamp(min=0, max=img_shape[0])
+            #    x2 = xyxy[:, 2].clamp(min=0, max=img_shape[1])
+            #    y2 = xyxy[:, 3].clamp(min=0, max=img_shape[0])
+            #    bboxes_0 = torch.stack([x1, y1, x2, y2], dim=-1)
 
-            if self.obj_rep == 'XYXYSin2':
-              bboxes = torch.cat([bboxes, bbox_pred[:,4:5]], dim=1)
-            elif self.obj_rep == 'XYXYSin2WZ0Z1':
-              wz0z1 = bbox_pred[:,5:8] * self.point_strides[i_lvl]
-              bboxes = torch.cat([bboxes, bbox_pred[:,4:5], wz0z1], dim=1)
+            #    if self.obj_rep == 'XYXYSin2':
+            #      bboxes_0 = torch.cat([bboxes_0, bbox_pred[:,4:5]], dim=1)
+            #    elif self.obj_rep == 'XYXYSin2WZ0Z1':
+            #      wz0z1 = bbox_pred[:,5:8] * self.point_strides[i_lvl]
+            #      bboxes_0 = torch.cat([bboxes_0, bbox_pred[:,4:5], wz0z1], dim=1)
+            if self.obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
+                num_loc = 2
+            elif self.obj_rep == 'Rect4CornersZ0Z1':
+                num_loc = 4
+            else:
+                raise NotImplementedError
+            bbox_pos_center = points[:, :2].repeat(1, num_loc)
+            xys = bbox_pred[:,:num_loc*2] * self.point_strides[i_lvl]+ bbox_pos_center
+            xys[:, 0::2] = xys[:, 0::2].clamp(min=0, max=img_shape[1])
+            xys[:, 1::2] = xys[:, 1::2].clamp(min=0, max=img_shape[0])
+            bboxes_0 = torch.cat([ xys, bbox_pred[:, num_loc*2 : self.dim_parse.OBJ_DIM] ], dim=1)
 
             if self.dim_parse.OUT_EXTAR_DIM > 0:
               _bboxes_refine, bboxes_init, points_refine, points_init, \
                     score_refine, score_final, score_ave, _, _,_,_,_ = \
                     self.dim_parse.parse_bboxes_out(bbox_pred, 'before_nms')
               #bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
-              bboxes_init[:,:4] = bboxes_init[:,:4] * self.point_strides[i_lvl] + bbox_pos_center
+              bboxes_init[:,:num_loc*2] = bboxes_init[:,:num_loc*2] * self.point_strides[i_lvl] + bbox_pos_center
 
               bbox_pos_center = points[:, :2].repeat(1, self.dim_parse.POINTS_DIM//2)
-              bn = bboxes.shape[0]
+              bn = bboxes_0.shape[0]
               # key_points store in y-first, but box in x-first.
               # change key-points to x-first
               key_points = torch.cat([points_refine, points_init], dim=1)
@@ -1818,7 +1830,7 @@ class StrPointsHead(nn.Module):
               else:
                   score_refine = score_refine.softmax(-1)
                   score_final = score_final.softmax(-1)
-              bboxes = torch.cat([bboxes, bboxes_init, key_points, score_refine, score_final], dim=1) # [5,5,36]
+              bboxes = torch.cat([bboxes_0, bboxes_init, key_points, score_refine, score_final], dim=1) # [5,5,36]
               assert bboxes.shape[1] == self.dim_parse.NMS_IN_DIM
               pass
 
