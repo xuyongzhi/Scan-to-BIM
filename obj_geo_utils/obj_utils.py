@@ -181,9 +181,18 @@ class OBJ_REPS_PARSE():
       XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
       return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'RoLine2D_2p')
 
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'Rect4CornersZ0Z1':
+      XYLgA = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'XYLgA')
+      ze = XYLgA[:,0:1] * 0
+      XYZLgWsHA = np.concatenate([XYLgA[:,:2], ze, XYLgA[:,2:3], ze, ze, XYLgA[:,3:4]], axis=1)
+      return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1')
+
     elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYXYSin2W':
       XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
       return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')[:,:6]
+
+    elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYXYSin2':
+      return OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep_in, 'XYXYSin2W')[:,:5]
 
     # extra  -------------------------------------------------------------------
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1' and obj_rep_out == 'XYLgWsA':
