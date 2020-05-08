@@ -98,9 +98,9 @@ class Stanford_Ann():
     if SMALL_DATA:
       #data_paths = [f+'.ply' for f in self.DIFFICULT]
       #data_paths = [f+'.ply' for f in self.BadColum]
-      data_paths = [f+'.ply' for f in self.SAMPLES1]
+      #data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
-      #data_paths = [f+'.ply' for f in self.ALIGN_GOOD]
+      data_paths = [f+'.ply' for f in self.ALIGN_GOOD]
 
     if NO_LONG:
       data_paths_new = []

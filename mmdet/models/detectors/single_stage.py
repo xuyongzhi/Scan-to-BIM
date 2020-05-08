@@ -148,7 +148,7 @@ class SingleStageDetector(BaseDetector):
               else:
                 assert outs[i][j] is None
         if SHOW_TRAIN_RES:
-          self.show_train_res(img, gt_bboxes, img_metas, outs, score_threshold=(0.8,1))
+          self.show_train_res(img, gt_bboxes, img_metas, outs, score_threshold=(0.1,1))
           pass
         return losses
 
@@ -176,7 +176,7 @@ class SingleStageDetector(BaseDetector):
           mask =  mask0 * mask1
           _det_points = _det_points[mask].reshape(-1,2)
 
-          #debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
+          _show_objs_ls_points_ls((512,512), [_det_bboxes[0][:,:obj_dim]], self.obj_rep)
           #debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
           _show_objs_ls_points_ls((512,512),
                                   objs_ls = [_gt_bboxes[0][:,:obj_dim], _det_bboxes[0][mask][:,:obj_dim]],
