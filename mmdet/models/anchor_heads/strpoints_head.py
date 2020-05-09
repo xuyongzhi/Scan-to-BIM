@@ -100,11 +100,13 @@ class StrPointsHead(nn.Module):
                      alpha=0.25,
                      loss_weight=1.0,),
                  num_ps_long_axis = 9,
+                 adjust_5pts_by_4 = False,
                  ):
         super(StrPointsHead, self).__init__()
         self.wall_label = 1
         self.line_constrain_loss = False
         self.obj_rep = obj_rep
+        self.adjust_5pts_by_4 = False
         if obj_rep == 'XYXYSin2WZ0Z1':
             if transform_method == '4corners_to_rect':
               self.box_extra_dims = 2
@@ -125,6 +127,7 @@ class StrPointsHead(nn.Module):
         elif obj_rep == 'Rect4CornersZ0Z1':
             assert transform_method == 'sort_4corners'
             self.box_extra_dims = 2
+            self.adjust_5pts_by_4 = adjust_5pts_by_4
 
         self.dim_parse = DIM_PARSE(self.obj_rep, num_classes)
         self.obj_dim = self.dim_parse.OBJ_DIM
@@ -672,7 +675,8 @@ class StrPointsHead(nn.Module):
         # initialize reppoints
         pts_feat_init = self.relu(self.reppoints_pts_init_conv(pts_feat))
         pts_out_init = self.reppoints_pts_init_out( pts_feat_init )
-        pts_out_init = self.auto_adjust_pts_by_partial(pts_out_init)
+        if self.adjust_5pts_by_4:
+          pts_out_init = self.auto_adjust_pts_by_partial(pts_out_init)
         if self.box_extra_dims >0:
           box_extra_init = self.box_extra_init_out(pts_feat_init)
 
@@ -695,7 +699,8 @@ class StrPointsHead(nn.Module):
 
         pts_feat_refine = self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset))
         pts_out_refine = self.reppoints_pts_refine_out( pts_feat_refine )
-        pts_out_refine = self.auto_adjust_pts_by_partial(pts_out_refine)
+        if self.adjust_5pts_by_4:
+          pts_out_refine = self.auto_adjust_pts_by_partial(pts_out_refine)
         if self.box_extra_dims >0:
           box_extra_refine = self.box_extra_refine_out(pts_feat_refine)
 

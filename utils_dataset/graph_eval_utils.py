@@ -178,6 +178,7 @@ class GraphEval():
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
+  _opt_graph_cor_dis_thr = 15
   _min_out_length = 5
 
   _eval_img_scale_ratio = 1.0

@@ -98,6 +98,7 @@ model = dict(
                           stage='refine',
                           score_threshold=0.2,
                           max_relation_num=120),
+        adjust_5pts_by_4=True,
         )
     )
         #transform_method='minmax'))
@@ -201,7 +202,7 @@ elif DATA == 'stanford2d':
   ann_file = 'data/stanford/'
   img_prefix_train = 'train'
   img_prefix_test = 'test'
-  #img_prefix_test = 'train'
+  img_prefix_test = 'train'
   #img_prefix_train = '6'
   #img_prefix_test = '6'
 

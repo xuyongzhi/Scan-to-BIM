@@ -9,19 +9,19 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_stem2.py
 
 
-wkdir=sTPV_r50_fpn_Rect4CornersZ0Z1_RIou_Nla9_stanford2d_wabecodowi_bs1_lr10_LsW510_NR_R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe
+wkdir=sTPV_r50_fpn_Rect4CornersZ0Z1_RIou_Nla9_stanford2d_wabecodowi_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe
 CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 #CP=./checkpoints/beike/Apr23_WaDo_Bev.pth
 #CP=./checkpoints/sfd/Apr26_wabeco_Bev.pth
-CP=./checkpoints/sfd/Rect4CornersZ0Z1_NR_May9_wabecodowi.pth
+#CP=./checkpoints/sfd/Rect4CornersZ0Z1_NR_May9_wabecodowi.pth
 
 
 LR=0.01
-ROTATE=0
+ROTATE=1
 BASE_PLANE=32
-BS=1
+BS=7
 DATA_TYPES=cnx
 FILTER_EDGES=1
 REL=0
