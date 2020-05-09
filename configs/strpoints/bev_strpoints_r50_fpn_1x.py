@@ -262,12 +262,12 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-  load_from = './checkpoints/sfd/Rect4CornersZ0Z1_NR_1.pth'
+  load_from = './checkpoints/sfd/Rect4CornersZ0Z1_NR_May9.pth'
 load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

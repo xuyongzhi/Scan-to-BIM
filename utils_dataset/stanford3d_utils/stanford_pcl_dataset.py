@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7']
@@ -98,9 +98,9 @@ class Stanford_Ann():
     if SMALL_DATA:
       #data_paths = [f+'.ply' for f in self.DIFFICULT]
       #data_paths = [f+'.ply' for f in self.BadColum]
-      #data_paths = [f+'.ply' for f in self.SAMPLES1]
+      data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
-      data_paths = [f+'.ply' for f in self.ALIGN_GOOD]
+      #data_paths = [f+'.ply' for f in self.ALIGN_GOOD]
 
     if NO_LONG:
       data_paths_new = []
