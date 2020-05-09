@@ -11,10 +11,39 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,
 
 SHOW_EACH_CLASS = False
 
+def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
+    dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
+    dim_parse_out = DIM_PARSE(obj_rep_out, len(classes)+1)
+    re_s, re_e = dim_parse.OUT_ORDER['bbox_refine']
+    in_s, in_e = dim_parse.OUT_ORDER['bbox_init']
+
+    num_img = len(results)
+    for i in range(num_img):
+      det_bboxes = results[i]['det_bboxes']
+      gt_bboxes = results[i]['gt_bboxes']
+      gt_bboxes = [[ OBJ_REPS_PARSE.encode_obj(gt_bboxes[0][0], obj_rep_org, obj_rep_out) ]]
+      num_level = len(det_bboxes)
+      for l in range(num_level):
+          assert det_bboxes[l].shape[1] == dim_parse.OUT_DIM_FINAL
+          #_show_objs_ls_points_ls( (512,512), [det_bboxes[l][:,re_s:re_e]], obj_rep_org )
+          bbox_refine = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, re_s:re_e], obj_rep_org, obj_rep_out)
+          bbox_init = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, in_s:in_e], obj_rep_org, obj_rep_out)
+          det_bboxes_new = np.concatenate([ bbox_refine, bbox_init, det_bboxes[l][:,in_e:] ], axis=1)
+          #_show_objs_ls_points_ls( (512,512), [ bbox_refine ], obj_rep_out )
+          if not det_bboxes_new.shape[1] == dim_parse_out.OUT_DIM_FINAL:
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
+          det_bboxes[l] = det_bboxes_new
+
+      results[i]['det_bboxes'] = det_bboxes
+      results[i]['gt_bboxes'] = gt_bboxes
+    return results, obj_rep_out
+
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     filter_edges = data_test_cfg['filter_edges']
     classes = data_test_cfg['classes']
     obj_rep = data_test_cfg['obj_rep']
+    results, obj_rep = change_result_rep(results, classes, obj_rep, 'XYZLgWsHA')
     dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
     num_imgs = len(results)
     assert len(data_loader) == num_imgs
@@ -77,11 +106,11 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
           category_id = dataset.cat_ids[label]
           cat = catid_2_cat[category_id]
           assert det_lines.shape[1] == dim_parse.OUT_DIM_FINAL
-          detection_final_line_ave = dim_parse.clean_bboxes_out(det_lines, stage='final', out_type='line_ave')
-          detection_final_score_refine = dim_parse.clean_bboxes_out(det_lines, stage='final', out_type='score_refine')
+          detection_bRefine_sAve = dim_parse.clean_bboxes_out(det_lines, stage='final', out_type='bRefine_sAve')
+          detection_bInit_sRefine = dim_parse.clean_bboxes_out(det_lines, stage='final', out_type='bInit_sRefine')
           detection_l = {'det_lines': det_lines, 'category_id': category_id, 'cat': cat,
-                         'detection_line_ave': detection_final_line_ave,
-                         'detection_score_refine': detection_final_score_refine}
+                         'detection_bRefine_sAve': detection_bRefine_sAve,
+                         'detection_bInit_sRefine': detection_bInit_sRefine, }
 
           detections_all_labels.append(detection_l)
         res_data['detections'] = detections_all_labels
@@ -144,7 +173,7 @@ def eval_graph(res_file):
 
 
 class GraphEval():
-  _all_out_types = [ 'composite', 'line_ave', 'score_refine' ][1:2]
+  _all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ][1:3]
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
@@ -169,9 +198,9 @@ class GraphEval():
     s = self._score_threshold
     par_str =  f'Eval parameters:\n'
     if self.is_pcl:
-      par_str += f'input: pcl'
+      par_str += f'input: pcl\n'
     else:
-      par_str += f'input: image'
+      par_str += f'input: image\n'
     par_str += f'Out type:{self.out_type}\n'
     par_str += f'Graph optimization corner distance threshold:{self._opt_graph_cor_dis_thr}\n'
     par_str += f'Positive score threshold:{s}\n'
@@ -183,7 +212,10 @@ class GraphEval():
   def update_path(self, out_file):
     self.work_dir = os.path.dirname(out_file)
     s = int(self._score_threshold*10)
-    self.par_nice = f'Score{s}_optGraph{self._opt_graph_cor_dis_thr}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
+    if self.optimize_graph:
+      self.par_nice = f'Score{s}_optGraph{self._opt_graph_cor_dis_thr}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
+    else:
+      self.par_nice = f'Score{s}_NoOptGraph_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
     self.eval_dir = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/PerClass')
     self.eval_dir_all_cls = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/AllClasses')
     if not os.path.exists(self.eval_dir):
@@ -195,8 +227,10 @@ class GraphEval():
     for out_type in self._all_out_types:
       self.out_type = out_type
       self.evaluate(results_datas, out_file, out_type)
+      self.evaluate(results_datas, out_file, out_type, False)
 
-  def evaluate(self, results_datas, out_file, out_type):
+  def evaluate(self, results_datas, out_file, out_type, optimize_graph=True):
+    self.optimize_graph = optimize_graph
     debug = 0
 
     self.num_img = len(results_datas)
@@ -259,7 +293,12 @@ class GraphEval():
             det_lines = detections[label-1][f'detection_{out_type}'].copy()
 
             det_lines[:,:4] = det_lines[:,:4] * self._eval_img_scale_ratio + self._eval_img_size_aug
-            det_lines_merged, _ = post_process_bboxes_1cls(det_lines, self._score_threshold, label, cat, self._opt_graph_cor_dis_thr, self.dim_parse.OBJ_REP, self._min_out_length)
+            if optimize_graph:
+              det_lines_merged, _ = post_process_bboxes_1cls(det_lines,
+                  self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
+                  self.dim_parse.OBJ_REP, self._min_out_length)
+            else:
+              det_lines_merged = det_lines
 
             if debug and 0:
               print('raw prediction')
@@ -320,14 +359,18 @@ class GraphEval():
                     corner_recall_precision_perimg = corner_recall_precision_perimg,
                     line_recall_precision_perimg = line_recall_precision_perimg,
                     )
-    eval_res_file = out_file.replace('.pickle', '_EvalRes.npy')
+    s = 'OptimizeGraph' if self.optimize_graph else 'NoOptmizeGraph'
+    eval_res_file = out_file.replace('.pickle', f'_EvalRes{s}.npy')
     np.save(eval_res_file, eval_res)
     return eval_res_str
 
   def get_eval_res_str(self, corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum ):
     rotate = False
     eval_str = '\n\n--------------------------------------\n\n' + \
-                str(self) + f'num_img: {self.num_img}\nPrecision-Recall\n\n'
+                str(self) + f'num_img: {self.num_img}\n'
+    eval_str += f'optimize_graph: {self.optimize_graph}\n'
+
+    eval_str += 'Precision-Recall\n\n'
     cats = corner_recall_precision.keys()
     eval_str += '| split |'
     for cat in cats:
@@ -494,13 +537,14 @@ class GraphEval():
     img_file = os.path.join(self.eval_dir, img_name)
     #print('det corners. green: true pos, red: false pos')
     img_size = img.shape[:2]
-    _show_objs_ls_points_ls(
-      img_size, [det_lines_pos[:,:5], det_lines_neg[:,:5]],
-      obj_scores_ls=[det_lines_pos[:,-1:], det_lines_neg[:,-1:]],
-                            points_ls=[det_corners_pos, det_corners_neg],
-                            obj_colors=['green', 'red'], obj_thickness=1,
-                            point_colors=['blue', 'yellow'], point_thickness=2,
-                            out_file=img_file, only_save=1)
+    if SHOW_EACH_CLASS:
+      _show_objs_ls_points_ls(
+        img_size, [det_lines_pos[:,:5], det_lines_neg[:,:5]],
+        obj_scores_ls=[det_lines_pos[:,-1:], det_lines_neg[:,-1:]],
+                              points_ls=[det_corners_pos, det_corners_neg],
+                              obj_colors=['green', 'red'], obj_thickness=1,
+                              point_colors=['blue', 'yellow'], point_thickness=2,
+                              out_file=img_file, only_save=1)
 
     #print('gt  corners. green: true pos, red: false neg')
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt.png'
@@ -567,51 +611,51 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep):
   gt_lines_2d = []
   det_labels = []
   for i in range(num_cats):
-    cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false = eval_draws_ls[i]
+      cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false = eval_draws_ls[i]
 
-    det_lines_2d.append( det_lines_pos )
-    det_lines_2d.append( det_lines_neg )
-    gt_lines_2d.append( gt_lines_true )
-    gt_lines_2d.append( gt_lines_false )
-    det_labels.append( np.ones([det_lines_pos.shape[0]])*i + 1 )
-    det_labels.append( np.ones([det_lines_neg.shape[0]])*i + 1 )
+      det_lines_2d.append( det_lines_pos )
+      det_lines_2d.append( det_lines_neg )
+      gt_lines_2d.append( gt_lines_true )
+      gt_lines_2d.append( gt_lines_false )
+      det_labels.append( np.ones([det_lines_pos.shape[0]])*i + 1 )
+      det_labels.append( np.ones([det_lines_neg.shape[0]])*i + 1 )
 
-    if img_det is None:
-      img_det = img.shape[:2]
-    c = colors_map[cat]
-    det_file = img_file_base_all_cls + '_Det.png'
-    img_det = _draw_objs_ls_points_ls(img_det,
-            [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
-            obj_rep,
-            [det_corners_pos, det_corners_neg],
-            obj_colors=c,
-            obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]],
-            obj_cats_ls = ['', 'F'],
-            point_colors=['blue', 'yellow'],
-            obj_thickness=[2,2],
-            point_thickness=[3,3],
-            out_file=None,
-            text_colors_ls=['green', 'red'])
+      if img_det is None:
+        img_det = img.shape[:2]
+      c = colors_map[cat]
+      det_file = img_file_base_all_cls + '_Det.png'
+      img_det = _draw_objs_ls_points_ls(img_det,
+              [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
+              obj_rep,
+              [det_corners_pos, det_corners_neg],
+              obj_colors=c,
+              obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]],
+              obj_cats_ls = ['', 'F'],
+              point_colors=['blue', 'yellow'],
+              obj_thickness=[2,2],
+              point_thickness=[3,3],
+              out_file=None,
+              text_colors_ls=['green', 'red'])
 
-    if img_gt is None:
-      img_gt = img.shape[:2]
-      img_gt = img[:,:,0]
-    gt_file = img_file_base_all_cls + '_Gt.png'
-    img_gt = _draw_objs_ls_points_ls(img_gt,
-            [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
-            obj_rep,
-            [gt_corners_true, gt_corners_false],
-            obj_colors=c,
-            obj_cats_ls = ['', 'F'],
-            point_colors=['blue', 'yellow'],
-            obj_thickness=[2,2],
-            point_thickness=[3,3],
-            out_file=None,
-            text_colors_ls=['green', 'red'])
+      if img_gt is None:
+        img_gt = img.shape[:2]
+        img_gt = img[:,:,0]
+      gt_file = img_file_base_all_cls + '_Gt.png'
+      img_gt = _draw_objs_ls_points_ls(img_gt,
+              [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
+              obj_rep,
+              [gt_corners_true, gt_corners_false],
+              obj_colors=c,
+              obj_cats_ls = ['', 'F'],
+              point_colors=['blue', 'yellow'],
+              obj_thickness=[2,2],
+              point_thickness=[3,3],
+              out_file=None,
+              text_colors_ls=['green', 'red'])
+      pass
 
   mmcv.imwrite(img_det, det_file)
   mmcv.imwrite(img_gt, gt_file)
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
   det_lines_2d = np.concatenate( det_lines_2d, axis=0 )
   gt_lines_2d = np.concatenate( gt_lines_2d, axis=0 )

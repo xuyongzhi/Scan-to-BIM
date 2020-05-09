@@ -3,6 +3,51 @@ import torch
 
 from . import nms_cpu, nms_cuda, nms_dsiou_cuda
 from .soft_nms_cpu import soft_nms_cpu
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+from tools.visual_utils import _show_objs_ls_points_ls_torch
+from configs.common import DEBUG_CFG
+
+def nms_rotated(dets, obj_rep, iou_thr, min_width_length_ratio=0.3, device_id=None):
+    from detectron2 import _C
+    if isinstance(dets, torch.Tensor):
+        is_numpy = False
+        dets_th = dets
+    elif isinstance(dets, np.ndarray):
+        is_numpy = True
+        device = 'cpu' if device_id is None else 'cuda:{}'.format(device_id)
+        dets_th = torch.from_numpy(dets).to(device)
+    else:
+        raise TypeError(
+            'dets must be either a Tensor or numpy array, but got {}'.format(
+                type(dets)))
+
+
+    obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
+    # execute cpu or cuda nms
+    if dets_th.shape[0] == 0:
+        inds = dets_th.new_zeros(0, dtype=torch.long)
+    else:
+        # patrse obj_rep to XYZHWA
+        scores = dets_th[:, -1].clone()
+        dets_th = OBJ_REPS_PARSE.encode_obj(dets_th[:,:obj_dim], obj_rep, 'XYLgWsA')
+        dets_th[:,3] = torch.max( dets_th[:,3], dets_th[:,2]*min_width_length_ratio)
+        #_show_objs_ls_points_ls_torch( (512,512), [dets_th[:,:obj_dim]], 'XYLgWsA' )
+        dets_th[:, 4] *= 180/np.pi
+
+        inds = _C.nms_rotated(dets_th, scores, iou_thr)
+
+    if is_numpy:
+        inds = inds.cpu().numpy()
+
+    if DEBUG_CFG.SHOW_NMS_PROCESS:
+      n0 = scores.shape[0]
+      n1 = inds.shape[0]
+      print(f'\n\n{n0} -> {n1}')
+      _show_objs_ls_points_ls_torch( (512,512), [dets[:,:obj_dim]], obj_rep )
+      _show_objs_ls_points_ls_torch( (512,512), [dets[inds][:,:obj_dim]], obj_rep )
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
+    return dets[inds, :], inds
 
 def nms_dsiou(dets, iou_thr, dis_weight, device_id=None):
     """Dispatch to either CPU or GPU NMS implementations.

@@ -66,10 +66,10 @@ class Stanford_Ann():
                'Area_3/office_8',
                'Area_4/hallway_14', 'Area_3/office_7']
   SAMPLES1 = ['Area_2/auditorium_1']
+  SAMPLES2 = ['Area_1/hallway_7']
   DIFFICULT = ['Area_2/auditorium_2']
   WithColum = ['Area_5/conferenceRoom_2']
   BadColum = ['Area_5/conferenceRoom_1']
-
   ALIGN_GOOD = ['Area_2/conferenceRoom_1']
 
   GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']+\

@@ -1855,7 +1855,7 @@ class StrPointsHead(nn.Module):
             det_inds = mlvl_inds[nms_inds]
             assert det_bboxes.shape[1] == self.dim_parse.NMS_OUT_DIM
             if DEBUG_CFG.SHOW_NMS_OUT:
-              show_nms_out(det_bboxes, det_labels, self.num_classes)
+              show_nms_out(det_bboxes, det_labels, self.obj_rep, self.num_classes)
             return (det_bboxes, det_labels), det_inds
         else:
             return (mlvl_bboxes, mlvl_scores), mlvl_inds
@@ -2199,13 +2199,13 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
 
   pass
 
-def show_nms_out(det_bboxes, det_labels, num_classes):
-  dim_parse = DIM_PARSE(num_classes)
+def show_nms_out(det_bboxes, det_labels, obj_rep, num_classes):
+  dim_parse = DIM_PARSE(obj_rep, num_classes)
   bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final,\
     score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center,\
     score_composite =\
       dim_parse.parse_bboxes_out(det_bboxes, 'nms_out')
-  debug_utils._show_lines_ls_points_ls((512,512), [bboxes_refine.cpu().data.numpy()])
+  _show_objs_ls_points_ls_torch( (512,512), [bboxes_refine], obj_rep )
   pass
 
 def show_relations(gt_bboxes, gt_relations):

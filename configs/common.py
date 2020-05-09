@@ -108,18 +108,18 @@ class DIM_PARSE:
       corner1_center, score_composite
 
   def clean_bboxes_out(self, bboxes_out, stage, out_type='composite'):
-    assert out_type in ['score_refine', 'score_final', 'line_ave', 'composite']
+    assert out_type in ['bInit_sRefine', 'bRefine_sFinal', 'bRefine_sAve', 'composite']
     bboxes_refine, bboxes_init, points_refine, points_init, score_refine, score_final,\
       score_line_ave, corner0_score, corner1_score, corner0_center, corner1_center,\
       score_composite = self.parse_bboxes_out(bboxes_out, stage)
     if out_type == 'composite':
       bboxes_clean = np.concatenate([ bboxes_refine, score_composite ], axis=1 )
-    elif out_type == 'line_ave':
+    elif out_type == 'bRefine_sAve':
       bboxes_clean = np.concatenate([ bboxes_refine, score_line_ave ], axis=1 )
-    elif out_type == 'score_final':
+    elif out_type == 'bRefine_sFinal':
       score_final = score_final.max(1, keepdims=True)
       bboxes_clean = np.concatenate([ bboxes_refine, score_final ], axis=1 )
-    elif out_type == 'score_refine':
+    elif out_type == 'bInit_sRefine':
       score_refine = score_refine.max(1, keepdims=True)
       bboxes_clean = np.concatenate([ bboxes_init, score_refine ], axis=1 )
     return bboxes_clean
@@ -145,18 +145,19 @@ class DEBUG_CFG:
   PRINT_POINT_ASSIGNER = 0
   PRINT_IOU_ASSIGNER = 0
   VISUALIZE_POINT_ASSIGNER = 0
-  VISUALIZE_IOU_ASSIGNER = 1
+  VISUALIZE_IOU_ASSIGNER = 0
 
   VISUALIZE_VALID_LOSS_SAMPLES = 0
 
   VISUAL_RESNET_FEAT_OUT = 0
   SHOW_TRAIN_RES = 0
-  SHOW_NMS_OUT = 0
   CHECK_POINT_ASSIGN = False
   SHOW_RELATION_IN_TRAIN = 0
 
   # debug in test
   OBJ_LEGEND = ['score', 'rotation'][0]
+  SHOW_NMS_OUT = 0
+  SHOW_NMS_PROCESS = 0
 
 
   SPARSE_BEV = 0

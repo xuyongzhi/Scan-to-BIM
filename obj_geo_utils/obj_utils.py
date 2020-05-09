@@ -113,9 +113,24 @@ class OBJ_REPS_PARSE():
     if obj_rep_in == obj_rep_out:
       return bboxes
 
-    # essential  ---------------------------------------------------------------
+    # XYZLgWsHA  ---------------------------------------------------------------
     if obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYLgWsA':
       return bboxes[:,[0,1,3,4,6]]
+
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
+        return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYLgWsAbsSin2Z0Z1(bboxes)
+
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYDAsinAsinSin2Z0Z1':
+      return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYDAsinAsinSin2Z0Z1(bboxes)
+
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'RoLine2D_2p':
+      return OBJ_REPS_PARSE.encode_obj(bboxes[:,[0,1,3,4,6]], 'XYLgWsA', 'RoLine2D_2p')
+
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYXYSin2':
+      RoLine2D_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'RoLine2D_2p')
+      return OBJ_REPS_PARSE.encode_obj(RoLine2D_2p, 'RoLine2D_2p', 'XYXYSin2')
+
+    # essential  ---------------------------------------------------------------
 
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2':
       return OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
@@ -126,8 +141,6 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYXYSin2W' and obj_rep_out == 'XYLgWsA':
         return OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes)
 
-    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
-        return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYLgWsAbsSin2Z0Z1(bboxes)
 
     elif obj_rep_in == 'XYLgWsAbsSin2Z0Z1' and obj_rep_out == 'XYZLgWsHA':
         return OBJ_REPS_PARSE.XYLgWsAbsSin2Z0Z1_TO_XYZLgWsHA(bboxes)
@@ -135,8 +148,6 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1'  and obj_rep_out == 'XYZLgWsHA':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYZLgWsHA(bboxes)
 
-    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYDAsinAsinSin2Z0Z1':
-      return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYDAsinAsinSin2Z0Z1(bboxes)
 
     elif obj_rep_in == 'XYLgWsAsinSin2Z0Z1' and obj_rep_out == 'XYDAsinAsinSin2Z0Z1':
       return OBJ_REPS_PARSE.XYLgWsAsinSin2Z0Z1_TO_XYDAsinAsinSin2Z0Z1(bboxes)
@@ -234,8 +245,6 @@ class OBJ_REPS_PARSE():
       XYXYSin2W = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYLgWsA','XYXYSin2W')
       return OBJ_REPS_PARSE.encode_obj(XYXYSin2W[:,:5], 'XYXYSin2', 'RoLine2D_2p')
 
-    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'RoLine2D_2p':
-      return OBJ_REPS_PARSE.encode_obj(bboxes[:,[0,1,3,4,6]], 'XYLgWsA', 'RoLine2D_2p')
 
     elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYLgWsAbsSin2Z0Z1':
       XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
@@ -881,7 +890,7 @@ class GraphUtils:
     if obj_rep == 'XYXYSin2':
       pass
     elif obj_rep == 'XYZLgWsHA':
-      bboxes_merged[:,[2,4,5]] = bboxes_in[:,[2,4,5]]
+      bboxes_merged[:,[2,4,5]] = bboxes_in[valid_inds_final][:,[2,4,5]]
     return bboxes_merged, line_scores_merged, line_labels_merged, valid_inds_final
 
   def optimize_graph_lines(lines_in, scores=None, labels=None,

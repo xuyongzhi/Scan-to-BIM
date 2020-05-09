@@ -52,7 +52,7 @@ def multiclass_nms(multi_bboxes,
         if score_factors is not None:
             _scores *= score_factors[cls_inds]
         cls_dets = torch.cat([_bboxes, _scores[:, None]], dim=1)
-        cls_dets, inds = nms_op(cls_dets, **nms_cfg_)
+        cls_dets, inds = nms_op(cls_dets, obj_rep, **nms_cfg_)
         cls_labels = multi_bboxes.new_full((cls_dets.shape[0], ),
                                            i - 1,
                                            dtype=torch.long)
