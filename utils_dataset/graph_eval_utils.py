@@ -10,6 +10,7 @@ import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls
 
 SHOW_EACH_CLASS = False
+SET_DET_Z_AS_GT = 1
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
@@ -528,6 +529,12 @@ class GraphEval():
     gt_line_false_ids = np.where(line_detIds_per_gt<0)[0]
     gt_lines_true = gt_lines[gt_line_true_ids]
     gt_lines_false = gt_lines[gt_line_false_ids]
+
+    if SET_DET_Z_AS_GT:
+      gt_ids_per_pos = np.where( line_detIds_per_gt>=0 )[0]
+      #_show_3d_points_objs_ls(objs_ls=[det_lines_pos[:,:7]], obj_rep='XYZLgWsHA')
+      det_lines_pos[:,[2,5]] = gt_lines[gt_ids_per_pos][:,[2,5]]
+      #_show_3d_points_objs_ls(objs_ls=[det_lines_pos[:,:7]], obj_rep='XYZLgWsHA')
 
     r = int(cor_recall*100)
     p = int(cor_precision*100)
