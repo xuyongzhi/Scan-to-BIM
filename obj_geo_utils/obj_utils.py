@@ -187,6 +187,10 @@ class OBJ_REPS_PARSE():
       XYZLgWsHA = np.concatenate([XYLgA[:,:2], ze, XYLgA[:,2:3], ze, ze, XYLgA[:,3:4]], axis=1)
       return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Rect4CornersZ0Z1')
 
+    elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'Rect4CornersZ0Z1':
+      RoLine2D_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'RoLine2D_2p')
+      return OBJ_REPS_PARSE.encode_obj(RoLine2D_2p, 'RoLine2D_2p', 'Rect4CornersZ0Z1')
+
     elif obj_rep_in == 'Rect4CornersZ0Z1' and obj_rep_out == 'XYXYSin2W':
       XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(bboxes, 'Rect4CornersZ0Z1', 'XYZLgWsHA')
       return OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')[:,:6]
@@ -866,8 +870,21 @@ class OBJ_REPS_PARSE():
 
 class GraphUtils:
   @staticmethod
-  def optimize_graph(lines_in, scores=None, labels=None,
+  def optimize_graph(bboxes_in, scores=None, labels=None,
                      obj_rep='XYXYSin2',
+                     opt_graph_cor_dis_thr=0, min_out_length=0):
+    lines_in = OBJ_REPS_PARSE.encode_obj(bboxes_in, obj_rep, 'XYXYSin2')
+    lines_merged, line_scores_merged, line_labels_merged, valid_inds_final = \
+      GraphUtils.optimize_graph_lines( lines_in, scores, labels,
+                                      opt_graph_cor_dis_thr, min_out_length)
+    bboxes_merged = OBJ_REPS_PARSE.encode_obj(lines_merged, 'XYXYSin2', obj_rep)
+    if obj_rep == 'XYXYSin2':
+      pass
+    elif obj_rep == 'XYZLgWsHA':
+      bboxes_merged[:,[2,4,5]] = bboxes_in[:,[2,4,5]]
+    return bboxes_merged, line_scores_merged, line_labels_merged, valid_inds_final
+
+  def optimize_graph_lines(lines_in, scores=None, labels=None,
                      opt_graph_cor_dis_thr=0, min_out_length=0):
     '''
       lines_in: [n,5]
@@ -889,9 +906,6 @@ class GraphUtils:
     if labels is not None:
       labels = labels[valid_line_mask]
 
-    #
-    if obj_rep != 'XYXYSin2':
-      lines_in = OBJ_REPS_PARSE.encode_obj(lines_in, obj_rep, 'XYXYSin2')
     num_line = lines_in.shape[0]
     if scores is None and labels is None:
       lab_sco_lines = None
@@ -912,7 +926,7 @@ class GraphUtils:
     #corners_merged = round_positions(corners_merged, 1000)
     corners_merged_per_line = corners_merged[corIds_per_line]
 
-    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', obj_rep)
+    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', 'XYXYSin2')
 
 
     # remove short lines

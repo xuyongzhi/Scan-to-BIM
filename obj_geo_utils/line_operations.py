@@ -148,7 +148,6 @@ def add_cross_in_lines(lines, img_shape):
   lines = np.concatenate([lines, cross0, cross1], axis=0)
   return lines
 
-
 def m_transform_lines(lines, matrix, obj_rep):
   '''
   lines:  [n,5]
@@ -223,7 +222,6 @@ def transfer_lines(lines, obj_rep, img_shape, angle, offset):
   lines_2pts_r[:,:,1] += offset[1]
   lines_rotated = OBJ_REPS_PARSE.encode_obj(lines_2pts_r.reshape(n,4), 'RoLine2D_2p', obj_rep)
   return lines_rotated
-
 
 def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
   #angle = 30
@@ -357,7 +355,6 @@ def rotate_lines_img(lines, img, angle,  obj_rep, debug_rotation=0):
     pass
 
   return  lines_rotated, new_img, scale
-
 
 def gen_corners_from_lines_th(lines, labels, obj_rep):
     lines0 = decode_line_rep_th(lines, obj_rep)
@@ -564,7 +561,6 @@ def lines2d_to_bboxes3d(lines, line_obj_rep='lscope_istopleft', height=60, thick
   matrixes = np.array(matrixes)
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
-
 
 def getOrientedLineRectSubPix(img, line, obj_rep, length_aug=-5, thickness_aug=40):
   '''

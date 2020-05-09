@@ -611,6 +611,7 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep):
 
   mmcv.imwrite(img_det, det_file)
   mmcv.imwrite(img_gt, gt_file)
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
   det_lines_2d = np.concatenate( det_lines_2d, axis=0 )
   gt_lines_2d = np.concatenate( gt_lines_2d, axis=0 )
