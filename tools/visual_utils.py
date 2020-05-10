@@ -446,6 +446,7 @@ def _make_bbox_mesh(bbox, box_oriented, color):
     assert box_oriented
     assert bbox.shape == (7,)
     radius = BOX_LINE_RADIUS
+    radius = bbox[3:6].max()/100
 
     lines = OBJ_REPS_PARSE.get_12_lines(bbox.reshape(1,7), 'XYZLgWsHA')[0] # [12,2,3]
     centroids = lines.mean(1)
@@ -547,6 +548,8 @@ def test_show_box():
   u = np.pi/180
   XYZLgWsHA= np.array( [
     [200, 200, 0, 200, 100, 50, 30*u],
+    [200, 200, 0, 200, 100, 50, 60*u],
+    [200, 200, 0, 200, 100, 50, 120*u],
   ] )
   #lines = OBJ_REPS_PARSE.get_12_lines(XYZLgWsHA, 'XYZLgWsHA')
   _show_3d_points_objs_ls(objs_ls=[XYZLgWsHA], obj_rep='XYZLgWsHA')

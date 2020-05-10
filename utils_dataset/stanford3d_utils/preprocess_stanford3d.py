@@ -239,6 +239,7 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
     if size_a > 0.3:
       print(f'size_align: {size_a}')
       box2d = points_to_box_align_with_wall(point_inds, walls_inds, cat_name, voxel_size)
+      #_show_3d_points_objs_ls([points+xyz_min], objs_ls=[bboxes_wall0], obj_rep='XYXYSin2WZ0Z1')
       if box2d is None:
         return None
   else:
@@ -317,14 +318,17 @@ def points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size, max_
   for i in range(n):
     if diss[i] > 0.8:
       continue
-    thres = 0.05 / voxel_size
+    thres0 = 0.05 / voxel_size
     wall_i_aug = walls_[i:i+1].copy()
+    thres = wall_i_aug[:,3] * 0.4
+    thres = np.clip(thres, a_min=thres0, a_max=None)
     wall_i_aug[:,2] += 0.5 / voxel_size
     the_line2d = OBJ_REPS_PARSE.encode_obj( wall_i_aug, 'XYLgWsA', 'RoLine2D_2p' ).reshape(-1,2,2)
     num_inside = points_in_lines( points, the_line2d, thres ).sum()
     inside_rate = 1.0 * num_inside / points.shape[0]
     inside_rates[i] = inside_rate
   if np.max(inside_rates) == 0:
+    _show_objs_ls_points_ls( (1324,1324), [walls_], obj_rep='XYLgWsA', points_ls = [points])
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     return None, None
   inside_rates_nm = inside_rates / sum(inside_rates)
@@ -487,13 +491,14 @@ def gen_bboxes(max_num_points=1e5):
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
       bbox_file = plyf.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
+      topview_file = plyf.replace('.ply', '.png').replace('Area_', 'Boxes_Area_')
       bbox_dir = os.path.dirname(bbox_file)
       if not os.path.exists(bbox_dir):
         os.makedirs(bbox_dir)
       print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
-        #continue
+        continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
@@ -511,6 +516,7 @@ def gen_bboxes(max_num_points=1e5):
       cat_ids = [Stanford3DDatasetConverter.wall_id, ] + [i for i in range(cat_max+1) if i != Stanford3DDatasetConverter.wall_id]
 
       bboxes_wall = None
+      abandon_num = 0
 
       bboxes = defaultdict(list)
       for cat in cat_ids:
@@ -536,6 +542,9 @@ def gen_bboxes(max_num_points=1e5):
             bbox = points_to_oriented_bbox(coords_cat_ins, bboxes_wall, cat_name)
             if bbox is not None:
               bboxes[cat_name].append(bbox)
+            else:
+              abandon_num += 1
+              print(f'\n\nAbandon one {cat_name}\n\n')
         if cat_name == 'wall':
           bboxes_wall = np.concatenate(bboxes['wall'],0)
         pass
@@ -565,10 +574,11 @@ def gen_bboxes(max_num_points=1e5):
       if 0:
         _show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
       if 1:
+        print(f'abandon_num: {abandon_num}')
         all_bboxes = []
         all_cats = []
         view_cats = ['wall', 'beam', 'window', 'column', 'door']
-        view_cats = ['door']
+        #view_cats = ['door', 'wall']
         for cat in view_cats:
           if cat not in bboxes:
             continue
@@ -577,7 +587,7 @@ def gen_bboxes(max_num_points=1e5):
         all_bboxes = np.concatenate(all_bboxes, 0)
         all_cats = np.array(all_cats)
 
-        _show_3d_points_objs_ls([coords], [colors], [all_bboxes],  obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
+        #_show_3d_points_objs_ls([coords], [colors], [all_bboxes],  obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
 
         scope = all_bboxes[:,:4].reshape(-1,2).max(0) - all_bboxes[:,:4].reshape(-1,2).min(0)
         voxel_size =  max(scope) / 1000
@@ -587,7 +597,9 @@ def gen_bboxes(max_num_points=1e5):
         all_bboxes_2d[:,2:4] -=  org
         w, h = all_bboxes_2d[:,:4].reshape(-1,2).max(0).astype(np.int)+100
         _show_objs_ls_points_ls( (h,w), [all_bboxes_2d], obj_rep='XYXYSin2W',
-                                obj_scores_ls=[all_cats])
+                                obj_scores_ls=[all_cats], out_file=topview_file,
+                                only_save=1)
+        pass
       if 0:
         view_cats = ['column', 'beam']
         view_cats = ['door',]
