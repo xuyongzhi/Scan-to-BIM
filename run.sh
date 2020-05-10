@@ -15,13 +15,13 @@ CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 #CP=./checkpoints/beike/Apr23_WaDo_Bev.pth
 #CP=./checkpoints/sfd/Apr26_wabeco_Bev.pth
-CP=./checkpoints/sfd/ad5pts.pth
+CP=./checkpoints/sfd/Rect4CornersZ0Z1_abcdi_NR_May10.pth
 
 
 LR=0.01
-ROTATE=1
+ROTATE=0
 BASE_PLANE=32
-BS=7
+BS=5
 DATA_TYPES=cnx
 FILTER_EDGES=1
 REL=0

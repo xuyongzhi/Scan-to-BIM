@@ -878,6 +878,17 @@ class OBJ_REPS_PARSE():
     return bboxes
 
   @staticmethod
+  def update_corners_order(bboxes, obj_rep):
+    assert obj_rep == 'Rect4CornersZ0Z1'
+    assert bboxes.shape[1] == 10
+    n = bboxes.shape[0]
+    tmp = torch.from_numpy( bboxes[:,:8].reshape(n, 4, 2) )
+    rect_4corners, _ = sort_four_corners(tmp)
+    rect_4corners = rect_4corners.reshape(n, 8).numpy()
+    bboxes = np.concatenate([rect_4corners, bboxes[:,8:10]], -1)
+    return bboxes
+
+  @staticmethod
   def get_8_corners(bboxes, obj_rep):
     '''
     bboxes: [n,7]

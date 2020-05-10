@@ -483,10 +483,6 @@ class RandomLineFlip(object):
             raise ValueError(
                 'Invalid flipping direction "{}"'.format(direction))
         flipped = OBJ_REPS_PARSE.update_corners_order( flipped, obj_rep )
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        #mask = (np.abs(flipped[:,-1]) >2).reshape(-1,1)
-        #flipped = flipped - mask * flipped * 2
-        #print('\nflipped\n')
         return flipped
     def bbox_flip_XYLgWsAbsSin2Z0Z1(self, bboxes, img_shape, direction):
         assert bboxes.shape[-1] == 8
