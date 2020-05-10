@@ -18,7 +18,7 @@ SMALL_DATA = 1
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
-DOOR_FAILED = ['office_4', 'Area_2/storage_5', 'Area_2/storage_7']
+DOOR_FAILED = ['Area_2/storage_5', 'Area_2/storage_7']
 
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
 _raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
