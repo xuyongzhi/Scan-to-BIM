@@ -746,10 +746,9 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
 
   if SHOW_3D:
     det_bboxes = get_z_by_iou(det_bboxes, gt_bboxes, obj_rep)
-    _show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors] )
     _show_3d_points_objs_ls( objs_ls=[gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors] )
+    _show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors] )
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_2dlines_as_3d(lines_2d, labels):

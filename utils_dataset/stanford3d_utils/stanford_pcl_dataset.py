@@ -218,11 +218,12 @@ class Stanford_Ann():
     coords, colors_norms, point_labels, _ = self.load_ply(index)
 
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
+    rm_cats = ['ceiling', 'background']
     rm_cats = ['ceiling']
 
     # 3d
     points = np.concatenate([coords, colors_norms], axis=1)
-    points, point_labels = filter_categories('remove', points, point_labels, ['ceiling'], _raw_pcl_category_ids_map)
+    points, point_labels = filter_categories('remove', points, point_labels, rm_cats, _raw_pcl_category_ids_map)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
     gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, ['wall', 'beam', 'column', 'door', 'window'], self._category_ids_map)
     gt_cats = [self._catid_2_cat[l] for l in gt_labels]
@@ -230,8 +231,9 @@ class Stanford_Ann():
 
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
 
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
-    _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
+    #_show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
 
     if self.obj_rep == 'XYXYSin2WZ0Z1':
       sin2 = gt_bboxes_3d_raw[:,4].copy()
@@ -245,7 +247,7 @@ class Stanford_Ann():
       raise NotImplementedError
     corners /= 0.01
     obj_cats = np.array(kp_cats)[gt_labels]
-    _show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], 'XYXYSin2WZ0Z1', points_ls=[corners], obj_scores_ls=[obj_cats])
+    #_show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], 'XYXYSin2WZ0Z1', points_ls=[corners], obj_scores_ls=[obj_cats])
     pass
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
@@ -592,9 +594,11 @@ def filter_categories(event, bboxes, labels, filter_cats, category_ids_map):
   filter_labels = [category_ids_map[c] for c in filter_cats]
   if event == 'remove':
     keep_labels = [category_ids_map[c] for c in category_ids_map if c not in filter_cats]
+    nkeep = num0 - num1
   else:
     keep_labels = filter_labels
-  labels_map[keep_labels] = np.arange(num1)
+    nkeep = num1
+  labels_map[keep_labels] = np.arange(nkeep)
 
   n = bboxes.shape[0]
   remain_mask = np.zeros(n)==1
@@ -624,7 +628,6 @@ def main3d():
   #img_prefix = './test.txt'
   classes = Stanford_CLSINFO.classes_order
   max_num_points = 50 * 1e4
-  max_num_points = None
   sfd_dataset = StanfordPcl(obj_rep, ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
   #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()
