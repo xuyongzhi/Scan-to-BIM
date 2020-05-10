@@ -162,9 +162,9 @@ def update_config(cfg, args, split):
         #  cfg['work_dir'] += '_' + cfg['_obj_rep']
         if obj_rep == 'Rect4CornersZ0Z1':
           if cfg['model']['bbox_head']['adjust_5pts_by_4']:
-              cfg['work_dir'] += '_Apts4'
+              cfg['work_dir'] += 'Apts4_'
         num_ps_long_axis = cfg['model']['bbox_head']['num_ps_long_axis']
-        cfg['work_dir'] += f'_Nla{num_ps_long_axis}'
+        cfg['work_dir'] += f'Nla{num_ps_long_axis}'
 
         if 0 and 'cls_types' in cfg['model']['bbox_head']:
           cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])

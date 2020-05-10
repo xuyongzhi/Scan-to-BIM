@@ -81,6 +81,10 @@ class Stanford_Ann():
     self.phase = phase
     if phase in ['train', 'test']:
       self.area_list = [1,2,3,4,6] if phase == 'train' else [5]
+      if phase == 'train':
+        self.area_list = [1,2,3,4,5,6]
+      else:
+        self.area_list = [5,6]
     else:
       self.area_list = [int(a) for a in phase]
     self.data_root = data_root

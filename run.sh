@@ -19,7 +19,7 @@ CP=./work_dirs/${wkdir}/best.pth
 
 
 LR=0.01
-ROTATE=1
+ROTATE=0
 BASE_PLANE=32
 BS=7
 DATA_TYPES=cnx
