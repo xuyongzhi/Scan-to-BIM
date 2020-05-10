@@ -7,7 +7,7 @@ from mmcv.image import imread, imwrite
 import cv2
 from MinkowskiEngine import SparseTensor
 
-from tools.color import color_val, get_random_color, label2color, _label2color
+from tools.color import color_val, get_random_color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
@@ -411,6 +411,8 @@ def _make_bboxes_o3d(bboxes, box_oriented, color):
     assert bboxes.shape[1] == 6
   if isinstance(color, np.ndarray) and color.shape[0] == bboxes.shape[0]:
     colors = _label2color(color)
+  elif isinstance(color, list) and len(color) == bboxes.shape[0]:
+    colors = [ _get_color(c) for c in color]
   else:
     c = _get_color(color)
     colors = [c] * bboxes.shape[0]
@@ -446,12 +448,13 @@ def _make_bbox_mesh(bbox, box_oriented, color):
     assert box_oriented
     assert bbox.shape == (7,)
     radius = BOX_LINE_RADIUS
-    radius = bbox[3:6].max()/100
+    radius = bbox[3:6].max()/200
 
     lines = OBJ_REPS_PARSE.get_12_lines(bbox.reshape(1,7), 'XYZLgWsHA')[0] # [12,2,3]
     centroids = lines.mean(1)
     directions = lines[:,1,:]-lines[:,0,:]
     heights = np.linalg.norm(directions,axis=1)
+    heights = np.clip(heights, a_min=0.001, a_max=None)
     directions = directions/heights.reshape([-1,1])
     mesh = []
     for i in range(12):
@@ -484,7 +487,7 @@ def _make_pcd(points, colors=None, normals=None):
         pcd.colors = o3d.utility.Vector3dVector(colors)
       elif colors.shape[1] == 1:
         labels = colors
-        pcd.colors = o3d.utility.Vector3dVector( label2color(labels) / 255)
+        pcd.colors = o3d.utility.Vector3dVector( _label2color(labels) / 255)
 
     if normals is not None:
       pcd.normals = o3d.utility.Vector3dVector(normals)

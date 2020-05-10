@@ -6,7 +6,7 @@ import numpy as np
 from mmcv.utils import is_str
 
 
-class Color(Enum):
+class OLDColor(Enum):
     """An enum that defines common colors.
 
     Contains red, green, blue, cyan, yellow, magenta, white and black.
@@ -20,6 +20,24 @@ class Color(Enum):
     white = (255, 255, 255)
     black = (0, 0, 0)
 
+class Color(Enum):
+    """An enum that defines common colors.
+
+    Contains red, green, blue, cyan, yellow, magenta, white and black.
+    """
+    red   = (255,0,0)
+    green = (0,128,0)
+    lime =  (0,255,0)
+    blue  =	(0,0,255)
+    cyan  = (0,255,255)
+    yellow= (255,255,0)
+    magenta=(255,0,255)
+    white = (255,255,255)
+    black = (0,0,0)
+    maroon= (128,0,0)
+    purple= (128,0,128)
+    navy  = (0,0,128)
+
 def get_random_color():
   # except black and white
   colors = ['red', 'green', 'blue','cyan','yellow','magenta']
@@ -27,10 +45,11 @@ def get_random_color():
   return Color[col].value
 
 def _label2color(labels):
-  colors = ['green', 'red','yellow', 'blue','cyan','magenta']
+  colors = ['black', 'green', 'red', 'blue','cyan','magenta', 'yellow']
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   return color_values
 
 def color_val(color):

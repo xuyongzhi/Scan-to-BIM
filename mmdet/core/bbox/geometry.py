@@ -4,7 +4,7 @@ from tools.visual_utils import _show_objs_ls_points_ls
 
 
 # 3d ---------------------------------------------------------------------------
-def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.82):
+def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.82, only_2d=True):
   '''
   XYZLgWsHA
   bboxes1: [n,7]  gt
