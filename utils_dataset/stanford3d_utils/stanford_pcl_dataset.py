@@ -229,9 +229,8 @@ class Stanford_Ann():
 
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
 
-    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
-    _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
     _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
+    _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
 
     if self.obj_rep == 'XYXYSin2WZ0Z1':
       sin2 = gt_bboxes_3d_raw[:,4].copy()
@@ -245,7 +244,7 @@ class Stanford_Ann():
       raise NotImplementedError
     corners /= 0.01
     obj_cats = np.array(kp_cats)[gt_labels]
-    _show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], self.obj_rep, points_ls=[corners], obj_scores_ls=[obj_cats])
+    _show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], 'XYXYSin2WZ0Z1', points_ls=[corners], obj_scores_ls=[obj_cats])
     pass
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
@@ -526,6 +525,8 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
 
   bboxes_XYXYSin2WZ0Z1[:, :2] -= scope[0:1,:2]
   bboxes_XYXYSin2WZ0Z1[:, 2:4] -= scope[0:1,:2]
+  bboxes_XYXYSin2WZ0Z1[:, 6] -= scope[0:1,2]
+  bboxes_XYXYSin2WZ0Z1[:, 7] -= scope[0:1,2]
 
   gt_bboxes = OBJ_REPS_PARSE.encode_obj(bboxes_XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', obj_rep)
   anno = {}

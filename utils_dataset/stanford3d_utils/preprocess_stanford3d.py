@@ -200,6 +200,7 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
 
   #if bboxes_wall0 is not None:
   #  _show_3d_points_objs_ls([points], objs_ls=[bboxes_wall0], obj_rep='XYXYSin2WZ0Z1')
+  points = points.copy()
 
   xyz_min = points.min(0)
   xyz_max = points.max(0)
@@ -447,7 +448,8 @@ def gen_bboxes(max_num_points=1e5):
   ROTAE_WINDOW=['Area_1/office_11']
   scenes = UNALIGNED[0:1]
   scenes = DOOR_HAD[2:]
-  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+  scenes = ['Area_2/auditorium_2']
+  ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
 
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
@@ -458,7 +460,7 @@ def gen_bboxes(max_num_points=1e5):
       print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
-        continue
+        #continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
@@ -528,6 +530,8 @@ def gen_bboxes(max_num_points=1e5):
       colors = feats
 
       if 0:
+        _show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
+      if 0:
         all_bboxes = []
         all_cats = []
         view_cats = ['wall', 'beam', 'window', 'column', 'door']
@@ -549,15 +553,6 @@ def gen_bboxes(max_num_points=1e5):
         w, h = all_bboxes_2d[:,:4].reshape(-1,2).max(0).astype(np.int)+100
         _show_objs_ls_points_ls( (h,w), [all_bboxes_2d], obj_rep='XYXYSin2W',
                                 obj_scores_ls=[all_cats])
-
-      #print(walls)
-
-      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
-      #print( bboxes['wall'])
-      #bboxes['wall'][:,:5],_,_ = GraphUtils.optimize_graph(bboxes['wall'][:,:5], obj_rep='RoLine2D_UpRight_xyxy_sin2a', opt_graph_cor_dis_thr=0.2)
-      #print( bboxes['wall'])
-      #_show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
-
       if 0:
         view_cats = ['column', 'beam']
         view_cats = ['door',]
