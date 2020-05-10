@@ -877,6 +877,39 @@ class OBJ_REPS_PARSE():
     bboxes = np.concatenate([rect_4corners, bboxes[:,6:8]], -1)
     return bboxes
 
+  @staticmethod
+  def get_8_corners(bboxes, obj_rep):
+    '''
+    bboxes: [n,7]
+    corners_3d: [n,8,3]
+    '''
+    from tools.visual_utils import _show_3d_points_objs_ls
+    n = bboxes.shape[0]
+    Rect4CornersZ0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'Rect4CornersZ0Z1')
+    corners_2d = Rect4CornersZ0Z1[:,:8].reshape(n, 4, 2)
+    z0 = np.repeat(Rect4CornersZ0Z1[:, None, 8:9], 4, axis=1)
+    z1 = np.repeat(Rect4CornersZ0Z1[:, None, 9:10], 4, axis=1)
+    corners_3d_bot = np.concatenate([corners_2d, z0], axis=2)
+    corners_3d_top = np.concatenate([corners_2d, z1], axis=2)
+    corners_3d = np.concatenate([corners_3d_bot, corners_3d_top], axis=1)
+
+    #_show_3d_points_objs_ls([corners_3d.reshape(-1,3)], objs_ls=[bboxes], obj_rep=obj_rep)
+    return corners_3d
+
+  @staticmethod
+  def get_12_lines(bboxes, obj_rep):
+    '''
+    bboxes: [n,7]
+    lines_3d: [n,12,2,3]
+    '''
+    n = bboxes.shape[0]
+    corners_3d = OBJ_REPS_PARSE.get_8_corners(bboxes, obj_rep) # [n,8,3]
+    lines_vertical = np.concatenate([corners_3d[:,4:8,None,:] , corners_3d[:,:4,None,:]], axis=2)
+    corners_moved = corners_3d.reshape(n,2,4,3)[:,:,[1,2,3,0],:].reshape(n,8,3)
+    lines_hori = np.concatenate([ corners_3d[:,:,None,:], corners_moved[:,:,None,:]], axis=2)
+    lines_3d = np.concatenate([lines_hori, lines_vertical], axis=1)
+    return lines_3d
+
 class GraphUtils:
   @staticmethod
   def optimize_graph(bboxes_in, scores=None, labels=None,

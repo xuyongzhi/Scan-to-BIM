@@ -12,6 +12,8 @@ from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 ADD_FRAME = 1
+BOX_MESH = 1
+BOX_LINE_RADIUS = 2
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -414,16 +416,23 @@ def _make_bboxes_o3d(bboxes, box_oriented, color):
     colors = [c] * bboxes.shape[0]
   bboxes_ = []
   for i,bbox in enumerate(bboxes):
-    bboxes_.append( _make_bbox_o3d(bbox, box_oriented, colors[i]) )
+    if BOX_MESH:
+      bboxes_.append( _make_bbox_mesh(bbox, box_oriented, colors[i]) )
+    else:
+      bboxes_.append( _make_bbox_o3d(bbox, box_oriented, colors[i]) )
   return bboxes_
 
 def _make_bbox_o3d(bbox, box_oriented, color):
+  '''
+  box_oriented = True
+  bbox: [7], :3 is center, 3:6 is size, 6:7 is angle
+  '''
   assert bbox.ndim==1
   if not box_oriented:
-    assert bbox.shape[0] == 6
+    assert bbox.shape == (6,)
     bbox_ = o3d.geometry.AxisAlignedBoundingBox(bbox[:3], bbox[3:6])
   else:
-    assert bbox.shape[0] == 7
+    assert bbox.shape == (7,)
     center = bbox[:3]
     extent = bbox[3:6]
     axis_angle = np.array([0,0,bbox[6]])
@@ -432,6 +441,31 @@ def _make_bbox_o3d(bbox, box_oriented, color):
     bbox_ = o3d.geometry.OrientedBoundingBox( center, R, extent )
   bbox_.color = color
   return bbox_
+
+def _make_bbox_mesh(bbox, box_oriented, color):
+    assert box_oriented
+    assert bbox.shape == (7,)
+    radius = BOX_LINE_RADIUS
+
+    lines = OBJ_REPS_PARSE.get_12_lines(bbox.reshape(1,7), 'XYZLgWsHA')[0] # [12,2,3]
+    centroids = lines.mean(1)
+    directions = lines[:,1,:]-lines[:,0,:]
+    heights = np.linalg.norm(directions,axis=1)
+    directions = directions/heights.reshape([-1,1])
+    mesh = []
+    for i in range(12):
+        cylinder_i = o3d.geometry.TriangleMesh.create_cylinder(radius=radius, height=heights[i])
+        cylinder_i.paint_uniform_color(color)
+        transformation = np.identity(4)
+        transformation[:3,3] = centroids[i]
+        transformation[:3,2] = directions[i]
+        cylinder_i.transform(transformation)
+        mesh.append(cylinder_i)
+
+    cm = mesh[0]
+    for i in range(1,12):
+      cm += mesh[i]
+    return cm
 
 def _make_pcd(points, colors=None, normals=None):
     if points.shape[1] == 6 and colors is None:
@@ -500,15 +534,25 @@ def test_rotation_order():
 
   corners = OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'RoLine2D_2p').reshape(-1,2)
   XYZLgWsHA = OBJ_REPS_PARSE.encode_obj(XYLgWsA, 'XYLgWsA', 'XYZLgWsHA')
-  XYZLgWsHA[:,5] = 1
+  XYZLgWsHA[:,5] = 10
   corners_3d = OBJ_REPS_PARSE.encode_obj(XYZLgWsHA, 'XYZLgWsHA', 'Bottom_Corners').reshape(-1,3)
 
-  _show_objs_ls_points_ls( (512,512), [XYLgWsA], obj_rep, points_ls=[corners])
+  #_show_objs_ls_points_ls( (512,512), [XYLgWsA], obj_rep, points_ls=[corners])
   _show_3d_points_objs_ls([corners_3d], objs_ls=[XYZLgWsHA], obj_rep='XYZLgWsHA' )
 
 
   pass
 
+def test_show_box():
+  u = np.pi/180
+  XYZLgWsHA= np.array( [
+    [200, 200, 0, 200, 100, 50, 30*u],
+  ] )
+  #lines = OBJ_REPS_PARSE.get_12_lines(XYZLgWsHA, 'XYZLgWsHA')
+  _show_3d_points_objs_ls(objs_ls=[XYZLgWsHA], obj_rep='XYZLgWsHA')
+
+
 if __name__  == '__main__':
-  test_rotation_order()
+  #test_rotation_order()
+  test_show_box()
 
