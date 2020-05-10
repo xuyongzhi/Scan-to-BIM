@@ -14,10 +14,11 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
-BAD_INSTANCES = ['Area_3/office_7']
+BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
+DOOR_FAILED = ['office_4', 'Area_2/storage_5', 'Area_2/storage_7']
 
 #_cat_2_color = {'wall':'blue', 'column': 'red','door':'green'}
 _raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column',
@@ -75,8 +76,20 @@ class Stanford_Ann():
   GoodSamples_Area5 = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']+\
                       ['Area_3/office_7']
 
-  def __init__(self, input_style, data_root, phase, voxel_size=None):
+  Area6_Aligned = ['Area_6/copyRoom_1', 'Area_6/office_10', 'Area_6/office_11', 'Area_6/office_2', 'Area_6/office_29', 'Area_6/office_30', 'Area_6/office_32', 'Area_6/office_8']
+  Area3_Aligned = ['Area_3/conferenceRoom_1', 'Area_3/hallway_2', 'Area_3/lounge_2']
+  Area3_Rotated_Good = ['Area_3/office_7','Area_3/office_5']
+  Area3_Rotated_NotGood = ['Area_3/office_3']
+  Area4_Aligned = ['Area_4/hallway_11', 'Area_4/hallway_3']
+  Area1_Aligned=  ['Area_1/office_11', 'Area_1/office_16', 'Area_1/office_29', 'Area_1/office_8']
+  Area2_Aligned = ['Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'office_4', 'Area_2/office_5']
+  Area2_Rotated = ['Area_2/auditorium_1', 'Area_2/conferenceRoom_1', 'Area_2/storage_9']
+
+  The_GoodSamples = ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1', 'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9']
+
+  def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
+    self.obj_rep = obj_rep
     self.input_style = input_style
     self.phase = phase
     if phase in ['train', 'test']:
@@ -87,6 +100,7 @@ class Stanford_Ann():
         self.area_list = [5,6]
     else:
       self.area_list = [int(a) for a in phase]
+
     self.data_root = data_root
     self.voxel_size = voxel_size
     self.load_annotation()
@@ -100,9 +114,9 @@ class Stanford_Ann():
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
-      #data_paths = [f+'.ply' for f in self.DIFFICULT]
+      data_paths = [f+'.ply' for f in self.DIFFICULT]
       #data_paths = [f+'.ply' for f in self.BadColum]
-      data_paths = [f+'.ply' for f in self.SAMPLES1]
+      #data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
       #data_paths = [f+'.ply' for f in self.ALIGN_GOOD]
 
@@ -219,10 +233,16 @@ class Stanford_Ann():
     _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
     _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
 
-    assert self.obj_rep == 'XYXYSin2WZ0Z1'
-    sin2 = gt_bboxes_3d_raw[:,4].copy()
-    gt_bboxes_3d_raw /= 0.01
-    gt_bboxes_3d_raw[:,4] = sin2
+    if self.obj_rep == 'XYXYSin2WZ0Z1':
+      sin2 = gt_bboxes_3d_raw[:,4].copy()
+      gt_bboxes_3d_raw /= 0.01
+      gt_bboxes_3d_raw[:,4] = sin2
+    elif self.obj_rep == 'XYZLgWsHA':
+      theta = gt_bboxes_3d_raw[:,6].copy()
+      gt_bboxes_3d_raw /= 0.01
+      gt_bboxes_3d_raw[:,6] = theta
+    else:
+      raise NotImplementedError
     corners /= 0.01
     obj_cats = np.array(kp_cats)[gt_labels]
     _show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], self.obj_rep, points_ls=[corners], obj_scores_ls=[obj_cats])
@@ -269,7 +289,7 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     Stanford_CLSINFO.__init__(self, classes)
     data_root = ann_file
     phase = img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
-    Stanford_Ann.__init__(self, 'pcl', data_root, phase, voxel_size=voxel_size)
+    Stanford_Ann.__init__(self, 'pcl', data_root, phase, obj_rep, voxel_size=voxel_size)
 
     self.save_sparse_input_for_debug = 0
     self.VOXEL_SIZE = self.voxel_size = voxel_size
@@ -515,6 +535,8 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
       sin2 = gt_bboxes[:,4].copy()
       gt_bboxes /= voxel_size_prj
       gt_bboxes[:,4] = sin2
+    elif obj_rep == 'XYZLgWsHA':
+      gt_bboxes[:,:6] /= voxel_size_prj
     elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
       rotation = gt_bboxes[:,4:6].copy()
       gt_bboxes /= voxel_size_prj
@@ -541,7 +563,8 @@ def load_bboxes(pcl_file, classes, _category_ids_map, obj_rep, input_style):
   show = 0
   if show:
     print(f'\n\n{pcl_file}\n\n')
-    #_show_3d_points_objs_ls(objs_ls=[bboxes_XYXYSin2WZ0Z1], obj_rep='XYXYSin2WZ0Z1')
+    _show_3d_points_objs_ls(objs_ls=[bboxes_XYXYSin2WZ0Z1], obj_rep='XYXYSin2WZ0Z1')
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes], obj_rep=obj_rep)
     w,h =  gt_bboxes[:,:4].reshape(-1,2).max(0).astype(np.int) + 10
     _show_objs_ls_points_ls( (h,w), [gt_bboxes], obj_rep=obj_rep )
 
@@ -593,7 +616,7 @@ def load_1_ply(filepath):
 
 
 def main3d():
-  obj_rep = 'XYXYSin2WZ0Z1'
+  obj_rep = 'XYZLgWsHA'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
   img_prefix = './train.txt'
   #img_prefix = './test.txt'
@@ -607,7 +630,7 @@ def main3d():
   pass
 
 def main2d():
-  obj_rep = 'XYXYSin2WZ0Z1'
+  obj_rep = 'XYZLgWsHA'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
   img_prefix = './train.txt'
   img_prefix = 'test'
