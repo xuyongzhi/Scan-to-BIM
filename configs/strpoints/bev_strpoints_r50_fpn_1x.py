@@ -15,14 +15,13 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-DATA = 'stanford2d'
+#DATA = 'stanford2d'
 classes= ['wall']
 
-_obj_rep = 'XYXYSin2'
-_obj_rep = 'XYXYSin2WZ0Z1'
-_obj_rep = 'XYDAsinAsinSin2Z0Z1'
-_obj_rep = 'XYZLgWsHA'
-_obj_rep = 'Rect4CornersZ0Z1'
+if DATA == 'beike2d':
+  _obj_rep = 'XYXYSin2'
+elif DATA == 'stanford2d':
+  _obj_rep = 'Rect4CornersZ0Z1'
 
 num_ps_long_axis = 9
 #overlap_fun='dil_iou_dis'
@@ -33,13 +32,13 @@ _obj_dim = dim_parse.OBJ_DIM
 
 if _obj_rep == 'XYXYSin2':
   _transform_method='moment_XYXYSin2'
-elif _obj_rep == 'XYLgWsAbsSin2Z0Z1':
-  _transform_method = 'minAreaRect'
-  #_transform_method='XYLgWsAbsSin2Z0Z1'
-elif _obj_rep == 'XYXYSin2WZ0Z1':
-  _transform_method='moment_XYXYSin2WZ0Z1'
-elif _obj_rep == 'XYDAsinAsinSin2Z0Z1':
-  _transform_method = '4corners_to_rect'
+#elif _obj_rep == 'XYLgWsAbsSin2Z0Z1':
+#  _transform_method = 'minAreaRect'
+#  #_transform_method='XYLgWsAbsSin2Z0Z1'
+#elif _obj_rep == 'XYXYSin2WZ0Z1':
+#  _transform_method='moment_XYXYSin2WZ0Z1'
+#elif _obj_rep == 'XYDAsinAsinSin2Z0Z1':
+#  _transform_method = '4corners_to_rect'
 elif _obj_rep == 'Rect4CornersZ0Z1':
   _transform_method = 'sort_4corners'
 #*******************************************************************************
@@ -265,7 +264,7 @@ elif DATA == 'stanford2d':
   #load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
   #load_from = './checkpoints/sfd/Rect4CornersZ0Z1_abcdi_NR_May10.pth'
   load_from = './checkpoints/sfd/Rect4CornersZ0Z1_abcdi_Rot_May10.pth'
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]

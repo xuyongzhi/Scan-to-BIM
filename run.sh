@@ -15,7 +15,7 @@ CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 #CP=./checkpoints/beike/Apr23_WaDo_Bev.pth
 #CP=./checkpoints/sfd/Apr26_wabeco_Bev.pth
-CP=./checkpoints/sfd/Rect4CornersZ0Z1_abcdi_NR_May10.pth
+#CP=./checkpoints/sfd/Rect4CornersZ0Z1_abcdi_NR_May10.pth
 
 
 LR=0.01
@@ -24,9 +24,9 @@ BASE_PLANE=32
 BS=5
 DATA_TYPES=cnx
 FILTER_EDGES=1
-REL=0
+REL=1
 CLS=abcdi
-#CLS=ad
+CLS=ad
 #CLS=a
 #CLS=abdi
 #CLS=A
