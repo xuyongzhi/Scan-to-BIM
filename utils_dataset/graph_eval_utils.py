@@ -11,7 +11,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
-SHOW_3D = 1
+SHOW_3D = 0
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
@@ -184,7 +184,8 @@ def eval_graph(res_file):
 
 class GraphEval():
   _all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ][1:3]
-  _all_out_types = [ 'bRefine_sAve' ]
+  #_all_out_types = [ 'bRefine_sAve' ]
+  #_all_out_types = [ 'bInit_sRefine' ]
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
