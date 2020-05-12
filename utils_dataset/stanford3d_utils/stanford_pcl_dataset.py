@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 1
+SMALL_DATA = 0
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
@@ -95,9 +95,9 @@ class Stanford_Ann():
     if phase in ['train', 'test']:
       self.area_list = [1,2,3,4,6] if phase == 'train' else [5]
       if phase == 'train':
-        self.area_list = [1,2,3,4,5,6]
+        self.area_list = [1,2,3,4,5]
       else:
-        self.area_list = [5,6]
+        self.area_list = [6]
     else:
       self.area_list = [int(a) for a in phase]
 
