@@ -136,6 +136,8 @@ class DEBUG_CFG:
   MIN_BOX_SIZE = 5.0 * DIM_PARSE.IMAGE_SIZE / 1024
   # mmdet/datasets$/custom.py
   VISUAL_TOPVIEW_INPUT = 0
+  VISUAL_SPARSE_3D_TRANSFORM = 0
+  VISUAL_SPARSE_3D_INPUT = 0
   VISUAL_CONNECTIONS = 0
 
   # training debug inside net

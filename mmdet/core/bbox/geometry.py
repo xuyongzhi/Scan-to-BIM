@@ -36,7 +36,7 @@ def relative_dis_XYZLgWsHA(bboxes1, bboxes2, mode='gt_size_as_ref'):
   n1 = bboxes1.shape[0]
   n2 = bboxes2.shape[0]
   if n1==0 or n2==0:
-    return np.zeros([n1,n2])
+    return torch.zeros([n1,n2]).to(bboxes1.dtype).to(bboxes1.device)
   centroids1 = bboxes1[:,:2]
   centroids2 = bboxes2[:,:2]
   abs_diss = centroids1.unsqueeze(dim=1) - centroids2.unsqueeze(dim=0)

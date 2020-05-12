@@ -15,32 +15,19 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-#DATA = 'stanford2d'
+DATA = 'stanford2d'
 classes= ['wall']
 
 if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
+  _transform_method='moment_XYXYSin2'
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
-
-num_ps_long_axis = 9
-#overlap_fun='dil_iou_dis'
-overlap_fun='dil_iou_dis_rotated_3d'
+  _transform_method = 'sort_4corners'
 
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
 
-if _obj_rep == 'XYXYSin2':
-  _transform_method='moment_XYXYSin2'
-#elif _obj_rep == 'XYLgWsAbsSin2Z0Z1':
-#  _transform_method = 'minAreaRect'
-#  #_transform_method='XYLgWsAbsSin2Z0Z1'
-#elif _obj_rep == 'XYXYSin2WZ0Z1':
-#  _transform_method='moment_XYXYSin2WZ0Z1'
-#elif _obj_rep == 'XYDAsinAsinSin2Z0Z1':
-#  _transform_method = '4corners_to_rect'
-elif _obj_rep == 'Rect4CornersZ0Z1':
-  _transform_method = 'sort_4corners'
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
@@ -74,7 +61,6 @@ model = dict(
         point_feat_channels=256,
         stacked_convs=3,
         num_points=9,
-        num_ps_long_axis = num_ps_long_axis,
         gradient_mul=0.1,
         point_strides=[4, 8, 16, 32],
         point_base_scale=1,
@@ -116,7 +102,7 @@ train_cfg = dict(
             neg_iou_thr=0.4,
             min_pos_iou=0.1,
             ignore_iof_thr=-1,
-            overlap_fun=overlap_fun,
+            overlap_fun='dil_iou_dis_rotated_3d',
             obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
@@ -255,8 +241,7 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-IoUType = '' if 'rotate' not in overlap_fun else 'RIou'
-work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}_{IoUType}_'
+work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/Apr23_WaDo_Bev.pth'
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'

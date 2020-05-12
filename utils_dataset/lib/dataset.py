@@ -11,7 +11,7 @@ from torch.utils.data import Dataset, DataLoader
 
 import MinkowskiEngine as ME
 
-from obj_geo_utils.line_operations import m_transform_lines
+from obj_geo_utils.line_operations import m_transform_bboxes
 
 from plyfile import PlyData
 from . import transforms as t
@@ -19,6 +19,7 @@ from .dataloader import InfSampler
 from .voxelizer import Voxelizer
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_lines_ls_points_ls
 from tools.visual_utils import _show_3d_points_objs_ls
+from configs.common import DEBUG_CFG
 
 DEBUG = 0
 
@@ -296,13 +297,13 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     if self.prevoxel_transform is not None:
       coords, feats, labels = self.prevoxel_transform(coords, feats, labels)
 
-    if debug and 0:
+    if DEBUG_CFG.VISUAL_SPARSE_3D_TRANSFORM and 0:
       scale = 1
       print('\n\ncoords min:', coords.min(0))
       print('coords max:', coords.max(0))
       print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
       print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
-      _show_lines_ls_points_ls((512,512), [gt_bboxes/self.VOXEL_SIZE*scale], [coords / self.VOXEL_SIZE*scale])
+      _show_3d_points_objs_ls([coords], objs_ls=[gt_bboxes], obj_rep=self.obj_rep)
 
     #coords_raw = coords.copy()
     coords, feats, labels, transformation, rotate_angles, scale_rate = self.voxelizer.voxelize(
@@ -316,16 +317,16 @@ class VoxelizationDataset(VoxelizationDatasetBase):
     img_meta['data_aug']['rotate_angles'] = rotate_angles
     img_meta['data_aug']['scale_rate'] = scale_rate
     if is_include_gt_bboxes:
-      gt_bboxes = m_transform_lines(gt_bboxes, line_transformation, self.obj_rep)
+      gt_bboxes = m_transform_bboxes(gt_bboxes, line_transformation, self.obj_rep)
 
-    if debug and 0:
+    if DEBUG_CFG.VISUAL_SPARSE_3D_TRANSFORM and 0:
       scale = 3
       print('\n\ncoords min:', coords.min(0))
       print('coords max:', coords.max(0))
       print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
       print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
       print(gt_bboxes)
-      _show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
+      _show_3d_points_objs_ls([coords], objs_ls=[gt_bboxes], obj_rep=self.obj_rep)
 
     # map labels not used for evaluation to ignore_label
     if self.input_transform is not None:
@@ -349,7 +350,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
       mask = gt_labels > 0
       gt_bboxes = gt_bboxes[mask]
       gt_bboxes[:,:4] += self.bev_pad_pixels
-      img_info['gt_bboxes'] = gt_bboxes
+      img_info['gt_bboxes'] = gt_bboxes.astype(np.float32)
       img_info['gt_labels'] = gt_labels[mask]
 
     img_meta['dynamic_vox_size_aug'] = coords.max(0)+1
@@ -362,7 +363,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
 
     assert (coords.min(axis=0)==0).all()
 
-    if debug:
+    if DEBUG_CFG.VISUAL_SPARSE_3D_TRANSFORM and 1:
       scale = 3
       print('\n\ndataset item')
       print('coords num:', coords.shape[0])
@@ -371,8 +372,7 @@ class VoxelizationDataset(VoxelizationDatasetBase):
       print('gt min    :', gt_bboxes[:,:4].reshape(-1,2).min(0))
       print('gt max    :', gt_bboxes[:,:4].reshape(-1,2).max(0))
       #print(gt_bboxes)
-      _show_lines_ls_points_ls((512,512), [gt_bboxes*scale], [coords*scale])
-      _show_3d_points_objs_ls([coords], objs_ls=[gt_bboxes], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+      _show_3d_points_objs_ls([coords], objs_ls=[gt_bboxes], obj_rep=self.obj_rep)
       pass
 
     return_args = [coords, feats, labels, img_info]

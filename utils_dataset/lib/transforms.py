@@ -171,7 +171,7 @@ class RandomHorizontalFlip(object):
     self.horz_axes = set(range(self.D)) - set([self.upright_axis])
 
   def __call__(self, coords, feats, labels, gt_bboxes=None, img_meta=None):
-    if random.random() < 0.95:
+    if random.random() < 1.95:
       if img_meta is not None:
         img_meta['data_aug']['flip'] = {'x':-1, 'y':-1}
       for curr_ax in self.horz_axes:
@@ -183,17 +183,34 @@ class RandomHorizontalFlip(object):
           feats[:,3:6][:,curr_ax] *= -1
 
           if img_meta is not None:
-            line_flip_scope_itl(gt_bboxes, curr_ax, coord_max)
+            gt_bboxes = bboxes_flip_scope_itl(gt_bboxes, curr_ax, coord_max, img_meta['obj_rep'])
             img_meta['data_aug']['flip'][ ['x','y'][curr_ax] ] = coord_max
     return coords, feats, labels, gt_bboxes, img_meta
 
-def line_flip_scope_itl(lines0, curr_ax, coord_max):
-  assert lines0.shape[1] == 5
-  assert curr_ax==0 or curr_ax==1
-  tmp = coord_max - lines0[:, curr_ax]
-  lines0[:, curr_ax] = coord_max - lines0[:, curr_ax + 2]
-  lines0[:, curr_ax + 2] = tmp
-  lines0[:,4] = -lines0[:,4]
+def bboxes_flip_scope_itl(bboxes_in, curr_ax, coord_max, obj_rep):
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+
+  if obj_rep == 'XYXYSin2':
+    lines0 = bboxes_in
+    assert lines0.shape[1] == 5
+    assert curr_ax==0 or curr_ax==1
+    tmp = coord_max - lines0[:, curr_ax]
+    lines0[:, curr_ax] = coord_max - lines0[:, curr_ax + 2]
+    lines0[:, curr_ax + 2] = tmp
+    lines0[:,4] = -lines0[:,4]
+    return lines0
+  elif obj_rep == 'Rect4CornersZ0Z1':
+    assert bboxes_in.shape[1] == 10
+    assert curr_ax==0 or curr_ax==1
+    flipped = bboxes_in.copy()
+    if curr_ax == 0:
+      flipped[..., 0:8:2] = coord_max - bboxes_in[..., 0:8:2]
+    if curr_ax == 1:
+      flipped[..., 1:9:2] = coord_max - bboxes_in[..., 1:9:2]
+    flipped = OBJ_REPS_PARSE.update_corners_order( flipped, obj_rep )
+    return flipped
+  else:
+    raise NotImplementedError
 
 class ElasticDistortion:
 

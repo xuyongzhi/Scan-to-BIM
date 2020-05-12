@@ -11,7 +11,7 @@
 import math
 from configs.common import DIM_PARSE, DEBUG_CFG
 DATA = 'beike_pcl_2d'
-#DATA = 'stanford_pcl_2d'
+DATA = 'stanford_pcl_2d'
 classes= ['wall']
 
 voxel_size = 0.04
@@ -19,11 +19,15 @@ voxel_size = 0.04
 if DATA == 'beike_pcl_2d':
   stem_stride = 4
   batch_size = {2:2, 4:6}[stem_stride]
-  _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+  _obj_rep = 'XYXYSin2'
+  _transform_method='moment_XYXYSin2'
+
 elif DATA == 'stanford_pcl_2d':
   stem_stride = 2
   batch_size = {2:3, 4:6}[stem_stride]
-  _obj_rep = 'RoLine2D_UpRight_xyxy_sin2a'
+  _obj_rep = 'Rect4CornersZ0Z1'
+  _transform_method = 'sort_4corners'
+
 dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
 
@@ -111,6 +115,7 @@ model = dict(
         corner_hm_only = False,
         move_points_to_center = False,
         relation_cfg=dict(enable=0, stage='refine', score_threshold=0.2, max_relation_num=120),
+        adjust_5pts_by_4=True,
         )
     )
         #transform_method='minmax'))
@@ -127,9 +132,9 @@ train_cfg = dict(
             type='MaxIoUAssigner',
             pos_iou_thr=0.7,
             neg_iou_thr=0.4,
-            min_pos_iou=0.3,
+            min_pos_iou=0.1,
             ignore_iof_thr=-1,
-            overlap_fun='dil_iou_dis',
+            overlap_fun='dil_iou_dis_rotated_3d',
             obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
@@ -246,6 +251,7 @@ auto_resume = True
 workflow = [('train', 5), ('val', 1)]
 
 if 0:
+  data['workers_per_gpu'] = 0
   total_epochs = 1010
   checkpoint_config = dict(interval=1)
   workflow = [('train', 1),]

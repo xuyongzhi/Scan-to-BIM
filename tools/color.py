@@ -49,7 +49,6 @@ def _label2color(labels):
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   return color_values
 
 def color_val(color):

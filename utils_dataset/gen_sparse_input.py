@@ -21,7 +21,8 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
   assert gt_labels[0].min() > 0
   debug = 0
 
-  if debug:
+  if DEBUG_CFG.VISUAL_SPARSE_3D_INPUT:
+    obj_rep = img_meta[0]['obj_rep']
     n = coords_batch.shape[0]
     print(f'batch voxe num: {n/1000}k')
 
@@ -42,15 +43,10 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       mask_i = sinput.C[:,0] == i
       ci = sinput.C[mask_i]
 
-      lines2d = gt_bboxes[i].cpu().data.numpy()
-      nl = lines2d.shape[0]
-      tz = np.array([[3, 0, 50]]*nl)
-      bboxes3d = np.concatenate([lines2d,tz], axis=1)
+      bboxes3d = gt_bboxes[i].cpu().data.numpy()
 
       min_points = points.min(axis=0)
       max_points = points.max(axis=0)
-      min_lines = lines2d[:,:4].reshape(-1,2).min(axis=0)
-      max_lines = lines2d[:,:4].reshape(-1,2).max(axis=0)
       gt_labels_i = gt_labels[i].cpu().data.numpy()
 
       data_aug = img_meta_i['data_aug']
@@ -62,7 +58,6 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       print(f'num voxel: {num_p/1000}K')
       print(img_meta[i]['filename'])
       print(f'points scope: {min_points} - {max_points}')
-      print(f'lines scope: {min_lines} - {max_lines}')
       print(f'data aug:\n {data_aug}\n')
       print(f'labels: {gt_labels}')
 
@@ -72,7 +67,8 @@ def prepare_sparse_input(img, img_meta=None, gt_bboxes=None, gt_labels=None, res
       #_show_objs_ls_points_ls((512,512), [lines2d*scale], 'RoLine2D_UpRight_xyxy_sin2a')
       #_show_objs_ls_points_ls((512,512), [lines2d*scale], 'RoLine2D_UpRight_xyxy_sin2a', [points*scale])
       #_show_3d_points_objs_ls([points], None, [bboxes3d], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1' , obj_colors=[gt_labels_i] )
-      _show_3d_points_objs_ls([points], [colors], [bboxes3d], obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1')
+      _show_3d_points_objs_ls([points], [colors], [bboxes3d], obj_rep=obj_rep, obj_colors=[gt_labels_i])
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
   if 0 and DEBUG_CFG.SPARSE_BEV:

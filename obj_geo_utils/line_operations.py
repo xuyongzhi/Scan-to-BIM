@@ -154,6 +154,8 @@ def m_transform_lines(lines, matrix, obj_rep):
   matrix: [4,4]
   '''
   assert matrix.shape == (4,4)
+  assert lines.shape[1] == 5
+  assert obj_rep == 'XYXYSin2'
   n = lines.shape[0]
   lines_2endpts = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(n,2,2)
 
@@ -162,6 +164,37 @@ def m_transform_lines(lines, matrix, obj_rep):
   lines_2pts_r = (tmp @ matrix.T)[:,:2].reshape([n,2,2])
   lines_rotated = OBJ_REPS_PARSE.encode_obj(lines_2pts_r.reshape(n,4), 'RoLine2D_2p', obj_rep)
   return lines_rotated.astype(np.float32)
+
+def m_transform_bboxes(lines, matrix, obj_rep):
+  if obj_rep == 'XYXYSin2':
+    return m_transform_lines(lines, matrix, obj_rep)
+  elif obj_rep == 'Rect4CornersZ0Z1':
+    return m_transform_bboxes_4corners(lines, matrix, obj_rep)
+  else:
+    raise NotImplementedError
+
+def m_transform_bboxes_4corners(bboxes_in, matrix, obj_rep):
+  '''
+  lines:  [n,10]
+  matrix: [4,4]
+  '''
+  assert matrix.shape == (4,4)
+  assert bboxes_in.shape[1] == 10
+  assert obj_rep == 'Rect4CornersZ0Z1'
+  n = bboxes_in.shape[0]
+  bev_corners = bboxes_in[:, :8].reshape(n,4,2)
+  z0 = np.repeat( bboxes_in[:,None,8:9], 4, 1 )
+  z1 = np.repeat( bboxes_in[:,None,9:10], 4, 1 )
+  corners = np.concatenate([bev_corners, z0], axis=2)
+  corners[:,3,2] = z1[:,3,0]
+  corners = corners.reshape(n*4,3)
+
+  ones = np.ones([n*4,1], dtype=bboxes_in.dtype)
+  tmp = np.concatenate([corners, ones], axis=1).reshape([n*4, 4])
+  corners_r = (tmp @ matrix.T)[:,:3].reshape([n,4,3])
+
+  bboxes_out = np.concatenate( [corners_r[:,:,:2].reshape(n,8), corners_r[:,0,2:3],  corners_r[:,3,2:3]], axis=1)
+  return bboxes_out
 
 def transfer_lines_points(lines, obj_rep, points, center, angle, offset):
   '''

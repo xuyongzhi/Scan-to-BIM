@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
@@ -30,12 +30,11 @@ class Stanford_CLSINFO(object):
   classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
                    'floor', 'board', 'bookcase', 'chair', 'sofa', 'table']
   def __init__(self, classes_in, always_load_walls=1):
-      if classes_in == 'all':
-        classes = self.classes_order
-      else:
-        classes = [c for c in self.classes_order if c in classes_in]
-        if 'background' not in classes:
-          classes = ['background']+ classes
+      if classes_in[0] == 'all':
+        classes_in = ['wall', 'beam', 'column', 'door', 'window', 'ceiling', 'floor']
+      classes = [c for c in self.classes_order if c in classes_in]
+      if 'background' not in classes:
+        classes = ['background']+ classes
       n = len(classes)
       self._classes = classes
       self.CLASSES = classes
@@ -117,9 +116,9 @@ class Stanford_Ann():
     if SMALL_DATA:
       #data_paths = [f+'.ply' for f in self.DIFFICULT]
       #data_paths = [f+'.ply' for f in self.BadColum]
-      #data_paths = [f+'.ply' for f in self.SAMPLES1]
+      data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
-      data_paths = [f+'.ply' for f in self.The_GoodSamples]
+      #data_paths = [f+'.ply' for f in self.The_GoodSamples]
 
     if NO_LONG:
       data_paths_new = []
@@ -164,6 +163,7 @@ class Stanford_Ann():
                           classes = self._classes,
                           scale_factor = 1,
                           data_aug = {},
+                          obj_rep = self.obj_rep,
                           )
           img_meta['voxel_size'] = self.voxel_size
           img_meta['raw_dynamic_vox_size'] = raw_dynamic_vox_size
@@ -174,6 +174,7 @@ class Stanford_Ann():
             gt_labels = anno['labels'],
             gt_bboxes_3d_raw = anno['bboxes_XYXYSin2WZ0Z1'],
           )
+          #_show_3d_points_objs_ls(objs_ls=[anno['gt_bboxes']], obj_rep=self.obj_rep)
       self.img_infos.append(img_info)
     pass
 
@@ -218,6 +219,7 @@ class Stanford_Ann():
     coords, colors_norms, point_labels, _ = self.load_ply(index)
 
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
+    kp_cats = ['ceiling', 'floor']
     rm_cats = ['ceiling', 'background']
     rm_cats = ['ceiling']
 
@@ -225,15 +227,15 @@ class Stanford_Ann():
     points = np.concatenate([coords, colors_norms], axis=1)
     points, point_labels = filter_categories('remove', points, point_labels, rm_cats, _raw_pcl_category_ids_map)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
-    gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, ['wall', 'beam', 'column', 'door', 'window'], self._category_ids_map)
+    gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, kp_cats, self._category_ids_map)
     gt_cats = [self._catid_2_cat[l] for l in gt_labels]
     print(gt_cats)
 
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
 
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1')
-    #_show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
 
     if self.obj_rep == 'XYXYSin2WZ0Z1':
       sin2 = gt_bboxes_3d_raw[:,4].copy()
@@ -248,7 +250,9 @@ class Stanford_Ann():
     corners /= 0.01
     obj_cats = np.array(kp_cats)[gt_labels]
     #_show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], 'XYXYSin2WZ0Z1', points_ls=[corners], obj_scores_ls=[obj_cats])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
+
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
   CLIP_SIZE = None
@@ -356,8 +360,6 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     '''
     assert colors_norms.shape[1] == 9
     return colors_norms[:, self.data_channel_inds]
-
-
 
   def show_topview_gts(self, voxel_size_prj=0.01):
     for i in range(len(self)):
@@ -634,6 +636,7 @@ def main3d():
   sfd_dataset.show_gt_bboxes()
   pass
 
+
 def main2d():
   obj_rep = 'XYZLgWsHA'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
@@ -645,6 +648,9 @@ def main2d():
   #sfd_dataset.show_topview_gts()
   sfd_dataset.show_gt_bboxes()
   pass
+
+
+
 
 if __name__ == '__main__':
    main3d()
