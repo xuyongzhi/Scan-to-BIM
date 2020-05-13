@@ -496,7 +496,7 @@ def gen_bboxes(max_num_points=1e5):
   ROTAE_WINDOW=['Area_1/office_11']
   IntroSample = ['Area_3/office_4']
   scenes = IntroSample
-  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+  ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
 
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
@@ -509,7 +509,7 @@ def gen_bboxes(max_num_points=1e5):
       print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
-        #continue
+        continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data

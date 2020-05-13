@@ -13,8 +13,8 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 
 ADD_FRAME = 0
-BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
-BOX_LINE_RADIUS = 0.01
+BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][2]
+BOX_LINE_RADIUS = 0.02
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -357,7 +357,7 @@ def _show_sparse_coords(x, gt_bboxes=None):
 
 #-3d general------------------------------------------------------------------------------
 def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
-             objs_ls=None, obj_rep=None, obj_colors='random', thickness=0.1):
+             objs_ls=None, obj_rep=None, obj_colors='random', box_types=None):
   if objs_ls is not None:
     if obj_rep == 'XYXYSin2':
       if points_ls is not None:
@@ -379,10 +379,10 @@ def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
     bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'XYZLgWsHA') for o in objs_ls]
   else:
     bboxes_ls = None
-  _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, obj_colors, box_oriented=True)
+  _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, obj_colors, box_oriented=True, box_types=box_types)
 
 def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
-             bboxes_ls=None, b_colors='random', box_oriented=False, point_normals=None):
+             bboxes_ls=None, b_colors='random', box_oriented=False, point_normals=None, box_types=None):
   show_ls = []
   if points_ls is not None:
     assert isinstance(points_ls, list)
@@ -403,8 +403,10 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
     assert isinstance(bboxes_ls, list)
     if not isinstance(b_colors, list):
       b_colors = [b_colors] * len(bboxes_ls)
+    if not isinstance(box_types, list):
+      box_types = [box_types] * len(bboxes_ls)
     for i,bboxes in enumerate(bboxes_ls):
-      bboxes_o3d = _make_bboxes_o3d(bboxes, box_oriented, b_colors[i])
+      bboxes_o3d = _make_bboxes_o3d(bboxes, box_oriented, b_colors[i], box_types[i])
       show_ls = show_ls + bboxes_o3d
 
   if ADD_FRAME:
@@ -458,8 +460,10 @@ def custom_draw_geometry_with_key_callback(pcd_ls):
     #key_to_callback[ord(".")] = capture_image
     o3d.visualization.draw_geometries_with_key_callbacks(pcd_ls, key_to_callback)
 
-def _make_bboxes_o3d(bboxes, box_oriented, color):
+def _make_bboxes_o3d(bboxes, box_oriented, color, box_type):
   assert bboxes.ndim==2
+  if box_type == None:
+    box_type = BOX_TYPE
   if box_oriented:
     assert bboxes.shape[1] == 7
   else:
@@ -469,17 +473,18 @@ def _make_bboxes_o3d(bboxes, box_oriented, color):
   elif isinstance(color, list) and len(color) == bboxes.shape[0]:
     colors = [ _get_color(c) for c in color]
   else:
-    c = _get_color(color)
-    colors = [c] * bboxes.shape[0]
+    colors = [ _get_color(color) for i in range(bboxes.shape[0]) ]
 
   bboxes_ = []
   for i,bbox in enumerate(bboxes):
-    if BOX_TYPE == 'line_mesh':
+    if box_type == 'line_mesh':
       bboxes_.append( _make_bbox_line_mesh(bbox, box_oriented, colors[i]) )
-    elif BOX_TYPE == 'line_set':
+    elif box_type == 'line_set':
       bboxes_.append( _make_bbox_line_set(bbox, box_oriented, colors[i]) )
-    elif BOX_TYPE == 'surface_mesh':
+    elif box_type == 'surface_mesh':
       bboxes_.append( _make_bbox_surface_mesh(bbox, box_oriented, colors[i]) )
+    else:
+      raise NotImplementedError
   return bboxes_
 
 def _make_bbox_line_set(bbox, box_oriented, color):
