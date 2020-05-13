@@ -37,6 +37,7 @@ class Color(Enum):
     maroon= (128,0,0)
     purple= (128,0,128)
     navy  = (0,0,128)
+    gray  = (128,128,128)
 
 def get_random_color():
   # except black and white
@@ -45,10 +46,11 @@ def get_random_color():
   return Color[col].value
 
 def _label2color(labels):
-  colors = ['black', 'green', 'red', 'blue','cyan','magenta', 'yellow']
+  colors = ['gray', 'green', 'red', 'blue','cyan','magenta', 'yellow']
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]
+  color_values = np.array(color_values)/255
   return color_values
 
 def color_val(color):

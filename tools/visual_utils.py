@@ -11,8 +11,9 @@ from tools.color import color_val, get_random_color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
+
 ADD_FRAME = 1
-BOX_MESH = 1
+BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][2]
 BOX_LINE_RADIUS = 2
 
 #-2d general------------------------------------------------------------------------------
@@ -401,7 +402,39 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
     mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=fsize, origin=center)
     show_ls.append(mesh_frame)
 
-  o3d.visualization.draw_geometries( show_ls )
+  #o3d.visualization.draw_geometries( show_ls )
+  custom_draw_geometry_with_key_callback( show_ls )
+
+def custom_draw_geometry_with_key_callback(pcd_ls):
+
+    def change_background_to_black(vis):
+        opt = vis.get_render_option()
+        opt.background_color = np.asarray([0, 0, 0])
+        return False
+
+    def load_render_option(vis):
+        vis.get_render_option().load_from_json(
+            "../../TestData/renderoption.json")
+        return False
+
+    def capture_depth(vis):
+        depth = vis.capture_depth_float_buffer()
+        plt.imshow(np.asarray(depth))
+        plt.show()
+        return False
+
+    def capture_image(vis):
+        image = vis.capture_screen_float_buffer()
+        plt.imshow(np.asarray(image))
+        plt.show()
+        return False
+
+    key_to_callback = {}
+    key_to_callback[ord("K")] = change_background_to_black
+    #key_to_callback[ord("R")] = load_render_option
+    #key_to_callback[ord(",")] = capture_depth
+    #key_to_callback[ord(".")] = capture_image
+    o3d.visualization.draw_geometries_with_key_callbacks(pcd_ls, key_to_callback)
 
 def _make_bboxes_o3d(bboxes, box_oriented, color):
   assert bboxes.ndim==2
@@ -416,15 +449,18 @@ def _make_bboxes_o3d(bboxes, box_oriented, color):
   else:
     c = _get_color(color)
     colors = [c] * bboxes.shape[0]
+
   bboxes_ = []
   for i,bbox in enumerate(bboxes):
-    if BOX_MESH:
-      bboxes_.append( _make_bbox_mesh(bbox, box_oriented, colors[i]) )
-    else:
-      bboxes_.append( _make_bbox_o3d(bbox, box_oriented, colors[i]) )
+    if BOX_TYPE == 'line_mesh':
+      bboxes_.append( _make_bbox_line_mesh(bbox, box_oriented, colors[i]) )
+    elif BOX_TYPE == 'line_set':
+      bboxes_.append( _make_bbox_line_set(bbox, box_oriented, colors[i]) )
+    elif BOX_TYPE == 'surface_mesh':
+      bboxes_.append( _make_bbox_surface_mesh(bbox, box_oriented, colors[i]) )
   return bboxes_
 
-def _make_bbox_o3d(bbox, box_oriented, color):
+def _make_bbox_line_set(bbox, box_oriented, color):
   '''
   box_oriented = True
   bbox: [7], :3 is center, 3:6 is size, 6:7 is angle
@@ -444,7 +480,30 @@ def _make_bbox_o3d(bbox, box_oriented, color):
   bbox_.color = color
   return bbox_
 
-def _make_bbox_mesh(bbox, box_oriented, color):
+def _make_bbox_surface_mesh(bbox, box_oriented, color):
+    assert bbox.shape == (7,)
+    bbox = bbox.copy()
+    center = bbox[:3]
+    extent = bbox[3:6]
+    axis_angle = np.array([0,0,bbox[6]])
+    R = o3d.geometry.get_rotation_matrix_from_yxz(axis_angle)
+    w,h,d = extent
+
+    bbox_ = o3d.geometry.TriangleMesh.create_box(w, h, d)
+    transformation = np.identity(4)
+    transformation[:3,:3] = R
+    transformation[:3,3] = R @( -extent/2)
+    bbox_.transform(transformation)
+
+    transformation = np.identity(4)
+    center = center
+    transformation[:3,3] = center
+    bbox_.transform(transformation)
+
+    bbox_.paint_uniform_color(color)
+    return bbox_
+
+def _make_bbox_line_mesh(bbox, box_oriented, color):
     assert box_oriented
     assert bbox.shape == (7,)
     radius = BOX_LINE_RADIUS
@@ -487,7 +546,7 @@ def _make_pcd(points, colors=None, normals=None):
         pcd.colors = o3d.utility.Vector3dVector(colors)
       elif colors.shape[1] == 1:
         labels = colors
-        pcd.colors = o3d.utility.Vector3dVector( _label2color(labels) / 255)
+        pcd.colors = o3d.utility.Vector3dVector( _label2color(labels))
 
     if normals is not None:
       pcd.normals = o3d.utility.Vector3dVector(normals)
@@ -550,9 +609,8 @@ def test_rotation_order():
 def test_show_box():
   u = np.pi/180
   XYZLgWsHA= np.array( [
-    [200, 200, 0, 200, 100, 50, 30*u],
-    [200, 200, 0, 200, 100, 50, 60*u],
-    [200, 200, 0, 200, 100, 50, 120*u],
+    [00, 200, 0, 200, 50, 5, 0*u],
+    [300, 200, 0, 200, 50, 5, 30*u],
   ] )
   #lines = OBJ_REPS_PARSE.get_12_lines(XYZLgWsHA, 'XYZLgWsHA')
   _show_3d_points_objs_ls(objs_ls=[XYZLgWsHA], obj_rep='XYZLgWsHA')
