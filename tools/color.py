@@ -46,7 +46,7 @@ def get_random_color():
   return Color[col].value
 
 def _label2color(labels):
-  colors = ['gray', 'green', 'red', 'blue','cyan','magenta', 'yellow']
+  colors = ['red', 'green', 'blue','cyan','magenta', 'yellow', 'purple', 'navy', 'gray']
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]

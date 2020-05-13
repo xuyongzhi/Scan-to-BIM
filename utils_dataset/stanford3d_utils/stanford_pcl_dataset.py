@@ -229,7 +229,7 @@ class Stanford_Ann():
     # 3d
     points = np.concatenate([coords, colors_norms], axis=1)
     points, point_labels = filter_categories('remove', points, point_labels, rm_cats, _raw_pcl_category_ids_map)
-    points = cut_top_points(points)
+    points, point_labels = cut_top_points(points, 0.1, point_labels)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
     gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, kp_cats, self._category_ids_map)
     gt_cats = [self._catid_2_cat[l] for l in gt_labels]
@@ -238,8 +238,10 @@ class Stanford_Ann():
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
 
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    _show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    #_show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
 
     if self.obj_rep == 'XYXYSin2WZ0Z1':
       sin2 = gt_bboxes_3d_raw[:,4].copy()
@@ -629,13 +631,15 @@ def load_1_ply(filepath):
     return coords, colors_norms, point_labels, None
 
 
-def cut_top_points(points, rate=0.1):
+def cut_top_points(points,  rate=0.1, point_labels=None):
   z = points[:,2]
   zmax = z.max()
   zmin = z.min()
   thre = zmax - (zmax - zmin) * rate
   mask = z < thre
-  return points[mask]
+  if point_labels is not None:
+    point_labels = point_labels[mask]
+  return points[mask], point_labels
 
 def main3d():
   obj_rep = 'XYZLgWsHA'

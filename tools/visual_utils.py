@@ -12,9 +12,9 @@ from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 
-ADD_FRAME = 1
-BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][2]
-BOX_LINE_RADIUS = 2
+ADD_FRAME = 0
+BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
+BOX_LINE_RADIUS = 0.01
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -412,6 +412,11 @@ def custom_draw_geometry_with_key_callback(pcd_ls):
         opt.background_color = np.asarray([0, 0, 0])
         return False
 
+    def change_background_to_white(vis):
+        opt = vis.get_render_option()
+        opt.background_color = np.asarray([255, 255, 255])
+        return False
+
     def load_render_option(vis):
         vis.get_render_option().load_from_json(
             "../../TestData/renderoption.json")
@@ -431,6 +436,7 @@ def custom_draw_geometry_with_key_callback(pcd_ls):
 
     key_to_callback = {}
     key_to_callback[ord("K")] = change_background_to_black
+    key_to_callback[ord("W")] = change_background_to_white
     #key_to_callback[ord("R")] = load_render_option
     #key_to_callback[ord(",")] = capture_depth
     #key_to_callback[ord(".")] = capture_image
@@ -507,7 +513,7 @@ def _make_bbox_line_mesh(bbox, box_oriented, color):
     assert box_oriented
     assert bbox.shape == (7,)
     radius = BOX_LINE_RADIUS
-    radius = bbox[3:6].max()/200
+    #radius = bbox[3:6].max()/200
 
     lines = OBJ_REPS_PARSE.get_12_lines(bbox.reshape(1,7), 'XYZLgWsHA')[0] # [12,2,3]
     centroids = lines.mean(1)
