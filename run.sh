@@ -19,12 +19,12 @@ CP=./work_dirs/${wkdir}/best.pth
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=1
+BS=5
 DATA_TYPES=cnx
 FILTER_EDGES=1
-REL=0
+REL=1
 CLS=abcdif
-#CLS=ad
+CLS=ad
 #CLS=a
 #CLS=A
 

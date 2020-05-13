@@ -645,7 +645,7 @@ def get_z_by_iou(dets, gts, obj_rep):
 
 def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
   import mmcv
-  colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow', 'window':'cyan', 'A':'navy', 'B':'lime', 'C':'maroon', 'D':'magenta'}
+  colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow', 'window':'cyan', 'A':'navy', 'B':'lime', 'floor':'maroon', 'D':'magenta'}
   num_cats = len(eval_draws_ls)
   img_det = None
   img_det_pts = None
