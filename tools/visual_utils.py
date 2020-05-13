@@ -46,6 +46,22 @@ def _show_objs_ls_points_ls_torch(img,
                           point_thickness=point_thickness,
                           only_save=only_save)
 
+def _show_3d_bboxes_ids(bboxes, obj_rep):
+  '''
+  img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
+  '''
+  bboxes = bboxes.copy()
+  if obj_rep == 'XYXYSin2':
+    min_xy = bboxes[:,:4].reshape(-1,2).min(0)
+    bboxes[:,[0,2]] -= min_xy[0]
+    bboxes[:,[1,3]] -= min_xy[1]
+  voxel_size = 0.01
+  bboxes[:,:4] /= voxel_size
+  w, h = bboxes[:,:4].reshape(-1,2).max(0).astype(np.int32) + 100
+  bids = np.arange(bboxes.shape[0])
+  _show_objs_ls_points_ls((h,w), [bboxes], obj_rep=obj_rep, obj_scores_ls=[bids])
+  pass
+
 def _show_objs_ls_points_ls(img,
                             objs_ls=None,
                             obj_rep='XYXYSin2',
@@ -341,7 +357,7 @@ def _show_sparse_coords(x, gt_bboxes=None):
 
 #-3d general------------------------------------------------------------------------------
 def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
-             objs_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1', obj_colors='random', thickness=0.1):
+             objs_ls=None, obj_rep=None, obj_colors='random', thickness=0.1):
   if objs_ls is not None:
     if obj_rep == 'XYXYSin2':
       if points_ls is not None:
@@ -359,7 +375,7 @@ def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
           tzz[:,1] = 0
           tzz[:,2] = 0.01
           objs_ls[i] = np.concatenate([objs_ls[i], tzz], axis=1)
-      obj_rep = 'RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1'
+      obj_rep = 'XYXYSin2WZ0Z1'
     bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'XYZLgWsHA') for o in objs_ls]
   else:
     bboxes_ls = None

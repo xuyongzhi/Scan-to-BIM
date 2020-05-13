@@ -347,7 +347,7 @@ def angle_of_2lines(line0, line1, scope_id=0):
     pass
   elif scope_id == 1:
     # (-pi/2, pi/2]: offset=0.5, period=pi
-    angle = limit_period(angle, 0.5, np.pi)
+    angle = limit_period_np(angle, 0.5, np.pi)
   else:
     raise NotImplementedError
   assert not np.any(np.isnan(angle))
@@ -604,6 +604,96 @@ def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weig
     print(f'4 corners to rect time: {n}, \t{t:.3f}')
     print(f'stage: {stage}')
   return box_out, rect_loss
+
+def lines_intersection_2d(line0s, line1s, must_on0=False, must_on1=False,
+          min_angle=0):
+    '''
+    line0s: [n,2,2]
+    line1s: [m,2,2]
+    return [n,m,2,2]
+    '''
+    shape0 = line0s.shape
+    shape1 = line1s.shape
+    if shape0[0] * shape1[0] == 0:
+        return np.empty([shape0[0], shape1[0], 2, 2])
+    assert len(shape0) == len(shape1) == 3
+    assert shape0[1:] == shape1[1:] == (2,2)
+    ints_all = []
+    for line0 in line0s:
+      ints_0 = []
+      for line1 in line1s:
+        ints = line_intersection_2d(line0, line1, must_on0, must_on1, min_angle)
+        ints_0.append(ints.reshape(1,1,2))
+      ints_0 = np.concatenate(ints_0, 1)
+      ints_all.append(ints_0)
+    ints_all = np.concatenate(ints_all, 0)
+    return ints_all
+
+
+def line_intersection_2d(line0, line1, must_on0=False, must_on1=False,
+          min_angle=0):
+    '''
+      line0: [2,2]
+      line1: [2,2]
+      must_on0: must on the scope of line0, no extend
+      must_on1: must on the scope of line1, no extend
+      out: [2]
+
+      v01 = p1 - p0
+      v23 = p3 - p2
+      intersection = p0 + v01*k0 = p2 + v23 * k1
+      [v01, v23][k0;-k1] = p2 - p0
+      intersection between p0 and p1: 1>=k0>=0
+      intersection between p2 and p3: 1>=k1>=0
+
+      return [2]
+    '''
+
+    assert (line0.shape == (2,2) and line1.shape == (2,2))
+            #(line0.shape == (2,3) and line1.shape == (2,3))
+    dim = line0.shape[1]
+    p0,p1 = line0
+    p2,p3 = line1
+
+    v01 = p1-p0
+    v23 = p3-p2
+    v01v23 = np.concatenate([v01.reshape([2,1]), (-1)*v23.reshape([2,1])], 1)
+    p2sp0 = (p2-p0).reshape([2,1])
+
+    try:
+      inv_vov1 = np.linalg.inv(v01v23)
+      K = np.matmul(inv_vov1, p2sp0)
+
+      if must_on0 and (K[0]>1 or K[0]<0):
+        return np.array([np.nan]*2)
+      if must_on1 and (K[1]>1 or K[1]<0):
+        return np.array([np.nan]*2)
+
+      intersec = p0 + v01 * K[0]
+      intersec_ = p2 + v23 * K[1]
+      assert np.linalg.norm(intersec - intersec_) < 1e-5, f'{intersec} \n{intersec_}'
+
+      direc0 = (line0[1] - line0[0]).reshape([1,2])
+      direc1 = (line1[1] - line1[0]).reshape([1,2])
+      angle = angle_of_2lines(direc0, direc1, scope_id=1)[0]
+      angle = np.abs(angle)
+
+      show = 0
+      if show:
+        from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+        from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+        print(f'K:{K}\nangle:{angle}')
+        lines_show = np.concatenate([np.expand_dims(line0,0), np.expand_dims(line1,0)],0).reshape(2,4)
+        points_show = np.array([[intersec[0], intersec[1], 0]])
+        _show_3d_points_objs_ls( [points_show], objs_ls=[lines_show], obj_rep='RoLine2D_2p' )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
+      if angle > min_angle:
+        return intersec
+      else:
+        return np.array([np.nan]*2)
+    except np.linalg.LinAlgError:
+      return np.array([np.nan]*2)
 
 
 class OBJ_DEF():

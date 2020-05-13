@@ -41,6 +41,12 @@ DEBUG=0
 
 Instance_Bad_Scenes = ['Area_1/hallway_7', 'Area_6/office_9', 'Area_4/lobby_1']
 
+def get_manual_merge_pairs(scene_name):
+  if scene_name == 'Area_3/office_4':
+    return   [ (0,1), (0,6), (1,3) ]
+  else:
+    return None
+
 class Stanford3DDatasetConverter:
 
   CLASSES = [
@@ -475,6 +481,11 @@ def sampling_points(max_num, points, *args):
       new_args = args
     return ( points,) + new_args
 
+def get_scene_name(file_path):
+  s0, s1 = file_path.split('/')[-2:]
+  s = s0 + '/' + s1.split('.')[0]
+  return s
+
 def gen_bboxes(max_num_points=1e5):
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
@@ -483,13 +494,13 @@ def gen_bboxes(max_num_points=1e5):
                'Area_4/hallway_14', 'Area_3/office_7']
   DOOR_HAD = ['Area_1/hallway_4','Area_2/auditorium_1','Area_1/hallway_8']
   ROTAE_WINDOW=['Area_1/office_11']
-  scenes = UNALIGNED[0:1]
-  scenes = DOOR_HAD[2:]
-  scenes = ['Area_2/storage_5']
+  IntroSample = ['Area_3/office_4']
+  scenes = IntroSample
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
 
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
+      scene_name_l = get_scene_name(plyf)
       bbox_file = plyf.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
       topview_file = plyf.replace('.ply', '.png').replace('Area_', 'Boxes_Area_')
       bbox_dir = os.path.dirname(bbox_file)
@@ -498,7 +509,7 @@ def gen_bboxes(max_num_points=1e5):
       print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
-        continue
+        #continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
@@ -563,7 +574,7 @@ def gen_bboxes(max_num_points=1e5):
 
       bboxes['room'] = OBJ_REPS_PARSE.encode_obj( room[None,:], 'XYZLgWsHA', 'XYXYSin2WZ0Z1' )
 
-      bboxes['wall'] = optimize_walls(bboxes['wall'])
+      bboxes['wall'] = optimize_walls(bboxes['wall'], get_manual_merge_pairs(scene_name_l))
 
       np.save(bbox_file, bboxes)
       print(f'\n save {bbox_file}')
@@ -578,7 +589,7 @@ def gen_bboxes(max_num_points=1e5):
         all_bboxes = []
         all_cats = []
         view_cats = ['wall', 'beam', 'window', 'column', 'door']
-        #view_cats = ['door', 'wall']
+        #view_cats = ['wall']
         for cat in view_cats:
           if cat not in bboxes:
             continue
@@ -611,10 +622,13 @@ def gen_bboxes(max_num_points=1e5):
           pass
   pass
 
-def optimize_walls(walls_3d_line):
+def optimize_walls(walls_3d_line, manual_merge_pairs=None):
     '''
     XYXYSin2WZ0Z1
     '''
+    wall_bottom = walls_3d_line[:,-2].min()
+    walls_3d_line[:,-2] = wall_bottom
+
     bottom_corners = OBJ_REPS_PARSE.encode_obj(walls_3d_line, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
     #_show_3d_points_objs_ls([bottom_corners], objs_ls = [walls_3d_line],  obj_rep='XYXYSin2WZ0Z1')
 
@@ -622,6 +636,9 @@ def optimize_walls(walls_3d_line):
 
     #_show_3d_points_objs_ls(objs_ls=[walls_2d_line], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
     walls_2d_line_new, _, _, valid_mask = GraphUtils.optimize_graph(walls_2d_line, obj_rep='XYXYSin2', opt_graph_cor_dis_thr=0.15, min_out_length=0.22)
+
+    if manual_merge_pairs is not None:
+      walls_2d_line_new = GraphUtils.opti_wall_manually(walls_2d_line_new, 'XYXYSin2', manual_merge_pairs)
     #_show_3d_points_objs_ls(objs_ls=[walls_2d_line_new], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
 
     try:

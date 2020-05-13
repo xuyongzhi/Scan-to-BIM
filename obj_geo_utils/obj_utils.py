@@ -5,7 +5,7 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
       vec_from_angle_with_x_np, angle_with_x
 import cv2
 import torch
-from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box, sort_four_corners
+from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box, sort_four_corners, line_intersection_2d
 
 
 class OBJ_REPS_PARSE():
@@ -130,10 +130,17 @@ class OBJ_REPS_PARSE():
       RoLine2D_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'RoLine2D_2p')
       return OBJ_REPS_PARSE.encode_obj(RoLine2D_2p, 'RoLine2D_2p', 'XYXYSin2')
 
-    # essential  ---------------------------------------------------------------
 
+    # RoLine2D_2p --------------------------------------------------------------
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2':
       return OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
+
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYZLgWsHA':
+      XYXYSin2 = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'XYXYSin2')
+      return OBJ_REPS_PARSE.encode_obj(XYXYSin2, 'XYXYSin2', 'XYZLgWsHA')
+
+    # essential  ---------------------------------------------------------------
+
 
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'RoLine2D_2p':
       return OBJ_REPS_PARSE.XYXYSin2_TO_RoLine2D_2p(bboxes)
@@ -1111,6 +1118,16 @@ class GraphUtils:
 
       return corners, labels_cor, corIds_per_line, num_cor_uq
 
+  @staticmethod
+  def opti_wall_manually(lines, obj_rep, manual_merge_pairs):
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
+    #show_free_corners(lines, obj_rep)
+    #_show_3d_bboxes_ids(lines, obj_rep)
+    new_lines = merge_lines_intersect( lines, obj_rep, manual_merge_pairs )
+    #show_free_corners(new_lines, obj_rep)
+    return new_lines
+
+
 def round_positions(data, scale=1000):
   return np.round(data*scale)/scale
 
@@ -1164,7 +1181,52 @@ def merge_corners(corners_0, scores_0=None, opt_graph_cor_dis_thr=3):
   corners_merged = corners_1[:,:2]
   return corners_merged, scores_merged, labels_merged
 
+def merge_lines_intersect(lines, obj_rep, pairs):
+    assert obj_rep == 'XYXYSin2'
+    lines = lines.copy()
+    n = lines.shape[0]
+    line_corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(n,2,2)
+    for i in range( len(pairs) ):
+      j,k = pairs[i]
+      inter_sec = line_intersection_2d( lines[j,:4].reshape(2,2), lines[k,:4].reshape(2,2) )
+      replace_close_corner(line_corners[j], inter_sec)
+      replace_close_corner(line_corners[k], inter_sec)
 
+    new_lines = OBJ_REPS_PARSE.encode_obj(line_corners.reshape(n,4), 'RoLine2D_2p', obj_rep)
+    return new_lines
+
+def replace_close_corner(line_corners, point):
+  assert line_corners.shape == (2,2)
+  dis = np.linalg.norm( line_corners - point[None,:], axis=1)
+  i = dis.argmin()
+  line_corners[i] = point
+
+def show_free_corners(bboxes, obj_rep, cor_connect_thre=0.15):
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
+    assert obj_rep == 'XYXYSin2'
+    lines = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'XYXYSin2')
+    lines = lines.copy()
+    n = lines.shape[0]
+    corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p').reshape(-1,2)
+
+    cor_diss = np.linalg.norm( corners[:,None,:] - corners[None,:,:], axis=-1 )
+    np.fill_diagonal(cor_diss, 100)
+    for i in range(n*2):
+      if i%2==0:
+        j = i+1
+      else:
+        j = i-1
+      cor_diss[i,j] = 100
+
+    mask = cor_diss < cor_connect_thre
+    cor_degrees = mask.sum(axis=1)
+    corners_new = corners.copy()
+
+    free_mask = cor_degrees == 0
+    cor_diss[:,free_mask] = 200
+
+    free_corners = corners[free_mask]
+    _show_3d_points_objs_ls( [free_corners], objs_ls=[lines], obj_rep='XYXYSin2' )
 
 class OBJ_REPS_PARSE_TORCH():
   import torch
