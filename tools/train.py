@@ -162,7 +162,7 @@ def update_config(cfg, args, split):
         #  cfg['work_dir'] += '_' + cfg['_obj_rep']
         if obj_rep == 'Rect4CornersZ0Z1':
           if cfg['model']['bbox_head']['adjust_5pts_by_4']:
-              cfg['work_dir'] += 'Apts4_'
+              cfg['work_dir'] += 'Apts4'
 
         if 0 and 'cls_types' in cfg['model']['bbox_head']:
           cfg['work_dir'] += '_' + '_'.join(cfg['model']['bbox_head']['cls_types'])
@@ -250,6 +250,9 @@ def update_config(cfg, args, split):
         img_list_file = os.path.join(cur_path, img_prefix)
         #data_flag = get_file_list_flag(img_list_file)
         #cfg['work_dir'] += data_flag
+
+        if 'stanford' in cfg['DATA']:
+          cfg['work_dir'] += '_AreaL' + cfg['img_prefix_train']
 
         # backup config
         aim_path = os.path.join(cfg['work_dir'], '_'+os.path.basename(cfg.filename))

@@ -188,8 +188,8 @@ elif DATA == 'stanford2d':
   img_prefix_train = 'train'
   img_prefix_test = 'test'
   img_prefix_test = 'train'
-  #img_prefix_train = '6'
-  #img_prefix_test = '6'
+  img_prefix_train = '12346'
+  img_prefix_test = '52'
 
 data = dict(
     imgs_per_gpu=7,
@@ -255,7 +255,7 @@ elif DATA == 'stanford2d':
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 1:
+if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=10)
