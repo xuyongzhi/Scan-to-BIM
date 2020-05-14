@@ -13,8 +13,8 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 
 ADD_FRAME = 0
-BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][2]
-BOX_LINE_RADIUS = 0.02
+BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
+BOX_LINE_RADIUS = 0.03
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -578,6 +578,16 @@ def _make_pcd(points, colors=None, normals=None):
     if normals is not None:
       pcd.normals = o3d.utility.Vector3dVector(normals)
     return pcd
+
+def points_to_bboxes(points, size=0.1):
+  '''
+  XYZLgWsHA
+  '''
+  n = points.shape[0]
+  bboxes = np.zeros([n,7])
+  bboxes[:,:3] = points
+  bboxes[:,3:6] = size
+  return bboxes
 
 
 def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1'):

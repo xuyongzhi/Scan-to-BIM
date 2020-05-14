@@ -51,7 +51,7 @@ class OBJ_REPS_PARSE():
     'XYLgA': 4,
 
     'XYXYSin2WZ0Z1': 8,
-    'Bottom_Corners': 3+3,
+    'Top_Corners': 12,
 
     'XYDAsinAsinSin2Z0Z1': 8,
 
@@ -374,18 +374,18 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYXYSin2':
       return bboxes[:, :5]
 
-    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'Bottom_Corners':
-      line_2p = OBJ_REPS_PARSE.encode_obj(bboxes[:,:5], 'XYXYSin2', 'RoLine2D_2p')
-      thick = bboxes[:,5:6]
-      z0 = bboxes[:,6:7]
-      z1 = bboxes[:,7:8]
-      height = z1-z0
-      bottom_corners = np.concatenate([line_2p[:,:2], z0, line_2p[:,2:4], z0], axis=1)
-      return bottom_corners
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'Top_Corners':
+      corners_z0z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2WZ0Z1', 'Rect4CornersZ0Z1')
+      z0 = corners_z0z1[:,8:9]
+      z1 = corners_z0z1[:,9:10]
+      top_corners = corners_z0z1[:,:8].reshape(-1,4,2)
+      z1 = np.repeat(z1[:,None,:], 4, 1)
+      top_corners = np.concatenate([top_corners, z1], axis=2).reshape(-1,12)
+      return top_corners
 
-    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Bottom_Corners':
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Top_Corners':
       XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
-      return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'Bottom_Corners')
+      return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'Top_Corners')
 
     elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYXYSin2WZ0Z1':
       # XYLgWsA

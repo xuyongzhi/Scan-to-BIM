@@ -10,11 +10,11 @@ from beike_data_utils.beike_utils import  raw_anno_to_img
 from utils_dataset.beike_utils.beike_pcl_dataset import DataConfig
 from configs.common import DEBUG_CFG
 from tools.debug_utils import _show_lines_ls_points_ls
-from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls,points_to_bboxes
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
@@ -84,9 +84,10 @@ class Stanford_Ann():
   Area2_Aligned = ['Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'office_4', 'Area_2/office_5']
   Area2_Rotated = ['Area_2/auditorium_1', 'Area_2/conferenceRoom_1', 'Area_2/storage_9']
 
-  The_GoodSamples = ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
-                     'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
   IntroSample = ['Area_3/office_4']
+  The_GoodSamples = ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
+                     'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2'] +\
+                    IntroSample
   #IntroSample = ['Area_5/office_39']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
@@ -222,6 +223,7 @@ class Stanford_Ann():
     coords, colors_norms, point_labels, _ = self.load_ply(index)
 
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
+    #kp_cats = ['floor']
     #kp_cats = ['ceiling', 'floor']
     rm_cats = ['ceiling', 'background']
     rm_cats = ['ceiling']
@@ -235,16 +237,25 @@ class Stanford_Ann():
     gt_cats = [self._catid_2_cat[l] for l in gt_labels]
     print(gt_cats)
 
-    corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Bottom_Corners').reshape(-1,3)
+    add_noisy(gt_bboxes_3d_raw)
+
+    corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Top_Corners').reshape(-1,3)
     walls = gt_bboxes_3d_raw[gt_labels==0]
 
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'])
+    #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'])
+    #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
 
-    #_show_3d_points_objs_ls([corners], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+
+    corner_boxes = points_to_bboxes(corners, 0.1)
+    corner_labels = np.repeat( gt_labels[:,None], 4, 1 ).reshape(-1)
+    gt_bboxes_3d = OBJ_REPS_PARSE.encode_obj( gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'XYZLgWsHA'  )
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[ gt_bboxes_3d, corner_boxes], obj_rep='XYZLgWsHA', obj_colors=[gt_labels, corner_labels], box_types=['line_mesh', 'surface_mesh'])
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[corner_boxes], obj_rep='XYZLgWsHA', obj_colors=[corner_labels], box_types=['surface_mesh'])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
     if self.obj_rep == 'XYXYSin2WZ0Z1':
       sin2 = gt_bboxes_3d_raw[:,4].copy()
@@ -262,6 +273,13 @@ class Stanford_Ann():
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
+
+def add_noisy(gt_bboxes_3d_raw):
+  n = gt_bboxes_3d_raw.shape[0]
+  noisy = np.random.rand(n,6) * 0.3
+  noisy[:,4] *= 0
+  noisy[:,5] *= 0.3
+  gt_bboxes_3d_raw[:,:6] += noisy
 
 class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
   CLIP_SIZE = None
