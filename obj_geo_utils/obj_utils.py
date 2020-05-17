@@ -52,8 +52,10 @@ class OBJ_REPS_PARSE():
 
     'XYXYSin2WZ0Z1': 8,
     'Top_Corners': 12,
+    'Bottom_Corners': 12,
 
     'XYDAsinAsinSin2Z0Z1': 8,
+    'XYDAsinAsinSin2' : 6,
 
     'Rect4CornersZ0Z1': 10,
 
@@ -154,6 +156,10 @@ class OBJ_REPS_PARSE():
 
     elif obj_rep_in == 'XYDAsinAsinSin2Z0Z1'  and obj_rep_out == 'XYZLgWsHA':
       return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYZLgWsHA(bboxes)
+
+    elif obj_rep_in == 'XYDAsinAsinSin2'  and obj_rep_out == 'XYLgWsA':
+      b = np.concatenate([bboxes, bboxes[:,:2]*2], 1)
+      return OBJ_REPS_PARSE.XYDAsinAsinSin2Z0Z1_TO_XYZLgWsHA(b)[:,[0,1,3,4,6]]
 
 
     elif obj_rep_in == 'XYLgWsAsinSin2Z0Z1' and obj_rep_out == 'XYDAsinAsinSin2Z0Z1':
@@ -386,6 +392,19 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Top_Corners':
       XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
       return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'Top_Corners')
+
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'Bottom_Corners':
+      corners_z0z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2WZ0Z1', 'Rect4CornersZ0Z1')
+      z0 = corners_z0z1[:,8:9]
+      z1 = corners_z0z1[:,9:10]
+      bot_corners = corners_z0z1[:,:8].reshape(-1,4,2)
+      z0 = np.repeat(z0[:,None,:], 4, 1)
+      bot_corners = np.concatenate([bot_corners, z0], axis=2).reshape(-1,12)
+      return bot_corners
+
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Bot_Corners':
+      XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
+      return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'Bot_Corners')
 
     elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYXYSin2WZ0Z1':
       # XYLgWsA
@@ -1127,6 +1146,14 @@ class GraphUtils:
     #show_free_corners(new_lines, obj_rep)
     return new_lines
 
+def walls_ceilings_to_ceilings(walls, ceiling_boxes):
+  '''
+  walls:  [m,7]
+  ceiling_boxes: [n,7]
+
+  ceiling_polygon: [n, k]
+  '''
+  pass
 
 def round_positions(data, scale=1000):
   return np.round(data*scale)/scale

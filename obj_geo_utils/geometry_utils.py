@@ -396,6 +396,11 @@ def align_four_corners( pred_corners,  pred_center=None, gt_corners=None ):
   pred_corners = align_pred_gt_bboxes(pred_corners.reshape(-1,8), gt_corners.reshape(-1,8), obj_rep='Rect4Corners')
   return pred_corners, rect_loss
 
+def sort_four_corners_np( pred_corners, pred_center=None ):
+  pred_corners = torch.from_numpy( pred_corners ).to(torch.float32)
+  sorted_corners, _ =  sort_four_corners(pred_corners)
+  return sorted_corners.numpy()
+
 def sort_four_corners( pred_corners, pred_center=None ):
   '''
   pred_corners: [batch_size, 4, h, w,2] or  [n,4,2]
@@ -465,7 +470,7 @@ def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weig
   bbox_weights: same size as box_out, used for reducing processing time by only processing positive
 
   box_out: [batch_size, 6, h, w],
-  out_obj_rep: 'XYDAsinAsinSin2Z0Z1'
+  out_obj_rep: XYDAsinAsinSin2
   '''
   from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_objs_ls_points_ls_torch
 
@@ -564,7 +569,6 @@ def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weig
   sin_theta_abs = diacen_2pts_long_axis[:,:,1].abs().mean(1, keepdim=True)
   #cos_theta_abs = diacen_2pts_long_axis[:,:,0].abs().mean(1, keepdim=True)
 
-
   center = center.squeeze(1)
   rect_loss = torch.cat( [out_rect_loss_diag_len, out_rec_loss_hwratio ], dim = 1)
   if rect_center is not None:
@@ -604,6 +608,21 @@ def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weig
     print(f'4 corners to rect time: {n}, \t{t:.3f}')
     print(f'stage: {stage}')
   return box_out, rect_loss
+
+def four_corners_to_box_np( rect_corners, rect_center=None,  stage=None,  bbox_weights=None, bbox_gt=None):
+  '''
+  rect_corners: [batch_size, 4, h, w,2] or  [n,4,2]
+  rect_center: [batch_size, 1, h, w,2] or  [n,1,2]
+  The first one is prediction of center, 1:5 are predictions of four corners
+  bbox_weights: same size as box_out, used for reducing processing time by only processing positive
+
+  box_out: [batch_size, 6, h, w],
+  out_obj_rep: 'XYDAsinAsinSin2Z0Z1'
+  '''
+  rect_corners = torch.from_numpy(rect_corners).to(torch.float32)
+  box, _ = four_corners_to_box(rect_corners)
+  box = box.numpy()
+  return box
 
 def lines_intersection_2d(line0s, line1s, must_on0=False, must_on1=False,
           min_angle=0):

@@ -14,7 +14,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls,
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
@@ -121,7 +121,7 @@ class Stanford_Ann():
       data_paths = [f+'.ply' for f in self.IntroSample]
       #data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
-      #data_paths = [f+'.ply' for f in self.The_GoodSamples]
+      data_paths = [f+'.ply' for f in self.The_GoodSamples]
 
     if NO_LONG:
       data_paths_new = []
@@ -223,8 +223,8 @@ class Stanford_Ann():
     coords, colors_norms, point_labels, _ = self.load_ply(index)
 
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
-    #kp_cats = ['floor']
-    #kp_cats = ['ceiling', 'floor']
+    kp_cats += ['floor']
+    #kp_cats += ['ceiling', 'floor']
     rm_cats = ['ceiling', 'background']
     rm_cats = ['ceiling']
 
@@ -234,18 +234,24 @@ class Stanford_Ann():
     points, point_labels = cut_top_points(points, 0.1, point_labels)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
     gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, kp_cats, self._category_ids_map)
-    gt_cats = [self._catid_2_cat[l] for l in gt_labels]
+    gt_cats = [self._catid_2_cat[l+1] for l in gt_labels]
     print(gt_cats)
 
-    add_noisy(gt_bboxes_3d_raw)
+    gt_bboxes_3d_raw, gt_labels = rm_one_wall_for_vis(gt_bboxes_3d_raw, gt_labels)
+
+    #gt_bboxes_3d_raw  = gt_bboxes_3d_raw[7:8]
+    #gt_labels = gt_labels[7:8] * 0
+
+    #add_noisy_box(gt_bboxes_3d_raw)
 
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Top_Corners').reshape(-1,3)
+    #corners = add_noisy_corners(corners)
     walls = gt_bboxes_3d_raw[gt_labels==0]
 
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
-    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'])
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
 
@@ -253,9 +259,9 @@ class Stanford_Ann():
     corner_boxes = points_to_bboxes(corners, 0.1)
     corner_labels = np.repeat( gt_labels[:,None], 4, 1 ).reshape(-1)
     gt_bboxes_3d = OBJ_REPS_PARSE.encode_obj( gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'XYZLgWsHA'  )
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[ gt_bboxes_3d, corner_boxes], obj_rep='XYZLgWsHA', obj_colors=[gt_labels, corner_labels], box_types=['line_mesh', 'surface_mesh'])
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[corner_boxes], obj_rep='XYZLgWsHA', obj_colors=[corner_labels], box_types=['surface_mesh'])
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[ gt_bboxes_3d, ], obj_rep='XYZLgWsHA', obj_colors=[gt_labels], box_types=['line_mesh'])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[ gt_bboxes_3d, corner_boxes], obj_rep='XYZLgWsHA', obj_colors=[gt_labels, corner_labels], box_types=['line_mesh', 'surface_mesh'])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[corner_boxes], obj_rep='XYZLgWsHA', obj_colors=[corner_labels], box_types=['surface_mesh'])
 
     if self.obj_rep == 'XYXYSin2WZ0Z1':
       sin2 = gt_bboxes_3d_raw[:,4].copy()
@@ -273,8 +279,26 @@ class Stanford_Ann():
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
+def rm_one_wall_for_vis(gt_bboxes_3d_raw, gt_labels):
+  mask = gt_labels == 0
+  walls = gt_bboxes_3d_raw[mask]
+  walls = OBJ_REPS_PARSE.encode_obj(walls, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
+  max_xy = walls[:,:2].max(0)
+  min_xy = walls[:,:2].min(0)
+  del_axis=0
+  #i = np.where( walls[:,del_axis] == max_xy[del_axis] )[0]
+  i = np.where( walls[:,del_axis] == min_xy[del_axis] )[0]
+  gt_bboxes_3d_raw = np.delete(gt_bboxes_3d_raw, i, 0)
+  gt_labels = np.delete(gt_labels, i, 0)
+  return gt_bboxes_3d_raw, gt_labels
 
-def add_noisy(gt_bboxes_3d_raw):
+def add_noisy_corners(corners):
+  n, m = corners.shape
+  noisy = (np.random.rand(n,m)-0.5) * 0.6
+  corners += noisy
+  return corners
+
+def add_noisy_box(gt_bboxes_3d_raw):
   n = gt_bboxes_3d_raw.shape[0]
   noisy = np.random.rand(n,6) * 0.3
   noisy[:,4] *= 0
@@ -653,11 +677,20 @@ def load_1_ply(filepath):
 
 
 def cut_top_points(points,  rate=0.1, point_labels=None):
+  xyz_min = points[:,:3].min(0)
+  xyz_max = points[:,:3].max(0)
+  size = xyz_max - xyz_min
+
   z = points[:,2]
   zmax = z.max()
   zmin = z.min()
   thre = zmax - (zmax - zmin) * rate
-  mask = z < thre
+  mask_z = z < thre
+
+  mask_x = points[:,0] > xyz_max[0] - size[0] * 0.2
+  mask = mask_x * mask_z
+  mask = mask_z
+
   if point_labels is not None:
     point_labels = point_labels[mask]
   return points[mask], point_labels
@@ -669,6 +702,7 @@ def main3d():
   #img_prefix = './test.txt'
   classes = Stanford_CLSINFO.classes_order
   max_num_points = 50 * 1e4
+  max_num_points = None
   sfd_dataset = StanfordPcl(obj_rep, ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
   #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()

@@ -35,9 +35,10 @@ STANFORD_3D_TO_SEGCLOUD_LABEL = {
     2: 11,
     0: 12,
 }
-THICK_MAP = {'door': 0.2, 'window': 0.25}
+MAX_THICK_MAP = {'door': 0.3, 'window': 0.3}
+THICK_GREATER_THAN_WALL = {'door': 0.04, 'window': 0.04}
 
-DEBUG=0
+DEBUG=1
 
 Instance_Bad_Scenes = ['Area_1/hallway_7', 'Area_6/office_9', 'Area_4/lobby_1']
 
@@ -159,7 +160,6 @@ def generate_splits(stanford_out_path):
       f.write('\n'.join(files))
 
 
-
 def aligned_points_to_bbox(points, out_np=False):
   assert points.ndim == 2
   assert points.shape[1] == 3
@@ -204,8 +204,9 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
   if cat_name!='wall':
     assert bboxes_wall0 is not None
 
-  #if bboxes_wall0 is not None:
+  #if bboxes_wall0 is not None and cat_name == 'window':
   #  _show_3d_points_objs_ls([points], objs_ls=[bboxes_wall0], obj_rep='XYXYSin2WZ0Z1')
+  #  pass
   points = points.copy()
 
   xyz_min = points.min(0)
@@ -239,26 +240,23 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
   if cat_name == 'wall':
     # ( (cx,cy), (sx,sy), angle )
     box2d = cv2.minAreaRect(point_inds)
+    box2d = fix_box_cv2(box2d)
   elif cat_name in ['door', 'window']:
     box2d = aligned_box(point_inds)
-    size_a = min(box2d[1]) * voxel_size
+    size_a = min(box2d[0,2:4]) * voxel_size
     if size_a > 0.3:
-      print(f'size_align: {size_a}')
+      print(f'thickness of align box is: {size_a}. It is too large. Use rotated box.')
       box2d = points_to_box_align_with_wall(point_inds, walls_inds, cat_name, voxel_size)
       #_show_3d_points_objs_ls([points+xyz_min], objs_ls=[bboxes_wall0], obj_rep='XYXYSin2WZ0Z1')
       if box2d is None:
         return None
+    else:
+      print(f'use aligned box directly')
+      box2d = move_axis_aligned_box_to_wall(box2d, walls_inds, cat_name, voxel_size)
+      #_show_3d_points_objs_ls([points+xyz_min], objs_ls=[bboxes_wall0], obj_rep='XYXYSin2WZ0Z1')
+      pass
   else:
     box2d = aligned_box(point_inds)
-  box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
-  # The original angle from cv2.minAreaRect denotes the rotation from ref-x
-  # to body-x. It is it positive for clock-wise.
-  # make x the long dim
-  if box2d[0,2] < box2d[0,3]:
-    box2d[:,[2,3]] = box2d[:,[3,2]]
-    box2d[:,-1] = 90+box2d[:,-1]
-  box2d[:,-1] *= np.pi / 180
-  box2d[:,-1] = limit_period_np(box2d[:,-1], 0.5, np.pi) # limit_period
 
   box2d_st = OBJ_REPS_PARSE.encode_obj(box2d, obj_rep_in = 'XYLgWsA',
                      obj_rep_out = 'XYXYSin2W')
@@ -282,21 +280,76 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
     pass
   return box3d
 
+def fix_box_cv2(box2d):
+  box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
+  # The original angle from cv2.minAreaRect denotes the rotation from ref-x
+  # to body-x. It is it positive for clock-wise.
+  # make x the long dim
+  if box2d[0,2] < box2d[0,3]:
+    box2d[:,[2,3]] = box2d[:,[3,2]]
+    box2d[:,-1] = 90+box2d[:,-1]
+  box2d[:,-1] *= np.pi / 180
+  box2d[:,-1] = limit_period_np(box2d[:,-1], 0.5, np.pi) # limit_period
+  return box2d
+
 def aligned_box(point_inds):
     min_xy = point_inds.min(0)
     max_xy = point_inds.max(0)
     cx, cy = (min_xy + max_xy) / 2
     sx, sy = max_xy - min_xy
-    box2d = ( (cx,cy), (sx,sy), 0 )
+    if sx > sy:
+      angle = 0
+    else:
+      angle = np.pi/2
+    smax = max(sx,sy)
+    smin = min(sx, sy)
+    box2d = np.array( [[cx,cy, smax,smin, angle]] )
     return box2d
+
+def move_axis_aligned_box_to_wall(box2d, walls, cat_name, voxel_size):
+  assert box2d.shape == (1,5)
+  assert walls.shape[1] == 8
+
+  max_thick = MAX_THICK_MAP[cat_name] / voxel_size
+  thick_add_on_wall = int(THICK_GREATER_THAN_WALL[cat_name] / voxel_size)
+  n = walls.shape[0]
+
+  center = np.array(box2d[0,:2])
+  wall_lines = OBJ_REPS_PARSE.encode_obj( walls, 'XYXYSin2WZ0Z1', 'RoLine2D_2p' ).reshape(-1,2,2)
+  walls_ = OBJ_REPS_PARSE.encode_obj(walls, 'XYXYSin2WZ0Z1', 'XYLgWsA')
+  diss = vertical_dis_1point_lines(center, wall_lines, no_extend=False)
+  angles_dif = walls_[:,-1] - box2d[:,-1]
+  angles_dif = limit_period_np(angles_dif, 0.5, np.pi)
+  invalid_mask = np.abs(angles_dif) > np.pi/4
+  diss[invalid_mask]  = 1000
+  diss *= voxel_size
+  if diss.min() > 0.3:
+    return box2d
+  the_wall_id = diss.argmin()
+  the_wall = walls_[the_wall_id]
+
+  angle_dif = limit_period_np( the_wall[-1] - box2d[0,-1], 0.5, np.pi )
+
+  if abs(box2d[0,-1]) < np.pi/4:
+    # long axis is x, move y
+    move_axis = 1
+  else:
+    move_axis = 0
+  move = the_wall[move_axis] - box2d[0,move_axis]
+  box2d[0,move_axis] = the_wall[move_axis]
+
+  max_thick = MAX_THICK_MAP[cat_name] / voxel_size
+  thick_add_on_wall = int(THICK_GREATER_THAN_WALL[cat_name] / voxel_size)
+  box2d[0,move_axis + 2] = min(the_wall[move_axis + 2] + thick_add_on_wall, max_thick)
+  return box2d
 
 def points_to_box_align_with_wall(points, walls, cat_name, voxel_size):
   for i in range(4):
     box2d, wall_id = points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size)
     if box2d is None:
       return None
-    length = max(box2d[1]) * voxel_size
-    thick = min(box2d[1]) * voxel_size
+    length = box2d[0,2] * voxel_size
+    thick =  box2d[0,3] * voxel_size
 
     print(f'{cat_name} length={length}, thick={thick}')
     if length > 0.5:
@@ -308,7 +361,8 @@ def points_to_box_align_with_wall(points, walls, cat_name, voxel_size):
 
 def points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size, max_diss_meter=1):
   from obj_geo_utils.line_operations import transfer_lines_points
-  thick = THICK_MAP[cat_name] / voxel_size
+  max_thick = MAX_THICK_MAP[cat_name] / voxel_size
+  thick_add_on_wall = int(THICK_GREATER_THAN_WALL[cat_name] / voxel_size)
   max_diss = max_diss_meter / voxel_size
   n = walls.shape[0]
 
@@ -370,9 +424,11 @@ def points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size, max_
 
   angle = -the_wall[0,4]
   center = (the_wall[0,0], the_wall[0,1])
-  walls_r, points_r = transfer_lines_points( walls_, 'XYLgWsA', points, center, angle, (0,0) )
+  walls_r, points_r = transfer_lines_points( walls_.copy(), 'XYLgWsA', points, center, angle, (0,0) )
   the_wall_r = walls_r[wall_id]
-  #_show_objs_ls_points_ls( (512,512), [walls_r], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_r])
+
+  #_show_3d_points_objs_ls( [points_r], objs_ls = [walls_r, walls_r[wall_id][None] ], obj_rep='XYLgWsA', obj_colors=['green', 'red'] )
+  #_show_objs_ls_points_ls( (1512,1512), [walls_r], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_r])
 
   the_wall_xmin = the_wall_r[0] - the_wall_r[2]/2
   the_wall_xmax = the_wall_r[0] + the_wall_r[2]/2
@@ -391,23 +447,42 @@ def points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size, max_
   box_r[2] = xs
 
   wall_yc = box_r[1]
-  #thick = box_r[3] * 2
+  thick = min(box_r[3] + thick_add_on_wall, max_thick)
   y_max = max_xy[1]
   y_min = min_xy[1]
-  if wall_yc > y_max - thick/2:
-    y_min = y_max - thick
-    yc = (y_min + y_max) / 2
-  elif wall_yc < y_min + thick/2:
-    y_max = y_min + thick
-    yc = (y_min + y_max) / 2
-  else:
-    yc = wall_yc
+  y_mean = (y_max + y_min)/2
+  move = wall_yc - y_mean
+  yc = y_mean + move
+
+  y_min_new = y_min + move
+  y_max_new = y_max + move
+
+  if abs(y_max_new) < y_min:
+    # keep y_min, because y_min close to wall
+    y_min_new = y_min
+    yc = y_min_new + thick/2
+  elif abs(y_min_new) > y_max:
+    # keep y_max, becasue y_max close to wall
+    y_max_new = y_max
+    yc = y_max_new - thick/2
+
+  #if wall_yc > y_max - thick/2:
+  #  # keep y_max
+  #  y_min = y_max - thick
+  #  yc = (y_min + y_max) / 2
+  #elif wall_yc < y_min + thick/2:
+  #  # keep y_min
+  #  y_max = y_min + thick
+  #  yc = (y_min + y_max) / 2
+  #else:
+  #  # use yc of wall
+  #  yc = wall_yc
+
 
   box_r[1] = yc
   box_r[3] = thick
 
   box_r = box_r[None,:]
-  #_show_objs_ls_points_ls( (512,512), [walls_r, box_r], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_r])
 
   box_out, points_out = transfer_lines_points( box_r, 'XYLgWsA', points_r, center, -angle, (0,0) )
 
@@ -415,11 +490,10 @@ def points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size, max_
   wall_view = walls_[wall_id:wall_id+1]
   wall_view = walls_
 
-  #_show_objs_ls_points_ls( (1024,1024), [wall_view, box_out], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_out, points], point_colors=['yellow','red'])
+  #_show_objs_ls_points_ls( (2024,2024), [wall_view, box_out], obj_rep='XYLgWsA', obj_colors=['green','blue'], points_ls = [points_out, points], point_colors=['yellow','red'])
 
   cx, cy, l, w, a = box_out[0]
-  a = a*180/np.pi
-  box_2d = ( (cx,cy), (l,w), a)
+  box_2d = np.array([[cx,cy, l,w, a]])
   return box_2d, wall_id
 
 def unused_points_to_bbox(points, out_np=False):
@@ -496,7 +570,7 @@ def gen_bboxes(max_num_points=1e5):
   ROTAE_WINDOW=['Area_1/office_11']
   IntroSample = ['Area_3/office_4']
   scenes = IntroSample
-  ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
 
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
@@ -509,7 +583,7 @@ def gen_bboxes(max_num_points=1e5):
       print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
-        continue
+        #continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
@@ -556,12 +630,12 @@ def gen_bboxes(max_num_points=1e5):
             else:
               abandon_num += 1
               print(f'\n\nAbandon one {cat_name}\n\n')
+        if cat_name in bboxes:
+          bboxes[cat_name] = np.concatenate(bboxes[cat_name], 0)
         if cat_name == 'wall':
-          bboxes_wall = np.concatenate(bboxes['wall'],0)
+          bboxes['wall'] = optimize_walls(bboxes['wall'], get_manual_merge_pairs(scene_name_l))
+          bboxes_wall = bboxes['wall']
         pass
-      for cat in bboxes:
-        bboxes[cat] = np.concatenate(bboxes[cat], 0)
-
 
       # cal pcl scope
       min_pcl = coords.min(axis=0)
@@ -574,7 +648,7 @@ def gen_bboxes(max_num_points=1e5):
 
       bboxes['room'] = OBJ_REPS_PARSE.encode_obj( room[None,:], 'XYZLgWsHA', 'XYXYSin2WZ0Z1' )
 
-      bboxes['wall'] = optimize_walls(bboxes['wall'], get_manual_merge_pairs(scene_name_l))
+      #bboxes['wall'] = optimize_walls(bboxes['wall'], get_manual_merge_pairs(scene_name_l))
 
       np.save(bbox_file, bboxes)
       print(f'\n save {bbox_file}')
@@ -588,17 +662,22 @@ def gen_bboxes(max_num_points=1e5):
         print(f'abandon_num: {abandon_num}')
         all_bboxes = []
         all_cats = []
+        all_labels = []
         view_cats = ['wall', 'beam', 'window', 'column', 'door']
-        #view_cats = ['wall']
-        for cat in view_cats:
+        #view_cats += ['floor']
+        #view_cats += ['ceiling']
+        for l,cat in enumerate(view_cats):
           if cat not in bboxes:
             continue
           all_bboxes.append( bboxes[cat] )
           all_cats += [cat] * bboxes[cat].shape[0]
+          all_labels += [l]* bboxes[cat].shape[0]
         all_bboxes = np.concatenate(all_bboxes, 0)
         all_cats = np.array(all_cats)
+        all_labels = np.array(all_labels)
 
-        #_show_3d_points_objs_ls([coords], [colors], [all_bboxes],  obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
+        #_show_3d_points_objs_ls(objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels])
+        #_show_3d_points_objs_ls([coords], [feats], objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels], box_types='line_mesh')
 
         scope = all_bboxes[:,:4].reshape(-1,2).max(0) - all_bboxes[:,:4].reshape(-1,2).min(0)
         voxel_size =  max(scope) / 1000

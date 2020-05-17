@@ -13,8 +13,8 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 
 ADD_FRAME = 0
-BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
-BOX_LINE_RADIUS = 0.03
+BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][2]
+BOX_LINE_RADIUS = 0.02
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -163,6 +163,28 @@ def _draw_points(img, points, color, point_thickness, point_scores=None, font_sc
                     cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
     return img
 
+def _draw_lines(img, lines, color, point_thickness, line_scores=None, font_scale=0.5, text_color='green'):
+    lines = np.round(lines).astype(np.int32)
+    h, w = img.shape[:2]
+    text_color = _get_color(text_color)
+    for i in range(lines.shape[0]):
+      p0, p1 = lines[i]
+      c = _get_color(color)
+      cv2.line(img, (p0[0], p0[1]), (p1[0], p1[1]), c, thickness=point_thickness)
+
+      if line_scores is not None:
+        try:
+          label_text = '{:d}'.format(line_scores[i]) # score
+          #label_text = '{:.01f}'.format(point_scores[i]) # score
+        except:
+          label_text = str(line_scores[i]) # score
+
+        ofs = 10
+        x = min(max(p[0] - 2, ofs), w-ofs)
+        y = min(max(p[1] - 4, ofs), h-ofs)
+        cv2.putText(img, label_text, (x, y),
+                    cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
+    return img
 
 def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
               cats=None, font_scale=0.5, text_color='green'):
@@ -475,6 +497,8 @@ def _make_bboxes_o3d(bboxes, box_oriented, color, box_type):
   else:
     colors = [ _get_color(color) for i in range(bboxes.shape[0]) ]
 
+  min_size = bboxes[:,3:6].max() / 100
+  bboxes[:,3:6] = np.clip(bboxes[:,3:6], a_min=min_size, a_max=None)
   bboxes_ = []
   for i,bbox in enumerate(bboxes):
     if box_type == 'line_mesh':
@@ -558,6 +582,8 @@ def _make_bbox_line_mesh(bbox, box_oriented, color):
     return cm
 
 def _make_pcd(points, colors=None, normals=None):
+    if points.shape[1] == 2:
+      points = np.concatenate([points, points[:,0:1]*0], 1)
     if points.shape[1] == 6 and colors is None:
       colors = points[:,3:6]
       points = points[:,:3]

@@ -11,7 +11,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
-SHOW_3D = 0
+SHOW_3D = 1
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
@@ -184,7 +184,7 @@ def eval_graph(res_file):
 
 class GraphEval():
   _all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ][1:3]
-  #_all_out_types = [ 'bRefine_sAve' ]
+  _all_out_types = [ 'bRefine_sAve' ]
   #_all_out_types = [ 'bInit_sRefine' ]
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
@@ -769,14 +769,8 @@ def apply_mask_on_ids(ids, mask):
 
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
-  dirname = 'sTPV_r50_fpn_stanford2d_wabeco_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe/'
-  dirname = 'bTPV_r50_fpn_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe_RelTr'
-  dirname = 'bTPV_r50_fpnNla9_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou743_Fpn44_Pbs1_Bp32_Fe'
-  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_RIou_Apts4_Nla9_stanford2d_wabecodowi_bs5_lr10_LsW510_NR_R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe'
-  #filename = 'detection_68_Imgs.pickle'
-  filename = 'detection_10_Imgs.pickle'
-  #filename = 'detection_204_Imgs.pickle'
-  #filename = 'detection_2_Imgs.pickle'
+  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL12346'
+  filename = 'detection_11_Imgs.pickle'
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)
 
