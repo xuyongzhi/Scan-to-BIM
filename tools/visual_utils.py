@@ -13,7 +13,7 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 
 ADD_FRAME = 0
-BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][2]
+BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][0]
 BOX_LINE_RADIUS = 0.02
 
 #-2d general------------------------------------------------------------------------------
@@ -379,7 +379,8 @@ def _show_sparse_coords(x, gt_bboxes=None):
 
 #-3d general------------------------------------------------------------------------------
 def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
-             objs_ls=None, obj_rep=None, obj_colors='random', box_types=None):
+              objs_ls=None, obj_rep=None, obj_colors='random', box_types=None,
+              polygons_ls=None, polygon_colors='random'):
   if objs_ls is not None:
     if obj_rep == 'XYXYSin2':
       if points_ls is not None:
@@ -401,7 +402,14 @@ def _show_3d_points_objs_ls(points_ls=None, point_feats=None,
     bboxes_ls = [OBJ_REPS_PARSE.encode_obj(o, obj_rep, 'XYZLgWsHA') for o in objs_ls]
   else:
     bboxes_ls = None
-  _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, obj_colors, box_oriented=True, box_types=box_types)
+  mesh_ls = _show_3d_points_bboxes_ls(points_ls, point_feats, bboxes_ls, obj_colors, box_oriented=True, box_types=box_types)
+
+  if polygons_ls is not None:
+    pls = _make_polygon_surface_ls(polygons_ls, polygon_colors)
+    mesh_ls += pls
+
+  #o3d.visualization.draw_geometries( show_ls )
+  custom_draw_geometry_with_key_callback( mesh_ls )
 
 def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
              bboxes_ls=None, b_colors='random', box_oriented=False, point_normals=None, box_types=None):
@@ -442,8 +450,8 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
     mesh_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=fsize, origin=center)
     show_ls.append(mesh_frame)
 
-  #o3d.visualization.draw_geometries( show_ls )
-  custom_draw_geometry_with_key_callback( show_ls )
+  return show_ls
+
 
 def custom_draw_geometry_with_key_callback(pcd_ls):
 
@@ -615,6 +623,44 @@ def points_to_bboxes(points, size=0.1):
   bboxes[:,3:6] = size
   return bboxes
 
+
+def _show_polygon_surface(points, color='red'):
+    color = _get_color(color)
+    mesh = _make_polygon_surface(points, color)
+    custom_draw_geometry_with_key_callback([mesh])
+
+def _make_polygon_surface_ls(points_ls, colors_ls):
+    assert isinstance(points_ls, list)
+    n = len(points_ls)
+    if not isinstance(colors_ls, list):
+      c = colors_ls
+      colors_ls = [ _get_color( c )] * n
+    else:
+      colors_ls = [_get_color(c) for c in colors_ls]
+    polygons_ls = []
+    for i in range(n):
+      pmesh =  _make_polygon_surface(points_ls[i], colors_ls[i])
+      polygons_ls.append(pmesh)
+    return polygons_ls
+
+def _make_polygon_surface(points, color):
+    pmin = points.min(0,keepdims=True)
+    pmax = points.max(0,keepdims=True)
+    center = (pmin + pmax)/2
+    points = np.concatenate([points, center], 0)
+
+    vertices = o3d.utility.Vector3dVector(points)
+    n = points.shape[0] -1
+    triangles = []
+    for i in range(n-1):
+      ids = np.array([i,i+1, n])
+      ids = ids % n
+      triangles.append( ids )
+    triangles = np.array(triangles)
+    triangles = o3d.utility.Vector3iVector(triangles)
+    polygon = o3d.geometry.TriangleMesh( vertices, triangles )
+    polygon.paint_uniform_color(color)
+    return polygon
 
 def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1'):
     lines2d = bboxes3d[:,:5]

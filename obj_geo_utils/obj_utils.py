@@ -402,9 +402,9 @@ class OBJ_REPS_PARSE():
       bot_corners = np.concatenate([bot_corners, z0], axis=2).reshape(-1,12)
       return bot_corners
 
-    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Bot_Corners':
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'Bottom_Corners':
       XYXYSin2WZ0Z1 = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
-      return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'Bot_Corners')
+      return OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', 'Bottom_Corners')
 
     elif obj_rep_in == 'XYZLgWsHA'  and obj_rep_out == 'XYXYSin2WZ0Z1':
       # XYLgWsA
@@ -1146,14 +1146,6 @@ class GraphUtils:
     #show_free_corners(new_lines, obj_rep)
     return new_lines
 
-def walls_ceilings_to_ceilings(walls, ceiling_boxes):
-  '''
-  walls:  [m,7]
-  ceiling_boxes: [n,7]
-
-  ceiling_polygon: [n, k]
-  '''
-  pass
 
 def round_positions(data, scale=1000):
   return np.round(data*scale)/scale

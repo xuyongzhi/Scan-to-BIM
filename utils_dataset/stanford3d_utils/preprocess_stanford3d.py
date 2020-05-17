@@ -583,7 +583,7 @@ def gen_bboxes(max_num_points=1e5):
       print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
-        #continue
+        continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data

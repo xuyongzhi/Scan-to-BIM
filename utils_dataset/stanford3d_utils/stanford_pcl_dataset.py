@@ -10,9 +10,10 @@ from beike_data_utils.beike_utils import  raw_anno_to_img
 from utils_dataset.beike_utils.beike_pcl_dataset import DataConfig
 from configs.common import DEBUG_CFG
 from tools.debug_utils import _show_lines_ls_points_ls
-from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls,points_to_bboxes
+from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls,points_to_bboxes, _show_3d_bboxes_ids
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+from obj_geo_utils.geometry_utils import get_ceiling_floor_from_box_walls
 
 SMALL_DATA = 1
 NO_LONG = 1
@@ -85,10 +86,8 @@ class Stanford_Ann():
   Area2_Rotated = ['Area_2/auditorium_1', 'Area_2/conferenceRoom_1', 'Area_2/storage_9']
 
   IntroSample = ['Area_3/office_4']
-  The_GoodSamples = ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
-                     'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2'] +\
-                    IntroSample
-  #IntroSample = ['Area_5/office_39']
+  GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
+                     'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
@@ -114,6 +113,7 @@ class Stanford_Ann():
     data_paths = glob.glob(os.path.join(self.data_root, "*/*.ply"))
     data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
     data_paths = [p.split(self.data_root)[1] for p in data_paths]
+    data_paths.sort()
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
@@ -121,7 +121,7 @@ class Stanford_Ann():
       data_paths = [f+'.ply' for f in self.IntroSample]
       #data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
-      data_paths = [f+'.ply' for f in self.The_GoodSamples]
+      data_paths = [f+'.ply' for f in self.GoodSamples]
 
     if NO_LONG:
       data_paths_new = []
@@ -137,7 +137,6 @@ class Stanford_Ann():
       data_paths = data_paths_new
       pass
 
-    data_paths.sort()
     self.data_paths = data_paths
 
     #data_roots = [f.replace('ply', 'npy') for f in pcl_files]
@@ -217,27 +216,35 @@ class Stanford_Ann():
 
   def show_gt_bboxes_1scene_3d(self, index):
     img_info = self.img_infos[index]
+    scene_name = get_scene_name( img_info['img_meta']['filename'] )
     print('\n\n', img_info['img_meta']['filename'])
     gt_bboxes_3d_raw = img_info['gt_bboxes_3d_raw']
     gt_labels = img_info['gt_labels']
     coords, colors_norms, point_labels, _ = self.load_ply(index)
 
+    walls = gt_bboxes_3d_raw[gt_labels==self._category_ids_map['wall']]
+    floor_mask = gt_labels == self._category_ids_map['floor']
+    ceiling_mask = gt_labels == self._category_ids_map['ceiling']
+    floors = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[floor_mask], walls, 'XYXYSin2WZ0Z1', 'floor')
+    ceilings = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[ceiling_mask], walls, 'XYXYSin2WZ0Z1', 'ceiling')
+
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
-    kp_cats += ['floor']
+    #kp_cats += ['floor']
+    #kp_cats += ['ceiling']
+    cat_2_ids = {kp_cats[i]:i for i in range(len(kp_cats))}
     #kp_cats += ['ceiling', 'floor']
-    rm_cats = ['ceiling', 'background']
-    rm_cats = ['ceiling']
+    points_rm_cats = ['ceiling']
 
     # 3d
     points = np.concatenate([coords, colors_norms], axis=1)
-    points, point_labels = filter_categories('remove', points, point_labels, rm_cats, _raw_pcl_category_ids_map)
+    points, point_labels = filter_categories('remove', points, point_labels, points_rm_cats, _raw_pcl_category_ids_map)
     points, point_labels = cut_top_points(points, 0.1, point_labels)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
     gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, kp_cats, self._category_ids_map)
     gt_cats = [self._catid_2_cat[l+1] for l in gt_labels]
     print(gt_cats)
 
-    gt_bboxes_3d_raw, gt_labels = rm_one_wall_for_vis(gt_bboxes_3d_raw, gt_labels)
+    gt_bboxes_3d_raw, gt_labels = manual_rm_walls_for_vis(gt_bboxes_3d_raw, gt_labels, scene_name, 'XYXYSin2WZ0Z1')
 
     #gt_bboxes_3d_raw  = gt_bboxes_3d_raw[7:8]
     #gt_labels = gt_labels[7:8] * 0
@@ -246,14 +253,14 @@ class Stanford_Ann():
 
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Top_Corners').reshape(-1,3)
     #corners = add_noisy_corners(corners)
-    walls = gt_bboxes_3d_raw[gt_labels==0]
 
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'])
-    #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
+    #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'], polygons_ls=[floors, ceilings], polygon_colors=['magenta', 'yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
 
     corner_boxes = points_to_bboxes(corners, 0.1)
@@ -279,15 +286,28 @@ class Stanford_Ann():
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
-def rm_one_wall_for_vis(gt_bboxes_3d_raw, gt_labels):
+def manual_rm_walls_for_vis(gt_bboxes_3d_raw, gt_labels, scene_name, obj_rep):
+  #_show_3d_bboxes_ids(gt_bboxes_3d_raw[gt_labels==0], obj_rep)
+  if scene_name == 'Area_3/office_4':
+    rm_ids = [1]
+    n = gt_bboxes_3d_raw.shape[0]
+    keep_ids = np.array([i for i in range(n) if i not in rm_ids])
+    return gt_bboxes_3d_raw[keep_ids], gt_labels[keep_ids]
+  else:
+    return gt_bboxes_3d_raw, gt_labels
+
+def rm_one_wall_for_vis(gt_bboxes_3d_raw, gt_labels, scene_name):
   mask = gt_labels == 0
   walls = gt_bboxes_3d_raw[mask]
   walls = OBJ_REPS_PARSE.encode_obj(walls, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
   max_xy = walls[:,:2].max(0)
   min_xy = walls[:,:2].min(0)
-  del_axis=0
-  #i = np.where( walls[:,del_axis] == max_xy[del_axis] )[0]
-  i = np.where( walls[:,del_axis] == min_xy[del_axis] )[0]
+  if scene_name == 'Area_3/office_4':
+    del_axis=0
+    #i = np.where( walls[:,del_axis] == max_xy[del_axis] )[0]
+    i = np.where( walls[:,del_axis] == min_xy[del_axis] )[0]
+  else:
+    return gt_bboxes_3d_raw, gt_labels
   gt_bboxes_3d_raw = np.delete(gt_bboxes_3d_raw, i, 0)
   gt_labels = np.delete(gt_labels, i, 0)
   return gt_bboxes_3d_raw, gt_labels
@@ -486,6 +506,11 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
 
     print('\n\t', topview_file)
     pass
+
+def get_scene_name(file_path):
+  s0, s1 = file_path.split('/')[-2:]
+  s = s0 + '/' + s1.split('.')[0]
+  return s
 
 
 class Stanford_BEV(Stanford_CLSINFO, Stanford_Ann):
@@ -694,6 +719,7 @@ def cut_top_points(points,  rate=0.1, point_labels=None):
   if point_labels is not None:
     point_labels = point_labels[mask]
   return points[mask], point_labels
+
 
 def main3d():
   obj_rep = 'XYZLgWsHA'

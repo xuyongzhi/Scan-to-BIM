@@ -462,6 +462,70 @@ def sort_four_corners( pred_corners, pred_center=None ):
     bboxes_out = corners.reshape(n,8)
   return bboxes_out, rect_loss
 
+def sort_corners_np( pred_corners, pred_center=None ):
+  pred_corners = torch.from_numpy( pred_corners ).to(torch.float32)
+  sorted_corners, _ =  sort_corners(pred_corners)
+  return sorted_corners.numpy()
+def sort_corners( pred_corners, pred_center=None ):
+  '''
+  pred_corners: [batch_size, 4, h, w,2] or  [n,4,2]
+  '''
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_objs_ls_points_ls_torch
+  input_ndim = pred_corners.ndim
+  assert input_ndim == 5 or input_ndim == 3
+  if input_ndim == 5:
+    bs, npts, h, w, d = pred_corners.shape
+    n = bs*h*w
+    pred_corners = pred_corners.permute(0,2,3,1,4).reshape(n, npts, 2)
+    if pred_center is not None:
+      assert pred_center.shape == (bs, 1, h, w, d)
+      pred_center = pred_center.permute(0,2,3,1,4).reshape(n, 1, 2)
+  else:
+    n, npts, d = pred_corners.shape
+    if pred_center is not None:
+      assert pred_center.shape == (n, 1, d)
+  assert d == 2
+
+  if pred_center is not None:
+    pred_cor_cen = torch.cat([pred_corners, pred_center], dim=1)
+    #center = pred_cor_cen.mean(dim=1, keepdim=True)
+    center = pred_corners.mean(dim=1, keepdim=True)
+    pred_center_err = pred_center - center
+    out_rect_loss_cen = (pred_center_err).abs().mean(dim=-1)
+  else:
+    center = pred_corners.mean(dim=1, keepdim=True)
+
+  corners = pred_corners - center
+
+  # 1. sort by angles, start from 0 to 2pi
+  angles = angle_with_x(corners.detach().reshape(n*npts,2), scope_id=3) # (0, pi*2]
+  angles = angles.reshape(n,npts)
+  angles_s, sort_ids = angles.sort(dim=1)
+  corners = torch.gather(corners, 1, sort_ids[:,:,None].repeat(1,1,2))
+
+  # 2. the loss as a rect: same diagonal length, same alpha
+  loss_diag_len = corners.norm(dim=-1).std(dim=-1,keepdim=True)
+  dia_sum_0 = (corners[:,0]+corners[:,2]).abs().sum(-1, keepdim=True)
+  dia_sum_1 = (corners[:,1]+corners[:,3]).abs().sum(-1, keepdim=True)
+  loss_diag_sum = dia_sum_0 + dia_sum_1
+
+  if pred_center is not None:
+    rect_loss = loss_diag_len + loss_diag_sum
+    #rect_loss = out_rect_loss_cen + loss_diag_len + loss_diag_sum
+    #rect_loss = out_rect_loss_cen
+  else:
+    rect_loss = loss_diag_len + loss_diag_sum
+    rect_loss = None
+
+  corners = corners + center
+  if input_ndim == 5:
+    bboxes_out = corners.reshape(bs, h, w, npts*2).permute(0, 3, 1, 2)
+    if rect_loss is not None:
+      rect_loss = rect_loss.reshape(bs, h, w, 1).permute(0, 3, 1, 2)
+  elif input_ndim == 3:
+    bboxes_out = corners.reshape(n,npts*2)
+  return bboxes_out, rect_loss
+
 def four_corners_to_box( rect_corners, rect_center=None,  stage=None,  bbox_weights=None, bbox_gt=None):
   '''
   rect_corners: [batch_size, 4, h, w,2] or  [n,4,2]
@@ -648,7 +712,6 @@ def lines_intersection_2d(line0s, line1s, must_on0=False, must_on1=False,
     ints_all = np.concatenate(ints_all, 0)
     return ints_all
 
-
 def line_intersection_2d(line0, line1, must_on0=False, must_on1=False,
           min_angle=0):
     '''
@@ -714,6 +777,41 @@ def line_intersection_2d(line0, line1, must_on0=False, must_on1=False,
     except np.linalg.LinAlgError:
       return np.array([np.nan]*2)
 
+def get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
+  '''
+  walls:  [m,7]
+  ceiling_boxes: [n,7]
+
+  ceiling_polygon: [n, k]
+  '''
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
+
+  if ceiling_boxes.shape[0] == 0:
+    return ceiling_boxes
+
+  ceiling_boxes = OBJ_REPS_PARSE.encode_obj(ceiling_boxes, obj_rep, 'XYZLgWsHA')
+  zc = ceiling_boxes[:,2]
+  zs = ceiling_boxes[:,5]
+  z0 = zc - zs/2
+  z1 = zc + zs/2
+
+  if cat_name == 'ceiling':
+    cor_type = 'Top_Corners'
+    z = z0
+  elif cat_name == 'floor':
+    cor_type = 'Bottom_Corners'
+    z = z1
+
+  wn = walls.shape[0]
+  wall_corners = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, cor_type).reshape(wn, 4, 3)
+  wall_corners2d = sort_corners_np(wall_corners[:,:,:2].reshape(1,-1,2)).reshape(-1,2)
+  cor_num = wall_corners2d.shape[0]
+  zs = np.repeat(z[:,None], cor_num, 0)
+  wall_corners3d = np.concatenate([wall_corners2d, zs],1)
+
+  #_show_3d_points_objs_ls([wall_corners3d], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_corners3d])
+  return wall_corners3d
 
 class OBJ_DEF():
   @staticmethod
