@@ -791,6 +791,7 @@ def get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
     return ceiling_boxes
 
   ceiling_boxes = OBJ_REPS_PARSE.encode_obj(ceiling_boxes, obj_rep, 'XYZLgWsHA')
+  nc = ceiling_boxes.shape[0]
   zc = ceiling_boxes[:,2]
   zs = ceiling_boxes[:,5]
   z0 = zc - zs/2
@@ -806,9 +807,10 @@ def get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
   wn = walls.shape[0]
   wall_corners = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, cor_type).reshape(wn, 4, 3)
   wall_corners2d = sort_corners_np(wall_corners[:,:,:2].reshape(1,-1,2)).reshape(-1,2)
-  cor_num = wall_corners2d.shape[0]
-  zs = np.repeat(z[:,None], cor_num, 0)
-  wall_corners3d = np.concatenate([wall_corners2d, zs],1)
+  wall_corners2d = np.repeat( wall_corners2d[None,:,:], nc, 0)
+  cor_num = wall_corners2d.shape[1]
+  zs = np.repeat(z[:,None,None], cor_num, 1)
+  wall_corners3d = np.concatenate([wall_corners2d, zs],2)
 
   #_show_3d_points_objs_ls([wall_corners3d], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_corners3d])
   return wall_corners3d

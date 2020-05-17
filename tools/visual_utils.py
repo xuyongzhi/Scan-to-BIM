@@ -14,7 +14,7 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 ADD_FRAME = 0
 BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][0]
-BOX_LINE_RADIUS = 0.02
+BOX_LINE_RADIUS = 0.01
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -639,11 +639,17 @@ def _make_polygon_surface_ls(points_ls, colors_ls):
       colors_ls = [_get_color(c) for c in colors_ls]
     polygons_ls = []
     for i in range(n):
-      pmesh =  _make_polygon_surface(points_ls[i], colors_ls[i])
-      polygons_ls.append(pmesh)
+      pmesh =  _make_polygons_surface(points_ls[i], colors_ls[i])
+      polygons_ls += pmesh
     return polygons_ls
 
-def _make_polygon_surface(points, color):
+def _make_polygons_surface(points, color):
+    mesh = []
+    for i in range(points.shape[0]):
+      mesh.append( _make_1_polygon_surface(points[i], color) )
+    return mesh
+
+def _make_1_polygon_surface(points, color):
     pmin = points.min(0,keepdims=True)
     pmax = points.max(0,keepdims=True)
     center = (pmin + pmax)/2

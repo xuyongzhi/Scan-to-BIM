@@ -258,6 +258,9 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
   else:
     box2d = aligned_box(point_inds)
 
+  if box2d[:,2:4].min()==0:
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
   box2d_st = OBJ_REPS_PARSE.encode_obj(box2d, obj_rep_in = 'XYLgWsA',
                      obj_rep_out = 'XYXYSin2W')
 
@@ -309,6 +312,7 @@ def aligned_box(point_inds):
 def move_axis_aligned_box_to_wall(box2d, walls, cat_name, voxel_size):
   assert box2d.shape == (1,5)
   assert walls.shape[1] == 8
+  box2d0 = box2d.copy()
 
   max_thick = MAX_THICK_MAP[cat_name] / voxel_size
   thick_add_on_wall = int(THICK_GREATER_THAN_WALL[cat_name] / voxel_size)
@@ -328,6 +332,9 @@ def move_axis_aligned_box_to_wall(box2d, walls, cat_name, voxel_size):
   the_wall_id = diss.argmin()
   the_wall = walls_[the_wall_id]
 
+  thick_add_on_wall = int(THICK_GREATER_THAN_WALL[cat_name] / voxel_size)
+  new_thick = min(the_wall[3] + thick_add_on_wall, max_thick)
+  box2d[0,3] = new_thick
   angle_dif = limit_period_np( the_wall[-1] - box2d[0,-1], 0.5, np.pi )
 
   if abs(box2d[0,-1]) < np.pi/4:
@@ -335,12 +342,17 @@ def move_axis_aligned_box_to_wall(box2d, walls, cat_name, voxel_size):
     move_axis = 1
   else:
     move_axis = 0
-  move = the_wall[move_axis] - box2d[0,move_axis]
-  box2d[0,move_axis] = the_wall[move_axis]
 
-  max_thick = MAX_THICK_MAP[cat_name] / voxel_size
-  thick_add_on_wall = int(THICK_GREATER_THAN_WALL[cat_name] / voxel_size)
-  box2d[0,move_axis + 2] = min(the_wall[move_axis + 2] + thick_add_on_wall, max_thick)
+  # if the center of box2d is not inside the wall, do not move
+  j = 1- move_axis
+  inside_wall = box2d0[0,j] < the_wall[j]+the_wall[2]/2 and box2d0[0,j] > the_wall[j]-the_wall[2]/2
+  if inside_wall:
+    move0 = the_wall[move_axis] - box2d0[0,move_axis]
+    move = (new_thick - box2d0[0,3]) * np.sign(move0) / 2
+    box2d[0,move_axis] += move
+    print(f'move:{move}, move0:{move0}')
+    #_show_3d_points_objs_ls( objs_ls=[box2d0, box2d, the_wall[None]], obj_rep='XYLgWsA', obj_colors=['blue', 'red', 'black'])
+    pass
   return box2d
 
 def points_to_box_align_with_wall(points, walls, cat_name, voxel_size):
@@ -560,7 +572,7 @@ def get_scene_name(file_path):
   s = s0 + '/' + s1.split('.')[0]
   return s
 
-def gen_bboxes(max_num_points=1e5):
+def gen_bboxes(max_num_points=1e6):
   from plyfile import PlyData
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
@@ -570,6 +582,7 @@ def gen_bboxes(max_num_points=1e5):
   ROTAE_WINDOW=['Area_1/office_11']
   IntroSample = ['Area_3/office_4']
   scenes = IntroSample
+  scenes = ['Area_2/conferenceRoom_1']
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
 
   # The first 72 is checked

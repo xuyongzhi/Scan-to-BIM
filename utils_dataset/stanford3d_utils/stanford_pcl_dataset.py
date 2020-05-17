@@ -87,7 +87,8 @@ class Stanford_Ann():
 
   IntroSample = ['Area_3/office_4']
   GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
-                     'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
+                               'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
+  GoodSamples = ['Area_2/conferenceRoom_1']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
@@ -122,6 +123,7 @@ class Stanford_Ann():
       #data_paths = [f+'.ply' for f in self.SAMPLES1]
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
       data_paths = [f+'.ply' for f in self.GoodSamples]
+
 
     if NO_LONG:
       data_paths_new = []
@@ -244,7 +246,7 @@ class Stanford_Ann():
     gt_cats = [self._catid_2_cat[l+1] for l in gt_labels]
     print(gt_cats)
 
-    gt_bboxes_3d_raw, gt_labels = manual_rm_walls_for_vis(gt_bboxes_3d_raw, gt_labels, scene_name, 'XYXYSin2WZ0Z1')
+    #gt_bboxes_3d_raw, gt_labels = manual_rm_walls_for_vis(gt_bboxes_3d_raw, gt_labels, scene_name, 'XYXYSin2WZ0Z1')
 
     #gt_bboxes_3d_raw  = gt_bboxes_3d_raw[7:8]
     #gt_labels = gt_labels[7:8] * 0
@@ -256,11 +258,10 @@ class Stanford_Ann():
 
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
-    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'], polygons_ls=[floors, ceilings], polygon_colors=['magenta', 'yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
 
     corner_boxes = points_to_bboxes(corners, 0.1)
@@ -292,6 +293,7 @@ def manual_rm_walls_for_vis(gt_bboxes_3d_raw, gt_labels, scene_name, obj_rep):
     rm_ids = [1]
     n = gt_bboxes_3d_raw.shape[0]
     keep_ids = np.array([i for i in range(n) if i not in rm_ids])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     return gt_bboxes_3d_raw[keep_ids], gt_labels[keep_ids]
   else:
     return gt_bboxes_3d_raw, gt_labels
