@@ -88,7 +88,6 @@ class Stanford_Ann():
   IntroSample = ['Area_3/office_4']
   GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
                                'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
-  GoodSamples = ['Area_2/conferenceRoom_1']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
@@ -114,7 +113,6 @@ class Stanford_Ann():
     data_paths = glob.glob(os.path.join(self.data_root, "*/*.ply"))
     data_paths = [p for p in data_paths if int(p.split('Area_')[1][0]) in self.area_list]
     data_paths = [p.split(self.data_root)[1] for p in data_paths]
-    data_paths.sort()
 
     #data_paths = [f+'.ply' for f in self.UNALIGNED]
     if SMALL_DATA:
@@ -124,6 +122,7 @@ class Stanford_Ann():
       #data_paths = [f+'.ply' for f in self.UNALIGNED]
       data_paths = [f+'.ply' for f in self.GoodSamples]
 
+    data_paths.sort()
 
     if NO_LONG:
       data_paths_new = []
@@ -223,12 +222,18 @@ class Stanford_Ann():
     gt_bboxes_3d_raw = img_info['gt_bboxes_3d_raw']
     gt_labels = img_info['gt_labels']
     coords, colors_norms, point_labels, _ = self.load_ply(index)
+    min_xyz = coords.min(0,keepdims=True)
+    coords -= min_xyz
 
     walls = gt_bboxes_3d_raw[gt_labels==self._category_ids_map['wall']]
+
+    #ceilings, floors = self.load_polygons(index)
+
     floor_mask = gt_labels == self._category_ids_map['floor']
     ceiling_mask = gt_labels == self._category_ids_map['ceiling']
     floors = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[floor_mask], walls, 'XYXYSin2WZ0Z1', 'floor')
     ceilings = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[ceiling_mask], walls, 'XYXYSin2WZ0Z1', 'ceiling')
+
 
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
     #kp_cats += ['floor']
@@ -258,10 +263,11 @@ class Stanford_Ann():
 
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
     _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'], polygons_ls=[floors, ceilings], polygon_colors=['magenta', 'yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
 
     corner_boxes = points_to_bboxes(corners, 0.1)
@@ -414,6 +420,23 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     #bboxes_3d = self.img_infos[index]['gt_bboxes_3d_raw']
     #_show_3d_points_objs_ls([coords], None, [bboxes_3d], 'XYXYSin2WZ0Z1')
     return coords, colors_norms, point_labels, None
+
+  def load_polygons(self, index):
+    filepath = self.data_root / self.data_paths[index]
+    filepath = str(filepath)
+    pol_file = filepath.replace('Area', 'Polygons_Area').replace('.ply', '.npy')
+    polygons = np.load(pol_file, allow_pickle=True).tolist()
+    ceilings = polygons['ceiling']
+    floors = polygons['floor']
+
+    pcl_scope = self.img_infos[index]['img_meta']['pcl_scope']
+    for i in range( len(floors) ):
+      p = floors[i][0] - pcl_scope[0:1]
+      floors[i] = (p, floors[i][1])
+    for i in range( len(ceilings) ):
+      p = ceilings[i][0] - pcl_scope[0:1]
+      ceilings[i] = (p, ceilings[i][1])
+    return ceilings, floors
 
   def _augment_coords_to_colors_norms(self, coords, colors_norms, point_labels=None):
     # Center x,y

@@ -645,9 +645,22 @@ def _make_polygon_surface_ls(points_ls, colors_ls):
 
 def _make_polygons_surface(points, color):
     mesh = []
-    for i in range(points.shape[0]):
-      mesh.append( _make_1_polygon_surface(points[i], color) )
+    for i in range(len(points)):
+      mesh += _make_1_polygon_surface(points[i], color)
+      #mesh += _creat_1_polygon_surface(points[i], color)
     return mesh
+
+def _creat_1_polygon_surface(points, color):
+    vertices, triangles = points
+    if vertices.shape[0] == 0:
+      return []
+
+    vertices = o3d.utility.Vector3dVector(vertices)
+    triangles = o3d.utility.Vector3iVector(triangles)
+    polygon = o3d.geometry.TriangleMesh( vertices, triangles )
+    polygon.paint_uniform_color(color)
+    return [polygon]
+
 
 def _make_1_polygon_surface(points, color):
     pmin = points.min(0,keepdims=True)
@@ -666,7 +679,7 @@ def _make_1_polygon_surface(points, color):
     triangles = o3d.utility.Vector3iVector(triangles)
     polygon = o3d.geometry.TriangleMesh( vertices, triangles )
     polygon.paint_uniform_color(color)
-    return polygon
+    return [polygon]
 
 def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2a_thick_Z0Z1'):
     lines2d = bboxes3d[:,:5]

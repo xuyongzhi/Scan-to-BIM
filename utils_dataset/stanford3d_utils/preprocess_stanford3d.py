@@ -36,7 +36,7 @@ STANFORD_3D_TO_SEGCLOUD_LABEL = {
     0: 12,
 }
 MAX_THICK_MAP = {'door': 0.3, 'window': 0.3}
-THICK_GREATER_THAN_WALL = {'door': 0.04, 'window': 0.04}
+THICK_GREATER_THAN_WALL = {'door': 0.06, 'window': 0.06}
 
 DEBUG=1
 
@@ -334,6 +334,7 @@ def move_axis_aligned_box_to_wall(box2d, walls, cat_name, voxel_size):
 
   thick_add_on_wall = int(THICK_GREATER_THAN_WALL[cat_name] / voxel_size)
   new_thick = min(the_wall[3] + thick_add_on_wall, max_thick)
+  new_thick = max(new_thick, max_thick*0.7)
   box2d[0,3] = new_thick
   angle_dif = limit_period_np( the_wall[-1] - box2d[0,-1], 0.5, np.pi )
 
@@ -348,10 +349,15 @@ def move_axis_aligned_box_to_wall(box2d, walls, cat_name, voxel_size):
   inside_wall = box2d0[0,j] < the_wall[j]+the_wall[2]/2 and box2d0[0,j] > the_wall[j]-the_wall[2]/2
   if inside_wall:
     move0 = the_wall[move_axis] - box2d0[0,move_axis]
-    move = (new_thick - box2d0[0,3]) * np.sign(move0) / 2
+    if abs(move0 * voxel_size) < 0.1:
+      move = move0
+    else:
+      move = abs(new_thick - box2d0[0,3]) * np.sign(move0) / 2
     box2d[0,move_axis] += move
     print(f'move:{move}, move0:{move0}')
-    #_show_3d_points_objs_ls( objs_ls=[box2d0, box2d, the_wall[None]], obj_rep='XYLgWsA', obj_colors=['blue', 'red', 'black'])
+    #_show_3d_points_objs_ls( objs_ls=[ box2d0, box2d, the_wall[None]], obj_rep='XYLgWsA', obj_colors=['blue', 'red', 'black'])
+    #_show_3d_points_objs_ls( objs_ls=[ box2d0, the_wall[None]], obj_rep='XYLgWsA', obj_colors=[ 'blue', 'black'])
+    #_show_3d_points_objs_ls( objs_ls=[ box2d, the_wall[None]], obj_rep='XYLgWsA', obj_colors=[ 'red', 'black'])
     pass
   return box2d
 
@@ -583,7 +589,8 @@ def gen_bboxes(max_num_points=1e6):
   IntroSample = ['Area_3/office_4']
   scenes = IntroSample
   scenes = ['Area_2/conferenceRoom_1']
-  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+  scenes = ['Area_2/auditorium_1']
+  ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
 
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
@@ -591,12 +598,14 @@ def gen_bboxes(max_num_points=1e6):
       bbox_file = plyf.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
       topview_file = plyf.replace('.ply', '.png').replace('Area_', 'Boxes_Area_')
       bbox_dir = os.path.dirname(bbox_file)
+      polygon_dir = bbox_dir.replace('Boxes', 'Polygons')
       if not os.path.exists(bbox_dir):
         os.makedirs(bbox_dir)
+        os.makedirs(polygon_dir)
       print(f'\n\nStart processing \t{bbox_file} \n\t\t{l}\n')
       if os.path.exists(bbox_file):
         pass
-        continue
+        #continue
 
       plydata = PlyData.read(plyf)
       data = plydata.elements[0].data
@@ -617,6 +626,7 @@ def gen_bboxes(max_num_points=1e6):
       abandon_num = 0
 
       bboxes = defaultdict(list)
+      polygons = {'ceiling':[], 'floor':[]}
       for cat in cat_ids:
         mask_cat = categories == cat
         cat_name = Stanford3DDatasetConverter.CLASSES[cat]
@@ -643,6 +653,11 @@ def gen_bboxes(max_num_points=1e6):
             else:
               abandon_num += 1
               print(f'\n\nAbandon one {cat_name}\n\n')
+
+          if cat_name in ['ceiling', 'floor']:
+            polygons_i = points_to_polygon_ceiling_floor(coords_cat_ins, bboxes_wall, cat_name, obj_rep='XYXYSin2WZ0Z1')
+            polygons[cat_name].append(polygons_i)
+            pass
         if cat_name in bboxes:
           bboxes[cat_name] = np.concatenate(bboxes[cat_name], 0)
         if cat_name == 'wall':
@@ -665,6 +680,10 @@ def gen_bboxes(max_num_points=1e6):
 
       np.save(bbox_file, bboxes)
       print(f'\n save {bbox_file}')
+
+      polygon_file = bbox_file.replace('Boxes', 'Polygons')
+      np.save(polygon_file, polygons)
+      print(f'\n save {polygon_file}')
 
       colors = instances.astype(np.int32)
       colors = feats
@@ -713,6 +732,17 @@ def gen_bboxes(max_num_points=1e6):
           _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='XYXYSin2WZ0Z1')
           pass
   pass
+
+def points_to_polygon_ceiling_floor(coords_cat_ins, bboxes_wall, cat_name, obj_rep):
+  #_show_3d_points_objs_ls([coords_cat_ins], objs_ls= [bboxes_wall],  obj_rep=obj_rep)
+  pcd = o3d.geometry.PointCloud()
+  pcd.points = o3d.utility.Vector3dVector(coords_cat_ins)
+  polygon, _ = pcd.compute_convex_hull()
+  #o3d.visualization.draw_geometries( [pcd, polygon] )
+
+  vertices = np.array(polygon.vertices)
+  triangles = np.array(polygon.triangles)
+  return (vertices, triangles)
 
 def optimize_walls(walls_3d_line, manual_merge_pairs=None):
     '''
