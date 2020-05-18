@@ -4,7 +4,13 @@ from tools.visual_utils import _show_objs_ls_points_ls
 
 
 # 3d ---------------------------------------------------------------------------
-def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.82, only_2d=True):
+def dsiou_rotated_3d_bbox_np(bboxes1, bboxes2, iou_w = 0.82, size_rate_thres=0.25, ref='union', only_2d=True):
+  bboxes1 = torch.from_numpy(bboxes1).to(torch.float32)
+  bboxes2 = torch.from_numpy(bboxes2).to(torch.float32)
+  ious = dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w, size_rate_thres, ref, only_2d)
+  return ious.numpy()
+
+def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.82, size_rate_thres=0.25, ref='union', only_2d=True):
   '''
   XYZLgWsHA
   bboxes1: [n,7]  gt
@@ -13,7 +19,7 @@ def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.82, only_2d=True):
   assert bboxes2.shape[1] == 7
   #import time
   #t0 = time.time()
-  aug_ious = rotated_3d_bbox_overlaps(bboxes1, bboxes2)
+  aug_ious = rotated_3d_bbox_overlaps(bboxes1, bboxes2, size_rate_thres, ref)
   #t1 = time.time()
   rel_diss = relative_dis_XYZLgWsHA(bboxes1, bboxes2)
   #t2 = time.time()
@@ -65,6 +71,8 @@ def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
   XYZLgWsHA
   '''
   assert bboxes0.shape[1] == 7
+  if size_rate_thres is None:
+    return bboxes0
   bboxes1 = bboxes0.clone()
   min_width = bboxes1[:, 3] * size_rate_thres
   bboxes1[:,4] = torch.max(bboxes1[:,4], min_width)
@@ -72,15 +80,15 @@ def dilate_3d_bboxes(bboxes0, size_rate_thres=0.25):
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
   return bboxes1
 
-def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
+def rotated_3d_bbox_overlaps(bboxes1, bboxes2, size_rate_thres, ref):
   '''
   XYZLgWsHA
   '''
   assert bboxes1.shape[1] == 7
   assert bboxes1.shape[1] == 7
-  bboxes1 = dilate_3d_bboxes(bboxes1)
-  bboxes2 = dilate_3d_bboxes(bboxes2)
-  ious_2d = rotated_bbox_overlaps( bboxes1[:,[0,1,3,4,6]], bboxes2[:,[0,1,3,4,6]])
+  bboxes1 = dilate_3d_bboxes(bboxes1, size_rate_thres)
+  bboxes2 = dilate_3d_bboxes(bboxes2, size_rate_thres)
+  ious_2d = rotated_bbox_overlaps( bboxes1[:,[0,1,3,4,6]], bboxes2[:,[0,1,3,4,6]], ref=ref)
 
   #_show_objs_ls_points_ls((512,512), [bboxes2[:100,:].cpu().data.numpy()], obj_rep='XYZLgWsHA')
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYZLgWsHA')
@@ -88,7 +96,7 @@ def rotated_3d_bbox_overlaps(bboxes1, bboxes2):
 
 # Rotate 2d ---------------------------------------------------------------------------
 
-def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1):
+def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1, ref='union'):
   '''
   XYLgWsA
   bbox: [cx, cy, size_x, size_y, angle]
@@ -115,6 +123,20 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1):
     print("nan iou from rotated_bbox_overlaps")
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
+
+
+  if ref=='union':
+    pass
+  elif ref == 'bboxes1':
+    area1 = bboxes1[:,2] * bboxes1[:,3]
+    area2 = bboxes2[:,2] * bboxes2[:,3]
+    intersection = (area1[:,None] + area2[None,:]) / (1/ious_2d + 1)
+    ious_2d = intersection / area1[:,None]
+  elif ref == 'bboxes2':
+    area1 = bboxes1[:,2] * bboxes1[:,3]
+    area2 = bboxes2[:,2] * bboxes2[:,3]
+    intersection = (area1[:,None] + area2[None,:]) / (1/ious_2d + 1)
+    ious_2d = intersection / area2[None,:]
   return ious_2d
 
 # Aligned 2d ---------------------------------------------------------------------------

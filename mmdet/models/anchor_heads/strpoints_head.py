@@ -2225,6 +2225,7 @@ def show_nms_out(det_bboxes, det_labels, obj_rep, num_classes):
     score_composite =\
       dim_parse.parse_bboxes_out(det_bboxes, 'nms_out')
   _show_objs_ls_points_ls_torch( (512,512), [bboxes_refine], obj_rep )
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_relations(gt_bboxes, gt_relations):

@@ -196,14 +196,13 @@ def m_transform_bboxes_4corners(bboxes_in, matrix, obj_rep):
   bboxes_out = np.concatenate( [corners_r[:,:,:2].reshape(n,8), corners_r[:,0,2:3],  corners_r[:,3,2:3]], axis=1)
   return bboxes_out
 
-def transfer_lines_points(lines, obj_rep, points, center, angle, offset):
+def transfer_lines_points(lines, obj_rep, points=None, center=(0,0), angle=0, offset=(0,0)):
   '''
   lines: [n,5]
   points: [m,2]
   angle: clock-wise is positive, degree
   offset: (2)
   '''
-  assert points.ndim == 2
   assert lines.ndim == 2
   n = lines.shape[0]
   scale = 1
@@ -221,12 +220,16 @@ def transfer_lines_points(lines, obj_rep, points, center, angle, offset):
   if obj_rep == 'XYLgWsA':
     lines_rotated[:,3] = lines[:,3]
   if obj_rep == 'XYZLgWsHA':
-    lines_rotated[:,4] = lines[:,4]
+    lines_rotated[:,[2,4,5]] = lines[:,[2,4,5]]
 
-  m,pc = points.shape
-  ones = np.ones([m,1], dtype=lines.dtype)
-  tmp = np.concatenate([points, ones], axis=1).reshape([m, pc+1])
-  points_r = np.matmul( tmp, matrix.T ).reshape([m,pc])
+  if points is not None:
+    assert points.ndim == 2
+    m,pc = points.shape
+    ones = np.ones([m,1], dtype=lines.dtype)
+    tmp = np.concatenate([points, ones], axis=1).reshape([m, pc+1])
+    points_r = np.matmul( tmp, matrix.T ).reshape([m,pc])
+  else:
+    points_r = None
   return lines_rotated, points_r
 
 def transfer_lines(lines, obj_rep, img_shape, angle, offset):

@@ -8,10 +8,11 @@ from collections import defaultdict
 import os
 import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls
+from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
-SHOW_3D = 0
+SHOW_3D = 1
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
@@ -665,6 +666,12 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
       det_points_pos = det_points_pos.reshape(-1, 2)
       det_points_neg = det_points_neg.reshape(-1, 2)
 
+      if cat == 'wall':
+        walls = np.concatenate([det_lines_pos, det_lines_neg], 0)
+      if cat in ['window', 'door']:
+        det_lines_pos = align_bboxes_with_wall(det_lines_pos, walls, cat, obj_rep)
+        det_lines_neg = align_bboxes_with_wall(det_lines_neg, walls, cat, obj_rep)
+
       det_bboxes.append( det_lines_pos )
       det_bboxes.append( det_lines_neg )
       gt_bboxes.append( gt_lines_true )
@@ -747,8 +754,8 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
 
   if SHOW_3D:
     det_bboxes = get_z_by_iou(det_bboxes, gt_bboxes, obj_rep)
-    _show_3d_points_objs_ls( objs_ls=[gt_bboxes, gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors, 'black'], box_types= ['surface_mesh', 'line_mesh'] )
-    #_show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1], det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors, 'black'], box_types=['surface_mesh', 'line_mesh'] )
+    #_show_3d_points_objs_ls( objs_ls=[gt_bboxes, gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors, 'black'], box_types= ['surface_mesh', 'line_mesh'] )
+    _show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1], det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors, 'black'], box_types=['surface_mesh', 'line_mesh'] )
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
@@ -771,7 +778,7 @@ def apply_mask_on_ids(ids, mask):
 
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
-  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL12346'
+  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL123456'
   filename = 'detection_11_Imgs.pickle'
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)

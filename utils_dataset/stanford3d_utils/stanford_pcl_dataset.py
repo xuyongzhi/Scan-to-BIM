@@ -15,7 +15,7 @@ from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from obj_geo_utils.geometry_utils import get_ceiling_floor_from_box_walls
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
@@ -88,7 +88,7 @@ class Stanford_Ann():
   IntroSample = ['Area_3/office_4']
   GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
                                'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
-  GoodSamples = ['Area_3/office_4']
+  #GoodSamples = ['Area_2/auditorium_1']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
