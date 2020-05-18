@@ -11,7 +11,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
-SHOW_3D = 1
+SHOW_3D = 0
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
@@ -189,7 +189,7 @@ class GraphEval():
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
-  _opt_graph_cor_dis_thr = 15
+  #_opt_graph_cor_dis_thr = 15
   _min_out_length = 5
 
   _eval_img_scale_ratio = 1.0
@@ -645,7 +645,7 @@ def get_z_by_iou(dets, gts, obj_rep):
 
 def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
   import mmcv
-  colors_map = {'wall': 'green', 'door':'red', 'beam':'blue', 'column':'yellow', 'window':'cyan', 'A':'navy', 'B':'lime', 'floor':'maroon', 'D':'magenta'}
+  colors_map = {'wall': 'red', 'beam':'lime', 'column':'blue', 'door':'cyan',  'window':'navy',  'floor':'yellow', 'ceiling':'purple'}
   num_cats = len(eval_draws_ls)
   img_det = None
   img_det_pts = None
@@ -747,8 +747,10 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
 
   if SHOW_3D:
     det_bboxes = get_z_by_iou(det_bboxes, gt_bboxes, obj_rep)
-    _show_3d_points_objs_ls( objs_ls=[gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors] )
-    _show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors] )
+    _show_3d_points_objs_ls( objs_ls=[gt_bboxes, gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors, 'black'], box_types= ['surface_mesh', 'line_mesh'] )
+    #_show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1], det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors, 'black'], box_types=['surface_mesh', 'line_mesh'] )
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
 
   pass
 

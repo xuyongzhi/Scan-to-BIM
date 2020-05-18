@@ -7,7 +7,7 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
-wkdir=sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowi_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL12346
+wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_Rel
 CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
@@ -19,12 +19,12 @@ CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=6
+BS=5
 DATA_TYPES=cnx
 FILTER_EDGES=1
-REL=0
-CLS=abcdi
-#CLS=ad
+REL=1
+CLS=abcdif
+CLS=ad
 #CLS=a
 #CLS=A
 

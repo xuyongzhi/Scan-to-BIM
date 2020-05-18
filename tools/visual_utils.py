@@ -13,8 +13,8 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 
 ADD_FRAME = 0
-BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][0]
-BOX_LINE_RADIUS = 0.01
+BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
+BOX_LINE_RADIUS = 0.5
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
