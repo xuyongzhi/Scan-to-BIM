@@ -89,6 +89,7 @@ class Stanford_Ann():
   GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
                                'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
   #GoodSamples = ['Area_2/auditorium_1']
+  GoodSamples = ['Area_2/conferenceRoom_1']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
@@ -262,7 +263,7 @@ class Stanford_Ann():
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Top_Corners').reshape(-1,3)
     #corners = add_noisy_corners(corners)
 
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
     _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
