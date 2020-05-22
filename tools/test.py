@@ -20,6 +20,9 @@ from mmdet.models import build_detector
 from tools.train import update_config
 from tools.visual_utils import _show_objs_ls_points_ls
 
+root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(root_dir)
+
 
 def single_gpu_test(model, data_loader, show=False):
     model.eval()

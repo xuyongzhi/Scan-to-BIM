@@ -179,8 +179,8 @@ if DATA == 'beike2d':
   dataset_type = 'BeikeDataset'
   data_root = f'data/beike/processed_{IMAGE_SIZE}/'
   ann_file = data_root + 'json/'
-  img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
-  img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
+  img_prefix_train = data_root + f'TopView_{TOPVIEW}/test/train.txt'
+  img_prefix_test = data_root + f'TopView_{TOPVIEW}/test/test.txt'
   img_prefix_test = img_prefix_train
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
@@ -257,7 +257,7 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=10)

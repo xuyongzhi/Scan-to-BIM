@@ -16,8 +16,6 @@ from plyfile import PlyData, PlyElement
 from floorplan_utils import calcLineDirection, MAX_NUM_CORNERS, NUM_WALL_CORNERS, getRoomLabelMap, getLabelRoomMap
 from utils_floorsp import getDensity, drawDensityImage
 import mmcv
-from mmdet.debug_tools import  show_points_3d
-
 
 import pdb
 EPSILON = 3
@@ -342,7 +340,7 @@ class RecordWriter:
         self.ply_paths = [self.ply_paths[i] for i in valid_ids]
         self.annot_paths = [self.annot_paths[i] for i in valid_ids]
         n1 = len(self.ply_paths)
-        print(f'org:{n0}, valid:{n1}')
+        print(f'\nGen topview.\nTotal:{n0}, not exist:{n1}\n')
         pass
 
     def write(self):
@@ -394,6 +392,12 @@ class RecordWriter:
                 f.write(scene_id + '\n')
 
     def write_example(self, ply_path, annot_path, ):
+        file_id, _ = os.path.splitext(os.path.basename(ply_path))
+        output_path = os.path.join(self.topview_write_base, file_id + '.npy')
+        #if os.path.exists(output_path):
+        #  print(f'{output_path} exist\n')
+        #  return
+
         points = read_scene_pc(ply_path)
 
         xyz = points[:, :3]
@@ -447,98 +451,6 @@ class RecordWriter:
 
         points[:, 3:6] = points[:, 3:6] / 255 - 0.5  # normalize color
 
-        ## Prepare other g.t. related inputs to be zeros for now
-        #corners = annot['points']
-        #lines = annot['lines']
-        #point_dict = annot['point_dict']
-
-        #corner_type_map, status, err_msg = _get_corner_type(corners, lines, point_dict,
-        #                                                    allow_non_manhattan=self.allow_non_man)
-        #if status is False:
-        #    print(err_msg)
-        #    self.log_lines.append(err_msg + ' in {}'.format(ply_path))
-        #    return False, None
-
-        #for corner_id, type in corner_type_map.items():
-        #    if point_dict[corner_id]['img_x'] >= self.im_size or point_dict[corner_id]['img_x'] < 0 or \
-        #                    point_dict[corner_id]['img_y'] >= self.im_size or point_dict[corner_id]['img_y'] < 0:
-        #        err_msg = 'corner out of image boundary due to small point density in {}'.format(ply_path)
-        #        if point_dict[corner_id]['img_x'] >= self.im_size:
-        #            point_dict[corner_id]['img_x'] = self.im_size-1
-        #        if point_dict[corner_id]['img_x'] < 0:
-        #            point_dict[corner_id]['img_x'] = 0
-        #        if point_dict[corner_id]['img_y'] >= self.im_size:
-        #            point_dict[corner_id]['img_y'] = self.im_size-1
-        #        if point_dict[corner_id]['img_y'] < 0:
-        #            point_dict[corner_id]['img_y'] = 0
-        #        print(err_msg)
-        #        self.log_lines.append(err_msg)
-        #        #return False, None
-
-        ## Prepare room segmentation map, get the label for every room
-        #room_segmentation = np.zeros((self.im_size, self.im_size), dtype=np.uint8)
-        #room_segmentation_large = np.zeros((self.im_size, self.im_size), dtype=np.uint8)
-
-        #line_coords = list()
-        #for line_item in lines:
-        #    point_id_1, point_id_2 = line_item['points']
-        #    line = ((point_dict[point_id_1]['img_x'], point_dict[point_id_1]['img_y']),
-        #            (point_dict[point_id_2]['img_x'], point_dict[point_id_2]['img_y']))
-        #    cv2.line(room_segmentation, line[0], line[1], color=15 + calcLineDirection(line), thickness=self.gap)
-        #    line_coords.append(line)
-        #    cv2.line(room_segmentation_large, line[0], line[1], color=15 + calcLineDirection(line), thickness=2)
-
-        #rooms = measure.label(room_segmentation == 0, background=0)
-        #rooms_large = measure.label(room_segmentation_large == 0, background=0)
-
-        #wall_idx = rooms.min()
-        #for pixel in [(0, 0), (0, self.im_size - 1), (self.im_size - 1, 0), (self.im_size - 1, self.im_size - 1)]:
-        #    bg_idx = rooms[pixel[1]][pixel[0]]
-        #    if bg_idx != wall_idx:
-        #        break
-
-        #room_annots = annot['areas']
-        #room_label_map = dict()
-        #room_instances = list()
-
-        #for room_annot in room_annots:
-        #    room_label = _convert_room_label(room_annot['roomName'])
-
-        #    internal_point = _get_internal_point(room_annot['points'], point_dict)
-
-        #    room_corners = list()
-
-        #    for point_id in room_annot['points']:
-        #        room_corners.append((point_dict[point_id]['img_x'], point_dict[point_id]['img_y']))
-
-        #    room_idx = rooms[internal_point[1]][internal_point[0]]
-        #    if room_idx == wall_idx or room_idx == bg_idx:
-        #        error_line = 'Data error: the room label is the same as bg or wall, in {}'.format(ply_path)
-        #        self.log_lines.append(error_line)
-        #        #return False, None
-        #    if room_idx in room_label_map:
-        #        error_line = 'the room idx {} is encourted multiple times, in {}'.format(room_idx, ply_path)
-        #        self.log_lines.append(error_line)
-        #        return False, None
-
-        #    room_label_map[room_idx] = room_label
-
-        #    room_large_idx = rooms_large[internal_point[1]][internal_point[0]]
-        #    room_instances.append({
-        #        'mask': rooms == room_idx,
-        #        'class': room_label,
-        #        'mask_large': rooms_large == room_large_idx,
-        #        'room_corners': room_corners
-        #    })
-
-        ## For testing purpose: draw the density image to check the valadity and quality
-        ##filename, _ = os.path.splitext(os.path.basename(ply_path))
-        ## write_scene_pc(points, './debug/{}.ply'.format(filename))
-        ##density_img = drawDensityImage(getDensity(points=points))
-        ##cv2.imwrite('./data_check/{}_density.png'.format(filename), density_img)
-
-        ##density_img = np.stack([density_img] * 3, axis=2)
-        ##_, annot_image = self.parse_annot(annot_path, mins, max_range, draw_img=True, img=density_img)
 
         topview_image = drawDensityImage(topview_points[:, :, -1], nChannels=1).astype(np.float32)
         room_data = {
@@ -554,8 +466,6 @@ class RecordWriter:
         #}
 
 
-        file_id, _ = os.path.splitext(os.path.basename(ply_path))
-        output_path = os.path.join(self.topview_write_base, file_id + '.npy')
         with open(output_path, 'wb') as f:
             np.save(f, room_data)
 
@@ -710,8 +620,8 @@ class RecordWriter:
         return img_x, img_y
 
 
-if __name__ == '__main__':
-    image_size = 1024
+def gen_topview():
+    image_size = 512
     vertical_density = 1
     base_dir = f'../data/beike/processed_{image_size}'
     record_writer_test = RecordWriter(num_points=50000*5, base_dir=base_dir, phase='test', im_size=image_size,
@@ -720,4 +630,7 @@ if __name__ == '__main__':
                                       vertical_density=vertical_density)
 
     record_writer_test.write()
+
+if __name__ == '__main__':
+  gen_topview()
 

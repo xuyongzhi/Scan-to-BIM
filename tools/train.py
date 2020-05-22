@@ -1,6 +1,6 @@
 from __future__ import division
 import argparse
-import os
+import os, sys
 import os.path as osp
 import time
 
@@ -19,6 +19,8 @@ import shutil
 import numpy as np
 
 #torch.autograd.set_detect_anomaly(True)
+root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(root_dir)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')

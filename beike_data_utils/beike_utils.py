@@ -95,17 +95,21 @@ class BEIKE(BEIKE_CLSINFO):
         self.obj_rep = obj_rep
         self.anno_folder = anno_folder
         self.test_mode = test_mode
+        phase = os.path.basename(img_prefix)
         self.is_save_connection = is_save_connection
         if is_save_connection:
           filter_edges = False
+          phase = 'all.txt'
         self.filter_edges = filter_edges
-        self.split_file = img_prefix
-        self.scene_list = np.loadtxt(self.split_file,str).tolist()
 
         #self.scene_list = [*BAD_SCENE_TRANSFERS_1024.keys()]
         #self.scene_list = ['wcSLwyAKZafnozTPsaQMyv']
 
         self.img_prefix = os.path.dirname( img_prefix )
+        data_dir = os.path.dirname(os.path.dirname(anno_folder))
+        self.split_file = os.path.join(data_dir, phase)
+        self.scene_list = np.loadtxt(self.split_file,str).tolist()
+        assert len(self.scene_list)>0
         self.is_pcl = os.path.basename(self.img_prefix) == 'ply'
         data_format = '.ply' if self.is_pcl else '.npy'
 
@@ -414,10 +418,10 @@ class BEIKE(BEIKE_CLSINFO):
         self.find_unscanned_edges_1_scene(i)
 
     def find_unscanned_edges_1_scene(self, idx):
-      from beike_data_utils.line_utils import  getOrientedLineRectSubPix
+      from obj_geo_utils.line_operations import getOrientedLineRectSubPix
 
       anno = self.img_infos[idx]['ann']
-      bboxes = anno['bboxes']
+      bboxes = anno['gt_bboxes']
       labels = anno['labels']
       corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, DIM_PARSE.OBJ_REP)
 
@@ -463,7 +467,7 @@ class BEIKE(BEIKE_CLSINFO):
     def find_connection_1_scene(self, idx, connect_threshold = 3):
       print(self.img_infos[idx]['filename'])
       anno = self.img_infos[idx]['ann']
-      bboxes = anno['bboxes']
+      bboxes = anno['gt_bboxes']
       labels = anno['labels']
       assert self._classes == ['background', 'wall', 'door', 'window']
       walls = bboxes[self._category_ids_map['wall'] == labels]
@@ -488,9 +492,9 @@ def find_wall_wd_connection(walls, windows):
   from obj_geo_utils.geometry_utils import  points_in_lines
   #windows = windows[3:4]
   #walls = walls[-1:]
-  #_show_objs_ls_points_ls((512,512), [walls, windows], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['red', 'green'])
-  walls_2p = OBJ_REPS_PARSE.encode_obj( walls, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p' ).reshape(-1,2,2)
-  window_centroids = OBJ_REPS_PARSE.encode_obj( windows, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p' ).reshape(-1,2,2).mean(axis=1)
+  #_show_objs_ls_points_ls((512,512), [walls, windows], 'XYXYSin2', obj_colors=['red', 'green'])
+  walls_2p = OBJ_REPS_PARSE.encode_obj( walls, 'XYXYSin2', 'RoLine2D_2p' ).reshape(-1,2,2)
+  window_centroids = OBJ_REPS_PARSE.encode_obj( windows, 'XYXYSin2', 'RoLine2D_2p' ).reshape(-1,2,2).mean(axis=1)
   win_in_wall_mask = points_in_lines(window_centroids, walls_2p, threshold_dis=10, one_point_in_max_1_line=True)
   win_ids, wall_ids_per_win = np.where(win_in_wall_mask)
 
@@ -498,17 +502,17 @@ def find_wall_wd_connection(walls, windows):
   if not (np.all(win_ids == np.arange(nw)) and win_ids.shape[0] == nw):
     print(f'win_ids: {win_ids}, nw={nw}')
     missed_win_ids = [i for i in range(windows.shape[0]) if i not in win_ids]
-    _show_objs_ls_points_ls((512,512), [walls, windows[missed_win_ids] ], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green'])
+    _show_objs_ls_points_ls((512,512), [walls, windows[missed_win_ids] ], 'XYXYSin2', obj_colors=['white', 'green'])
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
   if 0:
     for i,j in zip(win_ids, wall_ids_per_win):
-      _show_objs_ls_points_ls((512,512), [walls, walls[j:j+1], windows[i:i+1] ], 'RoLine2D_UpRight_xyxy_sin2a', [window_centroids[i:i+1]], obj_colors=['white', 'green', 'red'])
+      _show_objs_ls_points_ls((512,512), [walls, walls[j:j+1], windows[i:i+1] ], 'XYXYSin2', [window_centroids[i:i+1]], obj_colors=['white', 'green', 'red'])
       pass
   return win_in_wall_mask
 
 def find_wall_wall_connection(bboxes, connect_threshold):
-      corners_per_line = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_UpRight_xyxy_sin2a', 'RoLine2D_2p')
+      corners_per_line = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'RoLine2D_2p')
       n = bboxes.shape[0]
       corners_per_line = corners_per_line.reshape(n,2,2)
       # note: the order of two corners is not consistant
@@ -877,8 +881,8 @@ def show_connection(bboxes, relations):
   n = bboxes.shape[0]
   for i in range(n):
     cids = np.where(relations[i])[0]
-    #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green',])
-    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'RoLine2D_UpRight_xyxy_sin2a', obj_colors=['white', 'green', 'red'])
+    #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'XYXYSin2', obj_colors=['white', 'green',])
+    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'XYXYSin2', obj_colors=['white', 'green', 'red'])
   pass
 
 def load_relations_1scene(anno_folder, filename, classes):
@@ -1017,6 +1021,8 @@ def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
   '''
   npy_path = os.path.join(data_path, base+'/test')
   files = glob.glob(npy_path + '/*.npy')
+  n =  len(files)
+  assert n>0
 
   topviews = []
   for fn in files:
@@ -1038,10 +1044,13 @@ def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
   mean = imgs.mean(axis=0)
   tmp = imgs - mean
   std = tmp.std(axis=0)
-  print(f'normnorm_method: {normnorm_method}')
-  print(f'mean: {mean}')
-  print(f'std : {std}')
-  pass
+  res = f'normnorm_method: {normnorm_method}\n'
+  res += f'mean: {mean}\n'
+  res += f'std : {std}\n'
+  res_file = os.path.join( data_path, 'mean_std.txt' )
+  with open(res_file, 'w') as f:
+    f.write(res)
+  print(res)
 
 def draw_img_lines(img, lines):
       img = img.copy()
@@ -1083,7 +1092,7 @@ def gen_images_from_npy(data_path):
 
   pass
 
-def main(data_path):
+def visualization(data_path):
   obj_rep = 'XYXYSin2'
   ANNO_PATH = os.path.join(data_path, 'json/')
   topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
@@ -1122,12 +1131,70 @@ def main(data_path):
   #  beike.show_anno_img( i, True, 45 )
   #pass
 
+def save_unscanned_edges(data_path):
+  obj_rep = 'XYXYSin2'
+  ANNO_PATH = os.path.join(data_path, 'json/')
+  phase = 'test.txt'
 
+  #topview_path = os.path.join(data_path,  phase)
+  #scenes = np.loadtxt(topview_path, dtype=str).tolist()
+  topview_path = os.path.join(data_path, 'TopView_VerD', phase)
+
+  is_save_connection = 1
+  classes = ['wall', 'door', 'window', ]
+  beike = BEIKE(obj_rep, ANNO_PATH, topview_path,
+                classes = classes,
+                filter_edges= 0,
+                is_save_connection=is_save_connection,
+                )
+  beike.find_unscanned_edges()
+  n = len(beike)
+  print(f'find unscanned ok: {n}\n')
+
+  pass
+
+def gen_relations(data_path):
+  obj_rep = 'XYXYSin2'
+  ANNO_PATH = os.path.join(data_path, 'json/')
+  phase = 'test.txt'
+
+  #topview_path = os.path.join(data_path,  phase)
+  #scenes = np.loadtxt(topview_path, dtype=str).tolist()
+  topview_path = os.path.join(data_path, 'TopView_VerD', phase)
+
+  is_save_connection = 1
+  classes = ['wall', 'door', 'window', ]
+  beike = BEIKE(obj_rep, ANNO_PATH, topview_path,
+                classes = classes,
+                filter_edges= 0,
+                is_save_connection=is_save_connection,
+                )
+  beike.find_connection()
+  n = len(beike)
+  print(f'find connections ok: {n}\n')
+
+  pass
+
+
+def last_steps():
+  cur_dir = os.path.dirname(os.path.realpath(__file__))
+  root_dir = os.path.dirname(cur_dir)
+  data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
+
+  #save_unscanned_edges(data_path)
+
+  get_scene_pcl_scopes(data_path)
+  cal_topview_npy_mean_std(data_path, base='TopView_VerD', normnorm_method='abs')
+  gen_relations(data_path)
+
+def debug():
+  cur_dir = os.path.dirname(os.path.realpath(__file__))
+  root_dir = os.path.dirname(cur_dir)
+  data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
+  #visualization(data_path)
+  #gen_images_from_npy(data_path)
 
 if __name__ == '__main__':
-  data_path = f'/home/z/Research/mmdetection/data/beike/processed_{DIM_PARSE.IMAGE_SIZE}'
-  main(data_path)
-  #get_scene_pcl_scopes(data_path)
-  #cal_topview_npy_mean_std(data_path, base='TopView_All', normnorm_method='abs')
-  #gen_images_from_npy(data_path)
+  debug()
+
 
