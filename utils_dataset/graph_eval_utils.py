@@ -13,7 +13,7 @@ from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wal
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
-SHOW_3D = 1
+SHOW_3D = 0
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)

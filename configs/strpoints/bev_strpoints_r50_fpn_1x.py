@@ -15,7 +15,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-DATA = 'stanford2d'
+#DATA = 'stanford2d'
 classes= ['wall']
 
 if DATA == 'beike2d':
@@ -181,7 +181,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  #img_prefix_test = img_prefix_train
+  img_prefix_test = img_prefix_train
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
   ann_file = 'data/stanford/'
@@ -253,7 +253,7 @@ elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/Rect4CornersZ0Z1_abcdi_Rot_May12.pth'
   load_from = './checkpoints/sfd/may12_abcdif.pth'
 
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
