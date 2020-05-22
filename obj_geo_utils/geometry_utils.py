@@ -821,6 +821,95 @@ def get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
   #_show_3d_points_objs_ls([wall_corners3d], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_corners3d])
   return wall_corners3d
 
+def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name):
+  import open3d as o3d
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
+  assert cat_name in ['ceiling', 'floor']
+  assert obj_rep == 'XYZLgWsHA'
+
+  if ceiling_boxes.shape[0] == 0:
+    return ceiling_boxes
+
+  ceiling_boxes = OBJ_REPS_PARSE.encode_obj(ceiling_boxes, obj_rep, 'XYZLgWsHA')
+  nc = ceiling_boxes.shape[0]
+  zc = ceiling_boxes[:,2]
+  zs = ceiling_boxes[:,5]
+  z0 = zc - zs/2
+  z1 = zc + zs/2
+
+  if cat_name == 'ceiling':
+    cor_type = 'Top_Corners'
+    z = z0
+    walls_z =  walls[:,2] + walls[:,5]/2
+  elif cat_name == 'floor':
+    cor_type = 'Bottom_Corners'
+    z = z1
+    walls_z =  walls[:,2] - walls[:,5]/2
+
+
+    wall_points = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'Bottom_Corners').reshape(-1,3)
+    _show_3d_points_objs_ls([wall_points], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_points[None, :, :]])
+    return wall_corners
+
+  wn = walls.shape[0]
+  wall_corners_2d = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p').reshape(wn, 2, 2)
+  step = 5
+  ks = (walls[:,3]//step).astype(np.int32)
+  vecs_dir = wall_corners_2d[:,1] - wall_corners_2d[:,0]
+  vecs_norm = np.linalg.norm(vecs_dir, axis=1)[:,None]
+  vecs_dir = vecs_dir / vecs_norm
+  mid_points = []
+  for i in range(wn):
+    offsets = np.repeat(np.arange(ks[i]).reshape(ks[i],1), 2, 1) * vecs_dir[None,i] * step
+    tmp = np.repeat( wall_corners_2d[i,0:1], ks[i], 0  )
+    mid_points_i = tmp + offsets
+    mid_points_i = np.concatenate( [wall_corners_2d[i,0:1], mid_points_i,  wall_corners_2d[i,1:2]], 0 )
+    zs_i = np.repeat( walls_z[i,None,None], ks[i]+2, 0 )
+    mid_points_i = np.concatenate( [mid_points_i, zs_i], 1 )
+    mid_points.append( mid_points_i )
+    pass
+
+  wall_points = np.concatenate(mid_points, 0)
+  tmp = wall_points.copy()
+  tmp[:,2] += 10
+  #wall_points = np.concatenate([wall_points, tmp], 0)
+  _show_3d_points_objs_ls([wall_points], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_points[None, :, :]])
+  return wall_points
+
+def ununsed_get_cf_from_wall(floors0, walls, obj_rep, cat_name):
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
+  assert cat_name in ['ceiling', 'floor']
+  assert obj_rep == 'XYZLgWsHA'
+  scores = floors0[:,-1].copy()
+  floors = floors0[:,:7].copy()
+  walls = walls[:,:7].copy()
+
+  if cat_name == 'ceiling':
+    cor_type = 'Top_Corners'
+  elif cat_name == 'floor':
+    cor_type = 'Bottom_Corners'
+
+  wall_corners_2d = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p')
+  ver_walls = walls.copy()
+  ver_walls[:,-1] += np.pi/2
+  ver_wall_corners_2d = OBJ_REPS_PARSE.encode_obj(ver_walls, obj_rep, 'RoLine2D_2p')
+  num_w = walls.shape[0]
+  intsecs = lines_intersection_2d( ver_wall_corners_2d.reshape(num_w,2,2),  wall_corners_2d.reshape(num_w,2,2), must_on1=True)
+  vertices = []
+  for i in range(num_w):
+    wall_i = wall_corners_2d[i].reshape(2,2)
+    dis_i = wall_i - intsecs[i]
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    for j in range(num_w):
+      if intsecs[i,j][i] != np.nan:
+        #triangle = np.concatenate( [, intsecs[i,j][None,...] ], 0 )
+        vertices.append( triangle )
+
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
+
 class OBJ_DEF():
   @staticmethod
   def limit_yaw(yaws, yx_zb):

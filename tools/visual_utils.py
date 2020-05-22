@@ -506,6 +506,8 @@ def _make_bboxes_o3d(bboxes, box_oriented, color, box_type):
   else:
     colors = [ _get_color(color) for i in range(bboxes.shape[0]) ]
 
+  colors = np.array(colors)/255.0
+
   min_size = bboxes[:,3:6].max() / 100
   bboxes[:,3:6] = np.clip(bboxes[:,3:6], a_min=min_size, a_max=None)
   bboxes_ = []
@@ -647,9 +649,50 @@ def _make_polygon_surface_ls(points_ls, colors_ls):
 def _make_polygons_surface(points, color):
     mesh = []
     for i in range(len(points)):
-      mesh += _make_1_polygon_surface(points[i], color)
+      #mesh += _make_1_polygon_surface(points[i], color)
       #mesh += _creat_1_polygon_surface(points[i], color)
+      mesh += _creat_1_polygon_surface_alpha(points[i], color)
     return mesh
+
+def _creat_1_polygon_surface_alpha(points, color, alpha=0.03):
+    import sys
+    from descartes import PolygonPatch
+    import matplotlib.pyplot as plt
+    import alphashape
+    if points.shape[0] == 0:
+      return []
+
+    points2d = [(p[0], p[1]) for p in points[:,:2]]
+    points2d_ = [(0., 0.), (0., 1.), (1., 1.), (1., 0.),
+          (0.5, 0.25), (0.5, 0.75), (0.25, 0.5), (0.75, 0.5)]
+    alpha_shape = alphashape.alphashape(points2d, 0)
+
+    if 1:
+      fig, ax = plt.subplots()
+      ax.scatter(*zip(*points2d))
+      ax.add_patch(PolygonPatch(alpha_shape, alpha=0.2))
+      plt.show()
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha)
+    return [mesh]
+
+    tetra_mesh, pt_map = o3d.geometry.TetraMesh.create_from_point_cloud(pcd)
+    tetra_mesh.remove_degenerate_tetras()
+    tetra_mesh.remove_duplicated_tetras()
+    tetra_mesh.remove_duplicated_vertices()
+    tetra_mesh.remove_unreferenced_vertices()
+    #return [tetra_mesh]
+    mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(pcd, alpha, tetra_mesh, pt_map)
+
+    #tetra_mesh, pt_map = o3d.geometry.TetraMesh.create_from_point_cloud(pcd)
+    #mesh = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape( pcd, alpha, tetra_mesh, pt_map)
+
+    mesh.paint_uniform_color(color)
+    return [mesh]
 
 def _creat_1_polygon_surface(points, color):
     vertices, triangles = points

@@ -89,7 +89,7 @@ class Stanford_Ann():
   GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
                                'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
   #GoodSamples = ['Area_2/auditorium_1']
-  GoodSamples = ['Area_2/conferenceRoom_1']
+  #GoodSamples = ['Area_2/conferenceRoom_1']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']

@@ -4,6 +4,7 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from configs.common import DIM_PARSE
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
 from obj_geo_utils.obj_utils import GraphUtils, OBJ_REPS_PARSE
+from obj_geo_utils.geometry_utils import get_cf_from_wall
 from collections import defaultdict
 import os
 import numpy as np
@@ -646,7 +647,7 @@ def get_z_by_iou(dets, gts, obj_rep):
 
 def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
   import mmcv
-  colors_map = {'wall': 'red', 'beam':'lime', 'column':'blue', 'door':'cyan',  'window':'purple',  'floor':'yellow', 'ceiling':'gray'}
+  colors_map = {'wall': 'gray', 'beam':'lime', 'column':'blue', 'door':'cyan',  'window':'purple',  'floor':'yellow', 'ceiling':'gray'}
   num_cats = len(eval_draws_ls)
   img_det = None
   img_det_pts = None
@@ -754,8 +755,14 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
 
   if SHOW_3D:
     det_bboxes = get_z_by_iou(det_bboxes, gt_bboxes, obj_rep)
-    #_show_3d_points_objs_ls( objs_ls=[gt_bboxes, gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors, 'black'], box_types= ['surface_mesh', 'line_mesh'] )
-    _show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1], det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors, 'black'], box_types=['surface_mesh', 'line_mesh'] )
+
+    wall_mask = [c=='wall' for c in det_cats]
+    floor_mask = [c=='floor' for c in det_cats]
+    walls = det_bboxes[wall_mask][:,:-1]
+    floors0 = det_bboxes[floor_mask][:,:-1]
+    floors = get_cf_from_wall(floors0, walls, obj_rep, 'floor')
+    _show_3d_points_objs_ls( objs_ls=[gt_bboxes, gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors, 'maroon'], box_types= ['surface_mesh', 'line_mesh'] )
+    _show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1], det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors, 'maroon'], box_types=['surface_mesh', 'line_mesh'] )
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
