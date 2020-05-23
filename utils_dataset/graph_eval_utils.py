@@ -814,6 +814,7 @@ def apply_mask_on_ids(ids, mask):
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
   dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL123456'
+  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_AreaL123456'
   filename = 'detection_11_Imgs.pickle'
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)
