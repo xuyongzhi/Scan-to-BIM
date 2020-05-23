@@ -22,7 +22,7 @@ DATA_TYPES=cnx
 FILTER_EDGES=0
 REL=0
 CLS=abcdif
-CLS=ad
+#CLS=ad
 #CLS=a
 #CLS=A
 
