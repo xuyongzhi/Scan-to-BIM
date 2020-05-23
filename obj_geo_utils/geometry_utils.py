@@ -155,6 +155,15 @@ def angle_from_vecs_to_vece(vec_start, vec_end, scope_id, debug=0):
   assert vec_start.dim() == 2 and  vec_end.dim() == 2
   assert (vec_start.shape[0] == vec_end.shape[0]) or vec_start.shape[0]==1 or vec_end.shape[0]==1
   assert vec_start.shape[1] == vec_end.shape[1] # 2 or 3
+  ns = vec_start.shape[0]
+  ne = vec_end.shape[0]
+  if not ns == ne:
+    assert ns == 1 or ne == 1
+    if ns == 1:
+      vec_start = vec_start.repeat(ne, 1)
+    if ne == 1:
+      vec_end = vec_end.repeat(ns, 1)
+    pass
   vec_start = vec_start.float()
   vec_end = vec_end.float()
 
@@ -275,8 +284,8 @@ def points_in_lines(points, lines, threshold_dis=0.03, one_point_in_max_1_line=F
 
 def vertical_dis_points_lines(points, lines):
   '''
-  points:[n,3]
-  lines:[m,2,3]
+  points:[n,3/2]
+  lines:[m,2,3/2]
   dis: [n,m]
   '''
   dis = []
@@ -753,7 +762,10 @@ def line_intersection_2d(line0, line1, must_on0=False, must_on1=False,
 
       intersec = p0 + v01 * K[0]
       intersec_ = p2 + v23 * K[1]
-      assert np.linalg.norm(intersec - intersec_) < 1e-5, f'{intersec} \n{intersec_}'
+      if not np.linalg.norm(intersec - intersec_) < 1e-4:
+        print(f'{intersec} \n{intersec_}')
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
 
       direc0 = (line0[1] - line0[0]).reshape([1,2])
       direc1 = (line1[1] - line1[0]).reshape([1,2])
@@ -847,35 +859,168 @@ def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name):
     z = z1
     walls_z =  walls[:,2] - walls[:,5]/2
 
+  z = walls_z[0]
+  wall_points2d = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p').reshape(-1,2,2)
+  #_show_3d_points_objs_ls(objs_ls=[walls], obj_rep=obj_rep, )
+  mesh, _ =  corners2d_to_surface(wall_points2d)
+  mesh = [m for m in mesh if is_valid_mesh(m[0], wall_points2d)]
+  for i in range(len(mesh)):
+    ki = mesh[i][0].shape[0]
+    zs = np.ones([ki, 1]) * z
+    triangles = np.concatenate([mesh[i][0], zs ], 1)
+    mesh[i] = (triangles, mesh[i][1])
+  if 0:
+    _show_3d_points_objs_ls(objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[mesh])
+  if 0:
+    for j in range(len(mesh)):
+      _show_3d_points_objs_ls(objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[mesh[j:j+1]])
+  return mesh
 
-    wall_points = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'Bottom_Corners').reshape(-1,3)
-    _show_3d_points_objs_ls([wall_points], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_points[None, :, :]])
-    return wall_corners
-
-  wn = walls.shape[0]
-  wall_corners_2d = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p').reshape(wn, 2, 2)
-  step = 5
-  ks = (walls[:,3]//step).astype(np.int32)
-  vecs_dir = wall_corners_2d[:,1] - wall_corners_2d[:,0]
-  vecs_norm = np.linalg.norm(vecs_dir, axis=1)[:,None]
-  vecs_dir = vecs_dir / vecs_norm
-  mid_points = []
-  for i in range(wn):
-    offsets = np.repeat(np.arange(ks[i]).reshape(ks[i],1), 2, 1) * vecs_dir[None,i] * step
-    tmp = np.repeat( wall_corners_2d[i,0:1], ks[i], 0  )
-    mid_points_i = tmp + offsets
-    mid_points_i = np.concatenate( [wall_corners_2d[i,0:1], mid_points_i,  wall_corners_2d[i,1:2]], 0 )
-    zs_i = np.repeat( walls_z[i,None,None], ks[i]+2, 0 )
-    mid_points_i = np.concatenate( [mid_points_i, zs_i], 1 )
-    mid_points.append( mid_points_i )
+def is_valid_mesh(points, edges):
+  from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
+  cen = points.mean(0).reshape(1,2)
+  leng = np.linalg.norm(points, axis=1).mean()
+  line_A = np.repeat(cen, 2, 0)
+  line_B = np.repeat(cen, 2, 0)
+  line_A[0,0] -= leng/2
+  line_A[1,0] += leng/2
+  line_B[0,1] -= leng/2
+  line_B[1,1] += leng/2
+  intsec_A = lines_intersection_2d( line_A[None,...], edges, must_on1=True)
+  intsec_B = lines_intersection_2d( line_B[None,...], edges, must_on1=True)
+  its_A = intsec_A - cen
+  its_B = intsec_B - cen
+  A_ok = (its_A > 1).any() and (its_A<-1).any()
+  B_ok = (its_B > 1).any() and (its_B<-1).any()
+  num_A = np.sum( 1-np.isnan(its_A))/2
+  num_B = np.sum( 1-np.isnan(its_B))/2
+  if 0:
+    print(f'intsec_A:\n{intsec_A}')
+    print(f'intsec_B:\n{intsec_B}')
+    print(f'A_ok: {A_ok}')
+    print(f'B_ok: {B_ok}')
+    _show_3d_points_objs_ls([points], objs_ls=[edges.reshape(-1,4)],  obj_rep='RoLine2D_2p')
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
+  valid =  A_ok and B_ok
+  valid_extra = (num_A+num_B)>6 and (A_ok or B_ok)
+  return valid or valid_extra
 
-  wall_points = np.concatenate(mid_points, 0)
-  tmp = wall_points.copy()
-  tmp[:,2] += 10
-  #wall_points = np.concatenate([wall_points, tmp], 0)
-  _show_3d_points_objs_ls([wall_points], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_points[None, :, :]])
-  return wall_points
+def corners2d_to_surface(corners, time=0):
+  '''
+  corners: [n,2,2]
+  '''
+  assert corners.shape[1:] == (2,2)
+  time = time + 1
+  from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
+  #_show_3d_points_objs_ls( objs_ls=[corners.reshape(-1,4)], obj_rep='RoLine2D_2p' )
+
+  corners = corners.copy()
+  n = corners.shape[0]
+  if n==2:
+    mesh = [convex_mesh(corners.reshape(-1,2))]
+    return mesh, time
+
+  dis = np.linalg.norm( corners[:,1] - corners[:,0], axis=1)
+  ids = (-dis).argsort()
+  min_ref_length = 30
+  for j in range(n):
+    i = ids[j]
+    if dis[i] < min_ref_length:
+      continue
+    vec = corners.reshape(-1,2) - corners[i,0:1]
+    ref = corners[i].reshape(1,4)
+    cen = ref.reshape(2,2).mean(0, keepdims=True)
+    ref_vec = cen - corners[i,0:1]
+    angles_i = angle_from_vecs_to_vece_np( ref_vec, vec, 2)
+    ver_dis = vertical_dis_points_lines( corners.reshape(-1,2), ref.reshape(1,2,2) ).reshape(-1)
+    ver_dis *= np.sign(angles_i)
+    mask_1 = ver_dis > 1
+    mask_2 =  ver_dis < -1
+    n1 = mask_1.sum()
+    n2 = mask_2.sum()
+    mask_1[[i*2, i*2+1]] = False
+    mask_2[[i*2, i*2+1]] = False
+    mask_on_ref = (mask_1+mask_2)==False
+    #mask_on_ref[[i*2, i*2+1]] = False
+    if n1 > 0 and n2 > 0:
+      break
+    pass
+  print(f'{time} n={n}, j={j}, i={i}, n1={n1}, n2={n2}')
+  if  n1 == 0 or n2 == 0:
+    mesh = [convex_mesh(corners.reshape(-1,2))]
+  else:
+    if 0:
+      points1 = corners.reshape(-1,2)[mask_1]
+      points2 = corners.reshape(-1,2)[mask_2]
+      _show_3d_points_objs_ls( [points1], objs_ls=[corners.reshape(-1,4), ref], obj_rep='RoLine2D_2p', obj_colors=['blue', 'red'] )
+      _show_3d_points_objs_ls( [points2], objs_ls=[corners.reshape(-1,4), ref], obj_rep='RoLine2D_2p', obj_colors=['blue', 'red'] )
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
+    group1 = get_intsec_group(corners, ref[0], mask_1)
+    group2 = get_intsec_group(corners, ref[0], mask_2)
+
+    cor_on_ref = corners[ mask_on_ref.reshape(-1,2).all(1) ]
+    group1 = np.concatenate([group1, cor_on_ref], 0)
+    group2 = np.concatenate([group2, cor_on_ref], 0)
+    if 0:
+      _show_3d_points_objs_ls( [group1.reshape(-1,2)], objs_ls=[corners.reshape(-1,4), ref], obj_rep='RoLine2D_2p', obj_colors=['blue', 'red'] )
+      _show_3d_points_objs_ls( [group2.reshape(-1,2)], objs_ls=[corners.reshape(-1,4), ref], obj_rep='RoLine2D_2p', obj_colors=['blue', 'red'] )
+
+    if time > 100:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
+    mesh1, time = corners2d_to_surface(group1, time)
+    mesh2, time = corners2d_to_surface(group2, time)
+    mesh = mesh1 + mesh2
+    #time = time + 2
+  return mesh, time
+
+def get_intsec_group(corners, ref, mask_1 ):
+      from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
+      corners = corners.copy()
+      corners_1 = corners.copy()
+      n = corners.shape[0]
+      ref = ref.reshape(2,2)
+      line_mask_1 = mask_1.reshape( n,2 )
+      crop_mask_1 = line_mask_1.sum(1) == 1
+      if not crop_mask_1.any():
+        group1  = corners_1[line_mask_1.all(1)]
+        return group1
+
+      for k in range( crop_mask_1.shape[0] ):
+        if crop_mask_1[k]:
+          line_B = corners[ k ]
+          intsec =  line_intersection_2d( ref, line_B)
+          if line_mask_1[k][0]:
+            k_i = 1
+          else:
+            k_i = 0
+
+          if 0:
+            group1  = corners_1[line_mask_1.any(1)]
+            _show_3d_points_objs_ls([intsec.reshape(1,2)], objs_ls=[ref.reshape(1,4), line_B.reshape(1,4), group1.reshape(-1,4)], obj_rep='RoLine2D_2p', obj_colors=['red', 'blue', 'black'])
+          corners_1[k, k_i] = intsec
+          if 0:
+            line_B = corners_1[ k ]
+            group1  = corners_1[line_mask_1.any(1)]
+            _show_3d_points_objs_ls([intsec.reshape(1,2)], objs_ls=[ref.reshape(1,4), line_B.reshape(1,4), group1.reshape(-1,4)], obj_rep='RoLine2D_2p', obj_colors=['red', 'blue', 'black'])
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
+      group1  = corners_1[line_mask_1.any(1)]
+      return group1
+
+def convex_mesh(points):
+  assert points.shape[1:] == (2,)
+  center = points.mean(0, keepdims=True)
+  n = points.shape[0]
+  vertices = np.concatenate([points, center], 0)
+  ids = np.mgrid[:n,:n].reshape(2,-1)
+  tmp = np.ones([1,n*n]) * n
+  triangles = np.concatenate([ids, tmp], 0).T
+  return (vertices, triangles)
 
 def ununsed_get_cf_from_wall(floors0, walls, obj_rep, cat_name):
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE

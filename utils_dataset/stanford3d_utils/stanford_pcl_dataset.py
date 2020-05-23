@@ -15,7 +15,7 @@ from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from obj_geo_utils.geometry_utils import get_ceiling_floor_from_box_walls
 
-SMALL_DATA = 1
+SMALL_DATA = 0
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']

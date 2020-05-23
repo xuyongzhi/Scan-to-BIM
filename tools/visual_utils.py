@@ -14,7 +14,7 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 ADD_FRAME = 0
 BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
-BOX_LINE_RADIUS = 1
+BOX_LINE_RADIUS = 0.5
 #BOX_LINE_RADIUS = 0.01
 
 #-2d general------------------------------------------------------------------------------
@@ -650,9 +650,14 @@ def _make_polygons_surface(points, color):
     mesh = []
     for i in range(len(points)):
       #mesh += _make_1_polygon_surface(points[i], color)
-      #mesh += _creat_1_polygon_surface(points[i], color)
-      mesh += _creat_1_polygon_surface_alpha(points[i], color)
+      mesh += _creat_1_polygon_surface(points[i], color)
+      #mesh += _creat_1_polygon_surface_(points[i], color)
+      #mesh += _creat_1_polygon_surface_alpha(points[i], color)
     return mesh
+
+def _creat_1_polygon_surface_(points, color):
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
 
 def _creat_1_polygon_surface_alpha(points, color, alpha=0.03):
     import sys
@@ -666,14 +671,15 @@ def _creat_1_polygon_surface_alpha(points, color, alpha=0.03):
     points2d_ = [(0., 0.), (0., 1.), (1., 1.), (1., 0.),
           (0.5, 0.25), (0.5, 0.75), (0.25, 0.5), (0.75, 0.5)]
     alpha_shape = alphashape.alphashape(points2d, 0)
+    coords = list( alpha_shape.exterior.coords )
 
     if 1:
       fig, ax = plt.subplots()
       ax.scatter(*zip(*points2d))
       ax.add_patch(PolygonPatch(alpha_shape, alpha=0.2))
       plt.show()
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)

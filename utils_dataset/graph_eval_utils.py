@@ -13,7 +13,7 @@ from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wal
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
-SHOW_3D = 0
+SHOW_3D = 1
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
@@ -261,6 +261,7 @@ class GraphEval():
       self._eval_img_scale_ratio = 1.5
 
     for i_img, res_data in enumerate(results_datas):
+
         detections = res_data['detections']
         img_meta = res_data['img_meta']
         is_pcl = 'input_style' in img_meta and img_meta['input_style'] == 'pcl'
@@ -754,15 +755,32 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
   #mmcv.imshow(img_detgt)
 
   if SHOW_3D:
+    wall_mask = [c in ['wall', 'beam', 'ceiling', 'door'] for c in gt_cats]
+    floor_mask = [c=='floor' for c in gt_cats]
+    gt_walls = gt_bboxes[wall_mask]
+    gt_floors0 = gt_bboxes[floor_mask]
+    gt_floors_mesh = get_cf_from_wall(gt_floors0, gt_walls, obj_rep, 'floor')
+
+    non_floor_mask = [c!='floor' for c in gt_cats]
+    gts = gt_bboxes[non_floor_mask]
+    m = len(gt_colors)
+    gt_colors = [gt_colors[j] for j in range(m) if non_floor_mask[j] ]
+
     det_bboxes = get_z_by_iou(det_bboxes, gt_bboxes, obj_rep)
 
     wall_mask = [c=='wall' for c in det_cats]
     floor_mask = [c=='floor' for c in det_cats]
-    walls = det_bboxes[wall_mask][:,:-1]
-    floors0 = det_bboxes[floor_mask][:,:-1]
-    floors = get_cf_from_wall(floors0, walls, obj_rep, 'floor')
-    _show_3d_points_objs_ls( objs_ls=[gt_bboxes, gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_colors, 'maroon'], box_types= ['surface_mesh', 'line_mesh'] )
-    _show_3d_points_objs_ls( objs_ls=[det_bboxes[:,:-1], det_bboxes[:,:-1]], obj_rep=obj_rep, obj_colors=[det_colors, 'maroon'], box_types=['surface_mesh', 'line_mesh'] )
+    det_walls = det_bboxes[wall_mask][:,:-1]
+    det_floors0 = det_bboxes[floor_mask][:,:-1]
+    det_floors_mesh = get_cf_from_wall(det_floors0, det_walls, obj_rep, 'floor')
+
+    non_floor_mask = [c!='floor' for c in det_cats]
+    dets = det_bboxes[non_floor_mask][:,:-1]
+    n = len(det_colors)
+    det_colors = [det_colors[j] for j in range(n) if non_floor_mask[j] ]
+
+    _show_3d_points_objs_ls( objs_ls=[gts, gts], obj_rep=obj_rep, obj_colors=[gt_colors, 'maroon'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors='yellow' )
+    #_show_3d_points_objs_ls( objs_ls=[dets, dets], obj_rep=obj_rep, obj_colors=[det_colors, 'maroon'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[det_floors_mesh], polygon_colors=['yellow'] )
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 

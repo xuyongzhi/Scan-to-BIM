@@ -13,7 +13,6 @@ CP=./work_dirs/${wkdir}/best.pth
 CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 #CP=./checkpoints/beike/Apr23_WaDo_Bev.pth
 #CP=./checkpoints/sfd/Apr26_wabeco_Bev.pth
-#CP=./checkpoints/sfd/may12_abcdif.pth
 
 
 LR=0.01
