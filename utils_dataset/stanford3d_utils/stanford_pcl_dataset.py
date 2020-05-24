@@ -15,7 +15,7 @@ from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from obj_geo_utils.geometry_utils import get_ceiling_floor_from_box_walls
 
-SMALL_DATA = 0
+SMALL_DATA = 1
 NO_LONG = 1
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
@@ -89,7 +89,7 @@ class Stanford_Ann():
   GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
                                'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
   #GoodSamples = ['Area_2/auditorium_1']
-  #GoodSamples = ['Area_2/conferenceRoom_1', 'Area_3/office_4', 'Area_2/hallway_5']
+  GoodSamples = ['Area_2/conferenceRoom_1', 'Area_3/office_4', 'Area_2/hallway_5']
   #GoodSamples = ['Area_3/office_4']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
@@ -375,8 +375,9 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     self.obj_rep = obj_rep
     Stanford_CLSINFO.__init__(self, classes)
     data_root = ann_file
-    phase = img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
-    Stanford_Ann.__init__(self, 'pcl', data_root, phase, obj_rep, voxel_size=voxel_size)
+    #phase = img_prefix = img_prefix.split('/')[-1].split('.txt')[0]
+    phase = 'test' if test_mode else 'train'
+    Stanford_Ann.__init__(self, 'pcl', data_root, img_prefix, obj_rep, voxel_size=voxel_size)
 
     self.save_sparse_input_for_debug = 0
     self.VOXEL_SIZE = self.voxel_size = voxel_size

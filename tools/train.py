@@ -254,7 +254,7 @@ def update_config(cfg, args, split):
         #cfg['work_dir'] += data_flag
 
         if 'stanford' in cfg['DATA']:
-          cfg['work_dir'] += '_AreaL' + cfg['img_prefix_train']
+          cfg['work_dir'] += '_AreaL' + cfg['data']['train']['img_prefix']
 
         # backup config
         aim_path = os.path.join(cfg['work_dir'], '_'+os.path.basename(cfg.filename))

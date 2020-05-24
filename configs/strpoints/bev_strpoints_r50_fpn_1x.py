@@ -126,7 +126,7 @@ test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
     score_thr=0.2,
-    nms=dict(type='nms_rotated', iou_thr=0.3, min_width_length_ratio=0.5),
+    nms=dict(type='nms_rotated', iou_thr=0.3, min_width_length_ratio=0.3),
     max_per_img=150)
 #img_norm_cfg = dict(
 #    mean=[  0, 0,0,0],
@@ -185,9 +185,6 @@ if DATA == 'beike2d':
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
   ann_file = 'data/stanford/'
-  img_prefix_train = 'train'
-  img_prefix_test = 'test'
-  img_prefix_test = 'train'
   img_prefix_train = '123456'
   img_prefix_test = '5'
   img_prefix_test = '24'
@@ -248,10 +245,7 @@ if DATA == 'beike2d':
   load_from = './checkpoints/beike/Apr23_WaDo_Bev.pth'
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
-  #load_from = './checkpoints/sfd/Apr26_wabeco_Bev.pth'
-  #load_from = './checkpoints/sfd/Rect4CornersZ0Z1_abcdi_NR_May10.pth'
-  load_from = './checkpoints/sfd/Rect4CornersZ0Z1_abcdi_Rot_May12.pth'
-  load_from = './checkpoints/sfd/May23_abcdif_bev_rot_6area.pth'
+  load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
 load_from = None
 resume_from = None

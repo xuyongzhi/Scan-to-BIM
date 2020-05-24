@@ -158,7 +158,7 @@ test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
     score_thr=0.2,
-    nms=dict(type='nms_dsiou', iou_thr=0.5, dis_weight=0.7),
+    nms=dict(type='nms_rotated', iou_thr=0.3, min_width_length_ratio=0.3),
     max_per_img=150)
 
 # dataset settings
@@ -188,9 +188,16 @@ lra = 0.01
 if DATA == 'beike_pcl_2d':
   max_footprint_for_scale = 200
   max_num_points = 30 * 10000
+  img_prefix_train = data_root + f'train.txt'
+  img_prefix_test = data_root + f'test.txt'
+  img_prefix_test = img_prefix_train
 if DATA == 'stanford_pcl_2d':
   max_footprint_for_scale = 50 # 200
   max_num_points = 5 * 10000
+  img_prefix_train = '123456'
+  img_prefix_test = '5'
+  img_prefix_test = '24'
+  #img_prefix_test = '136'
 
 data = dict(
     imgs_per_gpu=batch_size,
@@ -199,7 +206,7 @@ data = dict(
         type=dataset_type,
         obj_rep = _obj_rep,
         ann_file=ann_file,
-        img_prefix=data_root + f'ply/train.txt',
+        img_prefix=img_prefix_train,
         voxel_size=voxel_size,
         augment_data=True,
         data_types = ['color', 'norm', 'xyz'],
@@ -213,7 +220,7 @@ data = dict(
     test=None,
 )
 data['val'] = data['train'].copy()
-data['val']['img_prefix'] = data_root + f'ply/test.txt'
+data['val']['img_prefix'] = img_prefix_test
 data['test'] = data['val'].copy()
 
 
@@ -240,19 +247,21 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-load_from = None
+
 if DATA == 'beike_pcl_2d':
   work_dir = f'./work_dirs/KR50_fpn'
   load_from = './checkpoints/beike/Apr27_Bk_wado_Pcl.pth'
 if DATA == 'stanford_pcl_2d':
   work_dir = f'./work_dirs/SR50_fpn'
+  load_from = './checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth'
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
 
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
-  total_epochs = 1010
-  checkpoint_config = dict(interval=1)
+  total_epochs = 510
+  checkpoint_config = dict(interval=50)
   workflow = [('train', 1),]
 

@@ -10,6 +10,7 @@ import os
 import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
+import torch
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
@@ -25,7 +26,18 @@ def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     for i in range(num_img):
       det_bboxes = results[i]['det_bboxes']
       gt_bboxes = results[i]['gt_bboxes']
-      gt_bboxes = [[ OBJ_REPS_PARSE.encode_obj(gt_bboxes[0][0], obj_rep_org, obj_rep_out) ]]
+      gt_labels = results[i]['gt_labels']
+      assert len(gt_bboxes) ==1
+      if isinstance(gt_bboxes[0], list):
+        assert len(gt_bboxes[0]) ==1
+        gt_bboxes = gt_bboxes[0][0]
+        gt_labels = gt_labels[0][0]
+      elif isinstance(gt_bboxes[0], torch.Tensor):
+        gt_bboxes = gt_bboxes[0]
+        gt_labels = gt_labels[0]
+      else:
+        raise NotImplementedError
+      gt_bboxes = OBJ_REPS_PARSE.encode_obj(gt_bboxes, obj_rep_org, obj_rep_out)
       num_level = len(det_bboxes)
       for l in range(num_level):
           assert det_bboxes[l].shape[1] == dim_parse.OUT_DIM_FINAL
@@ -41,6 +53,7 @@ def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
 
       results[i]['det_bboxes'] = det_bboxes
       results[i]['gt_bboxes'] = gt_bboxes
+      results[i]['gt_labels'] = gt_labels
     return results, obj_rep_out
 
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
@@ -85,7 +98,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         result = results[i_img]
         det_result = result['det_bboxes']
         det_relations = result['det_relations']
-        if result['gt_bboxes']:
+        if result['gt_bboxes'] is not None:
             # test mode
           gt_bboxes = result['gt_bboxes']
           gt_labels = result['gt_labels']
