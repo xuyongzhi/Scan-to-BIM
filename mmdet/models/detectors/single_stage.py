@@ -184,13 +184,20 @@ class SingleStageDetector(BaseDetector):
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None, gt_relations=None):
         from configs.common import DIM_PARSE
+        record_time = DEBUG_CFG.RECORD_TEST_TIME
+        if record_time:
+          t0 = time.time()
         if DEBUG_CFG.DISABLE_RESCALE:
           rescale = False
         #_show_objs_ls_points_ls(img[0].permute(1,2,0).cpu().data.numpy(), [gt_bboxes[0][0].cpu().data.numpy()], 'RoLine2D_UpRight_xyxy_sin2a')
         x = self.extract_feat(img, gt_bboxes)
+        if record_time:
+          t1 = time.time()
         self.update_dynamic_shape(x, img_meta)
         #update_img_shape_for_pcl(x, img_meta[0], self.point_strides)
         outs = self.bbox_head(x)
+        if record_time:
+          t2 = time.time()
         bbox_inputs = outs + (img_meta, self.test_cfg, rescale)
         bbox_list = self.bbox_head.get_bboxes(*bbox_inputs)
         bbox_results = [
@@ -203,6 +210,12 @@ class SingleStageDetector(BaseDetector):
           relation_scores = [None]
 
         results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels, img = img, det_relations = relation_scores[0])
+        if record_time:
+          t3 = time.time()
+          print(f'\nTime\nbackbone:\t {t1-t0:.4f}')
+          print(f'head prediction:\t {t2-t1:.4f}')
+          print(f'NMS: {t3-t2:.4f}')
+          pass
         if 0:
           dim_parse = DIM_PARSE( len(img_meta[0]['classes'])+1 )
           det_bboxes = dim_parse.clean_bboxes_out( bbox_results[0][0],'final', 'line_ave' )[:,:5]

@@ -11,6 +11,7 @@ import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 import torch
+import time
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
@@ -165,6 +166,7 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
   '''
   from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 
+  t0 = time.time()
   obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
   assert det_lines.shape[1] == obj_dim+1
   det_lines = filter_low_score_det(det_lines, score_threshold)
@@ -189,7 +191,9 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
     else:
       det_lines_merged = det_lines
     labels_merged = labels_i
-  return det_lines_merged, labels_merged
+  t1 = time.time()
+  t = t1 - t0
+  return det_lines_merged, labels_merged, t
 
 def eval_graph(res_file):
   with open(res_file, 'rb') as f:
@@ -338,6 +342,7 @@ class GraphEval():
         num_labels = len(detections)
         eval_draws_ls = []
         walls = None
+        time_post = 0
         for label in range(1, num_labels+1):
             cat = catid_2_cat[label]
             label_mask = (gt_labels == label).reshape(-1)
@@ -352,9 +357,10 @@ class GraphEval():
             det_lines[:,:2] = det_lines[:,:2] * self._eval_img_scale_ratio + self._eval_img_size_aug
             det_lines[:,3] = det_lines[:,3] * self._eval_img_scale_ratio
             if optimize_graph:
-              det_lines_merged, _ = post_process_bboxes_1cls(det_lines,
+              det_lines_merged, _, t = post_process_bboxes_1cls(det_lines,
                   self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
                   self.dim_parse.OBJ_REP, self._min_out_length, walls=walls)
+              time_post += t
             else:
               det_lines_merged = filter_low_score_det(det_lines, self._score_threshold)
             if cat == 'wall':
@@ -422,6 +428,7 @@ class GraphEval():
     with open(eval_path, 'a') as f:
       f.write(eval_res_str)
     print(eval_res_str)
+    print(f'post time: {time_post}')
 
     # save eval res
     eval_res = dict( corner_recall_precision = corner_recall_precision,

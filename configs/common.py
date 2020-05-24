@@ -160,7 +160,8 @@ class DEBUG_CFG:
   OBJ_LEGEND = ['score', 'rotation'][0]
   SHOW_NMS_OUT = 0
   SHOW_NMS_PROCESS = 0
-
+  # detectors/single_stage.py
+  RECORD_TEST_TIME = 1
 
   SPARSE_BEV = 0
 
