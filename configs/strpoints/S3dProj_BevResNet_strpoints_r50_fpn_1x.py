@@ -254,7 +254,7 @@ if DATA == 'beike_pcl_2d':
 if DATA == 'stanford_pcl_2d':
   work_dir = f'./work_dirs/SR50_fpn'
   load_from = './checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth'
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
