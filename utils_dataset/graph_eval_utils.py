@@ -8,7 +8,7 @@ from obj_geo_utils.geometry_utils import get_cf_from_wall
 from collections import defaultdict
 import os
 import numpy as np
-from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls
+from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 
 SHOW_EACH_CLASS = False
@@ -139,7 +139,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     eval_graph( out_file )
 
 
-def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_cor_dis_thr, obj_rep, min_out_length):
+def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_cor_dis_thr, obj_rep, min_out_length, walls=None):
   '''
   The input detection belong to one class
   det_lines: [n,6]
@@ -150,6 +150,8 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
 
   det_lines_merged: [m,6]
   '''
+  from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
+
   obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
   assert det_lines.shape[1] == obj_dim+1
   det_lines = filter_low_score_det(det_lines, score_threshold)
@@ -169,7 +171,10 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
 
     det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
   else:
-    det_lines_merged = det_lines
+    if cat in ['door', 'window']:
+      det_lines_merged = align_bboxes_with_wall(det_lines, walls, cat, obj_rep)
+    else:
+      det_lines_merged = det_lines
     labels_merged = labels_i
   return det_lines_merged, labels_merged
 
@@ -185,9 +190,20 @@ def eval_graph(res_file):
 
 
 class GraphEval():
-  _all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ][1:3]
-  _all_out_types = [ 'bRefine_sAve' ]
-  #_all_out_types = [ 'bInit_sRefine' ]
+  #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
+
+  if 1:
+    _all_out_types = [ 'bRefine_sAve' ]
+    _opti_graph = [1]
+
+  if 1:
+    _all_out_types = [ 'bInit_sRefine' ]
+    _opti_graph = [0]
+
+  if 1:
+    _all_out_types = [ 'bInit_sRefine', 'bRefine_sAve', 'bRefine_sAve' ]
+    _opti_graph = [0, 0, 1]
+
   _score_threshold  = 0.5
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
@@ -198,7 +214,10 @@ class GraphEval():
   _eval_img_size_aug = 0
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
+  scene_list = ['Area_2/hallway_11']
+  scene_list = ['Area_4/hallway_3']
   scene_list = None
+
 
   def __init__(self, obj_rep, classes, filter_edges):
     self.obj_rep = obj_rep
@@ -238,10 +257,9 @@ class GraphEval():
       os.makedirs(self.eval_dir_all_cls)
 
   def __call__(self, results_datas, out_file):
-    for out_type in self._all_out_types:
+    for out_type, opt_g in zip(self._all_out_types, self._opti_graph):
       self.out_type = out_type
-      #self.evaluate(results_datas, out_file, out_type, False)
-      self.evaluate(results_datas, out_file, out_type, True)
+      self.evaluate(results_datas, out_file, out_type, opt_g)
 
   def evaluate(self, results_datas, out_file, out_type, optimize_graph=True):
     assert self.obj_rep  == 'XYZLgWsHA'
@@ -261,7 +279,7 @@ class GraphEval():
       self._eval_img_scale_ratio = 1.5
 
     for i_img, res_data in enumerate(results_datas):
-        if i_img < 2:
+        if i_img < 0:
           continue
           pass
 
@@ -306,6 +324,7 @@ class GraphEval():
 
         num_labels = len(detections)
         eval_draws_ls = []
+        walls = None
         for label in range(1, num_labels+1):
             cat = catid_2_cat[label]
             label_mask = (gt_labels == label).reshape(-1)
@@ -322,9 +341,11 @@ class GraphEval():
             if optimize_graph:
               det_lines_merged, _ = post_process_bboxes_1cls(det_lines,
                   self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
-                  self.dim_parse.OBJ_REP, self._min_out_length)
+                  self.dim_parse.OBJ_REP, self._min_out_length, walls=walls)
             else:
               det_lines_merged = filter_low_score_det(det_lines, self._score_threshold)
+            if cat == 'wall':
+              walls = det_lines_merged
 
             if debug and 0:
               print('raw prediction')
@@ -359,7 +380,7 @@ class GraphEval():
     cor_nums_sum = {}
     line_nums_sum = {}
     ave_ious = {}
-    iou_thres = 0.5
+    iou_thres = 0.3
 
     for label in all_cor_nums_gt_pos_tp:
       cat =  catid_2_cat[label]
@@ -450,7 +471,7 @@ class GraphEval():
     from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
     if det_lines.shape[0] == 0:
       return np.array([])
-    iou_matrix = dsiou_rotated_3d_bbox_np(det_lines[:,:-1], gt_lines, iou_w=1, size_rate_thres=0.3)
+    iou_matrix = dsiou_rotated_3d_bbox_np(det_lines[:,:-1], gt_lines, iou_w=1, size_rate_thres=0.07)
     ious = iou_matrix.max(0)
     return ious
 
@@ -663,7 +684,7 @@ class GraphEval():
     pass
     return cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false, det_points_pos, det_points_neg
 
-def get_z_by_iou(dets, gts, obj_rep):
+def get_z_by_iou(dets, det_cats, gts, gt_cats, obj_rep):
   from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox
   import torch
   assert obj_rep ==  'XYZLgWsHA'
@@ -671,14 +692,17 @@ def get_z_by_iou(dets, gts, obj_rep):
   gts_t = torch.from_numpy(gts).to(torch.float32)
   ious = dsiou_rotated_3d_bbox( dets_t, gts_t, 0.8, only_2d=True ).numpy()
   for i in range(dets.shape[0]):
-    j = np.argmax(ious[i])
-    print(ious[i,j])
-    dets[i, [2,5]] = gts[j, [2,5]]
+    mask_i = [det_cats[i] == c for c in gt_cats]
+    ids_i = np.where(mask_i)[0]
+    j = np.argmax(ious[i][ids_i])
+    k = ids_i[j]
+    #print(ious[i,k])
+    dets[i, [2,5]] = gts[k, [2,5]]
   return dets
 
 def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
   import mmcv
-  colors_map = {'wall': 'gray', 'beam':'lime', 'column':'blue', 'door':'cyan',  'window':'purple',  'floor':'yellow', 'ceiling':'gray'}
+  colors_map = {'wall': 'gray', 'beam':'brown', 'column':'blue', 'door':'cyan',  'window':'yellow',  'floor':'brown', 'ceiling':'yellow'}
   num_cats = len(eval_draws_ls)
   img_det = None
   img_det_pts = None
@@ -799,7 +823,7 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
     m = len(gt_colors)
     gt_colors = [gt_colors[j] for j in range(m) if non_floor_mask[j] ]
 
-    det_bboxes = get_z_by_iou(det_bboxes, gt_bboxes, obj_rep)
+    det_bboxes = get_z_by_iou(det_bboxes, det_cats, gt_bboxes, gt_cats, obj_rep)
 
     wall_mask = [c in ['wall', 'beam', 'ceiling', 'door'] for c in det_cats]
     floor_mask = [c=='floor' for c in det_cats]
@@ -812,13 +836,21 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
     n = len(det_colors)
     det_colors = [det_colors[j] for j in range(n) if non_floor_mask[j] ]
 
-    #_show_3d_points_objs_ls( objs_ls=[gts, gts], obj_rep=obj_rep, obj_colors=[gt_colors, 'maroon'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors='yellow' )
-    _show_3d_points_objs_ls( objs_ls=[dets, dets], obj_rep=obj_rep, obj_colors=[det_colors, 'maroon'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors=['yellow'] )
+    #_show_3d_points_objs_ls( objs_ls=[gts, gts], obj_rep=obj_rep, obj_colors=[gt_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors='silver' )
+    #dets, det_colors = manual_add(dets, det_colors)
+    _show_3d_points_objs_ls( objs_ls=[dets, dets], obj_rep=obj_rep, obj_colors=[det_colors, 'navy'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors=['silver'] )
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
   pass
 
-def aug_thickness(bboxes, cats, min_thick=10):
+def manual_add(dets, det_colors):
+  w = np.array([[504.686, 266.188, 117.   , 322.194,   4.671, 208.2  ,   1.56 ]], dtype=np.float32)
+  dets = np.concatenate([dets, w], 0)
+  det_colors += ['gray']
+  return dets, det_colors
+
+def aug_thickness(bboxes, cats, min_thick=12):
   mask = np.array([c in ['door', 'window'] for c in cats])
   bboxes[mask,4] = np.clip(bboxes[mask][:,4], a_min=min_thick, a_max=None)
   return bboxes
@@ -826,7 +858,6 @@ def aug_thickness(bboxes, cats, min_thick=10):
 def show_2dlines_as_3d(lines_2d, labels):
   lines_3d = OBJ_REPS_PARSE.lines2d_to_lines3d(lines_2d)
   _show_3d_points_objs_ls(objs_ls=[lines_3d], obj_colors=[labels])
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def filter_low_score_det(det_lines, score_threshold=0.5):

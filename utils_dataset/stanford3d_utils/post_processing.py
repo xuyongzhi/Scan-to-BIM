@@ -44,6 +44,7 @@ def align_1_box_with_wall(box, wall, obj_rep):
   box_r = bw_r[0]
   wall_r = bw_r[1]
 
+  box_r[-1] = 0
   box_r[1] = wall_r[1]
   box_r[4] = wall_r[4]*2
   #center = (-wall[0,0], -wall[0,1])

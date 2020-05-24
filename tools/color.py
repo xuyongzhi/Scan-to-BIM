@@ -38,6 +38,8 @@ class Color(Enum):
     purple= (128,0,128)
     navy  = (0,0,128)
     gray  = (128,128,128)
+    brown = (165, 42, 42)
+    silver = (192,192,192)
 
 def get_random_color():
   # except black and white

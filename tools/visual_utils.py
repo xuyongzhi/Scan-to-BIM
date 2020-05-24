@@ -629,6 +629,9 @@ def points_to_bboxes(points, size=0.1):
 
 def _show_polygon_surface(points, color='red'):
     color = _get_color(color)
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    color = np.array(color)/255
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     mesh = _make_polygon_surface(points, color)
     custom_draw_geometry_with_key_callback([mesh])
 
@@ -640,6 +643,7 @@ def _make_polygon_surface_ls(points_ls, colors_ls):
       colors_ls = [ _get_color( c )] * n
     else:
       colors_ls = [_get_color(c) for c in colors_ls]
+    colors_ls = np.array(colors_ls) / 255
     polygons_ls = []
     for i in range(n):
       pmesh =  _make_polygons_surface(points_ls[i], colors_ls[i])
