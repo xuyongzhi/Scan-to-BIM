@@ -185,9 +185,9 @@ if DATA == 'beike2d':
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
   ann_file = 'data/stanford/'
-  img_prefix_train = '123456'
+  img_prefix_train = '12356'
   img_prefix_test = '5'
-  img_prefix_test = '24'
+  img_prefix_test = '4'
   #img_prefix_test = '136'
 
 data = dict(
