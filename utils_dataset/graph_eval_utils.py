@@ -213,11 +213,11 @@ class GraphEval():
     _all_out_types = [ 'bRefine_sAve' ]
     _opti_graph = [1]
 
-  if 1:
+  if 0:
     _all_out_types = [ 'bInit_sRefine' ]
     _opti_graph = [0]
 
-  if 1:
+  if 0:
     _all_out_types = [ 'bInit_sRefine', 'bRefine_sAve', 'bRefine_sAve' ]
     _opti_graph = [0, 0, 1]
 

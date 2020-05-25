@@ -15,7 +15,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-#DATA = 'stanford2d'
+DATA = 'stanford2d'
 classes= ['wall']
 
 if DATA == 'beike2d':
