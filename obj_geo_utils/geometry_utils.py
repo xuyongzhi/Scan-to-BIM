@@ -838,12 +838,15 @@ def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name):
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
   from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
   assert cat_name in ['ceiling', 'floor']
-  assert obj_rep == 'XYZLgWsHA'
+  #assert obj_rep == 'XYZLgWsHA'
 
   if ceiling_boxes.shape[0] == 0:
     return ceiling_boxes
 
+  walls = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'XYZLgWsHA')
   ceiling_boxes = OBJ_REPS_PARSE.encode_obj(ceiling_boxes, obj_rep, 'XYZLgWsHA')
+  obj_rep = 'XYZLgWsHA'
+
   nc = ceiling_boxes.shape[0]
   zc = ceiling_boxes[:,2]
   zs = ceiling_boxes[:,5]
@@ -924,6 +927,8 @@ def corners2d_to_surface(corners, time=0):
   dis = np.linalg.norm( corners[:,1] - corners[:,0], axis=1)
   ids = (-dis).argsort()
   min_ref_length = 30
+  n1 = 0
+  n2 = 0
   for j in range(n):
     i = ids[j]
     if dis[i] < min_ref_length:

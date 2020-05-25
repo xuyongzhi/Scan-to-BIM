@@ -26,10 +26,12 @@ _raw_pcl_classes_order = [ 'background', 'beam', 'board', 'bookcase', 'ceiling',
                   'door', 'floor', 'sofa', 'stairs', 'table', 'wall', 'window', 'room']
 _raw_pcl_category_ids_map = {_raw_pcl_classes_order[i]:i for i in range(len(_raw_pcl_classes_order))}
 class Stanford_CLSINFO(object):
-  classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
-                   'floor', 'board', 'bookcase', 'chair', 'sofa', 'stairs', 'table', 'room']
-  classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'ceiling',
-                   'floor', 'board', 'bookcase', 'chair', 'sofa', 'table']
+  classes_order = [ 'background', 'wall', 'beam', 'column',  'door', 'window', 'floor', 'ceiling',
+                    'board', 'bookcase', 'chair', 'sofa', 'stairs', 'table', 'room']
+  n = len(classes_order)
+  category_ids_map = {}
+  for i in range(n):
+    category_ids_map[classes_order[i]] = i
   def __init__(self, classes_in, always_load_walls=1):
       if classes_in[0] == 'all':
         classes_in = ['wall', 'beam', 'column', 'door', 'window', 'ceiling', 'floor']
@@ -60,6 +62,11 @@ class Stanford_CLSINFO(object):
       return list(range(len(self)))
 
 
+def raw_label_to_new_label(labels):
+  cats = [_raw_pcl_classes_order[l] for l in labels]
+  new_labels = [Stanford_CLSINFO.category_ids_map[c] for c in cats]
+  return np.array(new_labels)
+
 class Stanford_Ann():
   EASY = ['Area_1/office_16']
   LONG = ['Area_1/hallway_2', 'Area_1/hallway_6' , 'Area_3/hallway_1' , 'Area_3/hallway_4' , 'Area_5/hallway_2' , 'Area_5/hallway_1']
@@ -89,8 +96,8 @@ class Stanford_Ann():
   GoodSamples = IntroSample + ['Area_4/hallway_3', 'Area_4/lobby_2', 'Area_1/office_29', 'Area_2/auditorium_1',
                                'Area_2/conferenceRoom_1', 'Area_2/hallway_11', 'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9', 'Area_2/auditorium_2']
   #GoodSamples = ['Area_2/auditorium_1']
-  GoodSamples = ['Area_2/conferenceRoom_1', 'Area_3/office_4', 'Area_2/hallway_5']
-  #GoodSamples = ['Area_3/office_4']
+  #GoodSamples = ['Area_2/conferenceRoom_1', 'Area_3/office_4', 'Area_2/hallway_5']
+  GoodSamples = ['Area_3/office_4']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
@@ -225,6 +232,7 @@ class Stanford_Ann():
     gt_bboxes_3d_raw = img_info['gt_bboxes_3d_raw']
     gt_labels = img_info['gt_labels']
     coords, colors_norms, point_labels, _ = self.load_ply(index)
+    point_labels = raw_label_to_new_label(point_labels)
     min_xyz = coords.min(0,keepdims=True)
     coords -= min_xyz
 
@@ -236,7 +244,6 @@ class Stanford_Ann():
     ceiling_mask = gt_labels == self._category_ids_map['ceiling']
     floors = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[floor_mask], walls, 'XYXYSin2WZ0Z1', 'floor')
     ceilings = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[ceiling_mask], walls, 'XYXYSin2WZ0Z1', 'ceiling')
-
 
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
     #kp_cats += ['floor']
@@ -264,8 +271,8 @@ class Stanford_Ann():
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Top_Corners').reshape(-1,3)
     #corners = add_noisy_corners(corners)
 
-    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
-    #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
+    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
+    _show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'], polygons_ls=[floors, ceilings], polygon_colors=['magenta', 'yellow'])
@@ -752,8 +759,7 @@ def cut_top_points(points,  rate=0.1, point_labels=None):
 def main3d():
   obj_rep = 'XYZLgWsHA'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
-  img_prefix = './train.txt'
-  #img_prefix = './test.txt'
+  img_prefix = '123456'
   classes = Stanford_CLSINFO.classes_order
   max_num_points = 50 * 1e4
   max_num_points = None

@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 #*******************************************************************************
+
 class DIM_PARSE:
   IMAGE_SIZE = 512
 

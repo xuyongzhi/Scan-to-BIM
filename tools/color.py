@@ -5,6 +5,7 @@ import numpy as np
 
 from mmcv.utils import is_str
 
+COLOR_MAP = {'wall': 'gray', 'beam':'brown', 'column':'blue', 'door':'cyan',  'window':'yellow',  'floor':'silver', 'ceiling':'navy'}
 
 class OLDColor(Enum):
     """An enum that defines common colors.
@@ -50,6 +51,8 @@ def get_random_color():
 def _label2color(labels):
   colors = ['red', 'lime', 'blue',    'cyan', 'purple',   'gray','yellow',  'magenta', 'navy', 'green', ]
   #         'wall', 'beam', 'column', 'door', 'window', 'ceiling', 'floor'
+  colors = ['gray', 'brown', 'blue', 'cyan', 'yellow', 'silver', 'silver', 'navy', 'magenta', 'purple', 'green']
+  colors = colors + colors * 5
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]

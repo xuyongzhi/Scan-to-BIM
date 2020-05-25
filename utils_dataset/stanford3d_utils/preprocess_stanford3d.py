@@ -10,6 +10,7 @@ from utils_dataset.lib.pc_utils import save_point_cloud
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls, _show_lines_ls_points_ls
 from tools import debug_utils
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_as_img
+from tools.color import COLOR_MAP
 
 import MinkowskiEngine as ME
 
@@ -43,6 +44,8 @@ DEBUG=1
 Instance_Bad_Scenes = ['Area_1/hallway_7', 'Area_6/office_9', 'Area_4/lobby_1']
 
 def get_manual_merge_pairs(scene_name):
+  if DEBUG:
+    return None
   if scene_name == 'Area_3/office_4':
     return   [ (0,1), (0,6), (1,3) ]
   else:
@@ -580,6 +583,9 @@ def get_scene_name(file_path):
 
 def gen_bboxes(max_num_points=1e6):
   from plyfile import PlyData
+  from obj_geo_utils.geometry_utils import get_cf_from_wall
+  obj_rep_load = 'XYXYSin2WZ0Z1'
+
   ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
   #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
   UNALIGNED = ['Area_2/auditorium_1', 'Area_3/office_8',
@@ -588,15 +594,13 @@ def gen_bboxes(max_num_points=1e6):
   ROTAE_WINDOW=['Area_1/office_11']
   IntroSample = ['Area_3/office_4']
   scenes = IntroSample
-  scenes = ['Area_2/conferenceRoom_1']
-  scenes = ['Area_2/auditorium_1']
   ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
 
   # The first 72 is checked
   for l, plyf in enumerate( ply_files ):
       scene_name_l = get_scene_name(plyf)
-      bbox_file = plyf.replace('.ply', '.npy').replace('Area_', 'Boxes_Area_')
-      topview_file = plyf.replace('.ply', '.png').replace('Area_', 'Boxes_Area_')
+      bbox_file = plyf.replace('.ply', '.npy').replace('Area_', '__Boxes_Area_')
+      topview_file = plyf.replace('.ply', '.png').replace('Area_', '__Boxes_Area_')
       bbox_dir = os.path.dirname(bbox_file)
       polygon_dir = bbox_dir.replace('Boxes', 'Polygons')
       if not os.path.exists(bbox_dir):
@@ -696,7 +700,7 @@ def gen_bboxes(max_num_points=1e6):
         all_cats = []
         all_labels = []
         view_cats = ['wall', 'beam', 'window', 'column', 'door']
-        #view_cats += ['floor']
+        view_cats += ['floor']
         #view_cats += ['ceiling']
         for l,cat in enumerate(view_cats):
           if cat not in bboxes:
@@ -707,9 +711,13 @@ def gen_bboxes(max_num_points=1e6):
         all_bboxes = np.concatenate(all_bboxes, 0)
         all_cats = np.array(all_cats)
         all_labels = np.array(all_labels)
+        all_colors = [COLOR_MAP[c] for c in all_cats]
 
-        #_show_3d_points_objs_ls(objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels])
-        #_show_3d_points_objs_ls([coords], [feats], objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels], box_types='line_mesh')
+        floors_mesh = get_cf_from_wall(  all_bboxes[all_cats=='floor'], all_bboxes[all_cats=='wall'],  obj_rep_load, 'floor')
+
+        if DEBUG:
+          _show_3d_points_objs_ls(objs_ls= [all_bboxes, all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[floors_mesh], polygon_colors='silver' )
+          #_show_3d_points_objs_ls([coords], [feats], objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels], box_types='line_mesh')
 
         scope = all_bboxes[:,:4].reshape(-1,2).max(0) - all_bboxes[:,:4].reshape(-1,2).min(0)
         voxel_size =  max(scope) / 1000
