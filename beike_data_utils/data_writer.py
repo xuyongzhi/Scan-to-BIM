@@ -286,7 +286,8 @@ class RecordWriter:
           self.topview_base_dir += '_All'
         if not os.path.exists(self.topview_base_dir):
             os.mkdir(self.topview_base_dir)
-        self.topview_write_base = os.path.join(self.topview_base_dir, phase)
+        self.topview_write_base = os.path.join(self.topview_base_dir)
+        #self.topview_write_base = os.path.join(self.topview_base_dir, phase)
         if not os.path.exists(self.topview_write_base):
             os.mkdir(self.topview_write_base)
         if ONLY_NOT_EXIST:
@@ -624,12 +625,29 @@ def gen_topview():
     image_size = 512
     vertical_density = 1
     base_dir = f'../data/beike/processed_{image_size}'
+    creat_ply_link(base_dir)
     record_writer_test = RecordWriter(num_points=50000*5, base_dir=base_dir, phase='test', im_size=image_size,
                                       save_prefix='beike_100_vertical_density' + str(vertical_density),
                                       allow_non_man=True, all_test=True,
                                       vertical_density=vertical_density)
 
     record_writer_test.write()
+
+
+def creat_ply_link(base_dir):
+  base_dir = os.path.realpath(base_dir)
+  if not os.path.exists(base_dir):
+    os.makedirs(base_dir)
+  root_dir = os.path.dirname(base_dir)
+  src = os.path.join(root_dir, 'data', 'ply')
+  dst = os.path.join(base_dir,  'ply')
+  if not os.path.exists(dst):
+    os.symlink(src, dst)
+  src = os.path.join(root_dir, 'data', 'json')
+  dst = os.path.join(base_dir,  'json')
+  if not os.path.exists(dst):
+    os.symlink(src, dst)
+  pass
 
 if __name__ == '__main__':
   gen_topview()

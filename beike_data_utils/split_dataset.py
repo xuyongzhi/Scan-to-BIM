@@ -18,7 +18,7 @@ def gen_split_scene_list():
   scenes = [os.path.basename(f.replace('.ply','')) for f in files]
   n = len(scenes)
   assert n>0, "no file found"
-  train_scenes = random.sample(scenes, 90)
+  train_scenes = random.sample(scenes, min(n,90))
   test_scenes = [s for s in scenes if s not in train_scenes]
 
   np.savetxt(test_split_path, test_scenes, '%s')

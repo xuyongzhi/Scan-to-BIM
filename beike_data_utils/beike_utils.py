@@ -248,7 +248,7 @@ class BEIKE(BEIKE_CLSINFO):
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-    def show_anno_img(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
+    def show_anno_img(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0), write=False):
       colors_line   = {'wall': (0,0,255), 'door': (0,255,255),
                        'window': (0,255,255), 'other':(100,100,0)}
       colors_corner = {'wall': (0,0,255), 'door': (0,255,0),
@@ -278,15 +278,15 @@ class BEIKE(BEIKE_CLSINFO):
         bboxes, img = rotate_bboxes_img(bboxes, img, rotate_angle,
                                       self.obj_rep)
 
-      if WRITE_ANNO_IMG:
-        anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
+      if write:
+        anno_img_file = os.path.join(self.img_prefix, scene_name+'-gt.png')
       else:
         anno_img_file = None
       _show_objs_ls_points_ls(
-                              img, [bboxes], self.obj_rep, [corners],
+                               img[:,:,0], [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors='random',
                                obj_thickness=1, point_thickness=1,
-                               out_file=anno_img_file, only_save=0)
+                               out_file=anno_img_file, only_save=write)
 
       show_1by1 = False
       if show_1by1:
@@ -399,7 +399,7 @@ class BEIKE(BEIKE_CLSINFO):
       #mmcv.imshow(img)
       return img
 
-    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
+    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0), write=False):
       idx = None
       for i in range(len(self)):
         sn = self.img_infos[i]['filename'].split('.')[0]
@@ -407,7 +407,7 @@ class BEIKE(BEIKE_CLSINFO):
           idx = i
           break
       assert idx is not None, f'cannot find {scene_name}'
-      self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
+      self.show_anno_img(idx, with_img, rotate_angle, lines_transfer, write=write)
 
 
     def find_unscanned_edges(self,):
@@ -556,6 +556,9 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     min_xy = (min_xy + max_xy) / 2 - max_range / 2 - padding
     max_range += padding * 2
 
+    lines_norm = lines - min_xy[None, None, :]
+    corners_norm = corners - min_xy[None, :]
+
     lines_pt = ((lines - min_xy) * img_size / max_range).astype(np.float32)
     lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
   if anno_style == 'voxelization':
@@ -584,7 +587,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
         print('meter_2_pixel corner scope error', scene)
         print(corners_pt.min())
         print(corners_pt.max())
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        #import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
     corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
     if floor:
@@ -724,7 +727,7 @@ def get_line_valid_by_density(anno_folder, filename, line_ids_check, classes):
     line_valid = line_density_cats[:,0] > 0
     return line_valid
 
-def load_anno_1scene(anno_folder, filename, classes,  filter_edges=True, is_save_connection=False):
+def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_save_connection=False):
       always_load_walls = 1
 
       beike_clsinfo = BEIKE_CLSINFO(classes, always_load_walls)
@@ -992,6 +995,7 @@ def load_ply(pcl_file):
     with open(pcl_file, 'rb') as f:
       plydata = PlyData.read(f)
     points = np.array(plydata['vertex'].data.tolist()).astype(np.float32)
+    points = points[:,:9]
     assert points.shape[1] == 9
     return points
 
@@ -1019,7 +1023,8 @@ def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
       mean: [2.872 0.044 0.043 0.102]
       std : [16.182  0.144  0.142  0.183]
   '''
-  npy_path = os.path.join(data_path, base+'/test')
+  #npy_path = os.path.join(data_path, base+'/test')
+  npy_path = os.path.join(data_path, base)
   files = glob.glob(npy_path + '/*.npy')
   n =  len(files)
   assert n>0
@@ -1092,40 +1097,26 @@ def gen_images_from_npy(data_path):
 
   pass
 
-def visualization(data_path):
+def gen_gts(data_path):
   obj_rep = 'XYXYSin2'
   ANNO_PATH = os.path.join(data_path, 'json/')
-  topview_path = os.path.join(data_path, 'TopView_VerD/train.txt')
-  #topview_path = os.path.join(data_path, 'TopView_VerD/test.txt')
+  phase = 'train.txt'
+  topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
-  scenes = np.loadtxt(topview_path, dtype=str).tolist()
-  #scenes = ['3sr-fOoghhC9kiOaGrvr7f', '3Q92imFGVI1hZ5b0sDFFC3', '0Kajc_nnyZ6K0cRGCQJW56', '0WzglyWg__6z55JLLEE1ll', 'Akkq4Ch_48pVUAum3ooSnK']
-  #scenes = BAD_SCENE_TRANSFERS_PCL
-
+  is_save_connection = 1
   classes = ['wall', 'door', 'window', ]
-  #classes = [ 'door',  ]
-  #classes = [ 'window', 'door', ]
-  #classes = [ 'window', ]
-  #classes = [ 'wall', ]
-  is_save_connection = 0
-  if is_save_connection:
-    classes = ['wall', 'door', 'window', ]
   beike = BEIKE(obj_rep, ANNO_PATH, topview_path,
                 classes = classes,
                 filter_edges= 0,
                 is_save_connection=is_save_connection,
                 )
-  #beike.find_unscanned_edges()
-  if is_save_connection:
-    beike.find_connection()
 
-  if 0:
-    for s in scenes:
-      beike.show_scene_anno(s, True, 0)
+  scene_list = os.path.join(data_path, 'all.txt')
+  scenes = np.loadtxt(scene_list, str).tolist()
 
-
+  rotate_angle = 0
   for s in scenes:
-    beike.show_scene_anno(s, True, -30)
+    beike.show_scene_anno(s, True, rotate_angle, write=True)
 
   #for i in range(len(beike)):
   #  beike.show_anno_img( i, True, 45 )
@@ -1136,8 +1127,6 @@ def save_unscanned_edges(data_path):
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'test.txt'
 
-  #topview_path = os.path.join(data_path,  phase)
-  #scenes = np.loadtxt(topview_path, dtype=str).tolist()
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
   is_save_connection = 1
@@ -1157,9 +1146,6 @@ def gen_relations(data_path):
   obj_rep = 'XYXYSin2'
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'test.txt'
-
-  #topview_path = os.path.join(data_path,  phase)
-  #scenes = np.loadtxt(topview_path, dtype=str).tolist()
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
   is_save_connection = 1
@@ -1187,11 +1173,13 @@ def last_steps():
   cal_topview_npy_mean_std(data_path, base='TopView_VerD', normnorm_method='abs')
   gen_relations(data_path)
 
+  gen_gts(data_path)
+
 def debug():
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
-  #visualization(data_path)
+  gen_gts(data_path)
   #gen_images_from_npy(data_path)
 
 if __name__ == '__main__':
