@@ -840,8 +840,8 @@ def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name):
   assert cat_name in ['ceiling', 'floor']
   #assert obj_rep == 'XYZLgWsHA'
 
-  if ceiling_boxes.shape[0] == 0:
-    return ceiling_boxes
+  #if ceiling_boxes.shape[0] == 0:
+  #  return ceiling_boxes
 
   walls = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'XYZLgWsHA')
   ceiling_boxes = OBJ_REPS_PARSE.encode_obj(ceiling_boxes, obj_rep, 'XYZLgWsHA')

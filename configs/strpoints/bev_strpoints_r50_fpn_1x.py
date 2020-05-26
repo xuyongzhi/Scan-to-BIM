@@ -15,7 +15,7 @@ TOPVIEW = 'VerD' # better
 from configs.common import DIM_PARSE
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
-#DATA = 'stanford2d'
+DATA = 'stanford2d'
 classes= ['wall']
 
 if DATA == 'beike2d':
@@ -246,7 +246,6 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
-  load_from = './checkpoints/sfd/epoch_640.pth'
 
 load_from = None
 resume_from = None
@@ -255,5 +254,5 @@ workflow = [('train', 5), ('val', 1)]
 if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
-  checkpoint_config = dict(interval=10)
+  checkpoint_config = dict(interval=5)
 

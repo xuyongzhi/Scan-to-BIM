@@ -16,6 +16,7 @@ ADD_FRAME = 0
 BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
 BOX_LINE_RADIUS = 1
 #BOX_LINE_RADIUS = 0.01
+FONT_SCALE = 0.8
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -188,7 +189,7 @@ def _draw_lines(img, lines, color, point_thickness, line_scores=None, font_scale
     return img
 
 def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
-              cats=None, font_scale=0.5, text_color='green'):
+              cats=None, font_scale=FONT_SCALE, text_color='green'):
   if obj_rep != 'XYLgWsA':
     objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'XYLgWsA')
   draw_XYLgWsA(img, objs, color, obj_thickness=obj_thickness, scores=scores, cats=cats, font_scale=font_scale, text_color=text_color)
