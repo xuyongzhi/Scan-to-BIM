@@ -97,7 +97,7 @@ class Stanford_Ann():
                                'Area_2/conferenceRoom_1', 'Area_2/hallway_11',  ]
   #GoodSamples += [ 'Area_1/office_29', 'Area_2/auditorium_2',  'Area_2/hallway_5', 'Area_2/office_14', 'Area_2/storage_9' ]
   #GoodSamples = ['Area_2/conferenceRoom_1', 'Area_3/office_4', 'Area_2/hallway_5']
-  #GoodSamples = ['Area_3/office_4']
+  GoodSamples = ['Area_4/lobby_2']
 
   def __init__(self, input_style, data_root, phase, obj_rep, voxel_size=None):
     assert input_style in ['pcl', 'bev']
@@ -254,8 +254,8 @@ class Stanford_Ann():
 
     # 3d
     points = np.concatenate([coords, colors_norms], axis=1)
-    points, point_labels = filter_categories('remove', points, point_labels, points_rm_cats, _raw_pcl_category_ids_map)
-    points, point_labels = cut_top_points(points, 0.1, point_labels)
+    #points, point_labels = filter_categories('remove', points, point_labels, points_rm_cats, _raw_pcl_category_ids_map)
+    points, point_labels = cut_top_points(points, 0.01, point_labels)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
     gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, kp_cats, self._category_ids_map)
     gt_cats = [self._catid_2_cat[l+1] for l in gt_labels]
@@ -271,8 +271,8 @@ class Stanford_Ann():
     corners = OBJ_REPS_PARSE.encode_obj(gt_bboxes_3d_raw, 'XYXYSin2WZ0Z1', 'Top_Corners').reshape(-1,3)
     #corners = add_noisy_corners(corners)
 
-    #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
-    _show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
+    _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
+    #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'], polygons_ls=[floors, ceilings], polygon_colors=['magenta', 'yellow'])

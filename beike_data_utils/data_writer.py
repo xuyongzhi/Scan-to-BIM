@@ -470,11 +470,10 @@ class RecordWriter:
         with open(output_path, 'wb') as f:
             np.save(f, room_data)
 
-        output_path_d = os.path.join(self.topview_write_base, file_id + '_density.png')
+        output_path_d = os.path.join(self.topview_write_base, file_id + '-density.png')
         cv2.imwrite(output_path_d, topview_image)
-        output_path_n = os.path.join(self.topview_write_base, file_id + '_norm.png')
+        output_path_n = os.path.join(self.topview_write_base, file_id + '-norm.png')
         cv2.imwrite(output_path_n, np.abs(topview_mean_normal)*255)
-
 
         #num_non_manhattan_room = 0
         #for room_instance in room_instances:
@@ -651,4 +650,5 @@ def creat_ply_link(base_dir):
 
 if __name__ == '__main__':
   gen_topview()
+
 

@@ -19,8 +19,7 @@ import glob
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 from obj_geo_utils.line_operations import rotate_bboxes_img, transfer_lines, gen_corners_from_lines_np
 from configs.common import DIM_PARSE, DEBUG_CFG
-from tools.debug_utils import get_random_color, _show_img_with_norm, _show_lines_ls_points_ls
-from tools.visual_utils import _show_objs_ls_points_ls
+from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
 np.set_printoptions(precision=3, suppress=True)
 
 
@@ -225,11 +224,12 @@ class BEIKE(BEIKE_CLSINFO):
 
     def load_data(self, scene_name):
       file_name = os.path.join(self.img_prefix, scene_name+'.npy')
-      data = np.load(file_name, allow_pickle=True).tolist()
-      img = np.expand_dims(data['topview_image'],axis=2)
-      normal_image = data['topview_mean_normal']
-      img = np.concatenate([img, normal_image], axis=2)
-      return  img
+      return load_topview_img(file_name)
+
+    def load_data_by_idx(self, idx):
+      filename = self.img_infos[idx]
+      scene_name = filename.split('.')[0]
+      return self.load_data(scene_name)
 
     @ staticmethod
     def add_anno_summary(anno):
@@ -279,13 +279,21 @@ class BEIKE(BEIKE_CLSINFO):
                                       self.obj_rep)
 
       if write:
-        anno_img_file = os.path.join(self.img_prefix, scene_name+'-gt.png')
+        anno_img_file = os.path.join(self.img_prefix, scene_name+'-density.png')
       else:
         anno_img_file = None
       _show_objs_ls_points_ls(
                                img[:,:,0], [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors='random',
                                obj_thickness=1, point_thickness=1,
+                               out_file=anno_img_file, only_save=write)
+      img_norm = np.abs(img[:,:,1:]) * 255
+      if write:
+        anno_img_file = os.path.join(self.img_prefix, scene_name+'-norm.png')
+      _show_objs_ls_points_ls(
+        img_norm, [bboxes], self.obj_rep, [corners],
+                               obj_colors='white', point_colors='yellow',
+                               obj_thickness=1, point_thickness=3,
                                out_file=anno_img_file, only_save=write)
 
       show_1by1 = False
@@ -301,55 +309,6 @@ class BEIKE(BEIKE_CLSINFO):
                                 out_file=anno_img_file, only_save=0)
             pass
       return img
-      #_show_img_with_norm(img)
-
-      img_type = 'density'
-      #img_type = 'norm'
-      if img_type == 'density':
-        img = np.repeat(img[:,:,0:1], 3, axis=2).astype(np.uint8)
-      if img_type == 'norm':
-        img = np.abs(img[:,:,1:]) * 255
-        img = img.astype(np.uint8)
-
-      lines = bboxes[:,:4].copy()
-
-      if bboxes.shape[1] == 5:
-        istopleft = bboxes[:,-1]
-        print('istopleft:\n',istopleft)
-        n = bboxes.shape[0]
-        for i in range(n):
-          if istopleft[i] < 0:
-            lines[i] = lines[i,[2,1,0,3]]
-      lines = lines.reshape(-1,2,2).astype(np.int32)
-      line_sizes = np.linalg.norm(lines[:,0]-lines[:,1], axis=1)
-      idx_min_size = line_sizes.argmin()
-      min_line_size = line_sizes[idx_min_size]
-      print(f'min line size: {min_line_size}')
-      #mmcv.imshow_bboxes(img, bboxes)
-
-      for i in range(lines.shape[0]):
-        s, e = lines[i]
-        if i != idx_min_size or 1:
-          color = colors_line['wall']
-          thickness = 1
-        else:
-          color = (0,255,255)
-          thickness = 3
-        color = get_random_color()
-        cv2.line(img, (s[0], s[1]), (e[0], e[1]), color, thickness=thickness)
-
-      if corners is not None:
-        for i in range(corners.shape[0]):
-          c = corners[i]
-          cv2.circle(img, (c[0], c[1]), radius=3, color=colors_corner['wall'],
-                    thickness=2)
-      mmcv.imshow(img)
-      if WRITE_ANNO_IMG:
-        anno_img_file = os.path.join(self.anno_img_folder, scene_name+'.png')
-        cv2.imwrite(anno_img_file, img)
-        print(anno_img_file)
-      return img
-      pass
 
 
     def draw_anno_raw(self, idx,  with_img=True):
@@ -456,15 +415,17 @@ class BEIKE(BEIKE_CLSINFO):
       return density_sum_mean
       pass
 
-    def find_connection(self,):
+    def find_connection(self, save_connection_imgs=False):
       assert self.filter_edges == False
       self.connection_dir = self.anno_folder.replace('json', 'relations')
+      self.connection_img_dir = os.path.join(self.connection_dir, 'imgs')
       if not os.path.exists(self.connection_dir):
         os.makedirs( self.connection_dir )
+        os.makedirs( self.connection_img_dir )
       for i in range(len(self)):
-        self.find_connection_1_scene(i)
+        self.find_connection_1_scene(i, save_connection_imgs=save_connection_imgs)
 
-    def find_connection_1_scene(self, idx, connect_threshold = 3):
+    def find_connection_1_scene(self, idx, connect_threshold = 3, save_connection_imgs=False):
       print(self.img_infos[idx]['filename'])
       anno = self.img_infos[idx]['ann']
       bboxes = anno['gt_bboxes']
@@ -485,6 +446,13 @@ class BEIKE(BEIKE_CLSINFO):
       connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'] )
       np.save(connection_file, relations, allow_pickle=True)
       print('\n\t', connection_file)
+
+      if save_connection_imgs:
+        scene = self.img_infos[idx]['filename'].split('.')[0]
+        for cat in relations:
+          img_file = os.path.join(self.connection_img_dir, scene + f'-{cat}.png' )
+          objs = bboxes[self._category_ids_map[cat] == labels]
+          show_connection_2(walls, objs, relations[cat], img_file)
       pass
 
 
@@ -546,7 +514,6 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
   elif anno_style == 'voxelization':
     voxel_size = pixel_config['voxel_size']
 
-
   if anno_style == 'topview':
     min_xy = pcl_scope[0,:2] * 0
     max_xy = pcl_scope[1,:2] - pcl_scope[0,:2]
@@ -559,7 +526,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     lines_norm = lines - min_xy[None, None, :]
     corners_norm = corners - min_xy[None, :]
 
-    lines_pt = ((lines - min_xy) * img_size / max_range).astype(np.float32)
+    lines_pt = (lines_norm * img_size / max_range).astype(np.float32)
     lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
   if anno_style == 'voxelization':
     # in voxelization of pcl: coords = floor( position / voxel_size)
@@ -592,6 +559,13 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
+
+
+  check = 0
+  if check:
+    json_file = os.path.join('/home/z/Research/mmdetection/data/beike/processed_512/TopView_VerD', scene.replace('json','npy'))
+    img = load_topview_img(json_file)
+    _show_objs_ls_points_ls(img[:,:,0], objs_ls=[lines_pt.reshape(-1,4)], obj_rep='RoLine2D_2p')
 
   return corners_pt, lines_pt
 
@@ -651,6 +625,7 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
             print(scene)
             print(corners_pt.min())
             print(corners_pt.max())
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
     corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
     if floor:
@@ -690,6 +665,12 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
         show_connection( anno_img['gt_bboxes'], anno_img['relations'] )
       return anno_img
 
+def load_topview_img(file_name):
+    data = np.load(file_name, allow_pickle=True).tolist()
+    img = np.expand_dims(data['topview_image'],axis=2)
+    normal_image = data['topview_mean_normal']
+    img = np.concatenate([img, normal_image], axis=2)
+    return  img
 
 def load_pcl_scope(anno_folder):
     base_path = anno_folder.split('json')[0]
@@ -878,14 +859,56 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
         if not  is_save_connection:
           anno['relations'] = anno['relations'][line_valid][:, line_valid[:wall_num]]
         pass
+
+      check_with_ply = 0
+      if check_with_ply:
+        show_ann_pcl(anno, file_path)
       return anno
 
-def show_connection(bboxes, relations):
+def show_ann_pcl(anno, json_path):
+  ply_path = json_path.replace('json', 'ply')
+  pcl = load_ply(ply_path)
+  lines = anno['lines'].reshape(-1,4)
+  line_scope = [ lines.reshape(-1,2).min(0), lines.reshape(-1,2).max(0)]
+  corners = anno['corners']
+  cor_scope = [corners.min(0), corners.max(0)]
+  pcl_scope = anno['pcl_scope']
+
+
+  lines_norm = lines.copy().reshape(-1,2) - pcl_scope[0:1, :2]
+  lines_norm = lines_norm.reshape(-1,4)
+  line_norm_scope = [ lines_norm.reshape(-1,2).min(0), lines_norm.reshape(-1,2).max(0)]
+
+  pcl[:,:2] -= pcl_scope[0:1,:2]
+
+  print(f'pcl_scope: \n{pcl_scope}')
+  print(f'cor_scope: \n{cor_scope}')
+  print(f'line_scope: \n{line_scope}')
+  print(f'line_norm_scope: \n{line_norm_scope}')
+  _show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines], obj_rep='RoLine2D_2p')
+  _show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines_norm], obj_rep='RoLine2D_2p')
+
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
+
+def show_connection_2(walls, bboxes, relations, img_file=None):
   n = bboxes.shape[0]
   for i in range(n):
     cids = np.where(relations[i])[0]
     #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'XYXYSin2', obj_colors=['white', 'green',])
-    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'XYXYSin2', obj_colors=['white', 'green', 'red'])
+    _show_objs_ls_points_ls( (512,512), [walls, walls[cids], bboxes[i:i+1]], 'XYXYSin2', obj_colors=['white', 'green', 'red'], obj_thickness=[1,5,2], out_file=img_file, only_save=img_file is not None)
+    if img_file is not None:
+      break
+  pass
+
+def show_connection(bboxes, relations, img_file=None):
+  n = bboxes.shape[0]
+  for i in range(n):
+    cids = np.where(relations[i])[0]
+    #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'XYXYSin2', obj_colors=['white', 'green',])
+    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'XYXYSin2', obj_colors=['white', 'green', 'red'], obj_thickness=3, out_file=img_file, only_save=img_file is not None)
+    if img_file is not None:
+      break
   pass
 
 def load_relations_1scene(anno_folder, filename, classes):
@@ -1142,7 +1165,7 @@ def save_unscanned_edges(data_path):
 
   pass
 
-def gen_relations(data_path):
+def gen_connections(data_path):
   obj_rep = 'XYXYSin2'
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'test.txt'
@@ -1155,7 +1178,7 @@ def gen_relations(data_path):
                 filter_edges= 0,
                 is_save_connection=is_save_connection,
                 )
-  beike.find_connection()
+  beike.find_connection(True)
   n = len(beike)
   print(f'find connections ok: {n}\n')
 
@@ -1171,16 +1194,15 @@ def last_steps():
 
   get_scene_pcl_scopes(data_path)
   cal_topview_npy_mean_std(data_path, base='TopView_VerD', normnorm_method='abs')
-  gen_relations(data_path)
-
+  gen_connections(data_path)
   gen_gts(data_path)
 
 def debug():
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
-  gen_gts(data_path)
-  #gen_images_from_npy(data_path)
+  #gen_gts(data_path)
+  gen_connections(data_path)
 
 if __name__ == '__main__':
   debug()

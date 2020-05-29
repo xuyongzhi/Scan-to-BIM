@@ -16,6 +16,7 @@ import time
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
 SHOW_3D = 1
+DEBUG = 1
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
@@ -211,7 +212,7 @@ class GraphEval():
 
   if 1:
     _all_out_types = [ 'bRefine_sAve' ]
-    _opti_graph = [1]
+    _opti_graph = [0]
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
@@ -232,8 +233,8 @@ class GraphEval():
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['Area_2/hallway_11']
-  scene_list = ['Area_4/hallway_3']
-  scene_list = None
+  scene_list = ['Area_4/lobby_2']
+  #scene_list = None
 
 
   def __init__(self, obj_rep, classes, filter_edges):
@@ -960,6 +961,9 @@ def draw_1img(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_th
   labels = all_gts.keys()
   for l in labels:
       cat = labels_to_cats[l]
+      if DEBUG:
+        if cat == 'window':
+          continue
       c = colors_map[cat]
       dets = all_dets[l]
       if dets.shape[0]==0:
@@ -1068,7 +1072,7 @@ def draw_1img(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_th
     gt_bboxes = aug_thickness( gt_bboxes, gt_cats )
     det_bboxes = aug_thickness( det_bboxes, det_cats )
 
-    wall_mask = [c in ['wall', 'beam', 'ceiling', 'door'] for c in gt_cats]
+    wall_mask = [c in ['wall', 'beam', 'window', 'door'] for c in gt_cats]
     floor_mask = [c=='floor' for c in gt_cats]
     gt_walls = gt_bboxes[wall_mask]
     gt_floors0 = gt_bboxes[floor_mask]
@@ -1081,7 +1085,7 @@ def draw_1img(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_th
 
     det_bboxes = get_z_by_iou(det_bboxes, det_cats, gt_bboxes, gt_cats, obj_rep)
 
-    wall_mask = [c in ['wall', 'beam', 'ceiling', 'door'] for c in det_cats]
+    wall_mask = [c in ['wall', 'beam', 'window', 'door'] for c in det_cats]
     floor_mask = [c=='floor' for c in det_cats]
     det_walls = det_bboxes[wall_mask][:,:-1]
     det_floors0 = det_bboxes[floor_mask][:,:-1]
@@ -1094,11 +1098,21 @@ def draw_1img(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_th
 
     #_show_3d_points_objs_ls( objs_ls=[gts, gts], obj_rep=obj_rep, obj_colors=[gt_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors='silver' )
     #dets, det_colors = manual_add(dets, det_colors)
+    if DEBUG:
+      dets, det_colors= rm_short(dets, det_colors)
     _show_3d_points_objs_ls( objs_ls=[dets, dets], obj_rep=obj_rep, obj_colors=[det_colors, 'navy'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors=['silver'] )
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
   pass
+
+def rm_short(bboxes, colors):
+  mask = bboxes[:,3] > 0
+  mask[[12,14, 17]] = False
+  # [10, 12, 13, 14, 17]
+  colors = [ colors[i] for i in range(len(mask)) if mask[i] ]
+  return bboxes[mask], colors
+
 
 def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
   import mmcv
@@ -1213,7 +1227,7 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
     gt_bboxes = aug_thickness( gt_bboxes, gt_cats )
     det_bboxes = aug_thickness( det_bboxes, det_cats )
 
-    wall_mask = [c in ['wall', 'beam', 'ceiling', 'door'] for c in gt_cats]
+    wall_mask = [c in ['wall', 'beam', 'window', 'door'] for c in gt_cats]
     floor_mask = [c=='floor' for c in gt_cats]
     gt_walls = gt_bboxes[wall_mask]
     gt_floors0 = gt_bboxes[floor_mask]
@@ -1226,7 +1240,7 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
 
     det_bboxes = get_z_by_iou(det_bboxes, det_cats, gt_bboxes, gt_cats, obj_rep)
 
-    wall_mask = [c in ['wall', 'beam', 'ceiling', 'door'] for c in det_cats]
+    wall_mask = [c in ['wall', 'beam', 'window', 'door'] for c in det_cats]
     floor_mask = [c=='floor' for c in det_cats]
     det_walls = det_bboxes[wall_mask][:,:-1]
     det_floors0 = det_bboxes[floor_mask][:,:-1]
@@ -1237,9 +1251,9 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
     n = len(det_colors)
     det_colors = [det_colors[j] for j in range(n) if non_floor_mask[j] ]
 
-    #_show_3d_points_objs_ls( objs_ls=[gts, gts], obj_rep=obj_rep, obj_colors=[gt_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors='silver' )
+    _show_3d_points_objs_ls( objs_ls=[gts, gts], obj_rep=obj_rep, obj_colors=[gt_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors='silver' )
     #dets, det_colors = manual_add(dets, det_colors)
-    _show_3d_points_objs_ls( objs_ls=[dets, dets], obj_rep=obj_rep, obj_colors=[det_colors, 'navy'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors=['silver'] )
+    #_show_3d_points_objs_ls( objs_ls=[dets, dets], obj_rep=obj_rep, obj_colors=[det_colors, 'navy'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors=['silver'] )
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
 
@@ -1272,8 +1286,8 @@ def apply_mask_on_ids(ids, mask):
 
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
-  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_AreaL12356'
-  filename = 'detection_11_Imgs.pickle'
+  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL123456'
+  filename = 'detection_6_Imgs.pickle'
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)
 

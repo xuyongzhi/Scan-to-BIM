@@ -14,8 +14,8 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
 ADD_FRAME = 0
 BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
-BOX_LINE_RADIUS = 1
-#BOX_LINE_RADIUS = 0.01
+#BOX_LINE_RADIUS = 1
+BOX_LINE_RADIUS = 0.01
 FONT_SCALE = 0.8
 
 #-2d general------------------------------------------------------------------------------
@@ -163,6 +163,7 @@ def _draw_points(img, points, color, point_thickness, point_scores=None, font_sc
         y = min(max(p[1] - 4, ofs), h-ofs)
         cv2.putText(img, label_text, (x, y),
                     cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     return img
 
 def _draw_lines(img, lines, color, point_thickness, line_scores=None, font_scale=0.5, text_color='green'):
