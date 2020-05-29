@@ -211,7 +211,7 @@ class GraphEval():
 
   if 1:
     _all_out_types = [ 'bRefine_sAve' ]
-    _opti_graph = [0]
+    _opti_graph = [1]
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
@@ -221,7 +221,7 @@ class GraphEval():
     _all_out_types = [ 'bInit_sRefine', 'bRefine_sAve', 'bRefine_sAve' ]
     _opti_graph = [0, 0, 1]
 
-  _score_threshold  = 0.5
+  _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
   #_opt_graph_cor_dis_thr = 15
@@ -233,7 +233,7 @@ class GraphEval():
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['Area_2/hallway_11']
   scene_list = ['0Kajc_nnyZ6K0cRGCQJW56']
-  #scene_list = None
+  scene_list = None
 
 
   def __init__(self, obj_rep, classes, filter_edges):
@@ -1289,7 +1289,7 @@ def main():
   dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL123456'
   filename = 'detection_6_Imgs.pickle'
 
-  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
+  dirname = 'bTPV_r50_fpn_XYXYSin2_RIou_Nla9_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe'
   filename = 'detection_90_Imgs.pickle'
 
   res_file = os.path.join( os.path.join(workdir, dirname), filename)

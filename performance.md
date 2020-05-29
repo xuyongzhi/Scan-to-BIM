@@ -1,6 +1,27 @@
 
 # RES
 
+# 29 May Beike BEV
+test model of 4 May
+
+| split |wall corner   |wall edge     |door corner   |door edge     |
+|-|-|-|-|-|
+| iou   |              |0.608         |              |0.519         |
+|gt num |           306|           376|           146|            73|
+|pre-rec|0.945 - 0.959 |0.911 - 0.865 |0.961 - 0.949 |0.952 - 0.941 |
+| iou   |              |0.732         |              |0.638         |
+|gt num |          2504|          3029|          1144|           572|
+
+# 4 May Beike BEV
+
+| split |wall corner   |wall edge     |door corner   |door edge     |
+|-|-|-|-|-|
+| train  |0.863 - 0.828 |0.772 - 0.663 |0.879 - 0.795 |0.848 - 0.767 |
+|gt num |           303|           368|           146|            73|
+| eval  |0.968 - 0.975 |0.954 - 0.941 |0.968 - 0.996 |0.968 - 0.995 |
+|gt num |          2475|          2980|          1142|           571|
+
+
 ## 29 
 
 - Bk 1File RoLine2D_UpRight_xyxy_sin2a

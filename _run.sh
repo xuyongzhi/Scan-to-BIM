@@ -5,26 +5,28 @@
 
 CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x_stem2.py
 
 
-wkdir=sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL123456
-CP=./work_dirs/${wkdir}/best_loss_1d8.pth
+wkdir=bTPV_r50_fpn_XYXYSin2_RIou_Nla9_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe
+CP=./work_dirs/${wkdir}/best.pth
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
-CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
+#CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 #CP=./checkpoints/beike/Apr23_WaDo_Bev.pth
-#CP=./checkpoints/sfd/Apr26_wabeco_Bev.pth
 
 
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=6
+BS=7
 DATA_TYPES=cnx
 FILTER_EDGES=1
 REL=0
-CLS=abcdif
-#CLS=ad
+CLS=abci
+CLS=ad
+#CLS=adc
 #CLS=a
+#CLS=abcdi
 #CLS=A
 
 #ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
