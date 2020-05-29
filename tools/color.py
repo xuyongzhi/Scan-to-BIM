@@ -56,7 +56,7 @@ def _label2color(labels):
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]
-  color_values = np.array(color_values)/255
+  #color_values = np.array(color_values)/255
   return color_values
 
 def color_val(color):

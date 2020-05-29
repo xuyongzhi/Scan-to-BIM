@@ -16,14 +16,14 @@ wkdir=SR50_fpnApts4_stanford_pcl_2d_wabecodowi_bs3_lr10_LsW510_cnx_DaugR2P1N1_Rf
 
 
 LR=0.01
-ROTATE=0
+ROTATE=1
 BASE_PLANE=32
 BS=6
 DATA_TYPES=cnx
 FILTER_EDGES=0
 REL=0
-CLS=abcdif
-#CLS=ad
+#CLS=abcdif
+CLS=ad
 #CLS=a
 #CLS=A
 
