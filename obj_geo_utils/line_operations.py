@@ -451,20 +451,21 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
 
     lineIds_per_cor = get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, corners.shape[0])
 
-    if flag=='debug':
-      print('\n\n')
-      print(lines[0:5])
-      n0 = lines.shape[0]
-      n1 = corners.shape[0]
-      print(f'\n{n0} lines -> {n1} corners')
-      _show_lines_ls_points_ls((512,512), [lines], [corners], 'random', 'random')
-      #for i in range(corners.shape[0]):
-      #  lids = lineIds_per_cor[i]
-      #  _show_lines_ls_points_ls((512,512), [lines, lines[lids].reshape(-1, lines.shape[1])], [corners[i:i+1]], ['white', 'green'], ['red'], point_thickness=2)
-      #for i in range(lines.shape[0]):
-      #  cor_ids = corIds_per_line[i]
-      #  _show_lines_ls_points_ls((512,512), [lines, lines[i:i+1]], [corners[cor_ids]], ['white', 'green'], ['red'], point_thickness=2)
-      pass
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    check = 1
+    if check:
+      dif = corners[None,:,:]  - corners[:,None,:]
+      dif = np.linalg.norm(dif, axis=2)
+      np.fill_diagonal(dif, 1000)
+      mask = dif < 1
+      n = corners.shape[0]
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      assert dif.min() > 1, "found duplicate corners"
+      if dif.min() < 1:
+        for i in range(n):
+          if mask[i].any():
+            ids_i = np.where(mask[i])
+            _show_objs_ls_points_ls( (512,512), points_ls=[corners[i:i+1], corners[mask[i]]], point_colors=['red', 'lime'] )
 
     return corners, labels_cor, corIds_per_line, num_cor_uq
 

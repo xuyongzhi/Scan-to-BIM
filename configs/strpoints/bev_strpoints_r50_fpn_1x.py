@@ -150,7 +150,7 @@ train_pipeline = [
     dict(type='PadToSameHW_ForRotation',obj_rep=_obj_rep,pad_border_make_bboxes_pos=True),
     dict(type='ResizeImgLine', obj_rep=_obj_rep, img_scale=(IMAGE_SIZE, IMAGE_SIZE), keep_ratio=True, obj_dim=_obj_dim),
     dict(type='RandomLineFlip', flip_ratio=0.7, obj_rep=_obj_rep, direction='random'),
-    dict(type='RandomRotate', rotate_ratio=0.7, obj_rep=_obj_rep),
+    dict(type='RandomRotate', rotate_ratio=0.9, obj_rep=_obj_rep),
     dict(type='NormalizeTopview', **img_norm_cfg),
     dict(type='DefaultFormatBundle'),
     dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_relations']),

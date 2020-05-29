@@ -22,7 +22,7 @@ class OLDColor(Enum):
     white = (255, 255, 255)
     black = (0, 0, 0)
 
-class Color(Enum):
+class Color_RGB(Enum):
     """An enum that defines common colors.
 
     Contains red, green, blue, cyan, yellow, magenta, white and black.
@@ -43,11 +43,18 @@ class Color(Enum):
     brown = (165, 42, 42)
     silver = (192,192,192)
 
+def _color(c, RGB=False):
+  col = Color_RGB[c].value
+  if RGB:
+    return col
+  else:
+    return (col[2], col[1], col[0])
+
 def get_random_color():
   # except black and white
   colors = ['red', 'green', 'blue','cyan','yellow','magenta']
   col = random.sample(colors, 1)[0]
-  return Color[col].value
+  return _color(col)
 
 def _label2color(labels):
   colors = ['red', 'lime', 'blue',    'cyan', 'purple',   'gray','yellow',  'magenta', 'navy', 'green', ]
@@ -70,9 +77,7 @@ def color_val(color):
         tuple[int]: A tuple of 3 integers indicating BGR channels.
     """
     if is_str(color):
-        return Color[color].value
-    elif isinstance(color, Color):
-        return color.value
+        return _color(color)
     elif isinstance(color, tuple):
         assert len(color) == 3
         for channel in color:

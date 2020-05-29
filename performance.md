@@ -1,7 +1,18 @@
 
 # RES
 
-# 29 May Beike BEV
+## 29 May Beike BEV New Data
+
+### 1 file no rotation
+1-28, 100-2, 200-1, 300-0.1, 500-0.001, 1000-0.0002, 2000-0.0001
+
+### 1 file random rotation
+1-28, 100-1, 300-0.2, 500-0.1, 1000-0.0007, 2000-0.0003
+
+### 5 file no rotation
+1-24, 100-2.6, 300-0.7, 500-0.2, 1000-0.05, 2000-0.037
+
+## 29 May Beike BEV
 test model of 4 May
 
 | split |wall corner   |wall edge     |door corner   |door edge     |
@@ -12,7 +23,7 @@ test model of 4 May
 | iou   |              |0.732         |              |0.638         |
 |gt num |          2504|          3029|          1144|           572|
 
-# 4 May Beike BEV
+## 4 May Beike BEV
 
 | split |wall corner   |wall edge     |door corner   |door edge     |
 |-|-|-|-|-|

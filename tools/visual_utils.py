@@ -137,7 +137,6 @@ def _draw_objs_ls_points_ls(img,
   if points_ls is not None:
     for i, points in enumerate(points_ls):
       img = _draw_points(img, points, point_colors[i], point_thickness[i], point_scores=point_scores_ls[i])
-  img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
   if out_file is not None:
     mmcv.imwrite(img, out_file)
     print('\n',out_file)
@@ -332,7 +331,7 @@ def _read_img(img_in):
   if isinstance(img_in, tuple):
     assert len(img_in) == 2
     img_size = img_in + (3,)
-    img_out = np.zeros(img_size, dtype=np.float32)
+    img_out = np.zeros(img_size, dtype=np.uint8)
   else:
     assert isinstance(img_in, np.ndarray)
     if img_in.ndim == 2:

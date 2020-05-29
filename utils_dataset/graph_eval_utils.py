@@ -720,9 +720,9 @@ class GraphEval():
   def eval_1img_1cls_by_corner(self, img, det_lines, gt_lines, scene_name, det_cat, det_points):
     num_gt = gt_lines.shape[0]
 
+    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, self.obj_rep)
     det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:self.obj_dim],\
                                           None, self.obj_rep)
-    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, self.obj_rep)
 
     cor_nums_gt_pos_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
 
@@ -744,12 +744,36 @@ class GraphEval():
           for bi in lineIds_b:
             if ai == bi:
               det_lineIds = ai
+
+        if det_lineIds == -1:
+          print(f'A gt match two det corners, but no det line')
+          det_ids = lineIds_a + lineIds_b
+          _show_objs_ls_points_ls(img[:,:,0], [det_lines[det_ids,:-1], gt_lines[i:i+1]], obj_colors=['red', 'lime'], obj_rep=self.obj_rep, obj_thickness=[2,1])
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+      if i == 11:
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
       line_detIds_per_gt.append(det_lineIds)
     line_detIds_per_gt = np.array(line_detIds_per_gt)
 
     num_ture_pos_line = (line_detIds_per_gt>=0).sum()
     line_nums_gt_pos_tp = [gt_lines.shape[0], det_lines.shape[0], num_ture_pos_line]
 
+    if 1:
+      #_show_objs_ls_points_ls(img[:,:,0], [det_lines[:,:-1], gt_lines], obj_colors=['random', 'white'], obj_rep=self.obj_rep, obj_thickness=[3,1])
+      n = gt_lines.shape[0]
+      for i in range(n):
+        j = line_detIds_per_gt[i]
+        if j>=0:
+          _show_objs_ls_points_ls(img[:,:,0], [det_lines[j:j+1,:-1], gt_lines[i:i+1], gt_lines], obj_colors=['red', 'lime', 'white'], obj_rep=self.obj_rep, obj_thickness=[8, 4, 1])
+        else:
+          _show_objs_ls_points_ls(img[:,:,0], [gt_lines[i:i+1], det_lines[:,:-1], gt_lines], obj_colors=['red', 'lime', 'white'], obj_rep=self.obj_rep, obj_thickness=[8, 4, 1])
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+        pass
+
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     if 1:
       #det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false
       eval_draws = self.save_eval_res_img_1cls(img, det_lines, gt_lines, det_corners, gt_corners,
@@ -1159,15 +1183,16 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
       img_det = _draw_objs_ls_points_ls(img_det,
               [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
               obj_rep,
-              [det_corners_pos, det_corners_neg],
+              [det_corners_neg, det_corners_pos],
               obj_colors=c,
               obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]],
               obj_cats_ls = ['', 'F'],
-              point_colors=['blue', 'yellow'],
+              point_colors=['yellow', 'blue'],
               obj_thickness=[2,2],
-              point_thickness=[3,3],
+              point_thickness=[6,2],
               out_file=None,
               text_colors_ls=['green', 'red'])
+      #mmcv.imshow(img_det)
 
       img_det_pts = _draw_objs_ls_points_ls(img_det_pts,
               [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
@@ -1181,6 +1206,7 @@ def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
               point_thickness=[3,3],
               out_file=None,
               text_colors_ls=['green', 'red'])
+
       #mmcv.imshow(img_det_pts)
 
       if img_gt is None:

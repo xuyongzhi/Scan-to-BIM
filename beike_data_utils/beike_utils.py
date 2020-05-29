@@ -906,7 +906,7 @@ def show_connection(bboxes, relations, img_file=None):
   for i in range(n):
     cids = np.where(relations[i])[0]
     #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'XYXYSin2', obj_colors=['white', 'green',])
-    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'XYXYSin2', obj_colors=['white', 'green', 'red'], obj_thickness=3, out_file=img_file, only_save=img_file is not None)
+    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'XYXYSin2', obj_colors=['white', 'green', 'red'], obj_thickness=[1, 4, 2], out_file=img_file, only_save=img_file is not None)
     if img_file is not None:
       break
   pass
