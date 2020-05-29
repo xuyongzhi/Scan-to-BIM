@@ -6,6 +6,7 @@ import numpy as np
 from mmcv.utils import is_str
 
 COLOR_MAP = {'wall': 'gray', 'beam':'brown', 'column':'blue', 'door':'cyan',  'window':'yellow',  'floor':'silver', 'ceiling':'navy'}
+COLOR_MAP = {'wall': 'lime', 'door': 'red', 'window':'blue'}
 
 class OLDColor(Enum):
     """An enum that defines common colors.

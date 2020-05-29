@@ -1,6 +1,5 @@
 import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
-from tools.debug_utils import _show_lines_ls_points_ls
 from configs.common import DIM_PARSE
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
 from obj_geo_utils.obj_utils import GraphUtils, OBJ_REPS_PARSE
@@ -15,7 +14,7 @@ import time
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
-SHOW_3D = 1
+SHOW_3D = 0
 DEBUG = 1
 
 def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
@@ -233,7 +232,7 @@ class GraphEval():
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['Area_2/hallway_11']
-  scene_list = ['Area_4/lobby_2']
+  scene_list = ['0Kajc_nnyZ6K0cRGCQJW56']
   #scene_list = None
 
 
@@ -277,7 +276,7 @@ class GraphEval():
 
   def __call__(self, results_datas, out_file):
     eval_fn = self.evaluate_by_corner
-    eval_fn = self.evaluate_by_iou
+    #eval_fn = self.evaluate_by_iou
     for out_type, opt_g in zip(self._all_out_types, self._opti_graph):
       self.out_type = out_type
       eval_fn(results_datas, out_file, out_type, opt_g)
@@ -285,7 +284,7 @@ class GraphEval():
   def evaluate_by_corner(self, results_datas, out_file, out_type, optimize_graph=True):
     assert self.obj_rep  == 'XYZLgWsHA'
     self.optimize_graph = optimize_graph
-    debug = 0
+    debug = 1
 
     self.num_img = len(results_datas)
     self.update_path(out_file)
@@ -372,7 +371,7 @@ class GraphEval():
 
             if debug and 0:
               print('raw prediction')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
+              _show_objs_ls_points_ls(img.shape[:2], [det_lines[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep)
 
 
             det_category_id = detections[label-1]['category_id']
@@ -386,10 +385,10 @@ class GraphEval():
             all_ious[label].append(ious)
             eval_draws_ls.append(eval_draws)
 
-            if debug or 0:
+            if debug and 0:
               print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines_merged[:,:5], gt_lines_l], line_colors=['green','red'])
+              _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], det_lines[:,:-1]], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
+              _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
             pass
         draw_eval_all_classes_1img(eval_draws_ls, self.obj_rep)
@@ -544,7 +543,7 @@ class GraphEval():
 
             if debug and 0:
               print('raw prediction')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
+              _show_objs_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], obj_colors=['green','red'])
 
 
             det_category_id = detections[label-1]['category_id']
@@ -558,8 +557,8 @@ class GraphEval():
 
             if debug or 0:
               print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], line_colors=['green','red'])
-              _show_lines_ls_points_ls(img[:,:,0], [det_lines_merged[:,:5], gt_lines_l], line_colors=['green','red'])
+              _show_objs_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], obj_colors=['green','red'])
+              _show_objs_ls_points_ls(img[:,:,0], [det_lines_merged[:,:5], gt_lines_l], obj_colors=['green','red'])
 
             pass
         res_filename = os.path.join( self.eval_dir_all_cls, scene_name)
@@ -802,12 +801,12 @@ class GraphEval():
   def debug_line_eval(self, det_lines, gt_lines, line_detIds_per_gt, obj_wise=1):
     pos_line_ids = line_detIds_per_gt[line_detIds_per_gt>=0]
     det_lines_pos = det_lines[pos_line_ids]
-    #_show_lines_ls_points_ls((512,512), [gt_lines, det_lines[:,:5], det_lines_pos[:,:5]], line_colors=['white','yellow', 'green'], line_thickness=[1,1,2])
+    #_show_objs_ls_points_ls((512,512), [gt_lines, det_lines[:,:5], det_lines_pos[:,:5]], obj_colors=['white','yellow', 'green'], line_thickness=[1,1,2])
     if obj_wise:
       for i in range(line_detIds_per_gt.shape[0]):
         j = line_detIds_per_gt[i]
         if j>=0:
-          _show_lines_ls_points_ls((512,512), [gt_lines[i:i+1], det_lines[j:j+1,:5]], line_colors=['white', 'green'])
+          _show_objs_ls_points_ls((512,512), [gt_lines[i:i+1], det_lines[j:j+1,:5]], obj_colors=['white', 'green'])
     pass
 
   def save_eval_res_img_1cls(self, img, det_lines, gt_lines, det_corners, gt_corners,
@@ -879,9 +878,9 @@ class GraphEval():
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt.png'
     img_file = os.path.join(self.eval_dir, img_name)
     if SHOW_EACH_CLASS:
-      _show_lines_ls_points_ls(img_size, [gt_lines_true, gt_lines_false],
+      _show_objs_ls_points_ls(img_size, [gt_lines_true, gt_lines_false],
                             points_ls=[gt_corners_true, gt_corners_false],
-                            line_colors=['green','red'],
+                            obj_colors=['green','red'],
                             line_thickness=1,
                             point_colors=['blue', 'yellow'],
                             point_thickness=2, out_file=img_file, only_save=1)
@@ -889,8 +888,8 @@ class GraphEval():
     img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_Det.png'
     img_file = os.path.join(self.eval_dir, img_name)
     if SHOW_EACH_CLASS:
-      _show_lines_ls_points_ls(img_size, [det_lines], [det_corners],
-                             line_colors='random', point_colors='random',
+      _show_objs_ls_points_ls(img_size, [det_lines], [det_corners],
+                             obj_colors='random', point_colors='random',
                              line_thickness=1, point_thickness=2,
                              out_file=img_file, only_save=1)
 
@@ -899,9 +898,9 @@ class GraphEval():
       img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalGt_wiht_input.png'
       img_file = os.path.join(self.eval_dir, img_name)
       if SHOW_EACH_CLASS:
-        _show_lines_ls_points_ls(img[:,:,0], [gt_lines_true, gt_lines_false],
+        _show_objs_ls_points_ls(img[:,:,0], [gt_lines_true, gt_lines_false],
                               points_ls=[gt_corners_true, gt_corners_false],
-                              line_colors=['green','red'],
+                              obj_colors=['green','red'],
                               line_thickness=1,
                               point_colors=['blue', 'yellow'],
                               point_thickness=2, out_file=img_file, only_save=1)
@@ -909,9 +908,9 @@ class GraphEval():
       img_name = f'{scene_name}_{cat}_Recall_0d{r}_Precision_0d{p}_EvalDet_with_input.png'
       img_file = os.path.join(self.eval_dir, img_name)
       if SHOW_EACH_CLASS:
-        _show_lines_ls_points_ls(img[:,:,0], [det_lines_pos, det_lines_neg],
+        _show_objs_ls_points_ls(img[:,:,0], [det_lines_pos, det_lines_neg],
                                 points_ls=[det_corners_pos, det_corners_neg],
-                              line_colors=['green', 'red'], line_thickness=1,
+                              obj_colors=['green', 'red'], line_thickness=1,
                               point_colors=['blue', 'yellow'], point_thickness=2,
                               out_file=img_file, only_save=1)
 
@@ -923,7 +922,7 @@ class GraphEval():
       for i in range(gt_corners.shape[0]):
         j = cor_detIds_per_gt[i]
         if j >= 0:
-          _show_lines_ls_points_ls((512,512), [gt_lines], [gt_corners[i:i+1], det_corners[j:j+1]], line_colors=['white'], point_colors=['green', 'red'], point_thickness=2)
+          _show_objs_ls_points_ls((512,512), [gt_lines], [gt_corners[i:i+1], det_corners[j:j+1]], obj_colors=['white'], point_colors=['green', 'red'], point_thickness=2)
     pass
     return cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false, det_points_pos, det_points_neg
 
@@ -1286,8 +1285,13 @@ def apply_mask_on_ids(ids, mask):
 
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
+
   dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL123456'
   filename = 'detection_6_Imgs.pickle'
+
+  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
+  filename = 'detection_90_Imgs.pickle'
+
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)
 

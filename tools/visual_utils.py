@@ -16,7 +16,7 @@ ADD_FRAME = 0
 BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
 #BOX_LINE_RADIUS = 1
 BOX_LINE_RADIUS = 0.01
-FONT_SCALE = 0.8
+FONT_SCALE = 0.5
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -137,6 +137,7 @@ def _draw_objs_ls_points_ls(img,
   if points_ls is not None:
     for i, points in enumerate(points_ls):
       img = _draw_points(img, points, point_colors[i], point_thickness[i], point_scores=point_scores_ls[i])
+  img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
   if out_file is not None:
     mmcv.imwrite(img, out_file)
     print('\n',out_file)
@@ -163,7 +164,6 @@ def _draw_points(img, points, color, point_thickness, point_scores=None, font_sc
         y = min(max(p[1] - 4, ofs), h-ofs)
         cv2.putText(img, label_text, (x, y),
                     cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     return img
 
 def _draw_lines(img, lines, color, point_thickness, line_scores=None, font_scale=0.5, text_color='green'):
