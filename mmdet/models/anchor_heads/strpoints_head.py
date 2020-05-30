@@ -2227,6 +2227,7 @@ def show_nms_out(det_bboxes, det_labels, obj_rep, num_classes):
   scores = score_refine.max(1)[0]
   mask = scores > 0.3
   _show_objs_ls_points_ls_torch( (512,512), [bboxes_refine[mask]], obj_rep, obj_scores_ls=[scores[mask]])
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_relations(gt_bboxes, gt_relations):

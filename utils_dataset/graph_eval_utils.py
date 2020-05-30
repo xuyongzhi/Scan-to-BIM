@@ -171,20 +171,15 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
   assert det_lines.shape[1] == obj_dim+1
   det_lines = filter_low_score_det(det_lines, score_threshold)
   labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
-  scores_i = det_lines[:,-1]
   if cat == 'wall':
-    det_lines_merged, scores_merged, labels_merged, _ = \
-      GraphUtils.optimize_graph(det_lines[:,:obj_dim], scores_i, labels_i, obj_rep=obj_rep,
-      opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length)
+      scores_i = det_lines[:,-1]
+      det_lines_merged, scores_merged = \
+        GraphUtils.optimize_wall_graph(det_lines[:,:obj_dim], scores_i, obj_rep=obj_rep,
+          opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length)
 
-    check_length = 0
-    if check_length:
-      # check length
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      det_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines[:,:5], 'XYXYSin2', 'RoLine2D_CenterLengthAngle' )[:,2]
-      merged_lines_length = OBJ_REPS_PARSE.encode_obj( det_lines_merged[:,:5], 'XYXYSin2', 'RoLine2D_CenterLengthAngle' )[:,2]
-
-    det_lines_merged = np.concatenate([det_lines_merged, scores_merged], axis=1)
+      det_lines_merged = np.concatenate([det_lines_merged, scores_merged.reshape(-1,1)], axis=1)
+      m = det_lines_merged.shape[0]
+      labels_merged = labels_i[:m]
   else:
     if cat in ['door', 'window']:
       det_lines_merged = align_bboxes_with_wall(det_lines, walls, cat, obj_rep)
@@ -224,7 +219,6 @@ class GraphEval():
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
-  #_opt_graph_cor_dis_thr = 15
   _min_out_length = 5
 
   _eval_img_scale_ratio = 1.0
@@ -1314,6 +1308,7 @@ def main():
   filename = 'detection_6_Imgs.pickle'
 
   dirname = 'bTPV_r50_fpn_XYXYSin2_RIou_Nla9_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe'
+  dirname = 'test'
   filename = 'detection_90_Imgs.pickle'
 
   res_file = os.path.join( os.path.join(workdir, dirname), filename)

@@ -122,11 +122,12 @@ train_cfg = dict(
         gaussian_weight=True,
         debug=False),
         )
+# ops/nms/nms_wrapper.py
 test_cfg = dict(
     nms_pre=1000,
     min_bbox_size=0,
     score_thr=0.2,
-    nms=dict(type='nms_rotated', iou_thr=0.3, min_width_length_ratio=0.3),
+    nms=dict(type='nms_rotated', iou_thr=0.2, min_width_length_ratio=0.3),
     max_per_img=150)
 #img_norm_cfg = dict(
 #    mean=[  0, 0,0,0],

@@ -49,6 +49,7 @@ def nms_rotated(dets, obj_rep, iou_thr, min_width_length_ratio=0.3, device_id=No
 
     return dets[inds, :], inds
 
+
 def nms_dsiou(dets, iou_thr, dis_weight, device_id=None):
     """Dispatch to either CPU or GPU NMS implementations.
 
@@ -203,3 +204,9 @@ def soft_nms(dets, iou_thr, method='linear', sigma=0.5, min_score=1e-3):
             inds, dtype=torch.long)
     else:
         return new_dets.astype(np.float32), inds.astype(np.int64)
+
+def nms_rotated_np(dets, obj_rep, iou_thr, min_width_length_ratio):
+  dets = torch.from_numpy(dets)
+  dets_new, ids = nms_rotated(dets, obj_rep, iou_thr, min_width_length_ratio)
+  dets_new = dets_new.numpy()
+  return dets_new, ids

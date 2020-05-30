@@ -30,6 +30,14 @@ def limit_period_np(val, offset, period):
   '''
   return val - np.floor(val / period + offset) * period
 
+def mean_angles(angles0, angles1, offset, period, weights0=1, weights1=1):
+    dif0 = angles0 - angles1
+    dif1 = limit_period_np(dif0, 0.5, period)
+    ofs = dif0 - dif1
+    ave0 = (angles0 * weights0 + (angles1 + ofs) * weights1) / (weights0 + weights1)
+    ave1 = limit_period_np(ave0, offset, period)
+    return ave1
+
 def angle_dif(val0, val1, aim_scope_id):
     '''
       aim_scope_id 0:[-pi/2, pi/2]

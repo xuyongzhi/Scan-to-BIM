@@ -125,18 +125,20 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1, ref='union'):
     pass
 
 
+  assert ref in ['union', 'bboxes1', 'bboxes1', 'min']
   if ref=='union':
     pass
-  elif ref == 'bboxes1':
+  else:
     area1 = bboxes1[:,2] * bboxes1[:,3]
     area2 = bboxes2[:,2] * bboxes2[:,3]
     intersection = (area1[:,None] + area2[None,:]) / (1/ious_2d + 1)
-    ious_2d = intersection / area1[:,None]
-  elif ref == 'bboxes2':
-    area1 = bboxes1[:,2] * bboxes1[:,3]
-    area2 = bboxes2[:,2] * bboxes2[:,3]
-    intersection = (area1[:,None] + area2[None,:]) / (1/ious_2d + 1)
-    ious_2d = intersection / area2[None,:]
+    if ref == 'bboxes1':
+      ref_area = area1[:,None]
+    elif ref == 'bboxes2':
+      ref_area = area2[:,None]
+    elif ref == 'min':
+      ref_area = np.minimum(area1[:,None], area2[None,:])
+    ious_2d = intersection / ref_area
   return ious_2d
 
 # Aligned 2d ---------------------------------------------------------------------------

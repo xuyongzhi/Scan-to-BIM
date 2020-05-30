@@ -5,7 +5,7 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
       vec_from_angle_with_x_np, angle_with_x
 import cv2
 import torch
-from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box, sort_four_corners, line_intersection_2d
+from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box, sort_four_corners, line_intersection_2d, mean_angles
 
 
 class OBJ_REPS_PARSE():
@@ -948,8 +948,137 @@ class OBJ_REPS_PARSE():
     return lines_3d
 
 class GraphUtils:
+
   @staticmethod
-  def optimize_graph(bboxes_in, scores=None, labels=None,
+  def optimize_wall_graph(walls, scores=None, obj_rep='XYZLgWsHA',
+                     opt_graph_cor_dis_thr=0, min_out_length=0):
+    assert obj_rep == 'XYZLgWsHA'
+
+    walls, scores = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    walls, scores = GraphUtils.merge_wall_corners(walls, scores, obj_rep, opt_graph_cor_dis_thr)
+    walls, scores = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    walls, scores = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.3)
+    walls, scores = GraphUtils.crop_long_walls(walls, scores, obj_rep)
+    return walls, scores
+
+  @staticmethod
+  def nms(walls, scores, obj_rep, iou_thr, min_width_length_ratio):
+    from mmdet.ops.nms.nms_wrapper import nms_rotated_np
+    walls = np.concatenate([walls, scores.reshape(-1,1)], axis=1)
+    walls, ids = nms_rotated_np(walls, obj_rep, iou_thr, min_width_length_ratio)
+    return walls[:,:-1], walls[:,-1]
+
+  @staticmethod
+  def crop_long_walls(walls_0, scores_0, obj_rep, iou_thres=0.2):
+    '''
+      walls_0: [n,7]
+      scores_0: [n]
+
+      walls_1: [m,7]
+      scores_1: [m]
+
+      m <= n
+
+      Merge condition:
+        1. iou > 0.3
+        2. angle dif < 1
+    '''
+    assert obj_rep == 'XYZLgWsHA'
+    from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    from obj_geo_utils.geometry_utils import points_in_lines
+
+    debug = 0
+    check_no_duplicate = 1
+
+    if check_no_duplicate:
+      ious = dsiou_rotated_3d_bbox_np(walls_0, walls_0, iou_w=1, size_rate_thres=0.3, ref='union')
+      np.fill_diagonal(ious, 0)
+      if ious.max() > 0.2:
+        i = np.argmax(ious.max(0))
+        j = np.argmax(ious[i])
+        wi = walls_0[i:i+1]
+        wj = walls_0[j:j+1]
+        _show_objs_ls_points_ls( (512,512), objs_ls=[walls_0, wi, wj], obj_rep=obj_rep, obj_thickness=[1,3,3], obj_colors=['white','lime','red'] )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+
+    iofs = dsiou_rotated_3d_bbox_np(walls_0, walls_0, iou_w=1, size_rate_thres=0.3, ref='min')
+    np.fill_diagonal(iofs, 0)
+    mask = iofs > 0.1
+    ids = np.where( mask.any(0))[0]
+    walls_1 = walls_0.copy()
+    for i in ids:
+      ids_i = np.where(mask[i])[0]
+      for j in ids_i:
+        iof_ij = iofs[i,j]
+        iou_ij = ious[i,j]
+        wi = walls_0[i:i+1]
+        wj = walls_0[j:j+1]
+
+        angle_dif = limit_period_np( walls_0[i,-1] - walls_0[j,-1], 0.5, np.pi )
+        angle_dif = np.abs(angle_dif)
+        if angle_dif > np.pi/4:
+          continue
+
+        si = scores_0[i]
+        sj = scores_0[j]
+
+        # merge i j
+        if wi[0, 3] > wj[0,3]:
+          long_w, short_w = wi, wj
+          long_w_idx = i
+        else:
+          long_w, short_w = wj, wi
+          long_w_idx = j
+
+        line_long = OBJ_REPS_PARSE.encode_obj(long_w, obj_rep, 'RoLine2D_2p').reshape(1,2,2)
+        short_in_long = points_in_lines(short_w[:,:2], line_long, 5).reshape(-1)
+        if not short_in_long:
+          continue
+
+        if debug:
+          print(f'iou: {iou_ij}, iof_ij: {iof_ij} \nangle_dif: {angle_dif}')
+          print(f'si:{si}, sj:{sj}')
+          _show_objs_ls_points_ls( (512,512), objs_ls=[walls_0, wi, wj], obj_rep=obj_rep, obj_thickness=[1,3,3], obj_colors=['white','lime','red'] )
+
+
+        wall_long_new = crop_two_parallel_overlaip_wall(long_w, short_w, obj_rep)
+        walls_1[long_w_idx] = wall_long_new
+
+        mask[j,i] = False
+
+        if debug:
+          _show_objs_ls_points_ls( (512,512), objs_ls=[wall_long_new, walls_1], obj_rep=obj_rep, obj_thickness=[4,1], obj_colors=['white','red'] )
+        pass
+
+    return walls_1, scores_0
+
+  @staticmethod
+  def rm_short_walls(walls_0, scores_0, obj_rep, min_out_length):
+    mask = walls_0[:,3] > min_out_length
+    if 1:
+      rm_walls = walls_0[mask==False]
+    return walls_0[mask], scores_0[mask]
+
+  @staticmethod
+  def merge_wall_corners(walls_0, scores_0, obj_rep, min_cor_dis_thr):
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    n = walls_0.shape[0]
+    corners_0 = OBJ_REPS_PARSE.encode_obj(walls_0, obj_rep, 'RoLine2D_2p')
+    corners_0 = corners_0.reshape(-1,2)
+    scores_cor_0 = np.repeat(scores_0.reshape(-1,1), 2, 1).reshape(-1)
+    corners_1, scores_cor_1 = merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_cor_0)
+    walls_1 = OBJ_REPS_PARSE.encode_obj( corners_1.reshape(n,4), 'RoLine2D_2p', obj_rep )
+    scores_1 = scores_cor_1.reshape(n,2).mean(1)
+    if 0:
+      #_show_objs_ls_points_ls((512,512), objs_ls=[walls_0, walls_1], obj_colors=['red','lime'], obj_rep=obj_rep, obj_thickness=[2,1])
+      _show_objs_ls_points_ls((512,512), objs_ls=[walls_0], obj_colors=['random'], obj_rep=obj_rep, obj_thickness=1)
+      _show_objs_ls_points_ls((512,512), objs_ls=[walls_1], obj_colors=['random'], obj_rep=obj_rep, obj_thickness=1)
+    return  walls_1, scores_1
+
+  @staticmethod
+  def old_optimize_wall_graph(bboxes_in, scores=None, labels=None,
                      obj_rep='XYXYSin2',
                      opt_graph_cor_dis_thr=0, min_out_length=0):
     lines_in = OBJ_REPS_PARSE.encode_obj(bboxes_in, obj_rep, 'XYXYSin2')
@@ -1153,6 +1282,22 @@ class GraphUtils:
     return new_lines
 
 
+def crop_two_parallel_overlaip_wall(long_w, short_w, obj_rep):
+  corners_l = OBJ_REPS_PARSE.encode_obj(long_w, obj_rep, 'RoLine2D_2p').reshape(2,2)
+  corners_s = OBJ_REPS_PARSE.encode_obj(short_w, obj_rep, 'RoLine2D_2p').reshape(2,2)
+  dis = corners_s[:,None,:] - corners_l[None,:,:]
+  dis = np.linalg.norm(dis, axis=-1)
+  # idx_s is the idx of corners in short wall, that should crop long wall
+  idx_s = np.argmax( dis.min(1) )
+  idx_l = np.argmax( dis[1-idx_s] )
+  cor_new_long = np.concatenate( [ corners_l[idx_l][None], corners_s[idx_s][None] ], 0 ).reshape(1,4)
+  new_long_w = OBJ_REPS_PARSE.encode_obj(cor_new_long, 'RoLine2D_2p', obj_rep)
+
+  if 0:
+      from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+      _show_objs_ls_points_ls( (512,512), objs_ls=[long_w, short_w, new_long_w], obj_rep=obj_rep, obj_thickness=[8, 4, 1], obj_colors=['white','lime','red'] )
+  return new_long_w
+
 def round_positions(data, scale=1000):
   return np.round(data*scale)/scale
 
@@ -1228,7 +1373,7 @@ def merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_0=None):
       weights = scores_0[ids_i] / scores_0[ids_i].sum()
       merged_sco = ( scores_0[ids_i] * weights).sum()
       scores_1[ids_i] = merged_sco
-      merged_cor = ( corners_0[ids_i] * weights).sum(axis=0)
+      merged_cor = ( corners_0[ids_i] * weights[:,None]).sum(axis=0)
     else:
       merged_cor = ( corners_0[ids_i] ).mean(axis=0)
     corners_1[ids_i] = merged_cor
