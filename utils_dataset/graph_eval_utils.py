@@ -1309,7 +1309,7 @@ def main():
 
   dirname = 'bTPV_r50_fpn_XYXYSin2_RIou_Nla9_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe'
   dirname = 'test'
-  filename = 'detection_90_Imgs.pickle'
+  filename = 'detection_10_Imgs.pickle'
 
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)

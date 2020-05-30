@@ -100,7 +100,7 @@ train_cfg = dict(
             type='MaxIoUAssigner',
             pos_iou_thr=0.7,
             neg_iou_thr=0.4,
-            min_pos_iou=0.1,
+            min_pos_iou=0.15,
             ignore_iof_thr=-1,
             overlap_fun='dil_iou_dis_rotated_3d',
             obj_rep=_obj_rep),
@@ -223,7 +223,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs = 1020
+total_epochs =  2010
 lr_config = dict(
     policy='step',
     warmup='linear',
