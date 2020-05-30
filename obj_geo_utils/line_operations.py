@@ -3,9 +3,9 @@ import numpy as np
 import mmcv
 from .geometry_utils import sin2theta_np, angle_with_x_np
 import cv2
-from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls, _draw_lines_ls_points_ls
+#from tools.debug_utils import _show_img_with_norm, _show_lines_ls_points_ls, _show_3d_points_bboxes_ls, _draw_lines_ls_points_ls
 import torch
-from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, merge_close_corners
 from tools.visual_utils import _show_objs_ls_points_ls
 #--------------------------------------------------------------------------------
 
@@ -409,7 +409,7 @@ def gen_corners_from_lines_th(lines, labels, obj_rep):
       show_lines(lines.cpu().data.numpy(), (512,512), points=lines_out)
     return lines_out, labels_out
 
-def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
+def gen_corners_from_lines_np(lines, labels, obj_rep, min_cor_dis_thr,  flag=''):
     '''
     lines: [n,5]
     labels: [n,1/2]: 1 for label only, 2 for label and score
@@ -435,11 +435,13 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
       lc = labels.shape[1]
 
       labels_1 = labels.reshape(-1,lc)
-      lines1 = np.concatenate([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], axis=1)
+      lines1 = np.concatenate([lines0[:,0], labels_1, lines0[:,1], labels_1], axis=1)
       corners1 = lines1.reshape(-1,2+lc)
     else:
       corners1 = lines0.reshape(-1,2)
-    corners1 = round_positions(corners1, 100)
+    corners1, _ = merge_close_corners(corners1, min_cor_dis_thr, labels)
+
+    corners1 = round_positions(corners1, 1000)
     corners_uq, unique_indices, inds_inverse = np.unique(corners1, axis=0, return_index=True, return_inverse=True)
     num_cor_uq = corners_uq.shape[0]
     corners = corners_uq[:,:2]
@@ -451,23 +453,27 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, flag=''):
 
     lineIds_per_cor = get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, corners.shape[0])
 
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    check = 1
-    if check:
+    is_duplicate = find_duplicate_corners(corners, min_cor_dis_thr, 'B')
+
+    return corners, labels_cor, corIds_per_line, num_cor_uq
+
+def find_duplicate_corners(corners, min_cor_dis_thr, flag):
       dif = corners[None,:,:]  - corners[:,None,:]
       dif = np.linalg.norm(dif, axis=2)
       np.fill_diagonal(dif, 1000)
-      mask = dif < 1
       n = corners.shape[0]
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      assert dif.min() > 1, "found duplicate corners"
-      if dif.min() < 1:
+      min_dif = dif.min()
+      print(f'min_dif: {min_dif} - {flag}')
+      is_duplicate = min_dif < min_cor_dis_thr
+
+      if is_duplicate:
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        mask = dif < min_cor_dis_thr
         for i in range(n):
           if mask[i].any():
             ids_i = np.where(mask[i])
             _show_objs_ls_points_ls( (512,512), points_ls=[corners[i:i+1], corners[mask[i]]], point_colors=['red', 'lime'] )
-
-    return corners, labels_cor, corIds_per_line, num_cor_uq
+      return is_duplicate
 
 def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
   '''
@@ -487,7 +493,7 @@ def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
   #  lineIds_per_cor[i] = np.array(lineIds_per_cor[i])
   return lineIds_per_cor
 
-def optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr):
+def Unused_optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr):
   '''
     lines_in: [n,5]
   '''
@@ -530,7 +536,7 @@ def optimize_graph(lines_in, scores, labels, obj_rep, opt_graph_cor_dis_thr):
 
   return lines_merged, line_scores_merged, line_labels_merged
 
-def merge_corners(corners_0, scores_0, opt_graph_cor_dis_thr=3):
+def Unused_merge_corners(corners_0, scores_0, opt_graph_cor_dis_thr=3):
   diss = corners_0[None,:,:] - corners_0[:,None,:]
   diss = np.linalg.norm(diss, axis=2)
   mask = diss < opt_graph_cor_dis_thr

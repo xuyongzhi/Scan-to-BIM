@@ -971,6 +971,7 @@ class GraphUtils:
       After optimization, all lines with length < min_out_length are deleted.
     '''
     from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    from obj_geo_utils.line_operations import gen_corners_from_lines_np
     assert opt_graph_cor_dis_thr>0
     num_in = lines_in.shape[0]
 
@@ -990,23 +991,28 @@ class GraphUtils:
       lab_sco_lines = None
     else:
       lab_sco_lines = np.concatenate([labels.reshape(num_line,1), scores.reshape(num_line,1)], axis=1)
-    corners_in, lab_sco_cors, corIds_per_line, num_cor_uq_org = \
-          GraphUtils.gen_corners_from_lines_np(lines_in, lab_sco_lines, 'XYXYSin2')
+    #corners_in, lab_sco_cors, corIds_per_line, num_cor_uq_org = \
+    #      gen_corners_from_lines_np(lines_in, lab_sco_lines, 'XYXYSin2', min_cor_dis_thr=1)
+
+    corners_in = OBJ_REPS_PARSE.encode_obj(lines_in, 'XYXYSin2', 'RoLine2D_2p').reshape(-1,2)
+
     if scores is None and labels is None:
       labels_cor = None
       scores_cor = None
       corners_labs = corners_in
     else:
-      labels_cor = lab_sco_cors[:,0]
-      scores_cor = lab_sco_cors[:,1]
+      labels_cor = np.stack( [labels, labels] ).reshape(-1,1)
+      scores_cor = np.stack( [scores, scores] ).reshape(-1,1)
       corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
-    corners_merged, cor_scores_merged, cor_labels_merged = merge_corners(
-            corners_labs, scores_cor, opt_graph_cor_dis_thr=opt_graph_cor_dis_thr)
+
+      #labels_cor = lab_sco_cors[:,0]
+      #scores_cor = lab_sco_cors[:,1]
+      #corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
+    corners_merged, cor_scores_merged = merge_close_corners(
+            corners_in, opt_graph_cor_dis_thr, labels_cor, scores_cor )
     #corners_merged = round_positions(corners_merged, 1000)
-    corners_merged_per_line = corners_merged[corIds_per_line]
-
-    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line.reshape(-1,4), 'RoLine2D_2p', 'XYXYSin2')
-
+    corners_merged_per_line = corners_merged.reshape(-1,4)
+    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line, 'RoLine2D_2p', 'XYXYSin2')
 
     # remove short lines
     line_length_out = np.linalg.norm(lines_merged[:,2:4] - lines_merged[:,:2], axis=1)
@@ -1021,9 +1027,8 @@ class GraphUtils:
       line_labels_merged = None
       line_scores_merged = None
     else:
-      line_labels_merged = (cor_labels_merged[corIds_per_line][:,0]/100).astype(np.int32)
-      line_scores_merged = cor_scores_merged[corIds_per_line].mean(axis=1)[:,None]
-      line_labels_merged = line_labels_merged[valid_inds]
+      line_scores_merged = cor_scores_merged.reshape(-1,2).mean(axis=1)[:,None]
+      line_labels_merged = labels[valid_inds]
       line_scores_merged = line_scores_merged[valid_inds]
 
     if valid_inds_final.shape[0] != lines_merged.shape[0]:
@@ -1079,7 +1084,7 @@ class GraphUtils:
     return lines_merged, line_scores_merged, line_labels_merged, valid_inds_final
 
   @staticmethod
-  def gen_corners_from_lines_np(lines, labels=None, obj_rep='XYXYSin2', flag=''):
+  def Unused_gen_corners_from_lines_np(lines, labels=None, obj_rep='XYXYSin2', flag=''):
       '''
       lines: [n,5]
       labels: [n,1/2]: 1 for label only, 2 for label and score
@@ -1089,6 +1094,7 @@ class GraphUtils:
       corIds_per_line: [n,2]
       num_cor_uq: m
       '''
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       if lines.shape[0] == 0:
         if labels is None:
           labels_cor = None
@@ -1168,37 +1174,66 @@ def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):
   #  lineIds_per_cor[i] = np.array(lineIds_per_cor[i])
   return lineIds_per_cor
 
-def merge_corners(corners_0, scores_0=None, opt_graph_cor_dis_thr=3):
+def merge_close_corners(corners_0, min_cor_dis_thr, labels_0=None, scores_0=None):
+  if labels_0 is None:
+    return merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_0)
+  else:
+    assert corners_0.shape[0] == labels_0.shape[0]
+    corners_1 = corners_0.copy()
+    if scores_0 is not None:
+      scores_1 = scores_0.copy()
+    else:
+      scores_1 = scores_0
+    l0 = labels_0.min()
+    l1 = labels_0.max()
+    for l in range(l0,l1+1):
+      mask = (labels_0 == l).reshape(-1)
+      if scores_0 is not None:
+        s0 = scores_0[mask]
+      else:
+        s0 = None
+      c1, s1 = merge_corners_1_cls(corners_0[mask], min_cor_dis_thr, s0)
+      corners_1[mask] = c1
+      if scores_0 is not None:
+        scores_1[mask] = s1
+    return corners_1, scores_1
+
+def merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_0=None):
+  '''
+  In:
+    corners_0: [n,2] [x,y]
+    scores_0:[n]
+  Out:
+    corners_merged: [n,2]
+    scores_merged: [n]
+  '''
+  assert corners_0.ndim == 2
+  nc, nd = corners_0.shape
+  assert nd == 2
+  if scores_0 is not None:
+    assert scores_0.shape[0] == nc
+    scores_1 = scores_0.copy()
+  else:
+    scores_1 = scores_0
+
   diss = corners_0[None,:,:] - corners_0[:,None,:]
   diss = np.linalg.norm(diss, axis=2)
-  mask = diss < opt_graph_cor_dis_thr
-  nc = corners_0.shape[0]
+  mask = diss < min_cor_dis_thr
   merging_ids = []
-  corners_1 = []
-  scores_1 = []
+  corners_1 = corners_0.copy()
   for i in range(nc):
     ids_i = np.where(mask[i])[0]
     merging_ids.append(ids_i)
     if scores_0 is not None:
       weights = scores_0[ids_i] / scores_0[ids_i].sum()
       merged_sco = ( scores_0[ids_i] * weights).sum()
-      scores_1.append(merged_sco)
-      merged_cor = ( corners_0[ids_i] * weights[:,None]).sum(axis=0)
+      scores_1[ids_i] = merged_sco
+      merged_cor = ( corners_0[ids_i] * weights).sum(axis=0)
     else:
       merged_cor = ( corners_0[ids_i] ).mean(axis=0)
-    corners_1.append(merged_cor)
+    corners_1[ids_i] = merged_cor
     pass
-  corners_1 = np.array(corners_1).reshape((-1, corners_0.shape[1]))
-  if scores_0 is not None:
-    scores_merged = np.array(scores_1)
-  else:
-    scores_merged = None
-  if corners_1.shape[1] == 2:
-    labels_merged = None
-  else:
-    labels_merged = corners_1[:,2]
-  corners_merged = corners_1[:,:2]
-  return corners_merged, scores_merged, labels_merged
+  return corners_1, scores_1
 
 def merge_lines_intersect(lines, obj_rep, pairs):
     assert obj_rep == 'XYXYSin2'

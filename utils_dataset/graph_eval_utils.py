@@ -718,11 +718,13 @@ class GraphEval():
     return ious
 
   def eval_1img_1cls_by_corner(self, img, det_lines, gt_lines, scene_name, det_cat, det_points):
-    num_gt = gt_lines.shape[0]
+    show_missed_gt = 0
+    show_all_matching = 0
 
-    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, self.obj_rep)
+    num_gt = gt_lines.shape[0]
     det_corners, cor_scores, det_cor_ids_per_line,_ = gen_corners_from_lines_np(det_lines[:,:self.obj_dim],\
-                                          None, self.obj_rep)
+                                          None, self.obj_rep, self._opt_graph_cor_dis_thr//2)
+    gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, self.obj_rep, self._opt_graph_cor_dis_thr//2)
 
     cor_nums_gt_pos_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
 
@@ -745,22 +747,19 @@ class GraphEval():
             if ai == bi:
               det_lineIds = ai
 
-        if det_lineIds == -1:
+        if show_missed_gt and det_lineIds == -1:
           print(f'A gt match two det corners, but no det line')
           det_ids = lineIds_a + lineIds_b
           _show_objs_ls_points_ls(img[:,:,0], [det_lines[det_ids,:-1], gt_lines[i:i+1]], obj_colors=['red', 'lime'], obj_rep=self.obj_rep, obj_thickness=[2,1])
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
-      if i == 11:
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        pass
       line_detIds_per_gt.append(det_lineIds)
     line_detIds_per_gt = np.array(line_detIds_per_gt)
 
     num_ture_pos_line = (line_detIds_per_gt>=0).sum()
     line_nums_gt_pos_tp = [gt_lines.shape[0], det_lines.shape[0], num_ture_pos_line]
 
-    if 1:
+    if show_all_matching:
       #_show_objs_ls_points_ls(img[:,:,0], [det_lines[:,:-1], gt_lines], obj_colors=['random', 'white'], obj_rep=self.obj_rep, obj_thickness=[3,1])
       n = gt_lines.shape[0]
       for i in range(n):
@@ -773,7 +772,6 @@ class GraphEval():
           pass
         pass
 
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     if 1:
       #det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false
       eval_draws = self.save_eval_res_img_1cls(img, det_lines, gt_lines, det_corners, gt_corners,
