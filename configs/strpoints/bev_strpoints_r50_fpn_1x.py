@@ -182,7 +182,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  img_prefix_test = img_prefix_train
+  #img_prefix_test = img_prefix_train
 
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
@@ -220,7 +220,8 @@ data = dict(
         classes=classes,
         filter_edges=filter_edges))
 # optimizer
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+#optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 total_epochs =  2010

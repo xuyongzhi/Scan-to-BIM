@@ -26,8 +26,8 @@ FILTER_EDGES=0
 REL=1
 
 #CLS=abcdif
-CLS=ad
-#CLS=a
+#CLS=ad
+CLS=a
 #CLS=A
 
 #CLS=acd
