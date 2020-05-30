@@ -231,7 +231,7 @@ lr_config = dict(
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.4), int(total_epochs*0.7)])
-checkpoint_config = dict(interval=20)
+checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -257,5 +257,5 @@ workflow = [('train', 5), ('val', 1)]
 if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
-  checkpoint_config = dict(interval=5)
+  checkpoint_config = dict(interval=100)
 
