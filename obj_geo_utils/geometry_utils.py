@@ -38,7 +38,15 @@ def mean_angles(angles0, angles1, offset, period, weights0=1, weights1=1):
     ave1 = limit_period_np(ave0, offset, period)
     return ave1
 
-def angle_dif(val0, val1, aim_scope_id):
+def angle_dif_by_period_np(val0, val1, aim_scope_id):
+    dif = val1 - val0
+    if aim_scope_id == 0:
+      dif = limit_period_np(dif, 0.5, math.pi)
+    else:
+      raise NotImplementedError
+    return dif
+
+def angle_dif_by_period(val0, val1, aim_scope_id):
     '''
       aim_scope_id 0:[-pi/2, pi/2]
     '''

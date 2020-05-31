@@ -1681,6 +1681,13 @@ class StrPointsHead(nn.Module):
         #ave_cls_scores.append( sum(tmp) / len(tmp) )
       return ave_cls_scores, cls_scores_refine_final
 
+    def get_relations(self, rel_scores):
+        if self.use_sigmoid_cls:
+            scores = rel_scores.sigmoid()
+        else:
+            scores = rel_scores.softmax(-1)
+        return scores
+
     def get_bboxes(self,
                    cls_scores,
                    pts_preds_init,

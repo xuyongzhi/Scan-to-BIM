@@ -2,12 +2,13 @@ import pickle
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from configs.common import DIM_PARSE
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
-from obj_geo_utils.obj_utils import GraphUtils, OBJ_REPS_PARSE
+from obj_geo_utils.obj_utils import GraphUtils, OBJ_REPS_PARSE, find_wall_wall_connection
 from obj_geo_utils.geometry_utils import get_cf_from_wall
 from collections import defaultdict
 import os
 import numpy as np
-from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
+from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,\
+  _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 import torch
 import time
@@ -98,7 +99,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         #assert img_id == i_img
         result = results[i_img]
         det_result = result['det_bboxes']
-        det_relations = result['det_relations']
+        num_cat = len(det_result)
         if result['gt_bboxes'] is not None:
             # test mode
           gt_bboxes = result['gt_bboxes']
@@ -118,7 +119,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
           pass
 
         detections_all_labels = []
-        for label in range(1, len(det_result)+1):
+        for label in range(1, num_cat+1):
           det_lines_multi_stages = det_result[label-1]
           det_lines = det_lines_multi_stages
           category_id = dataset.cat_ids[label]
@@ -140,7 +141,10 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
 
           detections_all_labels.append(detection_l)
         res_data['detections'] = detections_all_labels
-        res_data['det_relations'] = det_relations
+
+        # parse det_relations by classes
+        det_relations_0 = result['det_relations']
+        res_data['det_relations'] = split_relations(det_relations_0, det_result, catid_2_cat, dataset)
 
         # optimize
         results_datas.append( res_data )
@@ -152,8 +156,27 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
 
     eval_graph( out_file )
 
+def split_relations(det_relations_0, det_result, catid_2_cat, dataset):
+    det_relations = {}
+    num_det_cats = [d.shape[0] for d in det_result]
+    assert catid_2_cat[1] == 'wall'
+    num_wall = num_det_cats[0]
+    s = 0
+    num_cat = len(det_result)
+    for label in range(1, num_cat+1):
+      category_id = dataset.cat_ids[label]
+      cat = catid_2_cat[category_id]
+      e = s+num_det_cats[label-1]
+      rel_0 = det_relations_0[s:e, 0:num_wall]
+      rel_1 = det_relations_0[0:num_wall, s:e].T
+      dif_01 = np.abs( rel_0 - rel_1 )
+      rel = (rel_0 + rel_1) /2
+      det_relations[cat] = rel
+      s = e
+    return det_relations
 
-def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_cor_dis_thr, obj_rep, min_out_length, walls=None):
+def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
+              opt_graph_cor_dis_thr, obj_rep, min_out_length, walls=None):
   '''
   The input detection belong to one class
   det_lines: [n,6]
@@ -171,16 +194,18 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
   assert det_lines.shape[1] == obj_dim+1
   det_lines = filter_low_score_det(det_lines, score_threshold)
   labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
+  #show_connectivity(walls[:,:-1], det_lines[:,:-1], det_relations[cat], self.obj_rep)
   if cat == 'wall':
       scores_i = det_lines[:,-1]
-      det_lines_merged, scores_merged = \
+      det_lines_merged, scores_merged, ids = \
         GraphUtils.optimize_wall_graph(det_lines[:,:obj_dim], scores_i, obj_rep=obj_rep,
-          opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length)
+          opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length )
 
       det_lines_merged = np.concatenate([det_lines_merged, scores_merged.reshape(-1,1)], axis=1)
       m = det_lines_merged.shape[0]
       labels_merged = labels_i[:m]
   else:
+    ids = None
     if cat in ['door', 'window']:
       det_lines_merged = align_bboxes_with_wall(det_lines, walls, cat, obj_rep)
     else:
@@ -188,7 +213,7 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat, opt_graph_c
     labels_merged = labels_i
   t1 = time.time()
   t = t1 - t0
-  return det_lines_merged, labels_merged, t
+  return det_lines_merged, labels_merged, ids, t
 
 def eval_graph(res_file):
   with open(res_file, 'rb') as f:
@@ -226,8 +251,8 @@ class GraphEval():
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['Area_2/hallway_11']
-  scene_list = ['0Kajc_nnyZ6K0cRGCQJW56']
-  scene_list = None
+  scene_list = ['5pJn2a9zfRzInJ7IwpIzQd']
+  #scene_list = None
 
 
   def __init__(self, obj_rep, classes, filter_edges):
@@ -280,6 +305,7 @@ class GraphEval():
     self.optimize_graph = optimize_graph
     debug = 1
 
+    with_rel = 'det_relations' in results_datas[0]
     self.num_img = len(results_datas)
     self.update_path(out_file)
     all_cor_nums_gt_pos_tp = defaultdict(list)
@@ -298,6 +324,8 @@ class GraphEval():
           pass
 
         detections = res_data['detections']
+        if with_rel:
+          det_relations = res_data['det_relations']
         img_meta = res_data['img_meta']
         is_pcl = 'input_style' in img_meta and img_meta['input_style'] == 'pcl'
         if not is_pcl:
@@ -353,15 +381,28 @@ class GraphEval():
 
             det_lines[:,:2] = det_lines[:,:2] * self._eval_img_scale_ratio + self._eval_img_size_aug
             det_lines[:,3] = det_lines[:,3] * self._eval_img_scale_ratio
+
+
             if optimize_graph:
-              det_lines_merged, _, t = post_process_bboxes_1cls(det_lines,
+              det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines,
                   self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
-                  self.dim_parse.OBJ_REP, self._min_out_length, walls=walls)
+                  self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
               time_post += t
+
+              if cat == 'wall':
+                  for c in det_relations:
+                    if c == 'wall':
+                      det_relations[c] = det_relations[c][ids_merged, :][:, ids_merged]
+                    else:
+                      det_relations[c] = det_relations[c][:, ids_merged]
+
+                  det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged, det_relations[cat], self.obj_rep)
+
             else:
               det_lines_merged = filter_low_score_det(det_lines, self._score_threshold)
             if cat == 'wall':
               walls = det_lines_merged
+            #show_connectivity(walls[:,:-1], det_lines_merged[:,:-1], det_relations[cat], self.obj_rep)
 
             if debug and 0:
               print('raw prediction')
@@ -525,7 +566,7 @@ class GraphEval():
             det_lines[:,:2] = det_lines[:,:2] * self._eval_img_scale_ratio + self._eval_img_size_aug
             det_lines[:,3] = det_lines[:,3] * self._eval_img_scale_ratio
             if optimize_graph:
-              det_lines_merged, _, t = post_process_bboxes_1cls(det_lines,
+              det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines,
                   self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
                   self.dim_parse.OBJ_REP, self._min_out_length, walls=walls)
               time_post += t
@@ -1304,12 +1345,9 @@ def apply_mask_on_ids(ids, mask):
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
 
-  dirname = 'sTPV_r50_fpn_Rect4CornersZ0Z1_Apts4_stanford2d_wabecodowifl_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe_AreaL123456'
-  filename = 'detection_6_Imgs.pickle'
-
-  dirname = 'bTPV_r50_fpn_XYXYSin2_RIou_Nla9_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Fe'
-  dirname = 'test'
+  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
   filename = 'detection_10_Imgs.pickle'
+  filename = 'detection_90_Imgs.pickle'
 
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   eval_graph(res_file)

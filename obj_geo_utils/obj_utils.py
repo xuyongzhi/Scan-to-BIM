@@ -5,7 +5,8 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
       vec_from_angle_with_x_np, angle_with_x
 import cv2
 import torch
-from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box, sort_four_corners, line_intersection_2d, mean_angles
+from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box,\
+  sort_four_corners, line_intersection_2d, mean_angles, angle_dif_by_period_np
 
 
 class OBJ_REPS_PARSE():
@@ -954,23 +955,28 @@ class GraphUtils:
                      opt_graph_cor_dis_thr=0, min_out_length=0):
     assert obj_rep == 'XYZLgWsHA'
 
-    walls, scores = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    ids_org = np.arange(walls.shape[0])
+    walls, scores, ids0 = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
     walls, scores = GraphUtils.merge_wall_corners(walls, scores, obj_rep, opt_graph_cor_dis_thr)
-    walls, scores = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
-    walls, scores = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.3)
+    walls, scores, ids1 = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    walls, scores, ids2 = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.3)
     walls, scores = GraphUtils.crop_long_walls(walls, scores, obj_rep)
-    return walls, scores
+    #walls, scores = GraphUtils.merge_parallel_connected_walls(walls, scores, obj_rep)
+    ids_out = ids_org[ids0][ids1][ids2]
+    return walls, scores, ids_out
 
   @staticmethod
   def nms(walls, scores, obj_rep, iou_thr, min_width_length_ratio):
     from mmdet.ops.nms.nms_wrapper import nms_rotated_np
     walls = np.concatenate([walls, scores.reshape(-1,1)], axis=1)
     walls, ids = nms_rotated_np(walls, obj_rep, iou_thr, min_width_length_ratio)
-    return walls[:,:-1], walls[:,-1]
+    return walls[:,:-1], walls[:,-1], ids
 
   @staticmethod
   def crop_long_walls(walls_0, scores_0, obj_rep, iou_thres=0.2):
     '''
+      Do not  change the number of walls.
+
       walls_0: [n,7]
       scores_0: [n]
 
@@ -1055,14 +1061,21 @@ class GraphUtils:
     return walls_1, scores_0
 
   @staticmethod
+  def merge_parallel_connected_walls( walls, scores, obj_rep ):
+    return walls, scores
+  @staticmethod
   def rm_short_walls(walls_0, scores_0, obj_rep, min_out_length):
     mask = walls_0[:,3] > min_out_length
     if 1:
       rm_walls = walls_0[mask==False]
-    return walls_0[mask], scores_0[mask]
+    ids = np.where(mask)[0]
+    return walls_0[mask], scores_0[mask], ids
 
   @staticmethod
   def merge_wall_corners(walls_0, scores_0, obj_rep, min_cor_dis_thr):
+    '''
+    Do not  change the number of walls
+    '''
     from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
     n = walls_0.shape[0]
     corners_0 = OBJ_REPS_PARSE.encode_obj(walls_0, obj_rep, 'RoLine2D_2p')
@@ -1077,209 +1090,300 @@ class GraphUtils:
       _show_objs_ls_points_ls((512,512), objs_ls=[walls_1], obj_colors=['random'], obj_rep=obj_rep, obj_thickness=1)
     return  walls_1, scores_1
 
+
   @staticmethod
-  def old_optimize_wall_graph(bboxes_in, scores=None, labels=None,
-                     obj_rep='XYXYSin2',
-                     opt_graph_cor_dis_thr=0, min_out_length=0):
-    lines_in = OBJ_REPS_PARSE.encode_obj(bboxes_in, obj_rep, 'XYXYSin2')
-    lines_merged, line_scores_merged, line_labels_merged, valid_inds_final = \
-      GraphUtils.optimize_graph_lines( lines_in, scores, labels,
-                                      opt_graph_cor_dis_thr, min_out_length)
-    bboxes_merged = OBJ_REPS_PARSE.encode_obj(lines_merged, 'XYXYSin2', obj_rep)
-    if obj_rep == 'XYXYSin2':
-      pass
-    elif obj_rep == 'XYZLgWsHA':
-      bboxes_merged[:,[2,4,5]] = bboxes_in[valid_inds_final][:,[2,4,5]]
-    return bboxes_merged, line_scores_merged, line_labels_merged, valid_inds_final
-
-  def optimize_graph_lines(lines_in, scores=None, labels=None,
-                     opt_graph_cor_dis_thr=0, min_out_length=0):
-    '''
-      lines_in: [n,5]
-      Before optimization, all lines with length < opt_graph_cor_dis_thr are deleted.
-      After optimization, all lines with length < min_out_length are deleted.
-    '''
-    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
-    from obj_geo_utils.line_operations import gen_corners_from_lines_np
-    assert opt_graph_cor_dis_thr>0
-    num_in = lines_in.shape[0]
-
-    # filter short lines
-    line_length_in = np.linalg.norm(lines_in[:,2:4] - lines_in[:,:2], axis=1)
-    valid_line_mask = line_length_in > opt_graph_cor_dis_thr
-    valid_inds_0 = np.where(valid_line_mask)[0]
-    del_lines = lines_in[valid_line_mask==False]
-    lines_in = lines_in[valid_line_mask]
-    if scores is not None:
-      scores = scores[valid_line_mask]
-    if labels is not None:
-      labels = labels[valid_line_mask]
-
-    num_line = lines_in.shape[0]
-    if scores is None and labels is None:
-      lab_sco_lines = None
-    else:
-      lab_sco_lines = np.concatenate([labels.reshape(num_line,1), scores.reshape(num_line,1)], axis=1)
-    #corners_in, lab_sco_cors, corIds_per_line, num_cor_uq_org = \
-    #      gen_corners_from_lines_np(lines_in, lab_sco_lines, 'XYXYSin2', min_cor_dis_thr=1)
-
-    corners_in = OBJ_REPS_PARSE.encode_obj(lines_in, 'XYXYSin2', 'RoLine2D_2p').reshape(-1,2)
-
-    if scores is None and labels is None:
-      labels_cor = None
-      scores_cor = None
-      corners_labs = corners_in
-    else:
-      labels_cor = np.stack( [labels, labels] ).reshape(-1,1)
-      scores_cor = np.stack( [scores, scores] ).reshape(-1,1)
-      corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
-
-      #labels_cor = lab_sco_cors[:,0]
-      #scores_cor = lab_sco_cors[:,1]
-      #corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
-    corners_merged, cor_scores_merged = merge_close_corners(
-            corners_in, opt_graph_cor_dis_thr, labels_cor, scores_cor )
-    #corners_merged = round_positions(corners_merged, 1000)
-    corners_merged_per_line = corners_merged.reshape(-1,4)
-    lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line, 'RoLine2D_2p', 'XYXYSin2')
-
-    # remove short lines
-    line_length_out = np.linalg.norm(lines_merged[:,2:4] - lines_merged[:,:2], axis=1)
-    valid_mask_1 = line_length_out > min_out_length
-    valid_inds = np.where(valid_mask_1)[0]
-    rm_num = line_length_out.shape[0] - valid_inds.shape[0]
-    lines_merged = lines_merged[valid_inds]
-
-    valid_inds_final = valid_inds_0[valid_inds]
-
-    if scores is None and labels is None:
-      line_labels_merged = None
-      line_scores_merged = None
-    else:
-      line_scores_merged = cor_scores_merged.reshape(-1,2).mean(axis=1)[:,None]
-      line_labels_merged = labels[valid_inds]
-      line_scores_merged = line_scores_merged[valid_inds]
-
-    if valid_inds_final.shape[0] != lines_merged.shape[0]:
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
-
-
+  def optimize_walls_by_relation(walls0, relations, obj_rep):
+    from tools.visual_utils import show_connectivity
     debug = 0
-    if debug:
-      corners_uq, unique_indices, inds_inverse = np.unique(corners_merged, axis=0, return_index=True, return_inverse=True)
-      num_cor_org = corners_in.shape[0]
-      num_cor_merged = corners_uq.shape[0]
-      deleted_inds = [i for i in range(num_cor_org) if i not in unique_indices]
-      #deleted_corners = corners_in[deleted_inds]
-      deleted_corners = corners_merged[deleted_inds]
 
-      dn = del_lines.shape[0]
-      length_deled = line_length_in[ valid_line_mask==False ]
-      print(f'\n\n\tcorner num: {num_cor_org} -> {num_cor_merged}\n')
-      print(f'deleted input lines: {dn}')
-      print(f'del length: {length_deled}')
-
-      show = 1
-
-      if show:
-        data = ['2d', '3d'][0]
-        if data=='2d':
-          w, h = np.ceil(corners_in.max(0)+50).astype(np.int32)
-          if rm_num > 0:
-            _show_objs_ls_points_ls( (h,w), [lines_in, lines_in[line_merging_del_inds]], obj_colors=['green', 'red'], obj_thickness=[3,2],)
-
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          _show_objs_ls_points_ls( (h,w), [lines_in, lines_merged], obj_colors=['green', 'red'], obj_thickness=[3,2],
-                      points_ls=[corners_in, corners_merged], point_colors=['green', 'red'], point_thickness=[3,2] )
-        else:
-          if dn>0:
-            _show_3d_points_objs_ls(
-              objs_ls = [lines_in, del_lines], obj_rep='XYXYSin2',
-              obj_colors=['red','blue'], thickness=5,)
-
-          print('\nCompare org and merged')
-          _show_3d_points_objs_ls( points_ls=[deleted_corners],
-            objs_ls = [lines_in, lines_merged], obj_rep='XYXYSin2',
-            obj_colors=['blue', 'red'], thickness=[3,2],)
-
-          print('\nMerged result')
-          _show_3d_points_objs_ls( points_ls=[deleted_corners],
-            objs_ls = [lines_merged], obj_rep='XYXYSin2',
-            obj_colors='random', thickness=5,)
-
-        pass
-
-    return lines_merged, line_scores_merged, line_labels_merged, valid_inds_final
-
-  @staticmethod
-  def Unused_gen_corners_from_lines_np(lines, labels=None, obj_rep='XYXYSin2', flag=''):
-      '''
-      lines: [n,5]
-      labels: [n,1/2]: 1 for label only, 2 for label and score
-
-      corners: [m,2]
-      labels_cor: [m, 1/2]
-      corIds_per_line: [n,2]
-      num_cor_uq: m
-      '''
+    n = walls0.shape[0]
+    if not relations.shape == (n,n):
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      if lines.shape[0] == 0:
-        if labels is None:
-          labels_cor = None
-        else:
-          labels_cor = np.zeros([0,labels.shape[1]])
-        return np.zeros([0,2]), labels_cor, np.zeros([0,2], dtype=np.int), 0
+      pass
+    assert relations.shape == (n,n)
+    #show_connectivity(walls0[:,:-1], walls0[:,:-1], relations, obj_rep)
+    min_cor_dis_thr = 1
+    geo_mask = find_wall_wall_connection(walls0[:,:-1], min_cor_dis_thr, obj_rep)
+    np.fill_diagonal(relations, 0)
+    rel_mask = relations > 0.3
 
-      lines0 = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
-      if labels is not None:
-        num_line = lines.shape[0]
-        assert labels.shape[0] == num_line
-        labels = labels.reshape(num_line, -1)
-        lc = labels.shape[1]
-
-        labels_1 = labels.reshape(-1,lc)
-        lines1 = np.concatenate([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], axis=1)
-        corners1 = lines1.reshape(-1,2+lc)
-      else:
-        corners1 = lines0.reshape(-1,2)
-      #corners1 = round_positions(corners1, 1000)
-      corners_uq, unique_indices, inds_inverse = np.unique(corners1, axis=0, return_index=True, return_inverse=True)
-      num_cor_uq = corners_uq.shape[0]
-      corners = corners_uq[:,:2]
-      if labels is not None:
-        labels_cor = corners_uq[:,2:].astype(labels.dtype)
-      else:
-        labels_cor = None
-      corIds_per_line = inds_inverse.reshape(-1,2)
-
-      lineIds_per_cor = get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, corners.shape[0])
-
-      if flag=='debug':
-        print('\n\n')
-        print(lines[0:5])
-        n0 = lines.shape[0]
-        n1 = corners.shape[0]
-        print(f'\n{n0} lines -> {n1} corners')
-        _show_lines_ls_points_ls((512,512), [lines], [corners], 'random', 'random')
-        #for i in range(corners.shape[0]):
-        #  lids = lineIds_per_cor[i]
-        #  _show_lines_ls_points_ls((512,512), [lines, lines[lids].reshape(-1, lines.shape[1])], [corners[i:i+1]], ['white', 'green'], ['red'], point_thickness=2)
-        #for i in range(lines.shape[0]):
-        #  cor_ids = corIds_per_line[i]
-        #  _show_lines_ls_points_ls((512,512), [lines, lines[i:i+1]], [corners[cor_ids]], ['white', 'green'], ['red'], point_thickness=2)
-        pass
-
-      return corners, labels_cor, corIds_per_line, num_cor_uq
+    walls1 = walls0.copy()
+    missed_mask = rel_mask * (geo_mask==False)
+    if missed_mask.any():
+      #show_connectivity(walls0[:,:-1], walls0[:,:-1], missed_mask, obj_rep)
+      ids = np.where(missed_mask)
+      ids = np.array(ids).reshape(-1,2)
+      ids = [i for i in ids if i[0]<i[1]]
+      n = len(ids)
+      for i in range(n):
+        j, k = ids[i]
+        rel_score = relations[j,k]
+        walls1[j], walls1[k] = GraphUtils.connect_two_walls(walls0[j], walls0[k], obj_rep, rel_score, walls0)
+        if debug:
+          tmp_mask = missed_mask.copy() * 0
+          tmp_mask[j,k] = True
+          show_connectivity(walls0[:,:-1], walls0[:,:-1], tmp_mask, obj_rep,  only_connected=1)
+          show_connectivity(walls1[:,:-1], walls1[:,:-1], tmp_mask, obj_rep,  only_connected=1)
+          pass
+      pass
+    return walls1
 
   @staticmethod
-  def opti_wall_manually(lines, obj_rep, manual_merge_pairs):
-    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
-    #show_free_corners(lines, obj_rep)
-    #_show_3d_bboxes_ids(lines, obj_rep)
-    new_lines = merge_lines_intersect( lines, obj_rep, manual_merge_pairs )
-    #show_free_corners(new_lines, obj_rep)
-    return new_lines
+  def connect_two_walls(wall0, wall1, obj_rep, rel_score=None, all_walls=None):
+    '''
+    Conditions to connect:
+      1. The distance from intersection to closer corner of a wall is below half of the wall length.
+      2.
+    '''
+    from obj_geo_utils.geometry_utils import line_intersection_2d
+    from tools.visual_utils import _show_objs_ls_points_ls
+    assert wall0.shape == (8,)
+    assert wall1.shape == (8,)
+    debug = 0
+    skip_parallel = 1
+
+    cor0 = OBJ_REPS_PARSE.encode_obj(wall0.reshape(1,-1)[:,:-1], obj_rep, 'RoLine2D_2p').reshape(2,2)
+    cor1 = OBJ_REPS_PARSE.encode_obj(wall1.reshape(1,-1)[:,:-1], obj_rep, 'RoLine2D_2p').reshape(2,2)
+
+    angle_dif = np.abs( angle_dif_by_period_np(wall0[6], wall1[6], 0) )
+    if angle_dif < np.pi/8:
+      if debug:
+        print('connect by merging')
+        _show_objs_ls_points_ls((512,512), objs_ls=[wall0.reshape(1,-1)[:,:-1], wall1.reshape(1,-1)[:,:-1], all_walls[:,:-1]],
+                                obj_colors=['red','lime','white'], obj_rep=obj_rep, obj_thickness=[4,4,1])
+      if skip_parallel:
+        return wall0, wall1
+      dis = np.linalg.norm( cor0[:,None] - cor1[None,:], axis=-1)
+      assert dis.min() > 10
+
+    intsec = line_intersection_2d( cor0, cor1, min_angle=np.pi/8 ).reshape(1,2)
+    if np.isnan(intsec).any():
+      return wall0, wall1
+
+    dis0 = np.linalg.norm( cor0 - intsec, axis=-1)
+    dis1 = np.linalg.norm( cor1 - intsec, axis=-1)
+
+    is_small_dis = dis0.min() < wall0[3] and dis1.min() < wall1[3]
+    if not is_small_dis:
+      return wall0, wall1
+
+    def update_wall_by_intsec(wall, cor, ints):
+      dis = np.linalg.norm( cor - ints, axis=-1)
+      i = np.argmin(dis)
+      assert dis.min() < wall[3] / 2
+      cor_new = np.concatenate([ cor[1-i][None], ints ], axis = 0)
+      wall_new = OBJ_REPS_PARSE.encode_obj(cor_new.reshape(1,4), 'RoLine2D_2p', obj_rep).reshape(-1)
+      wall_new = np.concatenate([wall_new, wall[-1:]])
+      return wall_new
+
+    wall0_new =  update_wall_by_intsec(wall0, cor0, intsec)
+    wall1_new =  update_wall_by_intsec(wall1, cor1, intsec)
+    return wall0_new, wall1_new
+
+
+    @staticmethod
+    def old_optimize_wall_graph(bboxes_in, scores=None, labels=None,
+                      obj_rep='XYXYSin2',
+                      opt_graph_cor_dis_thr=0, min_out_length=0):
+      lines_in = OBJ_REPS_PARSE.encode_obj(bboxes_in, obj_rep, 'XYXYSin2')
+      lines_merged, line_scores_merged, line_labels_merged, valid_inds_final = \
+        GraphUtils.optimize_graph_lines( lines_in, scores, labels,
+                                        opt_graph_cor_dis_thr, min_out_length)
+      bboxes_merged = OBJ_REPS_PARSE.encode_obj(lines_merged, 'XYXYSin2', obj_rep)
+      if obj_rep == 'XYXYSin2':
+        pass
+      elif obj_rep == 'XYZLgWsHA':
+        bboxes_merged[:,[2,4,5]] = bboxes_in[valid_inds_final][:,[2,4,5]]
+      return bboxes_merged, line_scores_merged, line_labels_merged, valid_inds_final
+
+    def optimize_graph_lines(lines_in, scores=None, labels=None,
+                      opt_graph_cor_dis_thr=0, min_out_length=0):
+      '''
+        lines_in: [n,5]
+        Before optimization, all lines with length < opt_graph_cor_dis_thr are deleted.
+        After optimization, all lines with length < min_out_length are deleted.
+      '''
+      from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+      from obj_geo_utils.line_operations import gen_corners_from_lines_np
+      assert opt_graph_cor_dis_thr>0
+      num_in = lines_in.shape[0]
+
+      # filter short lines
+      line_length_in = np.linalg.norm(lines_in[:,2:4] - lines_in[:,:2], axis=1)
+      valid_line_mask = line_length_in > opt_graph_cor_dis_thr
+      valid_inds_0 = np.where(valid_line_mask)[0]
+      del_lines = lines_in[valid_line_mask==False]
+      lines_in = lines_in[valid_line_mask]
+      if scores is not None:
+        scores = scores[valid_line_mask]
+      if labels is not None:
+        labels = labels[valid_line_mask]
+
+      num_line = lines_in.shape[0]
+      if scores is None and labels is None:
+        lab_sco_lines = None
+      else:
+        lab_sco_lines = np.concatenate([labels.reshape(num_line,1), scores.reshape(num_line,1)], axis=1)
+      #corners_in, lab_sco_cors, corIds_per_line, num_cor_uq_org = \
+      #      gen_corners_from_lines_np(lines_in, lab_sco_lines, 'XYXYSin2', min_cor_dis_thr=1)
+
+      corners_in = OBJ_REPS_PARSE.encode_obj(lines_in, 'XYXYSin2', 'RoLine2D_2p').reshape(-1,2)
+
+      if scores is None and labels is None:
+        labels_cor = None
+        scores_cor = None
+        corners_labs = corners_in
+      else:
+        labels_cor = np.stack( [labels, labels] ).reshape(-1,1)
+        scores_cor = np.stack( [scores, scores] ).reshape(-1,1)
+        corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
+
+        #labels_cor = lab_sco_cors[:,0]
+        #scores_cor = lab_sco_cors[:,1]
+        #corners_labs = np.concatenate([corners_in, labels_cor.reshape(-1,1)*100], axis=1)
+      corners_merged, cor_scores_merged = merge_close_corners(
+              corners_in, opt_graph_cor_dis_thr, labels_cor, scores_cor )
+      #corners_merged = round_positions(corners_merged, 1000)
+      corners_merged_per_line = corners_merged.reshape(-1,4)
+      lines_merged = OBJ_REPS_PARSE.encode_obj(corners_merged_per_line, 'RoLine2D_2p', 'XYXYSin2')
+
+      # remove short lines
+      line_length_out = np.linalg.norm(lines_merged[:,2:4] - lines_merged[:,:2], axis=1)
+      valid_mask_1 = line_length_out > min_out_length
+      valid_inds = np.where(valid_mask_1)[0]
+      rm_num = line_length_out.shape[0] - valid_inds.shape[0]
+      lines_merged = lines_merged[valid_inds]
+
+      valid_inds_final = valid_inds_0[valid_inds]
+
+      if scores is None and labels is None:
+        line_labels_merged = None
+        line_scores_merged = None
+      else:
+        line_scores_merged = cor_scores_merged.reshape(-1,2).mean(axis=1)[:,None]
+        line_labels_merged = labels[valid_inds]
+        line_scores_merged = line_scores_merged[valid_inds]
+
+      if valid_inds_final.shape[0] != lines_merged.shape[0]:
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+
+
+      debug = 0
+      if debug:
+        corners_uq, unique_indices, inds_inverse = np.unique(corners_merged, axis=0, return_index=True, return_inverse=True)
+        num_cor_org = corners_in.shape[0]
+        num_cor_merged = corners_uq.shape[0]
+        deleted_inds = [i for i in range(num_cor_org) if i not in unique_indices]
+        #deleted_corners = corners_in[deleted_inds]
+        deleted_corners = corners_merged[deleted_inds]
+
+        dn = del_lines.shape[0]
+        length_deled = line_length_in[ valid_line_mask==False ]
+        print(f'\n\n\tcorner num: {num_cor_org} -> {num_cor_merged}\n')
+        print(f'deleted input lines: {dn}')
+        print(f'del length: {length_deled}')
+
+        show = 1
+
+        if show:
+          data = ['2d', '3d'][0]
+          if data=='2d':
+            w, h = np.ceil(corners_in.max(0)+50).astype(np.int32)
+            if rm_num > 0:
+              _show_objs_ls_points_ls( (h,w), [lines_in, lines_in[line_merging_del_inds]], obj_colors=['green', 'red'], obj_thickness=[3,2],)
+
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            _show_objs_ls_points_ls( (h,w), [lines_in, lines_merged], obj_colors=['green', 'red'], obj_thickness=[3,2],
+                        points_ls=[corners_in, corners_merged], point_colors=['green', 'red'], point_thickness=[3,2] )
+          else:
+            if dn>0:
+              _show_3d_points_objs_ls(
+                objs_ls = [lines_in, del_lines], obj_rep='XYXYSin2',
+                obj_colors=['red','blue'], thickness=5,)
+
+            print('\nCompare org and merged')
+            _show_3d_points_objs_ls( points_ls=[deleted_corners],
+              objs_ls = [lines_in, lines_merged], obj_rep='XYXYSin2',
+              obj_colors=['blue', 'red'], thickness=[3,2],)
+
+            print('\nMerged result')
+            _show_3d_points_objs_ls( points_ls=[deleted_corners],
+              objs_ls = [lines_merged], obj_rep='XYXYSin2',
+              obj_colors='random', thickness=5,)
+
+          pass
+
+      return lines_merged, line_scores_merged, line_labels_merged, valid_inds_final
+
+    @staticmethod
+    def Unused_gen_corners_from_lines_np(lines, labels=None, obj_rep='XYXYSin2', flag=''):
+        '''
+        lines: [n,5]
+        labels: [n,1/2]: 1 for label only, 2 for label and score
+
+        corners: [m,2]
+        labels_cor: [m, 1/2]
+        corIds_per_line: [n,2]
+        num_cor_uq: m
+        '''
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        if lines.shape[0] == 0:
+          if labels is None:
+            labels_cor = None
+          else:
+            labels_cor = np.zeros([0,labels.shape[1]])
+          return np.zeros([0,2]), labels_cor, np.zeros([0,2], dtype=np.int), 0
+
+        lines0 = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
+        if labels is not None:
+          num_line = lines.shape[0]
+          assert labels.shape[0] == num_line
+          labels = labels.reshape(num_line, -1)
+          lc = labels.shape[1]
+
+          labels_1 = labels.reshape(-1,lc)
+          lines1 = np.concatenate([lines0[:,0:2], labels_1, lines0[:,2:4], labels_1], axis=1)
+          corners1 = lines1.reshape(-1,2+lc)
+        else:
+          corners1 = lines0.reshape(-1,2)
+        #corners1 = round_positions(corners1, 1000)
+        corners_uq, unique_indices, inds_inverse = np.unique(corners1, axis=0, return_index=True, return_inverse=True)
+        num_cor_uq = corners_uq.shape[0]
+        corners = corners_uq[:,:2]
+        if labels is not None:
+          labels_cor = corners_uq[:,2:].astype(labels.dtype)
+        else:
+          labels_cor = None
+        corIds_per_line = inds_inverse.reshape(-1,2)
+
+        lineIds_per_cor = get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, corners.shape[0])
+
+        if flag=='debug':
+          print('\n\n')
+          print(lines[0:5])
+          n0 = lines.shape[0]
+          n1 = corners.shape[0]
+          print(f'\n{n0} lines -> {n1} corners')
+          _show_lines_ls_points_ls((512,512), [lines], [corners], 'random', 'random')
+          #for i in range(corners.shape[0]):
+          #  lids = lineIds_per_cor[i]
+          #  _show_lines_ls_points_ls((512,512), [lines, lines[lids].reshape(-1, lines.shape[1])], [corners[i:i+1]], ['white', 'green'], ['red'], point_thickness=2)
+          #for i in range(lines.shape[0]):
+          #  cor_ids = corIds_per_line[i]
+          #  _show_lines_ls_points_ls((512,512), [lines, lines[i:i+1]], [corners[cor_ids]], ['white', 'green'], ['red'], point_thickness=2)
+          pass
+
+        return corners, labels_cor, corIds_per_line, num_cor_uq
+
+    @staticmethod
+    def opti_wall_manually(lines, obj_rep, manual_merge_pairs):
+      from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
+      #show_free_corners(lines, obj_rep)
+      #_show_3d_bboxes_ids(lines, obj_rep)
+      new_lines = merge_lines_intersect( lines, obj_rep, manual_merge_pairs )
+      #show_free_corners(new_lines, obj_rep)
+      return new_lines
 
 
 def crop_two_parallel_overlaip_wall(long_w, short_w, obj_rep):
@@ -1426,6 +1530,51 @@ def show_free_corners(bboxes, obj_rep, cor_connect_thre=0.15):
 
     free_corners = corners[free_mask]
     _show_3d_points_objs_ls( [free_corners], objs_ls=[lines], obj_rep='XYXYSin2' )
+
+def find_wall_wd_connection(walls, windows, obj_rep):
+  from obj_geo_utils.geometry_utils import  points_in_lines
+  #windows = windows[3:4]
+  #walls = walls[-1:]
+  #_show_objs_ls_points_ls((512,512), [walls, windows], 'XYXYSin2', obj_colors=['red', 'green'])
+  walls_2p = OBJ_REPS_PARSE.encode_obj( walls, obj_rep, 'RoLine2D_2p' ).reshape(-1,2,2)
+  window_centroids = OBJ_REPS_PARSE.encode_obj( windows, obj_rep, 'RoLine2D_2p' ).reshape(-1,2,2).mean(axis=1)
+  win_in_wall_mask = points_in_lines(window_centroids, walls_2p, threshold_dis=10, one_point_in_max_1_line=True)
+  win_ids, wall_ids_per_win = np.where(win_in_wall_mask)
+
+  nw = windows.shape[0]
+  if not (np.all(win_ids == np.arange(nw)) and win_ids.shape[0] == nw):
+    print(f'win_ids: {win_ids}, nw={nw}')
+    missed_win_ids = [i for i in range(windows.shape[0]) if i not in win_ids]
+    _show_objs_ls_points_ls((512,512), [walls, windows[missed_win_ids] ], obj_rep, obj_colors=['white', 'green'])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+  if 0:
+    for i,j in zip(win_ids, wall_ids_per_win):
+      _show_objs_ls_points_ls((512,512), [walls, walls[j:j+1], windows[i:i+1] ], obj_rep, [window_centroids[i:i+1]], obj_colors=['white', 'green', 'red'])
+      pass
+  return win_in_wall_mask
+
+def find_wall_wall_connection(bboxes, connect_threshold, obj_rep):
+      corners_per_line = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'RoLine2D_2p')
+      n = bboxes.shape[0]
+      corners_per_line = corners_per_line.reshape(n,2,2)
+      # note: the order of two corners is not consistant
+      corners_dif0 = corners_per_line[:,None,:,None,:] - corners_per_line[None,:,None,:,:]
+      corners_dif1 = np.linalg.norm( corners_dif0, axis=-1 )
+      corners_dif = corners_dif1.min(axis=-1).min(axis=-1)
+      np.fill_diagonal(corners_dif, 100)
+      connect_mask = corners_dif < connect_threshold
+
+      xinds, yinds = np.where(connect_mask)
+      connection = np.concatenate([xinds[:,None], yinds[:,None]], axis=1).astype(np.uint8)
+      relations = []
+      for i in range(n):
+        relations.append([])
+      for i in range(connection.shape[0]):
+        x,y = connection[i]
+        relations[x].append(y)
+      return connect_mask
+
 
 class OBJ_REPS_PARSE_TORCH():
   import torch

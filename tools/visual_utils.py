@@ -454,7 +454,6 @@ def _show_3d_points_bboxes_ls(points_ls=None, point_feats=None,
 
   return show_ls
 
-
 def custom_draw_geometry_with_key_callback(pcd_ls):
 
     def change_background_to_black(vis):
@@ -627,7 +626,6 @@ def points_to_bboxes(points, size=0.1):
   bboxes[:,3:6] = size
   return bboxes
 
-
 def _show_polygon_surface(points, color='red'):
     color = _get_color(color)
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
@@ -716,7 +714,6 @@ def _creat_1_polygon_surface(points, color):
     polygon.paint_uniform_color(color)
     return [polygon]
 
-
 def _make_1_polygon_surface(points, color):
     pmin = points.min(0,keepdims=True)
     pmax = points.max(0,keepdims=True)
@@ -745,7 +742,33 @@ def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2
     scope_max = lines2d[:,:4].reshape(-1,2).max(0, keepdims=True)
     w, h = np.ceil(scope_max +10).astype(np.int32)[0]
     _show_objs_ls_points_ls( (h,w), [lines2d], 'XYXYSin2', points_ls)
-#-feature------------------------------------------------------------------------------
+
+
+#- others ------------------------------------------------------------------------------
+def show_connectivity(walls, bboxes, relations, obj_rep, only_connected=False, only_not_con=False,  img_file=None):
+  nw = walls.shape[0]
+  nb = bboxes.shape[0]
+  assert relations.shape == (nb, nw)
+  np.fill_diagonal(relations, 0)
+  mask = relations > 0.5
+  for i in range(nb):
+    cids = np.where(mask[i])[0]
+    cids = np.array([j for j in cids if j > i]).reshape(-1)
+    if len(cids) == 0:
+      continue
+    if only_connected and len(cids)==0:
+      continue
+    if only_not_con and len(cids)!=0:
+      continue
+    _show_objs_ls_points_ls( (512,512), [walls, walls[cids], bboxes[i:i+1]], obj_rep,
+            obj_colors=['white', 'random', 'random'], obj_thickness=[1,4,2],
+            obj_scores_ls = [relations[i], None, None],
+            out_file=img_file, only_save=img_file is not None)
+    if img_file is not None:
+      break
+  pass
+
+#- feature ------------------------------------------------------------------------------
 def _show_feats(feats, gt_bboxes, stride):
   '''
   feats: [batch_size, c, h, w]

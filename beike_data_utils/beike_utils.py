@@ -16,7 +16,8 @@ import mmcv
 import glob
 
 
-from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, find_wall_wall_connection,\
+  find_wall_wd_connection
 from obj_geo_utils.line_operations import rotate_bboxes_img, transfer_lines, gen_corners_from_lines_np
 from configs.common import DIM_PARSE, DEBUG_CFG
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
@@ -434,9 +435,9 @@ class BEIKE(BEIKE_CLSINFO):
       walls = bboxes[self._category_ids_map['wall'] == labels]
       windows = bboxes[self._category_ids_map['window'] == labels]
       doors = bboxes[self._category_ids_map['door'] == labels]
-      wall_connect_wall_mask = find_wall_wall_connection(walls, connect_threshold)
-      window_in_wall_mask = find_wall_wd_connection(walls, windows)
-      door_in_wall_mask = find_wall_wd_connection(walls, doors)
+      wall_connect_wall_mask = find_wall_wall_connection(walls, connect_threshold, 'XYXYSin2')
+      window_in_wall_mask = find_wall_wd_connection(walls, windows, 'XYXYSin2')
+      door_in_wall_mask = find_wall_wd_connection(walls, doors, 'XYXYSin2')
       relations = dict( wall = wall_connect_wall_mask,
                           window = window_in_wall_mask,
                           door = door_in_wall_mask )
@@ -455,50 +456,6 @@ class BEIKE(BEIKE_CLSINFO):
           show_connection_2(walls, objs, relations[cat], img_file)
       pass
 
-
-def find_wall_wd_connection(walls, windows):
-  from obj_geo_utils.geometry_utils import  points_in_lines
-  #windows = windows[3:4]
-  #walls = walls[-1:]
-  #_show_objs_ls_points_ls((512,512), [walls, windows], 'XYXYSin2', obj_colors=['red', 'green'])
-  walls_2p = OBJ_REPS_PARSE.encode_obj( walls, 'XYXYSin2', 'RoLine2D_2p' ).reshape(-1,2,2)
-  window_centroids = OBJ_REPS_PARSE.encode_obj( windows, 'XYXYSin2', 'RoLine2D_2p' ).reshape(-1,2,2).mean(axis=1)
-  win_in_wall_mask = points_in_lines(window_centroids, walls_2p, threshold_dis=10, one_point_in_max_1_line=True)
-  win_ids, wall_ids_per_win = np.where(win_in_wall_mask)
-
-  nw = windows.shape[0]
-  if not (np.all(win_ids == np.arange(nw)) and win_ids.shape[0] == nw):
-    print(f'win_ids: {win_ids}, nw={nw}')
-    missed_win_ids = [i for i in range(windows.shape[0]) if i not in win_ids]
-    _show_objs_ls_points_ls((512,512), [walls, windows[missed_win_ids] ], 'XYXYSin2', obj_colors=['white', 'green'])
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    pass
-  if 0:
-    for i,j in zip(win_ids, wall_ids_per_win):
-      _show_objs_ls_points_ls((512,512), [walls, walls[j:j+1], windows[i:i+1] ], 'XYXYSin2', [window_centroids[i:i+1]], obj_colors=['white', 'green', 'red'])
-      pass
-  return win_in_wall_mask
-
-def find_wall_wall_connection(bboxes, connect_threshold):
-      corners_per_line = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYXYSin2', 'RoLine2D_2p')
-      n = bboxes.shape[0]
-      corners_per_line = corners_per_line.reshape(n,2,2)
-      # note: the order of two corners is not consistant
-      corners_dif0 = corners_per_line[:,None,:,None,:] - corners_per_line[None,:,None,:,:]
-      corners_dif1 = np.linalg.norm( corners_dif0, axis=-1 )
-      corners_dif = corners_dif1.min(axis=-1).min(axis=-1)
-      np.fill_diagonal(corners_dif, 100)
-      connect_mask = corners_dif < connect_threshold
-
-      xinds, yinds = np.where(connect_mask)
-      connection = np.concatenate([xinds[:,None], yinds[:,None]], axis=1).astype(np.uint8)
-      relations = []
-      for i in range(n):
-        relations.append([])
-      for i in range(connection.shape[0]):
-        x,y = connection[i]
-        relations[x].append(y)
-      return connect_mask
 
 def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
   '''

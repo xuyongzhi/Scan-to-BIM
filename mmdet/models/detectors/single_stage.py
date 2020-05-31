@@ -205,7 +205,7 @@ class SingleStageDetector(BaseDetector):
             for det_bboxes, det_labels ,_ in bbox_list
         ]
         if bbox_list[0][2] is not None:
-          relation_scores = [relation_scores.cpu().numpy() for _,_, relation_scores in bbox_list]
+          relation_scores = [self.bbox_head.get_relations(relation_scores).cpu().numpy() for _,_, relation_scores in bbox_list]
         else:
           relation_scores = [None]
 

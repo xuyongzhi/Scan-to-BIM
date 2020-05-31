@@ -9,7 +9,7 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 
 wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
-CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
+#CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 
 CP=./work_dirs/${wkdir}/_epoch_2000.pth
 #CP=./checkpoints/beike/May4_wd_Bev.pth
