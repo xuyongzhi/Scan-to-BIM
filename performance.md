@@ -1,6 +1,16 @@
 
 # RES
 
+## June 1 Beike BEV
+
+| split |wall corner   |wall edge     |door corner   |door edge     |
+|-|-|-|-|-|
+|pre-rec|0.954 - 0.938 |0.937 - 0.844 |0.976 - 0.889 |0.967 - 0.883 |
+| iou   |              |0.672         |              |0.592         |
+|gt num |          2457|          2980|          1138|           571|
+|pre-rec|0.868 - 0.782 |0.763 - 0.63  |0.889 - 0.658 |0.852 - 0.63  |
+| iou   |              |0.61          |              |0.567         |
+
 ## 29 May Beike BEV New Data
 
 ### 1 file no rotation

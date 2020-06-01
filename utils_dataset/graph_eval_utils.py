@@ -143,8 +143,9 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         res_data['detections'] = detections_all_labels
 
         # parse det_relations by classes
-        det_relations_0 = result['det_relations']
-        res_data['det_relations'] = split_relations(det_relations_0, det_result, catid_2_cat, dataset)
+        if 'det_relations' in result and result['det_relations'] is not None:
+          det_relations_0 = result['det_relations']
+          res_data['det_relations'] = split_relations(det_relations_0, det_result, catid_2_cat, dataset)
 
         # optimize
         results_datas.append( res_data )
@@ -312,6 +313,8 @@ class GraphEval():
 
     time_post = 0
     with_rel = 'det_relations' in results_datas[0]
+    if optimize_graph_by_relation and not with_rel:
+      return
     self.num_img = len(results_datas)
     self.update_path(out_file)
     all_cor_nums_gt_pos_tp = defaultdict(list)
@@ -394,7 +397,7 @@ class GraphEval():
                   self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
               time_post += t
 
-              if cat == 'wall':
+              if cat == 'wall' and with_rel:
                   for c in det_relations:
                     if c == 'wall':
                       det_relations[c] = det_relations[c][ids_merged, :][:, ids_merged]

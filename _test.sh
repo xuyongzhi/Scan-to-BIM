@@ -11,8 +11,8 @@ wkdir=test
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 
-CP=./work_dirs/${wkdir}/_epoch_2000.pth
-#CP=./checkpoints/beike/May4_wd_Bev.pth
+#CP=./work_dirs/${wkdir}/_epoch_2000.pth
+CP=./checkpoints/beike/May4_wd_Bev.pth
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 
@@ -22,7 +22,7 @@ BASE_PLANE=32
 BS=5
 DATA_TYPES=cnx
 FILTER_EDGES=0
-REL=1
+REL=0
 
 #CLS=abcdif
 CLS=ad
