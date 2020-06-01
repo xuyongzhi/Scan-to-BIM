@@ -752,8 +752,8 @@ def show_connectivity(walls, bboxes, relations, obj_rep, only_connected=False, o
   np.fill_diagonal(relations, 0)
   mask = relations > 0.5
   for i in range(nb):
-    cids = np.where(mask[i])[0]
-    cids = np.array([j for j in cids if j > i]).reshape(-1)
+    cids = np.where(mask[i])[0].reshape(-1)
+    #cids = np.array([j for j in cids if j > i]).reshape(-1)
     if len(cids) == 0:
       continue
     if only_connected and len(cids)==0:
@@ -761,7 +761,7 @@ def show_connectivity(walls, bboxes, relations, obj_rep, only_connected=False, o
     if only_not_con and len(cids)!=0:
       continue
     _show_objs_ls_points_ls( (512,512), [walls, walls[cids], bboxes[i:i+1]], obj_rep,
-            obj_colors=['white', 'random', 'random'], obj_thickness=[1,4,2],
+            obj_colors=['white', 'red', 'lime'], obj_thickness=[1,4,2],
             obj_scores_ls = [relations[i], None, None],
             out_file=img_file, only_save=img_file is not None)
     if img_file is not None:

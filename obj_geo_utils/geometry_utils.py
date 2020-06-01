@@ -780,6 +780,7 @@ def line_intersection_2d(line0, line1, must_on0=False, must_on1=False,
       intersec_ = p2 + v23 * K[1]
       if not np.linalg.norm(intersec - intersec_) < 1e-4:
         print(f'{intersec} \n{intersec_}')
+        return np.array([np.nan]*2)
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
 

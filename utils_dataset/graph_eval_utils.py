@@ -230,12 +230,14 @@ class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
   if 1:
-    _all_out_types = [ 'bRefine_sAve' ]
-    _opti_graph = [1]
+    _all_out_types = [ 'bRefine_sAve' ] * 2
+    _opti_graph = [1] * 2
+    _opti_by_rel = [0, 1]
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
     _opti_graph = [0]
+    _opti_by_rel = [0]
 
   if 0:
     _all_out_types = [ 'bInit_sRefine', 'bRefine_sAve', 'bRefine_sAve' ]
@@ -248,11 +250,12 @@ class GraphEval():
 
   _eval_img_scale_ratio = 1.0
   _eval_img_size_aug = 0
+  _max_ofs_by_rel = 30
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
-  scene_list = ['Area_2/hallway_11']
-  scene_list = ['5pJn2a9zfRzInJ7IwpIzQd']
-  #scene_list = None
+  scene_list = ['0Kajc_nnyZ6K0cRGCQJW56']
+  scene_list = None
+  #scene_list = ['krrV11t89QIya7T02sAvKh']
 
 
   def __init__(self, obj_rep, classes, filter_edges):
@@ -282,10 +285,11 @@ class GraphEval():
   def update_path(self, out_file):
     self.work_dir = os.path.dirname(out_file)
     s = int(self._score_threshold*10)
+    self.par_nice = f'Score{s}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
     if self.optimize_graph:
-      self.par_nice = f'Score{s}_optGraph{self._opt_graph_cor_dis_thr}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
-    else:
-      self.par_nice = f'Score{s}_NoOptGraph_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
+      self.par_nice += f'_OptGraph{self._opt_graph_cor_dis_thr}'
+    if self.optimize_graph_by_relation:
+      self.par_nice += f'_OptRel'
     self.eval_dir = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/PerClass')
     self.eval_dir_all_cls = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/AllClasses')
     if not os.path.exists(self.eval_dir):
@@ -296,15 +300,17 @@ class GraphEval():
   def __call__(self, results_datas, out_file):
     eval_fn = self.evaluate_by_corner
     #eval_fn = self.evaluate_by_iou
-    for out_type, opt_g in zip(self._all_out_types, self._opti_graph):
+    for out_type, opt_g, opt_rel in zip(self._all_out_types, self._opti_graph, self._opti_by_rel):
       self.out_type = out_type
-      eval_fn(results_datas, out_file, out_type, opt_g)
+      eval_fn(results_datas, out_file, out_type, opt_g, opt_rel)
 
-  def evaluate_by_corner(self, results_datas, out_file, out_type, optimize_graph=True):
+  def evaluate_by_corner(self, results_datas, out_file, out_type, optimize_graph=True, optimize_graph_by_relation=False):
     assert self.obj_rep  == 'XYZLgWsHA'
     self.optimize_graph = optimize_graph
-    debug = 1
+    self.optimize_graph_by_relation = optimize_graph_by_relation
+    debug = 0
 
+    time_post = 0
     with_rel = 'det_relations' in results_datas[0]
     self.num_img = len(results_datas)
     self.update_path(out_file)
@@ -312,6 +318,7 @@ class GraphEval():
     all_line_nums_gt_pos_tp = defaultdict(list)
     all_ious = defaultdict(list)
     catid_2_cat = results_datas[0]['catid_2_cat']
+    scene_list = []
 
     self.is_pcl = 'input_style' in results_datas[0]['img_meta'] and results_datas[0]['img_meta']['input_style'] == 'pcl'
     if self.is_pcl:
@@ -319,13 +326,10 @@ class GraphEval():
       self._eval_img_scale_ratio = 1.5
 
     for i_img, res_data in enumerate(results_datas):
-        if i_img < 0:
-          continue
-          pass
 
         detections = res_data['detections']
         if with_rel:
-          det_relations = res_data['det_relations']
+          det_relations = res_data['det_relations'].copy()
         img_meta = res_data['img_meta']
         is_pcl = 'input_style' in img_meta and img_meta['input_style'] == 'pcl'
         if not is_pcl:
@@ -349,6 +353,7 @@ class GraphEval():
         if self.scene_list is not None:
           if scene_name not in self.scene_list:
             continue
+        scene_list.append(scene_name)
 
         print(f'\n\n\n\n{i_img}th file: {filename}')
 
@@ -395,8 +400,11 @@ class GraphEval():
                       det_relations[c] = det_relations[c][ids_merged, :][:, ids_merged]
                     else:
                       det_relations[c] = det_relations[c][:, ids_merged]
-
-                  det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged, det_relations[cat], self.obj_rep)
+                  if optimize_graph_by_relation:
+                    det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged, det_relations[cat], self._max_ofs_by_rel, self.obj_rep, self.eval_dir_all_cls, scene_name)
+                    det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines_merged,
+                      self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
+                      self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
 
             else:
               det_lines_merged = filter_low_score_det(det_lines, self._score_threshold)
@@ -458,15 +466,31 @@ class GraphEval():
       ious_l = np.concatenate(all_ious[label])
       ave_iou = ious_l[ious_l > iou_thres].mean()
       ave_ious[cat] = ave_iou
+      pass
 
-
-    eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum, ave_ious)
+    eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum, ave_ious, time_post)
     path = os.path.dirname(out_file)
     eval_path = os.path.join(path, 'eval_res.txt')
     with open(eval_path, 'a') as f:
       f.write(eval_res_str)
     print(eval_res_str)
-    print(f'post time: {time_post}')
+
+
+    acc_per_img_str = ''
+    for i, s in enumerate(scene_list):
+      acc_per_img_str += f'\n{s} :\t'
+      for cat in corner_recall_precision_perimg.keys():
+        cor_rec = corner_recall_precision_perimg[cat][0][0][i]
+        cor_pre = corner_recall_precision_perimg[cat][0][1][i]
+        line_rec = line_recall_precision_perimg[cat][0][0][i]
+        line_pre = line_recall_precision_perimg[cat][0][1][i]
+        acc_per_img_str += f'{cat}: cor= {cor_pre:.3f}-{cor_rec:.3f}, line= {line_pre:.3f}-{line_rec:.3f}'
+        pass
+
+    eval_path = os.path.join(os.path.dirname(self.eval_dir_all_cls), 'per_scene_eval_res.txt')
+    with open(eval_path, 'a') as f:
+      f.write(acc_per_img_str)
+
 
     # save eval res
     eval_res = dict( corner_recall_precision = corner_recall_precision,
@@ -684,11 +708,12 @@ class GraphEval():
 
     return eval_str
 
-  def get_eval_res_str(self, corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum, ave_ious ):
+  def get_eval_res_str(self, corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum, ave_ious, time_post):
     rotate = False
     eval_str = '\n\n--------------------------------------\n\n' + \
                 str(self) + f'num_img: {self.num_img}\n'
-    eval_str += f'optimize_graph: {self.optimize_graph}\n'
+    eval_str += f'optimize graph geometrically: {self.optimize_graph}\n'
+    eval_str += f'optimize graph semantically: {self.optimize_graph_by_relation}\n'
 
     eval_str += 'Precision-Recall\n\n'
     cats = corner_recall_precision.keys()
@@ -726,6 +751,8 @@ class GraphEval():
       line_num = line_nums_sum[cat][0]
       eval_str += f'{cor_num:14}|{line_num:14}|'
       pass
+    eval_str += '\n'
+    eval_str += f'post time: {time_post}'
     eval_str += '\n'
 
     return eval_str
@@ -1345,7 +1372,7 @@ def apply_mask_on_ids(ids, mask):
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
 
-  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
+  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wa_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
   filename = 'detection_10_Imgs.pickle'
   filename = 'detection_90_Imgs.pickle'
 

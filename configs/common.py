@@ -167,6 +167,8 @@ class DEBUG_CFG:
   SPARSE_BEV = 0
 
   OUT_CORNER_HM_ONLY = 0
+  # obj_geo_utils/ obj_utils.py
+  SAVE_REL_OPT = 1
 
 
 class NetParameters:

@@ -1,4 +1,5 @@
 # xyz 17 Apr
+import os
 import numpy as np
 import mmcv
 from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
@@ -7,7 +8,6 @@ import cv2
 import torch
 from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box,\
   sort_four_corners, line_intersection_2d, mean_angles, angle_dif_by_period_np
-
 
 class OBJ_REPS_PARSE():
   '''
@@ -642,7 +642,7 @@ class OBJ_REPS_PARSE():
     corner1 = center + vec * length /2
     line2d_2p = np.concatenate([corner0, corner1], axis=1)
 
-    check=1
+    check=0
     if check:
       bboxes_c = OBJ_REPS_PARSE.RoLine2D_2p_TO_CenterLengthAngle(line2d_2p)
       err0 = bboxes - bboxes_c
@@ -956,14 +956,76 @@ class GraphUtils:
     assert obj_rep == 'XYZLgWsHA'
 
     ids_org = np.arange(walls.shape[0])
-    walls, scores, ids0 = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    all_ids = []
+    walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    all_ids.append(ids)
     walls, scores = GraphUtils.merge_wall_corners(walls, scores, obj_rep, opt_graph_cor_dis_thr)
-    walls, scores, ids1 = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
-    walls, scores, ids2 = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.3)
+    walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    all_ids.append(ids)
+    walls, scores, ids = GraphUtils.crop_intersec_walls(walls, scores, obj_rep, opt_graph_cor_dis_thr)
+    all_ids.append(ids)
+    walls, scores, ids = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.3)
+    all_ids.append(ids)
     walls, scores = GraphUtils.crop_long_walls(walls, scores, obj_rep)
     #walls, scores = GraphUtils.merge_parallel_connected_walls(walls, scores, obj_rep)
-    ids_out = ids_org[ids0][ids1][ids2]
+    ids_out = ids_org.copy()
+    for ids in all_ids:
+      if ids is not None:
+        ids_out = ids_out[ids]
     return walls, scores, ids_out
+
+  @staticmethod
+  def crop_intersec_walls(walls, scores, obj_rep, opt_graph_cor_dis_thr):
+    '''
+    use corner_1-wall_0 to crop wall_1
+    conditions:
+    1. the degree of corner_1-wall-0 is 0
+    2. angle between wall_0 and wall_1 > np.pi/4
+    3. corner_1-wall-0 is on wall_1
+    '''
+    from obj_geo_utils.geometry_utils import  points_in_lines
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    cor_degrees, cors = get_cor_degree(walls, 1, obj_rep)
+    # find degree 0 walls
+    ids = np.array( np.where(cor_degrees==0)).T
+    m = ids.shape[0]
+    if m == 0:
+      return walls, scores, None
+    #  find corners on the other wall
+    in_line_mask = points_in_lines( cors[ids[:,0], ids[:,1]], cors, opt_graph_cor_dis_thr/2 )
+    ids_2 = np.array( np.where(in_line_mask==1)).T
+    walls_new = walls.copy()
+    walls_added = []
+    scores_added = []
+    ids_out = list(range(walls.shape[0]))
+    for i in range(ids_2.shape[0]):
+      j,k = ids_2[i]
+      idx_w_0, idx_cor = ids[j]
+      w_fix = walls[idx_w_0]
+      w_croped = walls[k]
+      angle_dif = limit_period_np( w_croped[-1] - w_fix[-1], 0.5, np.pi )
+      angle_dif = np.abs(angle_dif)
+      if angle_dif < np.pi/4:
+        continue
+      w_a, w_b = crop_two_intersect_overlaip_wall(w_croped, w_fix, obj_rep)
+      if 0:
+        _show_objs_ls_points_ls((512,512), objs_ls= [walls, w_croped[None], w_fix[None]], obj_rep=obj_rep, obj_colors=['white', 'random', 'random'])
+        _show_objs_ls_points_ls((512,512), objs_ls= [walls, w_fix[None]], obj_rep=obj_rep, obj_colors=['white', 'random'])
+        _show_objs_ls_points_ls((512,512), objs_ls= [walls, w_a[None], w_b[None], w_fix[None]], obj_rep=obj_rep, obj_colors=['white', 'random', 'random', 'random'])
+      walls_new[k] = w_a
+      walls_added.append(w_b[None])
+      scores_added.append(scores[k])
+      ids_out += [k]
+      pass
+    if len(walls_added) == 0:
+      return walls, scores, None
+    ids_out = np.array(ids_out).reshape(-1)
+    walls_added = np.concatenate(walls_added, 0)
+    walls_new = np.concatenate([walls_new, walls_added], 0)
+    scores_added = np.array(scores_added).reshape(-1)
+    scores_new = np.concatenate([scores, scores_added], 0)
+    #_show_objs_ls_points_ls((512,512), objs_ls= [walls_new], obj_rep=obj_rep, obj_colors=[ 'random'])
+    return walls_new, scores_new, ids_out
 
   @staticmethod
   def nms(walls, scores, obj_rep, iou_thr, min_width_length_ratio):
@@ -1076,7 +1138,7 @@ class GraphUtils:
     '''
     Do not  change the number of walls
     '''
-    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, show_connectivity
     n = walls_0.shape[0]
     corners_0 = OBJ_REPS_PARSE.encode_obj(walls_0, obj_rep, 'RoLine2D_2p')
     corners_0 = corners_0.reshape(-1,2)
@@ -1088,97 +1150,189 @@ class GraphUtils:
       #_show_objs_ls_points_ls((512,512), objs_ls=[walls_0, walls_1], obj_colors=['red','lime'], obj_rep=obj_rep, obj_thickness=[2,1])
       _show_objs_ls_points_ls((512,512), objs_ls=[walls_0], obj_colors=['random'], obj_rep=obj_rep, obj_thickness=1)
       _show_objs_ls_points_ls((512,512), objs_ls=[walls_1], obj_colors=['random'], obj_rep=obj_rep, obj_thickness=1)
+
+    if 0:
+      min_cor_dis_thr = 4
+      #geo_mask0 = find_wall_wall_connection(walls_0, min_cor_dis_thr, obj_rep)
+      #show_connectivity(walls_0, walls_0, geo_mask0, obj_rep)
+
+      geo_mask1 = find_wall_wall_connection(walls_1, min_cor_dis_thr, obj_rep)
+      show_connectivity(walls_1, walls_1, geo_mask1, obj_rep)
+      pass
     return  walls_1, scores_1
 
 
   @staticmethod
-  def optimize_walls_by_relation(walls0, relations, obj_rep):
-    from tools.visual_utils import show_connectivity
-    debug = 0
+  def optimize_walls_by_relation(walls0, relations, max_ofs_by_rel, obj_rep, eval_dir=None, scene_name=None):
+    '''
+    connect two walls with condition:
+      1. semantic relation is 1 , but geometric relation is 0
+      2. no other walls connect them
+      3. offset is below max_ofs_by_rel
+    '''
+    from tools.visual_utils import show_connectivity, _show_objs_ls_points_ls
+    from configs.common import DEBUG_CFG
+    debug = DEBUG_CFG.SAVE_REL_OPT
+
+    if debug:
+      rel_dir = os.path.join(eval_dir, 'rel')
+      if not os.path.exists(rel_dir):
+        os.makedirs(rel_dir)
+      img_file_base = os.path.join(rel_dir, scene_name)
 
     n = walls0.shape[0]
-    if not relations.shape == (n,n):
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
     assert relations.shape == (n,n)
-    #show_connectivity(walls0[:,:-1], walls0[:,:-1], relations, obj_rep)
     min_cor_dis_thr = 1
-    geo_mask = find_wall_wall_connection(walls0[:,:-1], min_cor_dis_thr, obj_rep)
+    geo_mask, geo_cor_degrees, corners0 = find_wall_wall_connection(walls0[:,:-1], min_cor_dis_thr, obj_rep)
     np.fill_diagonal(relations, 0)
     rel_mask = relations > 0.3
 
+    if debug and 0:
+      show_connectivity(walls0[:,:-1], walls0[:,:-1], geo_mask, obj_rep)
+      #show_connectivity(walls0[:,:-1], walls0[:,:-1], relations, obj_rep)
+      pass
+
     walls1 = walls0.copy()
     missed_mask = rel_mask * (geo_mask==False)
+    extra_walls = []
     if missed_mask.any():
       #show_connectivity(walls0[:,:-1], walls0[:,:-1], missed_mask, obj_rep)
       ids = np.where(missed_mask)
-      ids = np.array(ids).reshape(-1,2)
+      ids = np.array(ids).T.reshape(-1,2)
       ids = [i for i in ids if i[0]<i[1]]
       n = len(ids)
       for i in range(n):
         j, k = ids[i]
-        rel_score = relations[j,k]
-        walls1[j], walls1[k] = GraphUtils.connect_two_walls(walls0[j], walls0[k], obj_rep, rel_score, walls0)
+        con_dis = connectivity_distance_1_pair(geo_mask, j, k, 2)
+        rel = relations[j,k]
+
         if debug:
-          tmp_mask = missed_mask.copy() * 0
-          tmp_mask[j,k] = True
-          show_connectivity(walls0[:,:-1], walls0[:,:-1], tmp_mask, obj_rep,  only_connected=1)
-          show_connectivity(walls1[:,:-1], walls1[:,:-1], tmp_mask, obj_rep,  only_connected=1)
+          img_file = img_file_base + f'_{i}-0rel_{rel:.3f}-con_dis_{con_dis:.3f}.png'
+          _show_objs_ls_points_ls( (512,512), objs_ls=[walls0[:,:-1], walls0[[j,k]][:,:-1]], obj_rep=obj_rep, obj_colors=['white', 'random'], obj_thickness=[1,3], out_file=img_file, only_save=1)
+
+        if con_dis <= 1:
+          continue
+        rel_score = relations[j,k]
+        walls1[j], walls1[k], extra_w, modified = GraphUtils.connect_two_walls(walls0[j], walls0[k], corners0[j], corners0[k], geo_cor_degrees[j], geo_cor_degrees[k], obj_rep, max_ofs_by_rel, rel_score, walls0)
+        if extra_w is not None:
+          extra_walls.append(extra_w)
+
+        if debug:
+          #print(f'\nmodified: {modified}')
+          img_file = img_file_base + f'_{i}-Opt_by_rel.png'
+          if extra_w is None:
+            _show_objs_ls_points_ls( (512,512), objs_ls=[walls1[:,:-1], walls1[[j,k]][:,:-1]], obj_rep=obj_rep, obj_colors=['white', 'random'], obj_thickness=[1,3], out_file=img_file, only_save=1)
+          else:
+            _show_objs_ls_points_ls( (512,512), objs_ls=[walls1[:,:-1], walls1[[j,k]][:,:-1], extra_w[:,:-1]], obj_rep=obj_rep, obj_colors=['white', 'red', 'blue'], obj_thickness=[1,3,2], out_file=img_file, only_save=1)
           pass
       pass
+    num_e = len(extra_walls)
+    if num_e > 0:
+          n = walls0.shape[0]
+          extra_walls = np.concatenate(extra_walls, 0)
+          walls1 = np.concatenate([walls1, extra_walls], 0)
+    walls1 = walls1[ np.isnan(walls1[:,0])==False ]
     return walls1
 
   @staticmethod
-  def connect_two_walls(wall0, wall1, obj_rep, rel_score=None, all_walls=None):
+  def connect_two_walls(wall0, wall1, cor0, cor1, cor_degree0, cor_degree1, obj_rep, max_ofs_by_rel, rel_score=None, all_walls=None):
     '''
     Conditions to connect:
-      1. The distance from intersection to closer corner of a wall is below half of the wall length.
-      2.
+      1. angle between wall0 and wall1 is below np.pi/8
+      2. have an intersection
+      3. the offset for connection is small
+
+      a) modify the two walls
+      b) crop one wall
     '''
-    from obj_geo_utils.geometry_utils import line_intersection_2d
+    from obj_geo_utils.geometry_utils import line_intersection_2d, vertical_dis_points_lines
     from tools.visual_utils import _show_objs_ls_points_ls
+    from obj_geo_utils.geometry_utils import points_in_lines
     assert wall0.shape == (8,)
     assert wall1.shape == (8,)
     debug = 0
     skip_parallel = 1
 
-    cor0 = OBJ_REPS_PARSE.encode_obj(wall0.reshape(1,-1)[:,:-1], obj_rep, 'RoLine2D_2p').reshape(2,2)
-    cor1 = OBJ_REPS_PARSE.encode_obj(wall1.reshape(1,-1)[:,:-1], obj_rep, 'RoLine2D_2p').reshape(2,2)
+    cor0 = cor0.reshape(2,2)
+    cor1 = cor1.reshape(2,2)
+    cor_degree0 = cor_degree0.reshape(2)
+    cor_degree1 = cor_degree1.reshape(2)
 
+    # 1. angle between wall0 and wall1 is below np.pi/8
     angle_dif = np.abs( angle_dif_by_period_np(wall0[6], wall1[6], 0) )
     if angle_dif < np.pi/8:
-      if debug:
+      ver_diss = vertical_dis_points_lines(cor0, cor1[None]).mean()
+      if debug and 1:
         print('connect by merging')
         _show_objs_ls_points_ls((512,512), objs_ls=[wall0.reshape(1,-1)[:,:-1], wall1.reshape(1,-1)[:,:-1], all_walls[:,:-1]],
                                 obj_colors=['red','lime','white'], obj_rep=obj_rep, obj_thickness=[4,4,1])
-      if skip_parallel:
-        return wall0, wall1
-      dis = np.linalg.norm( cor0[:,None] - cor1[None,:], axis=-1)
-      assert dis.min() > 10
+      if ver_diss > 5:
+        print(f'The angle is {angle_dif}, vertical distance: {ver_diss}, abandon')
+        return wall0, wall1, None, False
+      else:
+        print(f'Skip mergeing parallel')
+        return wall0, wall1, None, False
+        wall0_new, wall1_new =  merge_two_parallel_walls(wall0, wall1, cor0, cor1, obj_rep, cor_degree0, cor_degree1, all_walls=all_walls)
+        return wall0_new, wall1_new, None, True
 
+
+    # 2. have an intersection
     intsec = line_intersection_2d( cor0, cor1, min_angle=np.pi/8 ).reshape(1,2)
     if np.isnan(intsec).any():
-      return wall0, wall1
+      print(f'There is no intersection, do not connect')
+      return wall0, wall1, None, False
 
     dis0 = np.linalg.norm( cor0 - intsec, axis=-1)
     dis1 = np.linalg.norm( cor1 - intsec, axis=-1)
 
-    is_small_dis = dis0.min() < wall0[3] and dis1.min() < wall1[3]
+    # 3. the offset for connection is small
+    dis_ave = (dis0.min() + dis1.min())/2
+    is_small_dis = dis_ave < max_ofs_by_rel
     if not is_small_dis:
-      return wall0, wall1
+      print(f'The connection offset is too large: {dis0.min()}, {dis1.min()}')
+      return wall0, wall1, None, False
 
-    def update_wall_by_intsec(wall, cor, ints):
-      dis = np.linalg.norm( cor - ints, axis=-1)
-      i = np.argmin(dis)
-      assert dis.min() < wall[3] / 2
-      cor_new = np.concatenate([ cor[1-i][None], ints ], axis = 0)
-      wall_new = OBJ_REPS_PARSE.encode_obj(cor_new.reshape(1,4), 'RoLine2D_2p', obj_rep).reshape(-1)
-      wall_new = np.concatenate([wall_new, wall[-1:]])
-      return wall_new
+    def update_wall_by_intsec(wall, cor, ints, cor_deg):
+        ints = np.repeat(ints, 2, 0)
+        ws = np.concatenate([ints, cor], 1)
+        walls_new = OBJ_REPS_PARSE.encode_obj(ws, 'RoLine2D_2p', obj_rep)
+        scores = np.repeat(wall[None, -1:], 2, 0)
+        walls_new = np.concatenate([walls_new, scores], 1)
+        # a) the intsection is close to one corner, replace the corner
+        if walls_new[:,3].min() < 10:
+          j = walls_new[:,3].argmax()
+          return  walls_new[j], None
+        # b) intersection is on wall, crop the wall
+        on_wall = points_in_lines( ints[0:1], cor[None], 5 ).reshape(-1)
+        if on_wall:
+          out0, out1 = walls_new[0], walls_new[1]
+        else:
+          dis = np.linalg.norm( cor - ints, axis=-1)
+          close_i = np.argmin(dis)
+          if cor_deg[close_i]==0:
+            # c) degree is 0, extent
+            out0, out1 = walls_new[1-close_i], None
+          else:
+            # d) add the extented
+            out0, out1 = wall,  walls_new[close_i]
+        if debug and 0:
+          _show_objs_ls_points_ls((512,512), objs_ls=[wall.reshape(1,-1)[:,:-1], out0.reshape(1,-1)[:,:-1], out1.reshape(1,-1)[:,:-1], all_walls[:,:-1]],
+                                  obj_colors=['yellow','red','lime','white'], obj_rep=obj_rep, obj_thickness=[8,4,4,1])
+        return out0, out1
 
-    wall0_new =  update_wall_by_intsec(wall0, cor0, intsec)
-    wall1_new =  update_wall_by_intsec(wall1, cor1, intsec)
-    return wall0_new, wall1_new
+    wall0_new, extra_w0 =  update_wall_by_intsec(wall0, cor0, intsec, cor_degree0)
+    wall1_new, extra_w1 =  update_wall_by_intsec(wall1, cor1, intsec, cor_degree1)
+    if extra_w0 is None and extra_w1 is None:
+      extra_w = None
+    elif extra_w0 is None and extra_w1 is not None:
+      extra_w = extra_w1
+    elif extra_w0 is not None and extra_w1 is None:
+      extra_w = extra_w0
+    else:
+      extra_w = np.concatenate([extra_w0[None,:], extra_w1[None,:]], 0)
+    if extra_w is not None:
+      extra_w = extra_w.reshape(-1,8)
+    return wall0_new, wall1_new, extra_w, True
 
 
     @staticmethod
@@ -1386,6 +1540,56 @@ class GraphUtils:
       return new_lines
 
 
+def merge_two_parallel_walls(wall0, wall1, cor0, cor1, obj_rep, cor_degree0, cor_degree1, flag=0, all_walls=None):
+  '''
+  One wall must have a free corner
+  Only change one corner of the four.
+  If the two merged corners are both degree 0, merge as one instance.
+  '''
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
+  assert flag <2
+  if (cor_degree0==0).any():
+    i = np.where(cor_degree0==0) [0].reshape(-1)[0]
+    j = np.linalg.norm( cor0[i][None] - cor1, axis=-1).argmin()
+    is_merge = cor_degree1[j] == 0
+    cor0_new = cor0.copy()
+    if is_merge:
+      cor0_new[i] = cor1[1-j]
+      wall1_new = None
+    else:
+      cor0_new[i] = cor1[j]
+      cor1_new = cor1
+      wall1_new = OBJ_REPS_PARSE.encode_obj( cor1_new.reshape(1,4), 'RoLine2D_2p', obj_rep ).reshape(-1)
+      wall1_new = np.concatenate([wall1_new, wall1[-1:]])
+    wall0_new = OBJ_REPS_PARSE.encode_obj( cor0_new.reshape(1,4), 'RoLine2D_2p', obj_rep ).reshape(-1)
+    wall0_new = np.concatenate([wall0_new, wall0[-1:]])
+
+    _show_objs_ls_points_ls((512,512), objs_ls=[wall0.reshape(1,-1)[:,:-1], wall1.reshape(1,-1)[:,:-1], all_walls[:,:-1]],
+                                obj_colors=['red','lime','white'], obj_rep=obj_rep, obj_thickness=[4,4,1])
+    if wall1_new is not None:
+      _show_objs_ls_points_ls((512,512), objs_ls=[wall0_new.reshape(1,-1)[:,:-1], wall1_new.reshape(1,-1)[:,:-1], all_walls[:,:-1]],
+                                obj_colors=['red','lime','white'], obj_rep=obj_rep, obj_thickness=[4,4,1])
+    else:
+      _show_objs_ls_points_ls((512,512), objs_ls=[wall0_new.reshape(1,-1)[:,:-1],  all_walls[:,:-1]],
+                                obj_colors=['red','white'], obj_rep=obj_rep, obj_thickness=[4,1])
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    return wall0_new, wall1_new
+  else:
+    assert flag == 0
+    flag += 1
+    wall0_new, wall1_new = merge_two_parallel_walls(wall1, wall0, cor1, cor0, obj_rep, cor_degree1, cor_degree0, flag, all_walls)
+    return wall0_new, wall1_new
+
+def crop_two_intersect_overlaip_wall(w_croped, w_fix, obj_rep):
+  cor_c = OBJ_REPS_PARSE.encode_obj(w_croped[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
+  cor_f = OBJ_REPS_PARSE.encode_obj(w_fix[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
+  intersect = line_intersection_2d(cor_c, cor_f, min_angle=np.pi/8).reshape(1,2)
+  cor_a = np.concatenate([cor_c[0:1], intersect], 0).reshape(1,4)
+  cor_b = np.concatenate([cor_c[1:2], intersect], 0).reshape(1,4)
+  w_a = OBJ_REPS_PARSE.encode_obj(cor_a, 'RoLine2D_2p', obj_rep)[0]
+  w_b = OBJ_REPS_PARSE.encode_obj(cor_b, 'RoLine2D_2p', obj_rep)[0]
+  return w_a, w_b
+
 def crop_two_parallel_overlaip_wall(long_w, short_w, obj_rep):
   corners_l = OBJ_REPS_PARSE.encode_obj(long_w, obj_rep, 'RoLine2D_2p').reshape(2,2)
   corners_s = OBJ_REPS_PARSE.encode_obj(short_w, obj_rep, 'RoLine2D_2p').reshape(2,2)
@@ -1554,16 +1758,34 @@ def find_wall_wd_connection(walls, windows, obj_rep):
       pass
   return win_in_wall_mask
 
+
+def get_cor_degree(walls, connect_threshold, obj_rep):
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+  n = walls.shape[0]
+  cors = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p').reshape(-1,2)
+  dis = np.linalg.norm( cors[:,None,:] - cors[None,:,:], axis=-1 )
+  mask = dis < connect_threshold
+  degrees = mask.sum(1).reshape(n,2) - 1
+  assert degrees.min() >= 0
+  cors = cors.reshape(-1,2,2)
+
+  if 0:
+    scores = degrees[:,0]*10 + degrees[:,1]
+    _show_objs_ls_points_ls((512,512), objs_ls=[walls], obj_rep=obj_rep, obj_scores_ls=[scores] )
+  return degrees, cors
+
 def find_wall_wall_connection(bboxes, connect_threshold, obj_rep):
       corners_per_line = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'RoLine2D_2p')
       n = bboxes.shape[0]
-      corners_per_line = corners_per_line.reshape(n,2,2)
+      corners_per_line = corners_per_line.reshape(n*2,2)
       # note: the order of two corners is not consistant
-      corners_dif0 = corners_per_line[:,None,:,None,:] - corners_per_line[None,:,None,:,:]
+      corners_dif0 = corners_per_line[:,None,:] - corners_per_line[None,:,:]
       corners_dif1 = np.linalg.norm( corners_dif0, axis=-1 )
-      corners_dif = corners_dif1.min(axis=-1).min(axis=-1)
-      np.fill_diagonal(corners_dif, 100)
-      connect_mask = corners_dif < connect_threshold
+      corner_con_mask0 = corners_dif1 < connect_threshold
+      np.fill_diagonal(corner_con_mask0, False)
+      corner_degrees = corner_con_mask0.sum(1).reshape(n,2)
+      wall_con_mask = corner_con_mask0.reshape(n,2,n,2).any(1).any(-1)
+      return wall_con_mask, corner_degrees, corners_per_line.reshape(n,2,2)
 
       xinds, yinds = np.where(connect_mask)
       connection = np.concatenate([xinds[:,None], yinds[:,None]], axis=1).astype(np.uint8)
@@ -1575,6 +1797,22 @@ def find_wall_wall_connection(bboxes, connect_threshold, obj_rep):
         relations[x].append(y)
       return connect_mask
 
+def connectivity_distance_1_pair(relations, x, y, max_search=3):
+  np.fill_diagonal(relations, 0)
+  mask = relations > 0.5
+  n = relations.shape[0]
+  s = min(n, max_search)
+  starts = [x]
+  for i in range(s):
+    ids_i = []
+    #print(f'starts: {starts}')
+    for j in starts:
+      ids_j = np.where(mask[j])[0].tolist()
+      ids_i += ids_j
+    starts = ids_i
+    if y in ids_i:
+      return i
+  return 1000
 
 class OBJ_REPS_PARSE_TORCH():
   import torch
