@@ -10,7 +10,7 @@ def dsiou_rotated_3d_bbox_np(bboxes1, bboxes2, iou_w = 0.82, size_rate_thres=0.2
   ious = dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w, size_rate_thres, ref, only_2d)
   return ious.numpy()
 
-def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.82, size_rate_thres=0.25, ref='union', only_2d=True):
+def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.8, size_rate_thres=0.25, ref='union', only_2d=True):
   '''
   XYZLgWsHA
   bboxes1: [n,7]  gt

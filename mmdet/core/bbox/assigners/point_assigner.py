@@ -249,13 +249,13 @@ class PointAssigner(BaseAssigner):
               pos_points = points[:,:2][pos_inds].cpu().data.numpy().reshape(-1,2)
               h = points_scope[1] + 100
               w = points_scope[0] + 100
-              _show_objs_ls_points_ls((h,w), [gt_bboxes_raw, missed_gt_bboxes], obj_rep=self.obj_rep, points_ls=[pos_points], obj_colors=['red', 'green'])
+              pos_levels = gt_bboxes_lvl[ pos_gt_inds ]
+              _show_objs_ls_points_ls((h,w), [gt_bboxes_raw[pos_gt_inds], missed_gt_bboxes], obj_rep=self.obj_rep, points_ls=[pos_points], obj_colors=['red', 'green'], obj_scores_ls=[pos_levels, None])
               for i in range(len(pos_inds)):
                 l = gt_bboxes_lvl[ pos_gt_inds[i] ]
                 print(f'level: {l}')
                 pos_gt_i = gt_bboxes_raw[pos_gt_inds[i]].reshape(-1, gt_bboxes_raw.shape[1])
-                _show_objs_ls_points_ls((h,w), [gt_bboxes_raw, pos_gt_i], obj_rep=self.obj_rep, points_ls = [pos_points[i:i+1]], obj_colors=['red', 'green'])
-              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                _show_objs_ls_points_ls((h,w), [gt_bboxes_raw, pos_gt_i], obj_rep=self.obj_rep, points_ls = [pos_points[i:i+1]], obj_colors=['red', 'green'], obj_scores_ls=[None, l])
               pass
 
         return assign_res

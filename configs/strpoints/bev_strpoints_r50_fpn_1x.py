@@ -83,7 +83,7 @@ model = dict(
                           stage='refine',
                           score_threshold=0.2,
                           max_relation_num=120),
-        adjust_5pts_by_4=True,
+        adjust_5pts_by_4=False,
         )
     )
         #transform_method='minmax'))
