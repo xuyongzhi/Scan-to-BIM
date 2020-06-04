@@ -948,12 +948,31 @@ class OBJ_REPS_PARSE():
     lines_3d = np.concatenate([lines_hori, lines_vertical], axis=1)
     return lines_3d
 
+  @staticmethod
+  def normalized_bev(bboxes, obj_rep, size=512):
+    corners = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'RoLine2D_2p').reshape(-1,2)
+    xyz_min = corners.min(0)
+    xyz_max = corners.max(0)
+    scope = max(xyz_max[:2] - xyz_min[:2])
+    pad = 10
+    corners_norm = (corners - xyz_min) * (size - pad*2) / scope + pad
+    bboxes_norm = OBJ_REPS_PARSE.encode_obj(corners_norm.reshape(-1,4), 'RoLine2D_2p', obj_rep)
+    return bboxes_norm, xyz_min
+
 class GraphUtils:
 
   @staticmethod
-  def optimize_wall_graph(walls, scores=None, obj_rep='XYZLgWsHA',
+  def optimize_wall_graph(walls, scores_in=None, obj_rep_in='XYZLgWsHA',
                      opt_graph_cor_dis_thr=0, min_out_length=0):
-    assert obj_rep == 'XYZLgWsHA'
+    obj_rep = 'XYZLgWsHA'
+    if scores_in is None:
+      scores = walls[:,-1:].copy()
+      scores[:] = 1
+    else:
+      scores = scores_in
+
+    #walls, xyz_min = OBJ_REPS_PARSE.normalized_bev(walls, obj_rep_in)
+    walls = OBJ_REPS_PARSE.encode_obj(walls, obj_rep_in, obj_rep)
 
     ids_org = np.arange(walls.shape[0])
     all_ids = []
@@ -972,6 +991,10 @@ class GraphUtils:
     for ids in all_ids:
       if ids is not None:
         ids_out = ids_out[ids]
+
+    walls = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, obj_rep_in)
+    if scores_in is None:
+      scores = None
     return walls, scores, ids_out
 
   @staticmethod
@@ -1028,11 +1051,20 @@ class GraphUtils:
     return walls_new, scores_new, ids_out
 
   @staticmethod
-  def nms(walls, scores, obj_rep, iou_thr, min_width_length_ratio):
+  def nms(walls, scores_in, obj_rep, iou_thr, min_width_length_ratio):
     from mmdet.ops.nms.nms_wrapper import nms_rotated_np
+    if scores_in is None:
+      scores = walls[:,-1:].copy()
+      scores[:] = 1
+    else:
+      scores = scores_in
     walls = np.concatenate([walls, scores.reshape(-1,1)], axis=1)
     walls, ids = nms_rotated_np(walls, obj_rep, iou_thr, min_width_length_ratio)
-    return walls[:,:-1], walls[:,-1], ids
+    if scores_in is None:
+      scores_out = None
+    else:
+      scores_out = walls[:,-1]
+    return walls[:,:-1], scores_out, ids
 
   @staticmethod
   def crop_long_walls(walls_0, scores_0, obj_rep, iou_thres=0.2):
@@ -1060,14 +1092,20 @@ class GraphUtils:
     check_no_duplicate = 1
 
     if check_no_duplicate:
-      ious = dsiou_rotated_3d_bbox_np(walls_0, walls_0, iou_w=1, size_rate_thres=0.3, ref='union')
+      tmp = walls_0.copy()
+      tmp[:,3] *= 0.9
+      ious = dsiou_rotated_3d_bbox_np(tmp, tmp, iou_w=1, size_rate_thres=0.3, ref='union')
       np.fill_diagonal(ious, 0)
       if ious.max() > 0.2:
         i = np.argmax(ious.max(0))
         j = np.argmax(ious[i])
         wi = walls_0[i:i+1]
         wj = walls_0[j:j+1]
-        _show_objs_ls_points_ls( (512,512), objs_ls=[walls_0, wi, wj], obj_rep=obj_rep, obj_thickness=[1,3,3], obj_colors=['white','lime','red'] )
+        iou_ij = ious[i,j]
+        print(f'Found a big iou: {iou_ij}')
+        iou_ij_ck = dsiou_rotated_3d_bbox_np(wi, wj, iou_w=1, size_rate_thres=0.3, ref='union')
+        #_show_objs_ls_points_ls( (512,512), objs_ls=[walls_0, wi, wj], obj_rep=obj_rep, obj_thickness=[1,3,3], obj_colors=['white','lime','red'] )
+        _show_3d_points_objs_ls( objs_ls=[ wi, wj], obj_rep=obj_rep, obj_colors=['green','red'] )
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
 
@@ -1131,7 +1169,8 @@ class GraphUtils:
     if 1:
       rm_walls = walls_0[mask==False]
     ids = np.where(mask)[0]
-    return walls_0[mask], scores_0[mask], ids
+    scores_1 = scores_0[mask] if scores_0 is not None else scores_0
+    return walls_0[mask], scores_1, ids
 
   @staticmethod
   def merge_wall_corners(walls_0, scores_0, obj_rep, min_cor_dis_thr):
@@ -1142,10 +1181,15 @@ class GraphUtils:
     n = walls_0.shape[0]
     corners_0 = OBJ_REPS_PARSE.encode_obj(walls_0, obj_rep, 'RoLine2D_2p')
     corners_0 = corners_0.reshape(-1,2)
-    scores_cor_0 = np.repeat(scores_0.reshape(-1,1), 2, 1).reshape(-1)
+
+    if scores_0 is None:
+      scores_cor_0 = scores_1 = None
+    else:
+      scores_cor_0 = np.repeat(scores_0.reshape(-1,1), 2, 1).reshape(-1)
     corners_1, scores_cor_1 = merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_cor_0)
     walls_1 = OBJ_REPS_PARSE.encode_obj( corners_1.reshape(n,4), 'RoLine2D_2p', obj_rep )
-    scores_1 = scores_cor_1.reshape(n,2).mean(1)
+    if scores_0 is not None:
+      scores_1 = scores_cor_1.reshape(n,2).mean(1)
     if 0:
       #_show_objs_ls_points_ls((512,512), objs_ls=[walls_0, walls_1], obj_colors=['red','lime'], obj_rep=obj_rep, obj_thickness=[2,1])
       _show_objs_ls_points_ls((512,512), objs_ls=[walls_0], obj_colors=['random'], obj_rep=obj_rep, obj_thickness=1)

@@ -17,21 +17,20 @@ def show_1file(pred_f, gt_f, box_dir):
   #_show_3d_points_objs_ls([points[:,:3]], [cls_labels])
 
   max_num_points = None
-  max_num_points = 10000 * 0.5
+  max_num_points = 10000 * 1
   gen_box_1_scene(xyz, colors, cls_labels, ins_labels, scene_name, max_num_points, bbox_file)
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def main():
   path = '/home/z/Research/ASIS/models/ASIS/log2_test/test_results_0'
-  path = './test_results'
+  path = './test_results_5_good_samples'
   box_dir = './bboxes'
 
   if not os.path.exists(box_dir):
     os.makedirs(box_dir)
 
-  scenes = ['Area_2_conferenceRoom_1', 'Area_2_auditorium_1', 'Area_2_hallway_11', 'Area_4_hallway_3', 'Area_4_lobby_2']
-  scenes = scenes[ 2:3 ]
+  scenes = ['Area_2_conferenceRoom_1', 'Area_2_auditorium_1', 'Area_2_hallway_11', 'Area_4_hallway_3', 'Area_4_lobby_2', 'Area_3_office_4']
+  scenes = scenes[ 3:4 ]
   for s in scenes:
     gt_f = os.path.join(path, s+'_gt.txt')
     pred_f = os.path.join(path, s+'_pred.txt')

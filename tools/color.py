@@ -5,8 +5,8 @@ import numpy as np
 
 from mmcv.utils import is_str
 
-COLOR_MAP = {'wall': 'gray', 'beam':'brown', 'column':'blue', 'door':'cyan',  'window':'yellow',  'floor':'silver', 'ceiling':'navy'}
 COLOR_MAP = {'wall': 'lime', 'door': 'red', 'window':'blue'}
+COLOR_MAP = {'wall': 'gray', 'beam':'brown', 'column':'blue', 'door':'cyan',  'window':'yellow',  'floor':'silver', 'ceiling':'navy'}
 
 class OLDColor(Enum):
     """An enum that defines common colors.
@@ -43,6 +43,17 @@ class Color_RGB(Enum):
     brown = (165, 42, 42)
     silver = (192,192,192)
 
+    olive = (128,128,0)
+    teal = (0,128,128)
+    orange = (255,165,0)
+    gold = (255,215,0)
+    yellow_green = (154,205,50)
+    spring_green = (0,255,127)
+    pink = 	(255,192,203)
+    chocolate =  (210,105,30)
+    peru = (205,133,63)
+    hot_pink = (255,105,180)
+
 def _color(c, RGB=False):
   col = Color_RGB[c].value
   if RGB:
@@ -59,12 +70,14 @@ def get_random_color():
 def _label2color(labels):
   colors = ['red', 'lime', 'blue',    'cyan', 'purple',   'gray','yellow',  'magenta', 'navy', 'green', ]
   #         'wall', 'beam', 'column', 'door', 'window', 'ceiling', 'floor'
-  colors = ['gray', 'brown', 'blue', 'cyan', 'yellow', 'silver', 'silver', 'navy', 'magenta', 'purple', 'green']
+  colors = ['gray', 'brown', 'blue', 'cyan', 'yellow', 'silver', 'silver', 'navy',
+            'magenta', 'purple', 'green', 'olive', 'teal', 'orange', 'gold',
+            'yellow_green', 'spring_green', 'pink', 'chocolate', 'peru', 'hot_pink']
   colors = colors + colors * 5
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]
-  #color_values = np.array(color_values)/255
+  color_values = np.array(color_values)
   return color_values
 
 def color_val(color):

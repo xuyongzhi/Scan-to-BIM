@@ -96,7 +96,7 @@ def rotated_3d_bbox_overlaps(bboxes1, bboxes2, size_rate_thres, ref):
 
 # Rotate 2d ---------------------------------------------------------------------------
 
-def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1, ref='union'):
+def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=0.01, ref='union'):
   '''
   XYLgWsA
   bbox: [cx, cy, size_x, size_y, angle]
@@ -109,15 +109,18 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1, ref='union'):
   bboxes1 = bboxes1.clone()
   bboxes2 = bboxes2.clone()
   #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYLgWsA')
+  assert bboxes1[:,-1].abs().max() < np.pi*2
+  assert bboxes2[:,-1].abs().max() < np.pi*2
+
   bboxes1[:,-1] *= 180/np.pi
   bboxes2[:,-1] *= 180/np.pi
 
   bboxes1[:,2:4] = bboxes1[:,2:4].clamp( min=min_size)
   bboxes2[:,2:4] = bboxes2[:,2:4].clamp( min=min_size)
   if bboxes1.shape[0] > 0:
-    assert bboxes1[:,2:4].min() >= 1
+    assert bboxes1[:,2:4].min() >= 0.01
   if bboxes2.shape[0] > 0:
-    assert bboxes2[:,2:4].min() >= 1
+    assert bboxes2[:,2:4].min() >= 0.01
   ious_2d = _C.box_iou_rotated(bboxes1, bboxes2)
   if torch.isnan(ious_2d).any():
     print("nan iou from rotated_bbox_overlaps")
@@ -125,7 +128,7 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1, ref='union'):
     pass
 
 
-  assert ref in ['union', 'bboxes1', 'bboxes1', 'min']
+  assert ref in ['union', 'bboxes1', 'bboxes2', 'min']
   if ref=='union':
     pass
   else:
@@ -139,6 +142,12 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=1, ref='union'):
     elif ref == 'min':
       ref_area = np.minimum(area1[:,None], area2[None,:])
     ious_2d = intersection / ref_area
+
+  if 0:
+        from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+        _show_3d_points_objs_ls( objs_ls=[ bboxes1, bboxes2], obj_rep='XYLgWsA', obj_colors=['green','red'] )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
   return ious_2d
 
 # Aligned 2d ---------------------------------------------------------------------------

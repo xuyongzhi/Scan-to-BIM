@@ -48,22 +48,6 @@ def _show_objs_ls_points_ls_torch(img,
                           point_thickness=point_thickness,
                           only_save=only_save)
 
-def _show_3d_bboxes_ids(bboxes, obj_rep):
-  '''
-  img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
-  '''
-  bboxes = bboxes.copy()
-  if obj_rep == 'XYXYSin2':
-    min_xy = bboxes[:,:4].reshape(-1,2).min(0)
-    bboxes[:,[0,2]] -= min_xy[0]
-    bboxes[:,[1,3]] -= min_xy[1]
-  voxel_size = 0.01
-  bboxes[:,:4] /= voxel_size
-  w, h = bboxes[:,:4].reshape(-1,2).max(0).astype(np.int32) + 100
-  bids = np.arange(bboxes.shape[0])
-  _show_objs_ls_points_ls((h,w), [bboxes], obj_rep=obj_rep, obj_scores_ls=[bids])
-  pass
-
 def _show_objs_ls_points_ls(img,
                             objs_ls=None,
                             obj_rep='XYXYSin2',
@@ -507,6 +491,7 @@ def _make_bboxes_o3d(bboxes, box_oriented, color, box_type):
     colors = [ _get_color(color) for i in range(bboxes.shape[0]) ]
 
   colors = np.array(colors)/255.0
+  colors = colors[:, [2,1,0]]
 
   min_size = bboxes[:,3:6].max() / 100
   bboxes[:,3:6] = np.clip(bboxes[:,3:6], a_min=min_size, a_max=None)
@@ -605,12 +590,12 @@ def _make_pcd(points, colors=None, normals=None):
       assert colors.shape[0] == points.shape[0]
       colors = colors.reshape(points.shape[0], -1)
       if  colors.shape[1] == 3:
-        if colors.max() > 1:
-          colors = colors / 255
-        pcd.colors = o3d.utility.Vector3dVector(colors)
+        pass
       elif colors.shape[1] == 1:
-        labels = colors
-        pcd.colors = o3d.utility.Vector3dVector( _label2color(labels))
+        colors = _label2color(colors)
+      if colors.max() > 1:
+        colors = colors / 255
+      pcd.colors = o3d.utility.Vector3dVector(colors)
 
     if normals is not None:
       pcd.normals = o3d.utility.Vector3dVector(normals)
@@ -745,6 +730,22 @@ def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2
 
 
 #- others ------------------------------------------------------------------------------
+def _show_3d_bboxes_ids(bboxes, obj_rep):
+  '''
+  img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
+  '''
+  bboxes = bboxes.copy()
+  if obj_rep == 'XYXYSin2':
+    min_xy = bboxes[:,:4].reshape(-1,2).min(0)
+    bboxes[:,[0,2]] -= min_xy[0]
+    bboxes[:,[1,3]] -= min_xy[1]
+  voxel_size = 0.01
+  bboxes[:,:4] /= voxel_size
+  w, h = bboxes[:,:4].reshape(-1,2).max(0).astype(np.int32) + 100
+  bids = np.arange(bboxes.shape[0])
+  _show_objs_ls_points_ls((h,w), [bboxes], obj_rep=obj_rep, obj_scores_ls=[bids])
+  pass
+
 def show_connectivity(walls, bboxes, relations, obj_rep, only_connected=False, only_not_con=False,  img_file=None):
   nw = walls.shape[0]
   nb = bboxes.shape[0]

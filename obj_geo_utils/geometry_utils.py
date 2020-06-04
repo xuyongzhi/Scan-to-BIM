@@ -850,7 +850,7 @@ def get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
   #_show_3d_points_objs_ls([wall_corners3d], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_corners3d])
   return wall_corners3d
 
-def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name):
+def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name, check_valid=True):
   import open3d as o3d
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
   from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls
@@ -883,7 +883,8 @@ def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name):
   wall_points2d = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p').reshape(-1,2,2)
   #_show_3d_points_objs_ls(objs_ls=[walls], obj_rep=obj_rep, )
   mesh, _ =  corners2d_to_surface(wall_points2d)
-  mesh = [m for m in mesh if is_valid_mesh(m[0], wall_points2d)]
+  if check_valid:
+    mesh = [m for m in mesh if is_valid_mesh(m[0], wall_points2d)]
   for i in range(len(mesh)):
     ki = mesh[i][0].shape[0]
     zs = np.ones([ki, 1]) * z

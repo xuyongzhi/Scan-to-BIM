@@ -9,13 +9,15 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from utils_dataset.lib.pc_utils import save_point_cloud
 from tools.debug_utils import _show_3d_points_bboxes_ls, _show_3d_points_lines_ls, _show_lines_ls_points_ls
 from tools import debug_utils
-from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_as_img
+from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_as_img, _show_3d_bboxes_ids
 from tools.color import COLOR_MAP
 
 import MinkowskiEngine as ME
 
 from collections import defaultdict
 import open3d as o3d
+
+ASIS = True
 
 STANFORD_3D_IN_PATH = '/cvgl/group/Stanford3dDataset_v1.2/'
 STANFORD_3D_IN_PATH = '/DS/Stanford3D/Stanford3dDataset_v1.2_Aligned_Version/'
@@ -57,6 +59,10 @@ class Stanford3DDatasetConverter:
       'clutter', 'beam', 'board', 'bookcase', 'ceiling', 'chair', 'column', 'door', 'floor', 'sofa',
       'stairs', 'table', 'wall', 'window'
   ]
+  CLASSES_ASIS = [
+    'ceiling','floor','wall','beam','column','window','door','table','chair',
+    'sofa','bookcase','board','clutter', 'unknow' ]
+  CLASSES = CLASSES_ASIS
   num_cat = len(CLASSES)
   Cat2Id = {}
   for i in range(num_cat):
@@ -261,6 +267,9 @@ def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
   else:
     box2d = aligned_box(point_inds)
 
+
+  min_size = box2d[:,2:4].max() * 0.01
+  box2d[:,2:4] = np.clip(box2d[:,2:4], a_min=min_size, a_max=None)
   if box2d[:,2:4].min()==0:
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
@@ -408,7 +417,7 @@ def points_to_box_align_with_wall_1ite(points, walls, cat_name, voxel_size, max_
     num_inside = points_in_lines( points, the_line2d, thres ).sum()
     inside_rate = 1.0 * num_inside / points.shape[0]
     inside_rates[i] = inside_rate
-  if np.max(inside_rates) == 0:
+  if not ASIS and np.max(inside_rates) == 0:
     _show_objs_ls_points_ls( (1324,1324), [walls_], obj_rep='XYLgWsA', points_ls = [points])
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     return None, None
@@ -581,7 +590,7 @@ def get_scene_name(file_path):
   s = s0 + '/' + s1.split('.')[0]
   return s
 
-def gen_bboxes(max_num_points=1e6):
+def _gen_bboxes(max_num_points=1e6):
   from plyfile import PlyData
   from obj_geo_utils.geometry_utils import get_cf_from_wall
   obj_rep_load = 'XYXYSin2WZ0Z1'
@@ -741,6 +750,232 @@ def gen_bboxes(max_num_points=1e6):
           pass
   pass
 
+
+def gen_bboxes(max_num_points=1e6):
+  from plyfile import PlyData
+  from obj_geo_utils.geometry_utils import get_cf_from_wall
+
+  ply_files = glob.glob(STANFORD_3D_OUT_PATH + '/*/*.ply')
+  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  'Area_1/hallway_8.ply' )]
+  UNALIGNED = ['Area_2/auditorium_1', 'Area_3/office_8',
+               'Area_4/hallway_14', 'Area_3/office_7']
+  DOOR_HAD = ['Area_1/hallway_4','Area_2/auditorium_1','Area_1/hallway_8']
+  ROTAE_WINDOW=['Area_1/office_11']
+  IntroSample = ['Area_3/office_4']
+  scenes = IntroSample
+  #ply_files = [os.path.join(STANFORD_3D_OUT_PATH,  f'{s}.ply' ) for s in scenes]
+
+  # The first 72 is checked
+  num_f = len(ply_files)
+  for l, plyf in enumerate( ply_files ):
+      scene_name_l = get_scene_name(plyf)
+      bbox_file = plyf.replace('.ply', '.npy').replace('Area_', '__Boxes_Area_')
+      topview_file = plyf.replace('.ply', '.png').replace('Area_', '__Boxes_Area_')
+      bbox_dir = os.path.dirname(bbox_file)
+      polygon_dir = bbox_dir.replace('Boxes', 'Polygons')
+      if not os.path.exists(bbox_dir):
+        os.makedirs(bbox_dir)
+        os.makedirs(polygon_dir)
+      print(f'\n\nStart processing {l}/{num_f}  \t{bbox_file} \n')
+      if os.path.exists(bbox_file):
+        pass
+        print(f'exist:  {bbox_file}\n')
+        continue
+
+      plydata = PlyData.read(plyf)
+      data = plydata.elements[0].data
+      coords = np.array([data['x'], data['y'], data['z']], dtype=np.float32).T
+      feats = np.array([data['red'], data['green'], data['blue']], dtype=np.float32).T
+      categories = np.array(data['label'], dtype=np.int32)
+      instances = np.array(data['instance'], dtype=np.int32)
+
+      bboxes, polygons, abandon_num = gen_box_1_scene(coords, feats, categories, instances, scene_name_l, max_num_points, bbox_file)
+
+  pass
+
+def gen_box_1_scene(coords, feats, categories, instances, scene_name_l, max_num_points=None, bbox_file=None):
+      from obj_geo_utils.geometry_utils import get_cf_from_wall
+      _show_pcl_per_cls = 1
+      min_points_per_object = 10
+      rm_large_thick_wall = 1
+
+      n, c = coords.shape
+      assert c==3
+      assert feats.shape == (n,3)
+      assert categories.shape == instances.shape == (n,)
+      obj_rep_load = 'XYXYSin2WZ0Z1'
+
+      if max_num_points is not None:
+        coords, feats, categories, instances = sampling_points(max_num_points, coords, feats, categories, instances)
+
+      #show_pcd(coords)
+
+      cat_min = categories.min()
+      cat_max = categories.max()
+      cat_ids = [Stanford3DDatasetConverter.wall_id, ] + [i for i in range(cat_max+1) if i != Stanford3DDatasetConverter.wall_id]
+
+      bboxes_wall = None
+      abandon_num = 0
+
+      bboxes = defaultdict(list)
+      polygons = {'ceiling':[], 'floor':[]}
+      for cat in cat_ids:
+          mask_cat = categories == cat
+          cat_name = Stanford3DDatasetConverter.CLASSES[cat]
+
+          if cat_name not in ['wall', 'beam', 'window', 'column', 'door', 'floor']:
+          #if cat_name not in ['wall']:
+            continue
+
+          num_cat = mask_cat.sum()
+          num_rate = num_cat / coords.shape[0]
+          if num_cat == 0:
+            continue
+
+          coords_cat, instances_cat = coords[mask_cat], instances[mask_cat]
+          num_objs = np.unique(instances_cat).shape
+          ins_min = instances_cat.min()
+          ins_max = instances_cat.max()
+          print(f'\n{cat_name} has {num_cat} points, rate={num_rate},  {num_objs} instances')
+          if num_cat == 0:
+            continue
+
+          if _show_pcl_per_cls and cat_name == 'wall':
+            _show_3d_points_objs_ls([coords_cat], [instances_cat])
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
+          for ins in range(ins_min, ins_max+1):
+            mask_ins = instances_cat == ins
+            num_ins = mask_ins.sum()
+            print(f'\n {cat_name} \t{ins}th instance has {num_ins} points\n')
+            if num_ins < min_points_per_object:
+              if num_ins > 0:
+                print(f'\ntoo less points, abandon')
+              continue
+            coords_cat_ins = coords_cat[mask_ins]
+            #_show_3d_points_objs_ls([coords_cat_ins])
+            if cat_name != 'clutter':
+              bbox = points_to_oriented_bbox(coords_cat_ins, bboxes_wall, cat_name)
+              if ASIS:
+                if rm_large_thick_wall and cat_name == 'wall':
+                  w = OBJ_REPS_PARSE.encode_obj(bbox, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
+                  if w[0,4]  > 0.45:
+                    w[0,4] = 0.45
+                    bbox = OBJ_REPS_PARSE.encode_obj(w, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
+                    #continue
+
+              if bbox is not None:
+                bboxes[cat_name].append(bbox)
+              else:
+                abandon_num += 1
+                print(f'\n\nAbandon one {cat_name}\n\n')
+
+            if cat_name in ['ceiling', 'floor']:
+              polygons_i = points_to_polygon_ceiling_floor(coords_cat_ins, bboxes_wall, cat_name, obj_rep='XYXYSin2WZ0Z1')
+              polygons[cat_name].append(polygons_i)
+              pass
+          if cat_name in bboxes:
+            bboxes[cat_name] = np.concatenate(bboxes[cat_name], 0)
+          if cat_name == 'wall':
+            bboxes['wall'] = optimize_walls(bboxes['wall'], get_manual_merge_pairs(scene_name_l))
+            bboxes_wall = bboxes['wall']
+          pass
+
+      # cal pcl scope
+      min_pcl = coords.min(axis=0)
+      min_pcl = np.floor(min_pcl*10)/10
+      max_pcl = coords.max(axis=0)
+      max_pcl = np.ceil(max_pcl*10)/10
+      mean_pcl = (min_pcl + max_pcl) / 2
+      pcl_scope = np.concatenate([min_pcl, max_pcl], axis=0)
+      room = np.concatenate([ mean_pcl, max_pcl-min_pcl, np.array([0]) ], axis=0)
+      bboxes['room'] = OBJ_REPS_PARSE.encode_obj( room[None,:], 'XYZLgWsHA', 'XYXYSin2WZ0Z1' )
+
+      np.save(bbox_file, bboxes)
+      print(f'\n save {bbox_file}')
+
+      polygon_file = bbox_file.replace('Boxes', 'Polygons')
+      np.save(polygon_file, polygons)
+      print(f'\n save {polygon_file}')
+
+      colors = instances.astype(np.int32)
+      colors = feats
+
+      if 0:
+        _show_3d_points_objs_ls([coords], [colors], [bboxes['wall']],  obj_rep='XYXYSin2WZ0Z1')
+      if 1:
+        print(f'abandon_num: {abandon_num}')
+        all_bboxes = []
+        all_cats = []
+        all_labels = []
+        view_cats = ['wall', 'beam', 'window', 'column', 'door']
+        #view_cats += ['floor']
+        #view_cats += ['ceiling']
+        for l,cat in enumerate(view_cats):
+          if cat not in bboxes:
+            continue
+          all_bboxes.append( bboxes[cat] )
+          all_cats += [cat] * bboxes[cat].shape[0]
+          all_labels += [l]* bboxes[cat].shape[0]
+        all_bboxes = np.concatenate(all_bboxes, 0)
+        all_cats = np.array(all_cats)
+        all_labels = np.array(all_labels)
+        all_colors = [COLOR_MAP[c] for c in all_cats]
+
+        floors_mesh = get_cf_from_wall(  all_bboxes[all_cats=='floor'], all_bboxes[all_cats=='wall'],  obj_rep_load, 'floor', check_valid=ASIS==False)
+
+        if DEBUG:
+          _show_3d_points_objs_ls(objs_ls= [all_bboxes, all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[floors_mesh], polygon_colors='silver' )
+          all_bboxes_, all_colors_ = manual_rm_objs(all_bboxes, 'XYXYSin2WZ0Z1', all_colors, 7)
+          _show_3d_points_objs_ls(objs_ls= [all_bboxes_, all_bboxes_],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_colors_, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[floors_mesh], polygon_colors='silver' )
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          all_bboxes_, all_colors_ = manual_rm_objs_ids(all_bboxes, all_colors, [6])
+          pass
+          #_show_3d_points_objs_ls([coords], [feats], objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels], box_types='line_mesh')
+
+        scope = all_bboxes[:,:4].reshape(-1,2).max(0) - all_bboxes[:,:4].reshape(-1,2).min(0)
+        voxel_size =  max(scope) / 1000
+        all_bboxes_2d = all_bboxes[:,:6].copy() / voxel_size
+        org = all_bboxes_2d[:,:4].reshape(-1,2).min(0)[None,:] - 50
+        all_bboxes_2d[:,:2] -=  org
+        all_bboxes_2d[:,2:4] -=  org
+        w, h = all_bboxes_2d[:,:4].reshape(-1,2).max(0).astype(np.int)+100
+        topview_file = bbox_file.replace('npy', 'png')
+        _show_objs_ls_points_ls( (h,w), [all_bboxes_2d], obj_rep='XYXYSin2W',
+                                obj_scores_ls=[all_cats], out_file=topview_file,
+                                only_save=1)
+        pass
+      if 0:
+        view_cats = ['column', 'beam']
+        view_cats = ['door',]
+        for cat in view_cats:
+          if cat not in bboxes:
+            continue
+          print(cat)
+          _show_3d_points_objs_ls([coords], [colors], [bboxes[cat]],  obj_rep='XYXYSin2WZ0Z1')
+          pass
+
+      return bboxes, polygons, abandon_num
+
+def manual_rm_objs(bboxes0, obj_rep, all_colors, max_size=7):
+  print(bboxes0[:,3] )
+  bboxes1 = OBJ_REPS_PARSE.encode_obj(bboxes0, obj_rep, 'XYZLgWsHA')
+  #_show_3d_bboxes_ids(bboxes0, obj_rep)
+  mask1 = bboxes1[:,3] < max_size
+  angle_dif = np.abs(limit_period_np(bboxes1[:,6], 0.5, np.pi/2))
+  mask2 = angle_dif < 0.3
+  mask = mask1 * mask2
+  bboxes2 = bboxes1[mask]
+  bboxes_out = OBJ_REPS_PARSE.encode_obj(bboxes2, 'XYZLgWsHA', obj_rep)
+  all_colors = [all_colors[i] for i in range(len(mask)) if mask[i]]
+  return bboxes_out, all_colors
+
+def manual_rm_objs_ids(all_bboxes, all_colors, rm_ids):
+  n = all_bboxes.shape[0]
+  ids = np.array( [i for i in range(n) if i not in rm_ids]).reshape(-1)
+  colors = [all_colors[i] for i in ids]
+  return all_bboxes[ids].copy(), colors
+
 def points_to_polygon_ceiling_floor(coords_cat_ins, bboxes_wall, cat_name, obj_rep):
   #_show_3d_points_objs_ls([coords_cat_ins], objs_ls= [bboxes_wall],  obj_rep=obj_rep)
   pcd = o3d.geometry.PointCloud()
@@ -765,14 +1000,15 @@ def optimize_walls(walls_3d_line, manual_merge_pairs=None):
     walls_2d_line = walls_3d_line[:,:5]
 
     #_show_3d_points_objs_ls(objs_ls=[walls_2d_line], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
-    walls_2d_line_new, _, _, valid_mask = GraphUtils.optimize_graph(walls_2d_line, obj_rep='XYXYSin2', opt_graph_cor_dis_thr=0.15, min_out_length=0.22)
+    walls_2d_line_new, _, valid_ids = GraphUtils.optimize_wall_graph(walls_2d_line, obj_rep_in='XYXYSin2', opt_graph_cor_dis_thr=0.15, min_out_length=0.22)
+    valid_ids = valid_ids.reshape(-1)
 
     if manual_merge_pairs is not None:
       walls_2d_line_new = GraphUtils.opti_wall_manually(walls_2d_line_new, 'XYXYSin2', manual_merge_pairs)
     #_show_3d_points_objs_ls(objs_ls=[walls_2d_line_new], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
 
     try:
-      walls_3d_line_new = np.concatenate( [walls_2d_line_new, walls_3d_line[valid_mask][:,5:8]], axis=1 )
+      walls_3d_line_new = np.concatenate( [walls_2d_line_new, walls_3d_line[valid_ids][:,5:8]], axis=1 )
     except:
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
