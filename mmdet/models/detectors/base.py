@@ -11,8 +11,7 @@ from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import DIM_PARSE, DEBUG_CFG
 from beike_data_utils.beike_utils import load_gt_lines_bk
 from obj_geo_utils.obj_utils import GraphUtils
-from utils_dataset.gen_sparse_input import prepare_sparse_input, prepare_bev_sparse
-from tools.debug_utils import _show_lines_ls_points_ls
+#from tools.debug_utils import _show_lines_ls_points_ls
 
 class BaseDetector(nn.Module, metaclass=ABCMeta):
     """Base class for detectors"""
@@ -147,12 +146,14 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
           input_style = img_meta[0]['input_style']
         assert input_style in ['pcl', 'bev_sparse', 'img']
         if input_style == 'bev_sparse':
-          img = prepare_bev_sparse(img, img_meta, **kwargs)
+            from utils_dataset.gen_sparse_input import  prepare_bev_sparse
+            img = prepare_bev_sparse(img, img_meta, **kwargs)
         elif input_style == 'pcl':
-          img = prepare_sparse_input(img, img_meta, **kwargs)
-          if not return_loss:
-            img = [img]
-            img_meta = [img_meta]
+            from utils_dataset.gen_sparse_input import prepare_sparse_input
+            img = prepare_sparse_input(img, img_meta, **kwargs)
+            if not return_loss:
+                img = [img]
+                img_meta = [img_meta]
 
         if return_loss:
             return self.forward_train(img, img_meta, **kwargs)

@@ -5,16 +5,21 @@ from mmcv.cnn import constant_init, kaiming_init
 
 from .conv_ws import ConvWS2d
 from .norm import build_norm_layer
-from .mink_vox_common import mink_conv
-import MinkowskiEngine as ME
+#from .mink_vox_common import mink_conv
 
-conv_cfg = {
+Conv_Cfgs = {
     'Conv': nn.Conv2d,
     'Conv3d': nn.Conv3d,
     'ConvWS': ConvWS2d,
-    'MinkConv': mink_conv,
     # TODO: octave conv
 }
+
+def get_conv_fun(conv_type):
+    if conv_type == 'MinkConv':
+        from .mink_vox_common import mink_conv
+        return mink_conv
+    else:
+        return Conv_Cfgs[conv_type]
 
 def build_conv_layer(cfg, *args, **kwargs):
     """ Build convolution layer
@@ -34,10 +39,10 @@ def build_conv_layer(cfg, *args, **kwargs):
         cfg_ = cfg.copy()
 
     layer_type = cfg_.pop('type')
-    if layer_type not in conv_cfg:
+    if layer_type not in Conv_Cfgs:
         raise KeyError('Unrecognized norm type {}'.format(layer_type))
     else:
-        conv_layer = conv_cfg[layer_type]
+        conv_layer = Conv_Cfgs[layer_type]
 
     layer = conv_layer(*args, **kwargs, **cfg_)
 
@@ -145,6 +150,7 @@ class ConvModule(nn.Module):
             if self.activation == 'relu':
                 self.activate = nn.ReLU(inplace=inplace)
             if self.activation == 'MinkRelu':
+                import MinkowskiEngine as ME
                 ME.MinkowskiReLU(inplace=True)
 
         # Use msra init by default

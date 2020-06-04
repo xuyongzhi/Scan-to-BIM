@@ -1,5 +1,4 @@
 import torch.nn as nn
-from .mink_vox_common import mink_batch_norm
 
 norm_cfg = {
     # format: layer_type: (abbreviation, module)
@@ -7,10 +6,17 @@ norm_cfg = {
     'SyncBN': ('bn', nn.SyncBatchNorm),
     'GN': ('gn', nn.GroupNorm),
     'BN3d': ('bn', nn.BatchNorm3d),
-    'MinkBN': ('vbn', mink_batch_norm),
+    #'MinkBN': ('vbn', mink_batch_norm),
     # and potentially 'SN'
 }
 
+
+def get_norm_fun(norm_type):
+    if norm_type == 'MinkBN':
+        from .mink_vox_common import mink_batch_norm
+        return mink_batch_norm
+    else:
+        return norm_cfg[norm_type]
 
 def build_norm_layer(cfg, num_features, postfix=''):
     """ Build normalization layer
@@ -35,7 +41,7 @@ def build_norm_layer(cfg, num_features, postfix=''):
     if layer_type not in norm_cfg:
         raise KeyError('Unrecognized norm type {}'.format(layer_type))
     else:
-        abbr, norm_layer = norm_cfg[layer_type]
+        abbr, norm_layer = get_norm_fun(layer_type)
         if norm_layer is None:
             raise NotImplementedError
 

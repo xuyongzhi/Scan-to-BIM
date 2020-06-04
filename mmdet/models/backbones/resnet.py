@@ -9,11 +9,9 @@ from mmdet.ops import ContextBlock, DeformConv, ModulatedDeformConv
 from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 
-from tools import debug_utils
 import time
 RECORD_T = 0
 SHOW_NET = 0
-from tools.debug_utils import _show_tensor_ls_shapes
 
 
 class BasicBlock(nn.Module):

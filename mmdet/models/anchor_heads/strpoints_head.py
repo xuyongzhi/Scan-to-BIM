@@ -15,7 +15,6 @@ from ..utils import ConvModule, bias_init_with_prob, Scale
 
 from obj_geo_utils.geometry_utils  import sin2theta, angle_from_vecs_to_vece, angle_with_x, four_corners_to_box, sort_four_corners, align_pred_gt_bboxes
 #from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
-from tools import debug_utils
 from obj_geo_utils.line_operations import decode_line_rep_th, gen_corners_from_lines_th
 
 import torchvision as tcv
