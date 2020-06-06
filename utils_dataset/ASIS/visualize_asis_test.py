@@ -17,7 +17,7 @@ def show_1file(pred_f, gt_f, box_dir):
   #_show_3d_points_objs_ls([points[:,:3]], [cls_labels])
 
   max_num_points = None
-  max_num_points = 10000 * 1
+  max_num_points = 10000 * 4
   gen_box_1_scene(xyz, colors, cls_labels, ins_labels, scene_name, max_num_points, bbox_file)
   pass
 
@@ -30,7 +30,7 @@ def main():
     os.makedirs(box_dir)
 
   scenes = ['Area_2_conferenceRoom_1', 'Area_2_auditorium_1', 'Area_2_hallway_11', 'Area_4_hallway_3', 'Area_4_lobby_2', 'Area_3_office_4']
-  scenes = scenes[ 3:4 ]
+  scenes = scenes[ 1:2 ]
   for s in scenes:
     gt_f = os.path.join(path, s+'_gt.txt')
     pred_f = os.path.join(path, s+'_pred.txt')

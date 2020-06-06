@@ -21,8 +21,6 @@ TOP_DOWN_VIEW_PATH = './demo_nonm/map/point_evidence_visualize_0.jpg'
 
 EXTRINSICS_PATH = './demo_nonm/final_extrinsics.txt'
 
-#IMAGE_SIZE = 256
-IMAGE_SIZE = 512
 
 ANNOT_OFFSET = 37500
 ANNOT_SCALE = 1000
@@ -336,6 +334,7 @@ def process_annot(dir_path, out_path):
 
 
 def visualize_annot(annot):
+    IMAGE_SIZE = 512
     data = copy.deepcopy(annot)
     points = data['points']
     lines = data['lines']
@@ -358,7 +357,7 @@ def visualize_annot(annot):
     # draw all corners
     for point in points:
         img_x, img_y = draw_corner_with_scaling(img, (point['x'], point['y']), min_x, width, min_y, height,
-                                                text=None)
+                                                text=None, IMAGE_SIZE=IMAGE_SIZE)
         point_dict[point['id']]['img_x'] = img_x
         point_dict[point['id']]['img_y'] = img_y
 
@@ -374,8 +373,8 @@ def visualize_annot(annot):
     for line_item in line_items:
         start_pt = (line_item['startPointAt']['x'], line_item['startPointAt']['y'])
         end_pt = (line_item['endPointAt']['x'], line_item['endPointAt']['y'])
-        img_start_pt = draw_corner_with_scaling(img, start_pt, min_x, width, min_y, height, color=(0, 255, 0))
-        img_end_pt = draw_corner_with_scaling(img, end_pt, min_x, width, min_y, height, color=(0, 255, 0))
+        img_start_pt = draw_corner_with_scaling(img, start_pt, min_x, width, min_y, height, color=(0, 255, 0), IMAGE_SIZE=IMAGE_SIZE)
+        img_end_pt = draw_corner_with_scaling(img, end_pt, min_x, width, min_y, height, color=(0, 255, 0), IMAGE_SIZE=IMAGE_SIZE)
         line_item['img_start_pt'] = img_start_pt
         line_item['img_end_pt'] = img_end_pt
         cv2.line(img, img_start_pt, img_end_pt, (0, 255, 255))
@@ -385,7 +384,7 @@ def visualize_annot(annot):
     return img
 
 
-def draw_corner_with_scaling(img, corner, min_x, width, min_y, height, color=(0, 0, 255), text=None):
+def draw_corner_with_scaling(img, corner, min_x, width, min_y, height, color=(0, 0, 255), text=None, IMAGE_SIZE=512):
     img_x = int(math.floor((corner[0] - min_x) * 1.0 / width * IMAGE_SIZE))
     img_y = int(math.floor((corner[1] - min_y) * 1.0 / height * IMAGE_SIZE))
     cv2.circle(img, (img_x, img_y), 2, color, -1)
@@ -423,7 +422,7 @@ def gen_merged_pcl():
 
     # Pre-processing: generate global point clouds + parse annotations (with some simple cleaning on the annotations)
     base_dir = '../data/beike/raws'
-    out_base = f'../data/beike/processed_{IMAGE_SIZE}'
+    out_base = f'../data/beike/merged_pcl'
     out_base_ply = osp.join(out_base, 'ply')
     out_base_json = osp.join(out_base, 'json')
     if not os.path.exists(out_base_ply):

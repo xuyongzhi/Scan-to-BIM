@@ -1045,6 +1045,26 @@ def convex_mesh(points):
   triangles = np.concatenate([ids, tmp], 0).T
   return (vertices, triangles)
 
+def points_to_oriented_bbox(points, obj_rep_out='XYLgWsA'):
+  '''
+  generate 1 2d bbox
+  points: [n,2]
+  '''
+  import cv2
+  box2d = cv2.minAreaRect(points)
+  box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
+  # The original angle from cv2.minAreaRect denotes the rotation from ref-x
+  # to body-x. It is it positive for clock-wise.
+  # make x the long dim
+  if box2d[0,2] < box2d[0,3]:
+    box2d[:,[2,3]] = box2d[:,[3,2]]
+    box2d[:,-1] = 90+box2d[:,-1]
+  box2d[:,-1] *= np.pi / 180
+  box2d[:,-1] = limit_period_np(box2d[:,-1], 0.5, np.pi) # limit_period
+  if obj_rep_out != 'XYLgWsA':
+    box2d = OBJ_REPS_PARSE.encode_obj(box2d, 'XYLgWsA', obj_rep_out)
+  return box2d
+
 def ununsed_get_cf_from_wall(floors0, walls, obj_rep, cat_name):
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
   from tools.visual_utils import _show_polygon_surface, _show_3d_points_objs_ls

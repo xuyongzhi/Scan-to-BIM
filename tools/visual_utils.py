@@ -6,8 +6,9 @@ import mmcv
 from mmcv.image import imread, imwrite
 import cv2
 from MinkowskiEngine import SparseTensor
+from scipy import ndimage
 
-from tools.color import color_val, get_random_color, _label2color
+from tools.color import color_val, get_random_color, _label2color, ColorValuesNp
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
@@ -17,6 +18,14 @@ BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
 #BOX_LINE_RADIUS = 1
 BOX_LINE_RADIUS = 0.01
 FONT_SCALE = 0.5
+
+def parse_colors(n, color):
+    if isinstance(color, np.ndarray) and len(color) == n:
+      colors = _label2color(color)
+    else:
+      assert isinstance(color, str)
+      colors = [_get_color(color) for i in range(n)]
+    return colors
 
 #-2d general------------------------------------------------------------------------------
 def _show_objs_ls_points_ls_torch(img,
@@ -59,6 +68,7 @@ def _show_objs_ls_points_ls(img,
                             out_file=None,
                             obj_thickness=1,
                             point_thickness=1,
+                            rooms_line_ids_ls = None,
                             only_save=False,
                             ):
   '''
@@ -68,7 +78,7 @@ def _show_objs_ls_points_ls(img,
   img = _draw_objs_ls_points_ls(img, objs_ls, obj_rep, points_ls, obj_colors,
       point_colors=point_colors, out_file=out_file, obj_thickness=obj_thickness,
       point_thickness=point_thickness, obj_scores_ls=obj_scores_ls,
-      point_scores_ls=point_scores_ls)
+      point_scores_ls=point_scores_ls, rooms_line_ids_ls=rooms_line_ids_ls)
   if not only_save:
     mmcv.imshow(img)
 
@@ -84,6 +94,7 @@ def _draw_objs_ls_points_ls(img,
                             obj_scores_ls=None,
                             point_scores_ls=None,
                             obj_cats_ls=None,
+                            rooms_line_ids_ls = None,
                             text_colors_ls='green',
                             ):
   if objs_ls is not None:
@@ -98,6 +109,8 @@ def _draw_objs_ls_points_ls(img,
       obj_cats_ls = [obj_cats_ls] * len(objs_ls)
     if not isinstance(text_colors_ls, list):
       text_colors_ls = [text_colors_ls] * len(objs_ls)
+    if not isinstance(rooms_line_ids_ls, list):
+      rooms_line_ids_ls = [rooms_line_ids_ls] * len(objs_ls)
 
   if points_ls is not None:
     assert isinstance(points_ls, list)
@@ -116,6 +129,7 @@ def _draw_objs_ls_points_ls(img,
                       scores = obj_scores_ls[i],
                       cats = obj_cats_ls[i],
                       text_color=text_colors_ls[i],
+                      rooms_line_ids = rooms_line_ids_ls[i],
                        )
 
   if points_ls is not None:
@@ -128,11 +142,13 @@ def _draw_objs_ls_points_ls(img,
 
 def _draw_points(img, points, color, point_thickness, point_scores=None, font_scale=0.5, text_color='green'):
     points = np.round(points).astype(np.int32)
+    n = points.shape[0]
+    colors = parse_colors(n, color)
     h, w = img.shape[:2]
     text_color = _get_color(text_color)
     for i in range(points.shape[0]):
       p = points[i]
-      c = _get_color(color)
+      c =  colors[i]
       cv2.circle(img, (p[0], p[1]), 2, c, thickness=point_thickness)
 
       if point_scores is not None:
@@ -173,13 +189,21 @@ def _draw_lines(img, lines, color, point_thickness, line_scores=None, font_scale
     return img
 
 def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
+              rooms_line_ids=None,
               cats=None, font_scale=FONT_SCALE, text_color='green'):
   if obj_rep != 'XYLgWsA':
     objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'XYLgWsA')
-  draw_XYLgWsA(img, objs, color, obj_thickness=obj_thickness, scores=scores, cats=cats, font_scale=font_scale, text_color=text_color)
+  if  rooms_line_ids is not None:
+    #img = draw_rooms_from_wall_room_mapping(img.shape[:2], objs, rooms_line_ids, 'XYLgWsA')
+    img = draw_rooms_from_walls(img.shape[:2], objs,  'XYLgWsA')
+  draw_XYLgWsA(img, objs, color, obj_thickness=obj_thickness, scores=scores,
+               rooms_line_ids = rooms_line_ids,
+               cats=cats, font_scale=font_scale, text_color=text_color)
   return img
 
-def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font_scale=0.5, text_color='green'):
+def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None,
+                 rooms_line_ids = None,
+                 cats=None, font_scale=0.5, text_color='green'):
     '''
     img: [h,w,3]
     objs: [n,5/6]  of XYLgWsA
@@ -192,11 +216,7 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
     h,w = img.shape[:2]
 
     n = objs.shape[0]
-    if isinstance(color, np.ndarray) and len(color) == n:
-      colors = _label2color(color)
-    else:
-      assert isinstance(color, str)
-      colors = [_get_color(color) for i in range(n)]
+    colors = parse_colors(n, color)
 
     if cats is not None and not isinstance(cats, list):
       cats = [cats] * n
@@ -204,18 +224,10 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
       scores = scores.reshape(-1)
       assert scores.shape[0] == n
 
-    boxes = []
     for i in range(n):
-        center, size, angle = objs[i][:2], objs[i][2:4], objs[i][4]
-        #print(f'size: {size}')
-        angle *= 180 / np.pi
-        rect = ( center, size, angle )
-        box = cv2.boxPoints(rect)
-        box = np.int0(np.ceil(box))
-        boxes.append(box)
-        c = colors[i]
-        cv2.drawContours(img, [box],0, c, obj_thickness)
+      draw_1_obj(img, objs[i], colors[i], obj_thickness, 'XYLgWsA')
 
+    for i in range(n):
         label_text = ''
         if cats is not None:
           label_text += cats[i] + ' '
@@ -234,6 +246,60 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None, cats=None, font
                       cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
 
     return img
+
+def draw_1_obj(img, obj, color, obj_thickness, obj_rep):
+        assert obj_rep == 'XYLgWsA'
+        assert obj.shape == (5,)
+        center, size, angle = obj[:2], obj[2:4], obj[4]
+        #print(f'size: {size}')
+        angle *= 180 / np.pi
+        rect = ( center, size, angle )
+        box = cv2.boxPoints(rect)
+        box = np.int0(np.ceil(box))
+        cv2.drawContours(img, [box],0, color, obj_thickness)
+
+def draw_rooms_from_wall_room_mapping(img, objs, room_line_ids, colors):
+  img_size = img.shape[:2]
+  n = len(room_line_ids)
+  colors_ = parse_colors(n, colors)
+  #masks = get_rooms_masks_with_mapping_ids(img_size, objs, room_line_ids, 'XYLgWsA')
+  img_rooms = get_rooms_mask_from_edges(img_size, objs,  'XYLgWsA')
+  return img_rooms
+
+def draw_rooms_from_walls( img_size, edges, obj_rep ):
+  img = np.zeros(img_size)
+  obj_thickness = 1
+  c = (255,255,255)
+  for edge in edges:
+    draw_1_obj(img, edge, c, obj_thickness, obj_rep)
+  img = (img==0).astype(np.uint8)
+  mask, num_rooms = ndimage.label(img)
+  background = mask == mask[0,0]
+  mask[background] = 0
+  img_mask = ColorValuesNp[mask]
+  img_mask[background] = 255
+  #mmcv.imshow(img_mask)
+  return img_mask
+
+def get_rooms_masks_with_mapping_ids( img_size, objs, rooms_line_ids, obj_rep ):
+  assert (objs[:,3]==0).all()
+  n = len(rooms_line_ids)
+  masks = [get_1_room_mask_from_edges(img_size, objs[ rooms_line_ids[i] ], obj_rep) for i in range(n)]
+  return masks
+
+def get_1_room_mask_from_edges( img_size, edges, obj_rep ):
+  img = np.zeros(img_size)
+  obj_thickness = 1
+  c = (255,255,255)
+  for edge in edges:
+    draw_1_obj(img, edge, c, obj_thickness, obj_rep)
+  img = (img==0).astype(np.uint8)
+  mask, num_rooms = ndimage.label(img)
+  assert num_rooms == 2
+  mask = (mask==2).astype(np.uint8)
+  mmcv.imshow(img)
+  mmcv.imshow(mask*255)
+  return mask
 
 def draw_XYXYSin2(img, objs, color, obj_thickness=1, font_scale=0.5, text_color='green'):
     '''

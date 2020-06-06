@@ -34,8 +34,6 @@ class Color_RGB(Enum):
     cyan  = (0,255,255)
     yellow= (255,255,0)
     magenta=(255,0,255)
-    white = (255,255,255)
-    black = (0,0,0)
     maroon= (128,0,0)
     purple= (128,0,128)
     navy  = (0,0,128)
@@ -54,6 +52,14 @@ class Color_RGB(Enum):
     peru = (205,133,63)
     hot_pink = (255,105,180)
 
+    black = (0,0,0)
+    white = (255,255,255)
+
+ColorList = [e.name for e in Color_RGB][:-2]
+ColorValues = [e.value for e in Color_RGB] * 10
+ColorValuesNp = np.array(ColorValues).astype(np.uint8)
+NumColors = len(ColorList)
+
 def _color(c, RGB=False):
   col = Color_RGB[c].value
   if RGB:
@@ -63,9 +69,8 @@ def _color(c, RGB=False):
 
 def get_random_color():
   # except black and white
-  colors = ['red', 'green', 'blue','cyan','yellow','magenta']
-  col = random.sample(colors, 1)[0]
-  return _color(col)
+  i = random.randint(0, NumColors)
+  return ColorValues[i]
 
 def _label2color(labels):
   colors = ['red', 'lime', 'blue',    'cyan', 'purple',   'gray','yellow',  'magenta', 'navy', 'green', ]
@@ -77,7 +82,7 @@ def _label2color(labels):
   n = len(colors)
   color_strs = [colors[ int(k%n) ] for k in labels]
   color_values = [color_val(c) for c in color_strs]
-  color_values = np.array(color_values)
+  #color_values = np.array(color_values)
   return color_values
 
 def color_val(color):

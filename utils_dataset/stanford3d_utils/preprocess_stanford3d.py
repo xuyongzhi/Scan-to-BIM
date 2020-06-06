@@ -202,7 +202,7 @@ def aligned_points_to_bbox(points, out_np=False):
     bbox_np = np.concatenate([min_bound, max_bound], axis=0)
   return bbox_np
 
-def points_to_oriented_bbox(points, bboxes_wall0, cat_name,  voxel_size=0.005):
+def points_to_bbox_sfd(points, bboxes_wall0, cat_name,  voxel_size=0.005):
   '''
   points: [n,3]
   boxes3d: [n,8] XYXYSin2WZ0Z1
@@ -660,7 +660,7 @@ def _gen_bboxes(max_num_points=1e6):
           coords_cat_ins = coords_cat[mask_ins]
           if cat_name != 'clutter':
             #show_pcd(coords_cat_ins)
-            bbox = points_to_oriented_bbox(coords_cat_ins, bboxes_wall, cat_name)
+            bbox = points_to_bbox_sfd(coords_cat_ins, bboxes_wall, cat_name)
             if bbox is not None:
               bboxes[cat_name].append(bbox)
             else:
@@ -855,14 +855,15 @@ def gen_box_1_scene(coords, feats, categories, instances, scene_name_l, max_num_
             coords_cat_ins = coords_cat[mask_ins]
             #_show_3d_points_objs_ls([coords_cat_ins])
             if cat_name != 'clutter':
-              bbox = points_to_oriented_bbox(coords_cat_ins, bboxes_wall, cat_name)
+              bbox = points_to_bbox_sfd(coords_cat_ins, bboxes_wall, cat_name)
               if ASIS:
                 if rm_large_thick_wall and cat_name == 'wall':
                   w = OBJ_REPS_PARSE.encode_obj(bbox, 'XYXYSin2WZ0Z1', 'XYZLgWsHA')
-                  if w[0,4]  > 0.45:
-                    w[0,4] = 0.45
+                  if w[0,4]  > 3:
+                    continue
+                  if w[0,4]  > 0.7:
+                    w[0,4] = 0.7
                     bbox = OBJ_REPS_PARSE.encode_obj(w, 'XYZLgWsHA', 'XYXYSin2WZ0Z1')
-                    #continue
 
               if bbox is not None:
                 bboxes[cat_name].append(bbox)
@@ -926,12 +927,13 @@ def gen_box_1_scene(coords, feats, categories, instances, scene_name_l, max_num_
 
         if DEBUG:
           _show_3d_points_objs_ls(objs_ls= [all_bboxes, all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[floors_mesh], polygon_colors='silver' )
-          all_bboxes_, all_colors_ = manual_rm_objs(all_bboxes, 'XYXYSin2WZ0Z1', all_colors, 7)
-          _show_3d_points_objs_ls(objs_ls= [all_bboxes_, all_bboxes_],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_colors_, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[floors_mesh], polygon_colors='silver' )
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
-          all_bboxes_, all_colors_ = manual_rm_objs_ids(all_bboxes, all_colors, [6])
-          pass
-          #_show_3d_points_objs_ls([coords], [feats], objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels], box_types='line_mesh')
+          if ASIS:
+            all_bboxes_, all_colors_ = manual_rm_objs(all_bboxes, 'XYXYSin2WZ0Z1', all_colors, 7)
+            _show_3d_points_objs_ls(objs_ls= [all_bboxes_, all_bboxes_],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_colors_, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[floors_mesh], polygon_colors='silver' )
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            all_bboxes_, all_colors_ = manual_rm_objs_ids(all_bboxes, all_colors, [6])
+            pass
+            #_show_3d_points_objs_ls([coords], [feats], objs_ls= [all_bboxes],  obj_rep='XYXYSin2WZ0Z1',  obj_colors=[all_labels], box_types='line_mesh')
 
         scope = all_bboxes[:,:4].reshape(-1,2).max(0) - all_bboxes[:,:4].reshape(-1,2).min(0)
         voxel_size =  max(scope) / 1000
