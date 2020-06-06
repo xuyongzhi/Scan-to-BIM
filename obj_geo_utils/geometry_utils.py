@@ -1051,6 +1051,7 @@ def points_to_oriented_bbox(points, obj_rep_out='XYLgWsA'):
   points: [n,2]
   '''
   import cv2
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
   box2d = cv2.minAreaRect(points)
   box2d = np.array( box2d[0]+box2d[1]+(box2d[2],) )[None, :]
   # The original angle from cv2.minAreaRect denotes the rotation from ref-x

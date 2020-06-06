@@ -379,6 +379,10 @@ class OBJ_REPS_PARSE():
           pass
       return bboxes_s2t
 
+    elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'XYXYSin2WZ0Z1':
+      XYXYSin2W = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep_in, 'XYXYSin2W')
+      return np.concatenate( [XYXYSin2W, XYXYSin2W[:,:2]*0], 1 )
+
     elif obj_rep_in == 'XYLgA' and obj_rep_out == 'RoLine2D_2p':
       return OBJ_REPS_PARSE.XYLgA_TO_RoLine2D_2p(bboxes)
 

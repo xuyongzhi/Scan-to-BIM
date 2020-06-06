@@ -925,7 +925,9 @@ class GraphEval():
     pos_line_ids = line_detIds_per_gt[line_detIds_per_gt>=0].astype(np.int)
     neg_line_ids = np.array([ i for i in range(det_lines.shape[0] ) if i not in pos_line_ids])
     det_lines_pos = det_lines[pos_line_ids]
-    det_points_pos = det_points[pos_line_ids]
+    # sometimes merging generate extra lines, but points not
+    n0 = det_points.shape[0]
+    det_points_pos = det_points[pos_line_ids[pos_line_ids < n0]]
     if len(neg_line_ids) == 0:
       det_lines_neg = det_lines[0:0]
       det_points_neg = det_points[0:0]

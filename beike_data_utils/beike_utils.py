@@ -129,7 +129,7 @@ class BEIKE(BEIKE_CLSINFO):
                                 self._classes, filter_edges=filter_edges,
                                 is_save_connection = self.is_save_connection)
 
-          anno_img = raw_anno_to_img(self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, )
+          anno_img = raw_anno_to_img(self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
           anno_img['classes'] = [c for c in classes if c!='background']
           filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
@@ -242,6 +242,7 @@ class BEIKE(BEIKE_CLSINFO):
 
 
     def show_anno_img(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0), write=False):
+      img_dir = self.img_prefix + '_Imgs'
       colors_line   = {'wall': (0,0,255), 'door': (0,255,255),
                        'window': (0,255,255), 'other':(100,100,0)}
       colors_corner = {'wall': (0,0,255), 'door': (0,255,0),
@@ -250,41 +251,55 @@ class BEIKE(BEIKE_CLSINFO):
       bboxes = anno['gt_bboxes']
       labels = anno['labels']
       rooms_line_ids = anno['rooms_line_ids']
-      cor_labels = np.vstack([labels, labels]).T.reshape(-1)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
-
 
       if not with_img:
         img = np.zeros((DIM_PARSE.IMAGE_SIZE, DIM_PARSE.IMAGE_SIZE, 3), dtype=np.uint8)
         img = (DIM_PARSE.IMAGE_SIZE, DIM_PARSE.IMAGE_SIZE)
       else:
         img = self.load_data(scene_name)
-        #img = img *10
-
 
       if (np.array(lines_transfer) != 0).any():
         angle, cx, cy = lines_transfer
         bboxes = transfer_lines(bboxes, DIM_PARSE.OBJ_REP, img.shape[:2], angle, (cx,cy))
 
       if rotate_angle != 0:
-        bboxes, img = rotate_bboxes_img(bboxes, img, rotate_angle,
-                                      self.obj_rep)
+        bboxes, img = rotate_bboxes_img(bboxes, img, rotate_angle, self.obj_rep)
+
+      room_mask = labels==4
+      room_bboxes = bboxes[room_mask]
+      bboxes = bboxes[room_mask==False]
+      labels = labels[room_mask==False]
+      cor_labels = np.vstack([labels, labels]).T.reshape(-1)
+
+
       corners = OBJ_REPS_PARSE.encode_obj(bboxes, self.obj_rep, 'RoLine2D_2p').reshape(-1,2)
       # draw rooms
       if write:
-        anno_img_file = os.path.join(self.img_prefix, scene_name+'-room.png')
+        anno_img_file = os.path.join(img_dir, scene_name+'-room.png')
+      else:
+        anno_img_file = None
       _show_objs_ls_points_ls(
         img, [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=2, point_thickness=2,
                                rooms_line_ids_ls = [rooms_line_ids],
                                out_file=anno_img_file, only_save=write)
+      if write:
+        anno_img_file = os.path.join(img_dir, scene_name+'-room_box.png')
+      else:
+        anno_img_file = None
+      _show_objs_ls_points_ls(
+        img[:,:,0], [room_bboxes], self.obj_rep, [corners],
+                               obj_colors='random', point_colors=[cor_labels],
+                               obj_thickness=2, point_thickness=2,
+                               out_file=anno_img_file, only_save=write)
 
       # draw density
       if write:
-        anno_img_file = os.path.join(self.img_prefix, scene_name+'-density.png')
+        anno_img_file = os.path.join(img_dir, scene_name+'-density.png')
       else:
         anno_img_file = None
       _show_objs_ls_points_ls(
@@ -295,7 +310,7 @@ class BEIKE(BEIKE_CLSINFO):
       # draw normal
       img_norm = np.abs(img[:,:,1:]) * 255
       if write:
-        anno_img_file = os.path.join(self.img_prefix, scene_name+'-norm.png')
+        anno_img_file = os.path.join(img_dir, scene_name+'-norm.png')
       _show_objs_ls_points_ls(
         img_norm, [bboxes], self.obj_rep, [corners],
                                obj_colors='white', point_colors=[cor_labels],
@@ -594,7 +609,7 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
 
   return corners_pt, lines_pt
 
-def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
+def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
       anno_img = {}
       if 'voxel_size' in pixel_config:
         corners_pt, lines_pt = anno_raw['corners'], anno_raw['lines']
@@ -620,36 +635,39 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
       assert gt_bboxes.max() < DIM_PARSE.IMAGE_SIZE
 
       anno_img['rooms_line_ids'] = anno_raw['rooms_line_ids']
-      #room_bboxes = get_room_bbox(lines_pt_ordered, anno_raw['rooms_line_ids'], obj_rep)
+      add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
 
-      for ele in BEIKE.edge_attributions:
-        anno_img[ele] = anno_raw[ele]
       #assert gt_bboxes.min() >= 0
       if DEBUG_CFG.VISUAL_CONNECTIONS:
-        show_connection_2( anno_img['gt_bboxes'], anno_img['relations'] )
+        walls = anno_img['gt_bboxes'][ anno_img['labels'] == 1 ]
+        show_connection_2( walls, anno_img['gt_bboxes'], anno_img['relations'], obj_rep )
       return anno_img
 
-def get_room_bbox(lines, rooms_line_ids, obj_rep_in):
-  '''
-  lines: [n,5]
-  rooms_line_ids: [ [ ] ]
-  '''
-  from obj_geo_utils.geometry_utils import points_to_oriented_bbox
-  assert obj_rep_in == 'XYXYSin2'
-  obj_rep = 'XYLgWsA'
-  corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep_in, 'RoLine2D_2p')
-  edges = OBJ_REPS_PARSE.encode_obj(lines, obj_rep_in, obj_rep)
-  num_rooms = len(rooms_line_ids)
-  rooms = []
-  for i in range(num_rooms):
-    ids_i = rooms_line_ids[i]
-    room_edges = edges[ids_i]
-    room_corners = corners[ids_i]
-    room_bbox = points_to_oriented_bbox(room_corners.reshape(-1,2), obj_rep)
-    rooms.append(room_bbox)
-    _show_objs_ls_points_ls( (512,512), [edges, room_edges, room_bbox], obj_rep=obj_rep, obj_colors=['white', 'red', 'yellow'], obj_thickness=[1,4,1])
-  rooms = np.concatenate(rooms, 0)
-  return rooms
+def add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder):
+      rooms_line_ids = anno_raw['rooms_line_ids']
+      # add room
+      room_bboxes = load_room_bboxes(anno_folder, anno_raw['filename'])
+      if room_bboxes is None:
+        room_bboxes = gen_room_bboxes(lines_pt_ordered, rooms_line_ids, obj_rep, anno_folder, anno_raw['filename'])
+      #_show_objs_ls_points_ls( (512,512), [anno_img['gt_bboxes'], room_bboxes], obj_rep=obj_rep, obj_colors=[anno_img['labels'], 'black'], obj_thickness=[10,3] )
+      n = room_bboxes.shape[0]
+      anno_img['gt_bboxes'] = np.concatenate([anno_img['gt_bboxes'], room_bboxes], 0)
+      room_labels = np.ones([n], dtype=np.int64) * 4
+      anno_img['labels'] = np.concatenate([anno_img['labels'], room_labels])
+
+      relations = anno_raw['relations']
+      num_wall = relations.shape[1]
+      rel_room_wall = np.zeros([n, num_wall]) == 1
+      for i in range(n):
+        rel_room_wall[i][ rooms_line_ids[i] ] = True
+      relations = np.concatenate([relations, rel_room_wall], 0)
+      anno_img['relations'] = relations
+
+      if 0:
+        walls = anno_img['gt_bboxes'][ anno_img['labels'] == 1 ]
+        show_connection_2( walls, room_bboxes, rel_room_wall, obj_rep )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
 
 def load_topview_img(file_name):
     data = np.load(file_name, allow_pickle=True).tolist()
@@ -859,6 +877,43 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
         show_ann_pcl(anno, file_path)
       return anno
 
+def gen_room_bboxes(lines, rooms_line_ids, obj_rep, anno_folder, filename):
+  from obj_geo_utils.geometry_utils import points_to_oriented_bbox
+  assert obj_rep == 'XYXYSin2WZ0Z1'
+
+  line_corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
+  num_rooms = len(rooms_line_ids)
+  rooms = []
+  for i in range(num_rooms):
+    ids_i = rooms_line_ids[i]
+    room_corners = line_corners[ids_i]
+    room_bbox = points_to_oriented_bbox(room_corners.reshape(-1,2), obj_rep)
+    rooms.append(room_bbox)
+    if 0:
+      _show_objs_ls_points_ls( (1024, 1024),[room_bbox], obj_rep, [ room_corners.reshape(-1,2) ], point_thickness=5, obj_thickness=2 )
+  rooms = np.concatenate(rooms, 0)
+
+  rooms_dir = anno_folder.replace('json', 'room_bboxes')
+  filename = filename.replace('json', 'txt')
+  rooms_file = os.path.join(rooms_dir, filename)
+
+  if not os.path.exists(rooms_dir):
+    os.makedirs(rooms_dir)
+  np.savetxt(rooms_file, rooms, fmt='%.3f')
+  print(f'save: {rooms_file}')
+  return rooms
+
+def load_room_bboxes(anno_folder, filename):
+  rooms_dir = anno_folder.replace('json', 'room_bboxes')
+  filename = filename.replace('json', 'txt')
+  rooms_file = os.path.join(rooms_dir, filename)
+  if not os.path.exists(rooms_file):
+    return None
+  else:
+    rooms = np.loadtxt(rooms_file)
+    return rooms
+
+
 def show_ann_pcl(anno, json_path):
   ply_path = json_path.replace('json', 'ply')
   pcl = load_ply(ply_path)
@@ -884,12 +939,12 @@ def show_ann_pcl(anno, json_path):
 
   pass
 
-def show_connection_2(walls, bboxes, relations, img_file=None):
+def show_connection_2(walls, bboxes, relations, obj_rep, img_file=None):
   n = bboxes.shape[0]
   for i in range(n):
     cids = np.where(relations[i])[0]
     #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'XYXYSin2', obj_colors=['white', 'green',])
-    _show_objs_ls_points_ls( (512,512), [walls, walls[cids], bboxes[i:i+1]], 'XYXYSin2', obj_colors=['white', 'green', 'red'], obj_thickness=[1,5,2], out_file=img_file, only_save=img_file is not None)
+    _show_objs_ls_points_ls( (512,512), [walls, walls[cids], bboxes[i:i+1]], obj_rep, obj_colors=['white', 'green', 'red'], obj_thickness=[1,5,2], out_file=img_file, only_save=img_file is not None)
     if img_file is not None:
       break
   pass
@@ -1108,10 +1163,10 @@ def gen_gts(data_path):
   obj_rep = 'XYZLgWsHA'
   obj_rep = 'XYXYSin2WZ0Z1'
   ANNO_PATH = os.path.join(data_path, 'json/')
-  phase = 'train.txt'
+  phase = 'all.txt'
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
-  is_save_connection = 1
+  is_save_connection = 0
   classes = ['wall', 'door', 'window', ]
   beike = BEIKE(obj_rep, ANNO_PATH, topview_path,
                 classes = classes,
@@ -1184,8 +1239,8 @@ def debug():
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
-  #gen_gts(data_path)
-  gen_connections(data_path)
+  gen_gts(data_path)
+  #gen_connections(data_path)
 
 if __name__ == '__main__':
   debug()
