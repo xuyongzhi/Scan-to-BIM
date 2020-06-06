@@ -3,7 +3,7 @@ import torch
 from ..bbox import PseudoSampler, assign_and_sample, build_assigner
 from ..utils import multi_apply
 
-from tools import debug_utils
+#from tools import debug_utils
 DEBUG = 0
 SHOW_CENTERNESS = 0
 

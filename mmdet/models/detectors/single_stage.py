@@ -6,9 +6,8 @@ from mmdet.core import bbox2result
 from .. import builder
 from ..registry import DETECTORS
 from .base import BaseDetector
-from utils_dataset.gen_sparse_input import update_img_shape_for_pcl
 
-from tools import debug_utils
+#from tools import debug_utils
 from tools.visual_utils import _show_objs_ls_points_ls
 import time
 from configs.common import DEBUG_CFG
@@ -91,6 +90,7 @@ class SingleStageDetector(BaseDetector):
         return outs
 
     def update_dynamic_shape(self, x, img_metas):
+        #from utils_dataset.gen_sparse_input import update_img_shape_for_pcl
         input_style = img_metas[0]['input_style']
         assert input_style in ['pcl', 'bev_sparse', 'img']
 
@@ -102,7 +102,7 @@ class SingleStageDetector(BaseDetector):
           img_meta['feat_sizes'] = feat_sizes
           img_meta['dynamic_img_shape'] = feat_sizes[0] * self.stem_stride
 
-        update_img_shape_for_pcl(x, img_metas[0], self.point_strides)
+        #update_img_shape_for_pcl(x, img_metas[0], self.point_strides)
 
     def forward_train(self,
                       img,

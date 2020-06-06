@@ -14,7 +14,7 @@ from ..registry import HEADS
 from ..utils import ConvModule, bias_init_with_prob, Scale
 
 from obj_geo_utils.geometry_utils import angle_from_vecs_to_vece, sin2theta
-from tools import debug_utils
+#from tools import debug_utils
 
 import torchvision as tcv
 

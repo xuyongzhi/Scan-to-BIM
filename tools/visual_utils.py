@@ -5,7 +5,6 @@ import numpy as np
 import mmcv
 from mmcv.image import imread, imwrite
 import cv2
-from MinkowskiEngine import SparseTensor
 from scipy import ndimage
 
 from tools.color import color_val, get_random_color, _label2color, ColorValuesNp

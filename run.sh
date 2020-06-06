@@ -9,6 +9,7 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 
 wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
 #wkdir=test
+
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 
@@ -28,15 +29,14 @@ REL=1
 #CLS=abcdif
 CLS=ad
 #CLS=a
-#CLS=A
 
-#CLS=acd
-#CLS=bif
-
-#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
+# single gpu
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
 #--resume $CP 
 
-./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS   --relation $REL
+
+# Multi gpu
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS   --relation $REL
 #--resume $CP 
 
 

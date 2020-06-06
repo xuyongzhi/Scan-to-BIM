@@ -5,7 +5,6 @@ import numpy as np
 import mmcv
 from mmcv.image import imread, imwrite
 import cv2
-from MinkowskiEngine import SparseTensor
 
 from .color import color_val, get_random_color, label2color, _label2color
 from configs.common import DEBUG_CFG, DIM_PARSE
@@ -47,6 +46,7 @@ def _show_tensor_ls_shapes(tensor_ls, pre='', i=0):
 
 
 def _show_sparse_ls_shapes(tensor_ls, pre='', i=0):
+  from MinkowskiEngine import SparseTensor
   if isinstance(tensor_ls, SparseTensor):
     tensor = tensor_ls
     coords = tensor.coords
