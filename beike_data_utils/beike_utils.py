@@ -129,8 +129,7 @@ class BEIKE(BEIKE_CLSINFO):
                                 self._classes, filter_edges=filter_edges,
                                 is_save_connection = self.is_save_connection)
 
-          anno_img = raw_anno_to_img(self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
-          anno_img['classes'] = [c for c in classes if c!='background']
+          anno_img = raw_anno_to_img(classes, self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
           filename = jfn.split('.')[0]+data_format
           img_info = {'filename': filename,
                       'ann': anno_img,
@@ -617,8 +616,9 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
 
   return corners_pt, lines_pt
 
-def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
+def raw_anno_to_img(classes, obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
       anno_img = {}
+      anno_img['classes'] = [c for c in classes if c!='background']
       if 'voxel_size' in pixel_config:
         corners_pt, lines_pt = anno_raw['corners'], anno_raw['lines']
       else:
@@ -642,9 +642,10 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
       gt_bboxes = anno_img['gt_bboxes'][:,:4]
       assert gt_bboxes.max() < DIM_PARSE.IMAGE_SIZE
 
-      #anno_raw['rooms_line_ids'] = get_room_line_ids_from_edges(lines_pt_ordered, obj_rep)
-      anno_img['rooms_line_ids'] = anno_raw['rooms_line_ids']
-      add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
+      if 'room' in classes:
+        #anno_raw['rooms_line_ids'] = get_room_line_ids_from_edges(lines_pt_ordered, obj_rep)
+        anno_img['rooms_line_ids'] = anno_raw['rooms_line_ids']
+        add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
 
       #assert gt_bboxes.min() >= 0
       if DEBUG_CFG.VISUAL_CONNECTIONS:
@@ -673,6 +674,7 @@ def add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
         room_bboxes = gen_room_bboxes(lines_pt_ordered, rooms_line_ids, obj_rep, anno_folder, anno_raw['filename'])
       #_show_objs_ls_points_ls( (512,512), [anno_img['gt_bboxes'], room_bboxes], obj_rep=obj_rep, obj_colors=[anno_img['labels'], 'black'], obj_thickness=[10,3] )
       n = room_bboxes.shape[0]
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       anno_img['gt_bboxes'] = np.concatenate([anno_img['gt_bboxes'], room_bboxes], 0)
       room_labels = np.ones([n], dtype=np.int64) * 4
       anno_img['labels'] = np.concatenate([anno_img['labels'], room_labels])

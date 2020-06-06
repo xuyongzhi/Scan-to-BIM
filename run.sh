@@ -15,12 +15,12 @@ wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_P
 
 #CP=./work_dirs/${wkdir}/best.pth
 #CP=./checkpoints/beike/jun1_wado_bev.pth
-CP=./checkpoints/beike/May4_wd_Bev.pth
+#CP=./checkpoints/beike/May4_wd_Bev.pth
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 
-LR=0.01
-ROTATE=0
+LR=0.001
+ROTATE=1
 BASE_PLANE=32
 BS=2
 DATA_TYPES=cnx

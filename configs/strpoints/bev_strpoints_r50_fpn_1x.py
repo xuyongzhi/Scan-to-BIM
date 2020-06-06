@@ -22,8 +22,8 @@ if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
   _transform_method='moment_XYXYSin2'
 
-  _obj_rep = 'XYXYSin2WZ0Z1'
-  _transform_method='moment_XYXYSin2WZ0Z1'
+  #_obj_rep = 'XYXYSin2WZ0Z1'
+  #_transform_method='moment_XYXYSin2WZ0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
   _transform_method = 'sort_4corners'
@@ -252,7 +252,7 @@ if DATA == 'beike2d':
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
-load_from = None
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
