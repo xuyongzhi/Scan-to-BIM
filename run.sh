@@ -8,7 +8,7 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 
 
 wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
-wkdir=test
+#wkdir=test
 
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
@@ -19,8 +19,8 @@ CP=./checkpoints/beike/May4_wd_Bev.pth
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 
-LR=0.0001
-ROTATE=1
+LR=0.01
+ROTATE=0
 BASE_PLANE=32
 BS=2
 DATA_TYPES=cnx
@@ -29,7 +29,6 @@ REL=1
 
 #CLS=abcdif
 CLS=ad
-#CLS=a
 
 # single gpu
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  

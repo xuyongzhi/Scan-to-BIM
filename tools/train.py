@@ -93,7 +93,7 @@ def update_config(cfg, args, split):
     obj_rep = cfg['_obj_rep']
 
     if cls_str is not None:
-      cls_full = {'A':'all','a':'wall', 'i':'window', 'd':'door', 'c':'column', 'b':'beam', 'f':'floor'}
+      cls_full = {'A':'all','a':'wall', 'i':'window', 'd':'door', 'c':'column', 'b':'beam', 'f':'floor', 'r':'room'}
 
       classes = [cls_full[c] for c in cls_str]
       cfg['classes'] = classes

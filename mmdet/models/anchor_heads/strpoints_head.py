@@ -509,6 +509,57 @@ class StrPointsHead(nn.Module):
             pass
 
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
+          bbox = self.tf_moment_XYXYSin2WZ0Z1(pts_x, pts_y, box_extra, out_line_constrain)
+
+        elif self.transform_method == 'moment_LWAsS2ZZ':
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+            pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
+            pts_x_std = torch.std(pts_x - pts_x_mean, dim=1, keepdim=True)
+            moment_transfer = (self.moment_transfer * self.moment_mul) + (
+                self.moment_transfer.detach() * (1 - self.moment_mul))
+            moment_width_transfer = moment_transfer[0]
+            moment_height_transfer = moment_transfer[1]
+            half_width = pts_x_std * torch.exp(moment_width_transfer)
+            half_height = pts_y_std * torch.exp(moment_height_transfer)
+
+            length_greater = torch.max( half_width, half_height ) * 2
+            width_smaller = torch.min( half_width, half_height ) * 2
+
+            vec_pts_y = pts_y - pts_y_mean
+            vec_pts_x = pts_x - pts_x_mean
+            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
+            vec_start = torch.zeros_like(vec_pts)
+            vec_start[:,1] = -1
+
+            sin_2thetas, sin_thetas = sin2theta(vec_start, vec_pts)
+            abs_sins = torch.abs(sin_thetas).view(pts_x.shape)
+            sin_2thetas = sin_2thetas.view(pts_x.shape)
+
+            npla = self.num_ps_long_axis
+            sin_2theta = sin_2thetas[:,:npla].mean(dim=1, keepdim=True)
+            abs_sin = abs_sins[:,:npla].mean(dim=1, keepdim=True)
+
+            isaline_0 = sin_2thetas[:,:npla].std(dim=1, keepdim=True)
+            isaline_1 = abs_sins[:,:npla].std(dim=1, keepdim=True)
+            isaline = (isaline_0 + isaline_1) / 2
+
+            z0z1 = torch.cat([torch.zeros_like(pts_x_mean)]*2, axis=1)
+
+            bbox = torch.cat([
+                pts_x_mean, pts_y_mean,
+                length_greater, width_smaller,
+                abs_sin, sin_2theta, z0z1
+              ], dim=1)
+
+            if out_line_constrain:
+              bbox = torch.cat([bbox, isaline], dim=1)
+            pass
+        else:
+          assert False
+        return bbox
+
+    def tf_moment_XYXYSin2WZ0Z1(self, pts_x, pts_y, box_extra, out_line_constrain):
             assert self.box_extra_dims == 3 and box_extra.shape[1] == self.box_extra_dims
             if not box_extra.shape[2:] == pts_x.shape[2:]:
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
@@ -559,55 +610,7 @@ class StrPointsHead(nn.Module):
             ], dim=1)
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
-            pass
-
-        elif self.transform_method == 'moment_LWAsS2ZZ':
-            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
-            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
-            pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
-            pts_x_std = torch.std(pts_x - pts_x_mean, dim=1, keepdim=True)
-            moment_transfer = (self.moment_transfer * self.moment_mul) + (
-                self.moment_transfer.detach() * (1 - self.moment_mul))
-            moment_width_transfer = moment_transfer[0]
-            moment_height_transfer = moment_transfer[1]
-            half_width = pts_x_std * torch.exp(moment_width_transfer)
-            half_height = pts_y_std * torch.exp(moment_height_transfer)
-
-            length_greater = torch.max( half_width, half_height ) * 2
-            width_smaller = torch.min( half_width, half_height ) * 2
-
-            vec_pts_y = pts_y - pts_y_mean
-            vec_pts_x = pts_x - pts_x_mean
-            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
-            vec_start = torch.zeros_like(vec_pts)
-            vec_start[:,1] = -1
-
-            sin_2thetas, sin_thetas = sin2theta(vec_start, vec_pts)
-            abs_sins = torch.abs(sin_thetas).view(pts_x.shape)
-            sin_2thetas = sin_2thetas.view(pts_x.shape)
-
-            npla = self.num_ps_long_axis
-            sin_2theta = sin_2thetas[:,:npla].mean(dim=1, keepdim=True)
-            abs_sin = abs_sins[:,:npla].mean(dim=1, keepdim=True)
-
-            isaline_0 = sin_2thetas[:,:npla].std(dim=1, keepdim=True)
-            isaline_1 = abs_sins[:,:npla].std(dim=1, keepdim=True)
-            isaline = (isaline_0 + isaline_1) / 2
-
-            z0z1 = torch.cat([torch.zeros_like(pts_x_mean)]*2, axis=1)
-
-            bbox = torch.cat([
-                pts_x_mean, pts_y_mean,
-                length_greater, width_smaller,
-                abs_sin, sin_2theta, z0z1
-              ], dim=1)
-
-            if out_line_constrain:
-              bbox = torch.cat([bbox, isaline], dim=1)
-            pass
-        else:
-          assert False
-        return bbox
+            return bbox
 
     def gen_grid_from_reg(self, reg, previous_boxes):
         """

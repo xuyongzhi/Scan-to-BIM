@@ -54,7 +54,7 @@ BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159
 
 class BEIKE_CLSINFO(object):
   def __init__(self, classes_in, always_load_walls=1):
-      classes_order = ['background', 'wall', 'door', 'window', 'other']
+      classes_order = ['background', 'wall', 'door', 'window', 'room', 'other']
       classes = [c for c in classes_order if c in classes_in]
       if 'background' not in classes:
         classes = ['background']+ classes
@@ -447,16 +447,24 @@ class BEIKE(BEIKE_CLSINFO):
       anno = self.img_infos[idx]['ann']
       bboxes = anno['gt_bboxes']
       labels = anno['labels']
-      assert self._classes == ['background', 'wall', 'door', 'window']
+      assert self._classes == ['background', 'wall', 'door', 'window', 'room']
       walls = bboxes[self._category_ids_map['wall'] == labels]
       windows = bboxes[self._category_ids_map['window'] == labels]
       doors = bboxes[self._category_ids_map['door'] == labels]
-      wall_connect_wall_mask,_,_ = find_wall_wall_connection(walls, connect_threshold, 'XYXYSin2')
-      window_in_wall_mask = find_wall_wd_connection(walls, windows, 'XYXYSin2')
-      door_in_wall_mask = find_wall_wd_connection(walls, doors, 'XYXYSin2')
+      wall_connect_wall_mask,_,_ = find_wall_wall_connection(walls, connect_threshold, self.obj_rep)
+      window_in_wall_mask = find_wall_wd_connection(walls, windows, self.obj_rep)
+      door_in_wall_mask = find_wall_wd_connection(walls, doors, self.obj_rep)
+      rooms_line_ids = anno['rooms_line_ids']
+      num_walls = walls.shape[0]
+      num_rooms = len(rooms_line_ids)
+      room_wall_mask = np.zeros([num_rooms, num_walls]) == 1
+      for i in range(num_rooms):
+        room_wall_mask[i][ rooms_line_ids[i] ] = True
       relations = dict( wall = wall_connect_wall_mask,
                           window = window_in_wall_mask,
-                          door = door_in_wall_mask )
+                          door = door_in_wall_mask,
+                          room = room_wall_mask,
+                       )
 
       #connect_mask = np.concatenate([wall_connect_wall_mask, door_in_wall_mask, window_in_wall_mask ], axis=0).astype(np.uint8)
 
@@ -471,7 +479,7 @@ class BEIKE(BEIKE_CLSINFO):
           img_file = os.path.join(self.connection_img_dir, scene + f'-{cat}.png' )
           #img_file = None
           objs = bboxes[self._category_ids_map[cat] == labels]
-          show_connection_2(walls, objs, relations[cat], img_file)
+          show_connection_2(walls, objs, relations[cat], self.obj_rep, img_file)
           pass
       pass
 
@@ -634,6 +642,7 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
       gt_bboxes = anno_img['gt_bboxes'][:,:4]
       assert gt_bboxes.max() < DIM_PARSE.IMAGE_SIZE
 
+      #anno_raw['rooms_line_ids'] = get_room_line_ids_from_edges(lines_pt_ordered, obj_rep)
       anno_img['rooms_line_ids'] = anno_raw['rooms_line_ids']
       add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
 
@@ -642,6 +651,19 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
         walls = anno_img['gt_bboxes'][ anno_img['labels'] == 1 ]
         show_connection_2( walls, anno_img['gt_bboxes'], anno_img['relations'], obj_rep )
       return anno_img
+
+def get_room_line_ids_from_edges(lines_pt_ordered, obj_rep):
+  img = np.zeros(img_size)
+  obj_thickness = 1
+  c = (255,255,255)
+  for edge in edges:
+    draw_1_obj(img, edge, c, obj_thickness, obj_rep)
+  img = (img==0).astype(np.uint8)
+  mask, num_rooms = ndimage.label(img)
+  background = mask == mask[0,0]
+  mask[background] = 0
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
 
 def add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder):
       rooms_line_ids = anno_raw['rooms_line_ids']
@@ -654,14 +676,6 @@ def add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
       anno_img['gt_bboxes'] = np.concatenate([anno_img['gt_bboxes'], room_bboxes], 0)
       room_labels = np.ones([n], dtype=np.int64) * 4
       anno_img['labels'] = np.concatenate([anno_img['labels'], room_labels])
-
-      relations = anno_raw['relations']
-      num_wall = relations.shape[1]
-      rel_room_wall = np.zeros([n, num_wall]) == 1
-      for i in range(n):
-        rel_room_wall[i][ rooms_line_ids[i] ] = True
-      relations = np.concatenate([relations, rel_room_wall], 0)
-      anno_img['relations'] = relations
 
       if 0:
         walls = anno_img['gt_bboxes'][ anno_img['labels'] == 1 ]
@@ -814,8 +828,6 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
               anno[ele] = np.array(anno[ele]).astype(np.int32)
       for ele in ['line_ids', 'rooms_line_ids']:
               anno[ele] = np.array(anno[ele])
-      for ele in ['rooms_line_ids']:
-        pass
 
       lines_leng = np.linalg.norm(anno['lines'][:,0] - anno['lines'][:,1], axis=-1)
       anno['line_length_min_mean_max'] = [lines_leng.min(), lines_leng.mean(), lines_leng.max()]
@@ -1167,7 +1179,7 @@ def gen_gts(data_path):
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
   is_save_connection = 0
-  classes = ['wall', 'door', 'window', ]
+  classes = ['wall', 'door', 'window', 'rooom']
   beike = BEIKE(obj_rep, ANNO_PATH, topview_path,
                 classes = classes,
                 filter_edges= 0,
@@ -1204,13 +1216,13 @@ def save_unscanned_edges(data_path):
 
 def gen_connections(data_path):
   obj_rep = 'XYXYSin2'
-  obj_rep = 'XYXYSin2'
+  obj_rep = 'XYXYSin2WZ0Z1'
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'test.txt'
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
   is_save_connection = 1
-  classes = ['wall', 'door', 'window', ]
+  classes = ['wall', 'door', 'window', 'room',]
   beike = BEIKE(obj_rep, ANNO_PATH, topview_path,
                 classes = classes,
                 filter_edges= 0,
