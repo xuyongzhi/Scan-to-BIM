@@ -114,6 +114,8 @@ class StrPointsHead(nn.Module):
               self.box_extra_dims = 3
         elif obj_rep == 'XYXYSin2':
             self.box_extra_dims = 0
+        elif obj_rep == 'XYXYSin2W':
+            self.box_extra_dims = 0
         elif obj_rep == 'XYLgWsAbsSin2Z0Z1':
             if transform_method == 'minAreaRect':
               self.box_extra_dims = 3
@@ -545,7 +547,7 @@ class StrPointsHead(nn.Module):
             width_z0_z1 = torch.zeros_like(pts_y)[:,:3]
             width_z0_z1[:,0] = box_extra[:,0]
 
-            if DEBUG_CFG.set_width_0:
+            if DEBUG_CFG.SET_WIDTH_0:
               width_z0_z1[:,0] *= 0
             if DEBUG_CFG.SET_Z_0:
               width_z0_z1[:,1:] *= 0

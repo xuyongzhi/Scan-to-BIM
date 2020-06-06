@@ -108,9 +108,19 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=0.01, ref='union'):
   assert bboxes2.shape[1] == 5
   bboxes1 = bboxes1.clone()
   bboxes2 = bboxes2.clone()
-  #_show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYLgWsA')
-  assert bboxes1[:,-1].abs().max() < np.pi*2
-  assert bboxes2[:,-1].abs().max() < np.pi*2
+  n1 = bboxes1.shape[0]
+  n2 = bboxes2.shape[0]
+  if n1==0 or n2==0:
+    return torch.zeros([n1,n2])
+
+  if not bboxes1[:,-1].abs().max() < np.pi*2:
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    _show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYLgWsA')
+    pass
+  if not bboxes2[:,-1].abs().max() < np.pi*2:
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    _show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYLgWsA')
+    pass
 
   bboxes1[:,-1] *= 180/np.pi
   bboxes2[:,-1] *= 180/np.pi

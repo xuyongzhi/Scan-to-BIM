@@ -198,8 +198,7 @@ class PointAssigner(BaseAssigner):
             assigned_labels = assigned_gt_inds.new_zeros((num_points, ))
             pos_inds = torch.nonzero(assigned_gt_inds > 0).squeeze()
             if pos_inds.numel() > 0:
-                assigned_labels[pos_inds] = gt_labels[
-                    assigned_gt_inds[pos_inds] - 1]
+                assigned_labels[pos_inds] = gt_labels[assigned_gt_inds[pos_inds] - 1]
 
             if DEBUG_CFG.PRINT_POINT_ASSIGNER:
               pos_dist = assigned_gt_dist[pos_inds]

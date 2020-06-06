@@ -227,6 +227,7 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None,
       draw_1_obj(img, objs[i], colors[i], obj_thickness, 'XYLgWsA')
 
     for i in range(n):
+        center = objs[i,:2]
         label_text = ''
         if cats is not None:
           label_text += cats[i] + ' '

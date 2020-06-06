@@ -436,7 +436,7 @@ class BEIKE(BEIKE_CLSINFO):
       walls = bboxes[self._category_ids_map['wall'] == labels]
       windows = bboxes[self._category_ids_map['window'] == labels]
       doors = bboxes[self._category_ids_map['door'] == labels]
-      wall_connect_wall_mask = find_wall_wall_connection(walls, connect_threshold, 'XYXYSin2')
+      wall_connect_wall_mask,_,_ = find_wall_wall_connection(walls, connect_threshold, 'XYXYSin2')
       window_in_wall_mask = find_wall_wd_connection(walls, windows, 'XYXYSin2')
       door_in_wall_mask = find_wall_wd_connection(walls, doors, 'XYXYSin2')
       relations = dict( wall = wall_connect_wall_mask,
@@ -452,9 +452,12 @@ class BEIKE(BEIKE_CLSINFO):
       if save_connection_imgs:
         scene = self.img_infos[idx]['filename'].split('.')[0]
         for cat in relations:
+        #for cat in ['door']:
           img_file = os.path.join(self.connection_img_dir, scene + f'-{cat}.png' )
+          #img_file = None
           objs = bboxes[self._category_ids_map[cat] == labels]
           show_connection_2(walls, objs, relations[cat], img_file)
+          pass
       pass
 
 
@@ -604,7 +607,7 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
       labels_line_corner = np.concatenate([anno_raw['line_cat_ids'], anno_raw['corner_cat_ids'] ], axis=0)
 
       anno_img['gt_bboxes'] = lines_pt_ordered
-      anno_img['labels'] = anno_raw['line_cat_ids']
+      anno_img['labels'] = anno_raw['line_cat_ids'].astype(np.int64)
       anno_img['relations'] = anno_raw['relations']
 
       anno_img['min_line_size'] = min_line_size
@@ -623,7 +626,7 @@ def raw_anno_to_img(obj_rep, anno_raw, anno_style, pixel_config):
         anno_img[ele] = anno_raw[ele]
       #assert gt_bboxes.min() >= 0
       if DEBUG_CFG.VISUAL_CONNECTIONS:
-        show_connection( anno_img['gt_bboxes'], anno_img['relations'] )
+        show_connection_2( anno_img['gt_bboxes'], anno_img['relations'] )
       return anno_img
 
 def get_room_bbox(lines, rooms_line_ids, obj_rep_in):
@@ -879,7 +882,6 @@ def show_ann_pcl(anno, json_path):
   _show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines], obj_rep='RoLine2D_2p')
   _show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines_norm], obj_rep='RoLine2D_2p')
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_connection_2(walls, bboxes, relations, img_file=None):
@@ -888,16 +890,6 @@ def show_connection_2(walls, bboxes, relations, img_file=None):
     cids = np.where(relations[i])[0]
     #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'XYXYSin2', obj_colors=['white', 'green',])
     _show_objs_ls_points_ls( (512,512), [walls, walls[cids], bboxes[i:i+1]], 'XYXYSin2', obj_colors=['white', 'green', 'red'], obj_thickness=[1,5,2], out_file=img_file, only_save=img_file is not None)
-    if img_file is not None:
-      break
-  pass
-
-def show_connection(bboxes, relations, img_file=None):
-  n = bboxes.shape[0]
-  for i in range(n):
-    cids = np.where(relations[i])[0]
-    #_show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], ], 'XYXYSin2', obj_colors=['white', 'green',])
-    _show_objs_ls_points_ls( (512,512), [bboxes, bboxes[i:i+1], bboxes[cids]], 'XYXYSin2', obj_colors=['white', 'green', 'red'], obj_thickness=[1, 4, 2], out_file=img_file, only_save=img_file is not None)
     if img_file is not None:
       break
   pass
@@ -1113,6 +1105,8 @@ def gen_images_from_npy(data_path):
 
 def gen_gts(data_path):
   obj_rep = 'XYXYSin2'
+  obj_rep = 'XYZLgWsHA'
+  obj_rep = 'XYXYSin2WZ0Z1'
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'train.txt'
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
@@ -1128,7 +1122,7 @@ def gen_gts(data_path):
   scene_list = os.path.join(data_path, 'all.txt')
   scenes = np.loadtxt(scene_list, str).tolist()
 
-  rotate_angle = 45
+  rotate_angle = 30
   for s in scenes:
     beike.show_scene_anno(s, True, rotate_angle, write=True)
 
@@ -1154,6 +1148,7 @@ def save_unscanned_edges(data_path):
   pass
 
 def gen_connections(data_path):
+  obj_rep = 'XYXYSin2'
   obj_rep = 'XYXYSin2'
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'test.txt'
@@ -1189,8 +1184,8 @@ def debug():
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
-  gen_gts(data_path)
-  #gen_connections(data_path)
+  #gen_gts(data_path)
+  gen_connections(data_path)
 
 if __name__ == '__main__':
   debug()

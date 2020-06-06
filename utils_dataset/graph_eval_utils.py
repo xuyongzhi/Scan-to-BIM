@@ -127,6 +127,7 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
           assert det_lines.shape[1] == dim_parse.OUT_DIM_FINAL
           detection_bRefine_sAve = dim_parse.clean_bboxes_out(det_lines, stage='final', out_type='bRefine_sAve')
           detection_bInit_sRefine = dim_parse.clean_bboxes_out(det_lines, stage='final', out_type='bInit_sRefine')
+          #_show_objs_ls_points_ls(img_i, [detection_bInit_sRefine[:,:-1]], obj_rep='XYZLgWsHA')
           s, e = dim_parse.OUT_ORDER['points_refine']
           points_refine = det_lines[:, s:e]
           s, e = dim_parse.OUT_ORDER['points_init']
@@ -199,7 +200,7 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
   if cat == 'wall':
       scores_i = det_lines[:,-1]
       det_lines_merged, scores_merged, ids = \
-        GraphUtils.optimize_wall_graph(det_lines[:,:obj_dim], scores_i, obj_rep=obj_rep,
+        GraphUtils.optimize_wall_graph(det_lines[:,:obj_dim], scores_i, obj_rep_in=obj_rep,
           opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length )
 
       det_lines_merged = np.concatenate([det_lines_merged, scores_merged.reshape(-1,1)], axis=1)
@@ -231,9 +232,9 @@ class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
   if 1:
-    _all_out_types = [ 'bRefine_sAve' ] * 2
-    _opti_graph = [1] * 2
-    _opti_by_rel = [0, 1]
+    _all_out_types = [ 'bRefine_sAve' ] * 1
+    _opti_graph = [1] * 1
+    _opti_by_rel = [0]
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]

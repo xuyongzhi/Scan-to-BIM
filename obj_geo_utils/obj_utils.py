@@ -133,23 +133,40 @@ class OBJ_REPS_PARSE():
       RoLine2D_2p = OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'RoLine2D_2p')
       return OBJ_REPS_PARSE.encode_obj(RoLine2D_2p, 'RoLine2D_2p', 'XYXYSin2')
 
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYXYSin2W':
+      XYXYSin2 = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep_in, 'XYXYSin2')
+      return np.concatenate([ XYXYSin2, bboxes[:,4:5] ], 1)
 
     # RoLine2D_2p --------------------------------------------------------------
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2':
       return OBJ_REPS_PARSE.Line2p_TO_UpRight_xyxy_sin2a(bboxes)
 
+    elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYXYSin2W':
+      XYXYSin2 = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep_in, 'XYXYSin2')
+      zeros = XYXYSin2[:,0:1] * 0
+      XYXYSin2W = np.concatenate([XYXYSin2, zeros], 1)
+      return XYXYSin2W
+
     elif obj_rep_in == 'RoLine2D_2p' and obj_rep_out == 'XYZLgWsHA':
       XYXYSin2 = OBJ_REPS_PARSE.encode_obj(bboxes, 'RoLine2D_2p', 'XYXYSin2')
       return OBJ_REPS_PARSE.encode_obj(XYXYSin2, 'XYXYSin2', 'XYZLgWsHA')
 
-    # essential  ---------------------------------------------------------------
-
-
+    # XYXYSin2 XYXYSin2W  ------------------------------------------------------
     elif obj_rep_in == 'XYXYSin2' and obj_rep_out == 'RoLine2D_2p':
       return OBJ_REPS_PARSE.XYXYSin2_TO_RoLine2D_2p(bboxes)
 
+    elif obj_rep_in == 'XYXYSin2W' and obj_rep_out == 'RoLine2D_2p':
+      return OBJ_REPS_PARSE.XYXYSin2_TO_RoLine2D_2p(bboxes[:,:5])
+
     elif obj_rep_in == 'XYXYSin2W' and obj_rep_out == 'XYLgWsA':
         return OBJ_REPS_PARSE.XYXYSin2W_TO_XYLgWsA(bboxes)
+
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYXYSin2W':
+      return bboxes[:,:-2]
+
+    # essential  ---------------------------------------------------------------
+
+
 
 
     elif obj_rep_in == 'XYLgWsAbsSin2Z0Z1' and obj_rep_out == 'XYZLgWsHA':

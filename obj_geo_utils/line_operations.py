@@ -273,8 +273,20 @@ def rotate_bboxes_img(bboxes, img, angle,  obj_rep):
 
   width = XYXYSin2W[:,5:6] * scale
   r_XYXYSin2W = np.concatenate([ rotate_lines, width ], axis=1)
-  if obj_rep == 'Rect4CornersZ0Z1':
+  if obj_rep == 'XYXYSin2W':
+    return r_XYXYSin2W, new_img
+  elif obj_rep == 'XYXYSin2WZ0Z1':
     XYXYSin2WZ0Z1 = np.concatenate([ r_XYXYSin2W, bboxes[:,[-2,-1]] ], axis=1)
+    return XYXYSin2WZ0Z1, new_img
+  elif obj_rep == 'XYZLgWsHA':
+    zc, H = bboxes[:,2:3], bboxes[:,5:6]
+    z0 = zc - H/2
+    z1 = zc + H/2
+    XYXYSin2WZ0Z1 = np.concatenate([ r_XYXYSin2W, z0, z1], axis=1)
+  elif obj_rep == 'Rect4CornersZ0Z1':
+    XYXYSin2WZ0Z1 = np.concatenate([ r_XYXYSin2W, bboxes[:,[-2,-1]] ], axis=1)
+  else:
+    raise NotImplementedError
   rotated_bboxes = OBJ_REPS_PARSE.encode_obj(XYXYSin2WZ0Z1, 'XYXYSin2WZ0Z1', obj_rep)
   rotated_bboxes = rotated_bboxes.astype(np.float32)
   show = 0

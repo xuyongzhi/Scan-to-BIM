@@ -21,6 +21,9 @@ classes= ['wall']
 if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
   _transform_method='moment_XYXYSin2'
+
+  _obj_rep = 'XYXYSin2WZ0Z1'
+  _transform_method='moment_XYXYSin2WZ0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
   _transform_method = 'sort_4corners'
@@ -182,7 +185,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  #img_prefix_test = img_prefix_train
+  img_prefix_test = img_prefix_train
 
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
@@ -249,11 +252,11 @@ if DATA == 'beike2d':
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
-load_from = None
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)
