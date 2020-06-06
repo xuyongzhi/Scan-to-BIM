@@ -427,6 +427,8 @@ class StrPointsHead(nn.Module):
                              dim=1)
         elif self.transform_method == 'moment_XYXYSin2':
             bbox = self.tran_fun_moment_XYXYSin2(pts_x, pts_y, box_extra, out_line_constrain)
+        elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
+            bbox = self.tran_fun_moment_XYXYSin2WZ0Z1(pts_x, pts_y, box_extra, out_line_constrain)
 
         elif self.transform_method == '4corners_to_rect':
             assert box_extra.shape[1] == 2
@@ -458,8 +460,6 @@ class StrPointsHead(nn.Module):
               bbox = torch.cat([bbox, rect_loss], dim=1)
             pass
 
-        elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
-          bbox = self.tf_moment_XYXYSin2WZ0Z1(pts_x, pts_y, box_extra, out_line_constrain)
 
         elif self.transform_method == 'moment_LWAsS2ZZ':
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
@@ -552,7 +552,55 @@ class StrPointsHead(nn.Module):
             return bbox
             pass
 
-    def tf_moment_XYXYSin2WZ0Z1(self, pts_x, pts_y, box_extra, out_line_constrain):
+    def tran_fun_moment_XYXYSin2WZ0Z1(self, pts_x, pts_y, box_extra, out_line_constrain):
+            assert self.box_extra_dims == 3 and box_extra.shape[1] == self.box_extra_dims
+            if not box_extra.shape[2:] == pts_x.shape[2:]:
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
+
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+            pts_y_std = torch.std(pts_y - pts_y_mean, dim=1, keepdim=True)
+            pts_x_std = torch.std(pts_x - pts_x_mean, dim=1, keepdim=True)
+            moment_transfer = (self.moment_transfer * self.moment_mul) + (
+                self.moment_transfer.detach() * (1 - self.moment_mul))
+            moment_width_transfer = moment_transfer[0]
+            moment_height_transfer = moment_transfer[1]
+            half_width = pts_x_std * torch.exp(moment_width_transfer)
+            half_height = pts_y_std * torch.exp(moment_height_transfer)
+
+
+            vec_pts_y = pts_y - pts_y_mean
+            vec_pts_x = pts_x - pts_x_mean
+            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
+            vec_start = torch.zeros_like(vec_pts)
+            vec_start[:,1] = -1
+
+            sin_2thetas, sin_thetas = sin2theta(vec_start, vec_pts)
+            abs_sins = torch.abs(sin_thetas).view(pts_x.shape)
+            sin_2thetas = sin_2thetas.view(pts_x.shape)
+
+            npla = self.num_ps_long_axis
+            sin_2theta = sin_2thetas[:,:npla].mean(dim=1, keepdim=True)
+            abs_sin = abs_sins[:,:npla].mean(dim=1, keepdim=True)
+
+            isaline_0 = sin_2thetas[:,:npla].std(dim=1, keepdim=True)
+            isaline_1 = abs_sins[:,:npla].std(dim=1, keepdim=True)
+            isaline = (isaline_0 + isaline_1) / 2
+
+            width_z0_z1 = torch.zeros_like(pts_y)[:,:3]
+
+            bbox = torch.cat([
+                pts_x_mean - half_width, pts_y_mean - half_height,
+                pts_x_mean + half_width, pts_y_mean + half_height,
+                sin_2theta, width_z0_z1
+            ],  dim=1)
+            if out_line_constrain:
+              bbox = torch.cat([bbox, isaline], dim=1)
+            return bbox
+            pass
+
+    def Unused_tf_moment_XYXYSin2WZ0Z1(self, pts_x, pts_y, box_extra, out_line_constrain):
             assert self.box_extra_dims == 3 and box_extra.shape[1] == self.box_extra_dims
             if not box_extra.shape[2:] == pts_x.shape[2:]:
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
@@ -2028,19 +2076,20 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
                 f'loss_loc{s}': loss_pts_init_loc,
                 f'loss_rot{s}': loss_pts_init_rotation
             }
-            if obj_rep == 'XYXYSin2WZ0Z1':
-              loss_pts_init_width = loss_bbox_fun(
-                bbox_pred_init_nm [:,[5]],
-                bbox_gt_init_nm   [:,[5]],
-                bbox_weights_init [:,[5]],
-                avg_factor=num_total_samples_init)
-              loss_pts_init_z = loss_bbox_fun(
-                bbox_pred_init_nm [:,[6,7]],
-                bbox_gt_init_nm   [:,[6,7]],
-                bbox_weights_init [:,[6,7]],
-                avg_factor=num_total_samples_init)
-              loss_pts_init[f'loss_wd{s}'] = loss_pts_init_width
-              #loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
+            #if obj_rep == 'XYXYSin2WZ0Z1':
+            #  loss_pts_init_width = loss_bbox_fun(
+            #    bbox_pred_init_nm [:,[5]],
+            #    bbox_gt_init_nm   [:,[5]],
+            #    bbox_weights_init [:,[5]],
+            #    avg_factor=num_total_samples_init)
+            #  loss_pts_init_z = loss_bbox_fun(
+            #    bbox_pred_init_nm [:,[6,7]],
+            #    bbox_gt_init_nm   [:,[6,7]],
+            #    bbox_weights_init [:,[6,7]],
+            #    avg_factor=num_total_samples_init)
+            #  loss_pts_init[f'loss_wd{s}'] = loss_pts_init_width
+            #  #loss_pts_init[f'loss_z{s}'] = loss_pts_init_z
+            pass
 
         elif obj_rep == 'Rect4CornersZ0Z1':
           #t0 = time.time()
