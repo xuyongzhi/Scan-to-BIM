@@ -1015,7 +1015,10 @@ class StrPointsHead(nn.Module):
           labels_i = labels[cls_type].reshape(-1)
           label_weights_i = label_weights[cls_type].reshape(-1)
           cls_score_i = cls_score[cls_type].permute(0, 2, 3,
-                                        1).reshape(-1, self.cls_out_channels)
+                                        1).reshape(-1, self.cls_out_channels_g)
+          if cls_score_i.shape[0] != labels_i.shape[0]:
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
           loss_cls[cls_type] = self.loss_cls(
               cls_score_i,
               labels_i,
@@ -1227,6 +1230,53 @@ class StrPointsHead(nn.Module):
              img_metas,
              cfg,
              gt_bboxes_ignore=None):
+      npts = self.num_points * 2
+      num_level = len(pts_preds_init)
+      s = 0
+      for i, ncg in enumerate(self.cls_groups):
+        self.cls_out_channels_g = self.cls_groups[i]
+        self.group_id = i
+        cls_scores_i = []
+        for cs in cls_scores:
+          cls_scores_i.append( { e:cs[e][:,s:s+ncg] for e in cs } )
+        s += ncg
+        pts_preds_init_i = [pts_preds_init[j][:,i*npts:(i+1)*npts] for j in range(num_level)]
+        pts_preds_refine_i = [pts_preds_refine[j][:,i*npts:(i+1)*npts] for j in range(num_level)]
+        loss_dict_i = self.loss_per_group(
+              cls_scores_i,
+              pts_preds_init_i,
+              pts_preds_refine_i,
+              corner_outs,
+              rel_feat_outs,
+              box_extra_init,
+              box_extra_refine,
+              gt_bboxes,
+              gt_labels,
+              gt_relations,
+              img_metas,
+              cfg,
+              gt_bboxes_ignore)
+        if i==0:
+          loss_dict_all = loss_dict_i
+        else:
+          for e in loss_dict_i:
+            loss_dict_all[e] += loss_dict_i[e]
+      return loss_dict_all
+
+    def loss_per_group(self,
+             cls_scores,
+             pts_preds_init,
+             pts_preds_refine,
+             corner_outs,
+             rel_feat_outs,
+             box_extra_init,
+             box_extra_refine,
+             gt_bboxes,
+             gt_labels,
+             gt_relations,
+             img_metas,
+             cfg,
+             gt_bboxes_ignore=None):
         if RECORD_TIME:
           t0 = time.time()
 
@@ -1238,7 +1288,7 @@ class StrPointsHead(nn.Module):
         #-----------------------------------------------------------------------
         featmap_sizes = [featmap.size()[-2:] for featmap in pts_preds_init]
         assert len(featmap_sizes) == len(self.point_generators)
-        label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
+        label_channels = self.cls_out_channels_g if self.use_sigmoid_cls else 1
         #-----------------------------------------------------------------------
         # target for initial stage
         center_list, valid_flag_list = self.get_points(featmap_sizes,
