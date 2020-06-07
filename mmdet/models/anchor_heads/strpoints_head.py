@@ -102,6 +102,8 @@ class StrPointsHead(nn.Module):
                  adjust_5pts_by_4 = False,
                  ):
         super(StrPointsHead, self).__init__()
+        self.cls_groups = [2]
+        self.num_group = len(self.cls_groups)
         self.wall_label = 1
         self.line_constrain_loss = False
         self.obj_rep = obj_rep
@@ -168,8 +170,11 @@ class StrPointsHead(nn.Module):
             self.moment_mul = moment_mul
         if self.use_sigmoid_cls:
             self.cls_out_channels = self.num_classes - 1
+            assert sum(self.cls_groups) == self.cls_out_channels
         else:
             self.cls_out_channels = self.num_classes
+            assert sum(self.cls_groups) == self.cls_out_channels - 1
+            self.cls_groups = [c+1 for c in self.cls_groups]
         self.point_generators = [PointGenerator() for _ in self.point_strides]
         # we use deformable conv to extract points features
         self.dcn_kernel = int(np.sqrt(num_points))
@@ -186,6 +191,7 @@ class StrPointsHead(nn.Module):
         dcn_base_offset = np.stack([dcn_base_y, dcn_base_x], axis=1).reshape(
             (-1))
         self.dcn_base_offset = torch.tensor(dcn_base_offset).view(1, -1, 1, 1)
+        self.dcn_base_offset = self.dcn_base_offset.repeat(1,self.num_group,1,1)
 
         self.relation_cfg = relation_cfg
         if self.relation_cfg['enable']:
@@ -223,6 +229,7 @@ class StrPointsHead(nn.Module):
                     conv_cfg=self.conv_cfg,
                     norm_cfg=self.norm_cfg))
         pts_out_dim = 4 if self.use_grid_points else 2 * self.num_points
+        pts_out_dim *= self.num_group
         self.reppoints_cls_conv = DeformConv(self.feat_channels,
                                              self.point_feat_channels,
                                              self.dcn_kernel, 1, self.dcn_pad)
@@ -384,8 +391,8 @@ class StrPointsHead(nn.Module):
             assert self.box_extra_dims == 3
             assert box_extra.shape[1] == 3
             pts = torch.cat([pts_x[..., None], pts_y[...,None]], dim=-1)
-            bs, np, h,w,_ = pts.shape
-            pts_flat = pts.permute(0, 2,3,1,4).reshape( bs*h*w, np, 2 )
+            bs, npts, h,w,_ = pts.shape
+            pts_flat = pts.permute(0, 2,3,1,4).reshape( bs*h*w, npts, 2 )
             t0 = time.time()
             boxes = []
             for i in range(pts_flat.shape[0]):
@@ -738,15 +745,25 @@ class StrPointsHead(nn.Module):
         else:
           dcn_offset = pts_out_init_grad_mul - dcn_base_offset
         cls_out = {}
+        npts = self.num_points * 2
         if 'refine' in self.cls_types:
-          cls_out['refine'] = self.reppoints_cls_out(
-              self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset)))
+          cls_ls = []
+          pts_out_refine = []
+          s = 0
+          for i, num_cls in enumerate(self.cls_groups):
+            cls_i = self.reppoints_cls_out(
+               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset[:,i*npts:(i+1)*npts])))
+            cls_ls.append(cls_i[:,s:s+num_cls])
+            s += num_cls
+            pts_feat_refine = self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset[:,i*npts:(i+1)*npts]))
+            pts_out_refine.append( self.reppoints_pts_refine_out( pts_feat_refine )[:,i*npts:(i+1)*npts] )
+            if self.adjust_5pts_by_4:
+              pts_out_refine[-1] = self.auto_adjust_pts_by_partial(pts_out_refine[-1])
+          cls_out['refine'] = torch.cat(cls_ls, 1)
+          pts_out_refine = torch.cat(pts_out_refine, 1)
 
-        pts_feat_refine = self.relu(self.reppoints_pts_refine_conv(pts_feat, dcn_offset))
-        pts_out_refine = self.reppoints_pts_refine_out( pts_feat_refine )
-        if self.adjust_5pts_by_4:
-          pts_out_refine = self.auto_adjust_pts_by_partial(pts_out_refine)
         if self.box_extra_dims >0:
+          #print('Multi group version not implemented')
           box_extra_refine = self.box_extra_refine_out(pts_feat_refine)
 
         if self.use_grid_points:
@@ -763,8 +780,14 @@ class StrPointsHead(nn.Module):
             dcn_offset_refine = pts_out_refine_grad_mul
           else:
             dcn_offset_refine = pts_out_refine_grad_mul - dcn_base_offset
-          cls_out['final'] = self.reppoints_cls_out(
-              self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine)))
+          s = 0
+          cls_ls = []
+          for i, num_cls in enumerate(self.cls_groups):
+            cls_i = self.reppoints_cls_out(
+              self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine[:,i*npts:(i+1)*npts])))
+            cls_ls.append(cls_i[:,s:s+num_cls])
+            s += num_cls
+          cls_out['final'] = torch.cat(cls_ls, 1)
 
         if self.relation_cfg['enable']:
           rel_feat = self.forward_single_relation_feats(x)
@@ -811,10 +834,10 @@ class StrPointsHead(nn.Module):
         rel_inds_all = []
         gt_inds_per_rel_all = []
         for i in range(batch_size):
-          np = pos_inds_list[i].numel()
-          #print(f'num pos wall: {np}, max set: {max_relation_num}')
-          if max_relation_num is not None and np > max_relation_num:
-              choice = torch.randperm(np)[:max_relation_num].sort()[0]
+          npos = pos_inds_list[i].numel()
+          #print(f'num pos wall: {npos}, max set: {max_relation_num}')
+          if max_relation_num is not None and npos > max_relation_num:
+              choice = torch.randperm(npos)[:max_relation_num].sort()[0]
               valid_inds_i = pos_inds_list[i][choice]
               if gt_inds_per_pos_list is not None:
                 gt_inds_per_rel = gt_inds_per_pos_list[i][choice]
@@ -947,18 +970,17 @@ class StrPointsHead(nn.Module):
         Both center_list and pred_list should be  x_first
         """
         if is_corner:
-          np = 2
+          npts = 2
         else:
-          np = self.num_points
+          npts = self.num_points
         pts_list = []
         for i_lvl in range(len(self.point_strides)):
             pts_lvl = []
             for i_img in range(len(center_list)):
                 pts_center = center_list[i_img][i_lvl][:, :2].repeat(
-                    1, np)
+                    1, npts)
                 pts_shift = pred_list[i_lvl][i_img]
-                yx_pts_shift = pts_shift.permute(1, 2, 0).view(
-                    -1, np*2)
+                yx_pts_shift = pts_shift.permute(1, 2, 0).view(-1, npts*2)
                 y_pts_shift = yx_pts_shift[..., 0::2]
                 x_pts_shift = yx_pts_shift[..., 1::2]
                 xy_pts_shift = torch.stack([x_pts_shift, y_pts_shift], -1)

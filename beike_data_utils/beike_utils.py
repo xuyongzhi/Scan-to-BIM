@@ -674,7 +674,6 @@ def add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
         room_bboxes = gen_room_bboxes(lines_pt_ordered, rooms_line_ids, obj_rep, anno_folder, anno_raw['filename'])
       #_show_objs_ls_points_ls( (512,512), [anno_img['gt_bboxes'], room_bboxes], obj_rep=obj_rep, obj_colors=[anno_img['labels'], 'black'], obj_thickness=[10,3] )
       n = room_bboxes.shape[0]
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       anno_img['gt_bboxes'] = np.concatenate([anno_img['gt_bboxes'], room_bboxes], 0)
       room_labels = np.ones([n], dtype=np.int64) * 4
       anno_img['labels'] = np.concatenate([anno_img['labels'], room_labels])
