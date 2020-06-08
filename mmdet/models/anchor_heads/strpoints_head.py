@@ -176,6 +176,7 @@ class StrPointsHead(nn.Module):
             assert sum(self.num_per_group) == self.cls_out_channels-1
             self.num_per_group = [c+1 for c in self.num_per_group]
             self.cls_groups = [[0]+c for c in self.cls_groups ]
+        self.cls_out_channels_g = self.cls_out_channels
         self.point_generators = [PointGenerator() for _ in self.point_strides]
         # we use deformable conv to extract points features
         self.dcn_kernel = int(np.sqrt(num_points))
@@ -1235,6 +1236,7 @@ class StrPointsHead(nn.Module):
       num_level = len(pts_preds_init)
       bs = len(gt_labels)
       s = 0
+      gt_ids_mapping = [[] for _ in range(bs)]
       for i, ncg in enumerate(self.num_per_group):
         self.cls_out_channels_g = self.num_per_group[i]
         self.group_id = i
@@ -1251,8 +1253,10 @@ class StrPointsHead(nn.Module):
           gt_mask = sum(mask_ls)>0
           gt_bboxes_i.append( gt_bboxes[j][gt_mask] )
           gt_labels_i.append( gt_labels[j][gt_mask] )
+          gt_ids_mapping[j].append( torch.nonzero(gt_mask).squeeze(1) )
+          #gt_nums_perg[j].append(gt_labels_i[-1].shape[0])
 
-        loss_dict_i = self.loss_per_group(
+        loss_dict_i, pos_inds_list_refine_i, gt_inds_per_pos_list_refine_i  = self.loss_per_group(
               cls_scores_i,
               pts_preds_init_i,
               pts_preds_refine_i,
@@ -1266,12 +1270,43 @@ class StrPointsHead(nn.Module):
               img_metas,
               cfg,
               gt_bboxes_ignore)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         if i==0:
           loss_dict_all = loss_dict_i
+          pos_inds_list_refine = pos_inds_list_refine_i
+          gt_inds_per_pos_list_refine = gt_inds_per_pos_list_refine_i
         else:
           for e in loss_dict_i:
             loss_dict_all[e] += loss_dict_i[e]
+          for bi in range(bs):
+            tmp = gt_ids_mapping[bi][i]  [ gt_inds_per_pos_list_refine_i[bi]]
+            gt_inds_per_pos_list_refine[bi] = torch.cat( [gt_inds_per_pos_list_refine[bi], tmp] )
+            # directly overlap the inds of two groups
+            pos_inds_list_refine[bi] = torch.cat( [pos_inds_list_refine[bi], pos_inds_list_refine_i[bi]] )
+
+      #-----------------------------------------------------------------------
+      # relation loss
+      if self.relation_cfg['enable']:
+          if self.relation_cfg['stage'] == 'refine':
+              pos_inds_list = pos_inds_list_refine
+              gt_inds_per_pos_list = gt_inds_per_pos_list_refine
+          wall_pos_inds_list, wall_gt_inds_per_pos_list = self.get_wall_pos(
+              gt_labels, pos_inds_list, gt_inds_per_pos_list)
+          #num_flat = sum([cs['refine'].shape[2:].numel() for cs in cls_scores])
+          #num_flats = (num_flat, ) * len(gt_labels)
+          relation_scores, relation_inds, gt_inds_per_rel = \
+            self.forward_relation_cls(rel_feat_outs,
+                    wall_pos_inds_list, wall_gt_inds_per_pos_list,
+                    self.relation_cfg['max_relation_num'])
+          loss_relation_wall, = multi_apply(
+              self.obj_relation_cls_loss,
+              relation_scores,
+              relation_inds,
+              gt_inds_per_rel,
+              gt_relations,
+              gt_labels,
+              gt_bboxes,)
+          loss_dict_all['loss_relation'] = loss_relation_wall
+
       return loss_dict_all
 
     def loss_per_group(self,
@@ -1455,31 +1490,32 @@ class StrPointsHead(nn.Module):
           for lc in losses_cls:
             loss_dict_all['loss_cls'+cstr].append( lc[c] )
 
-        #-----------------------------------------------------------------------
-        # relation loss
-        if self.relation_cfg['enable']:
-            if self.relation_cfg['stage'] == 'refine':
-                pos_inds_list = pos_inds_list_refine
-                gt_inds_per_pos_list = gt_inds_per_pos_list_refine
-            wall_pos_inds_list, wall_gt_inds_per_pos_list = self.get_wall_pos(
-                gt_labels, pos_inds_list, gt_inds_per_pos_list)
-            #num_flat = sum([cs['refine'].shape[2:].numel() for cs in cls_scores])
-            #num_flats = (num_flat, ) * len(gt_labels)
-            relation_scores, relation_inds, gt_inds_per_rel = \
-              self.forward_relation_cls(rel_feat_outs,
-                      wall_pos_inds_list, wall_gt_inds_per_pos_list,
-                      self.relation_cfg['max_relation_num'])
-            loss_relation_wall, = multi_apply(
-                self.obj_relation_cls_loss,
-                relation_scores,
-                relation_inds,
-                gt_inds_per_rel,
-                gt_relations,
-                gt_labels,
-                gt_bboxes,)
-            loss_dict_all['loss_relation'] = loss_relation_wall
+        ##-----------------------------------------------------------------------
+        ## relation loss
+        #if self.relation_cfg['enable']:
+        #    if self.relation_cfg['stage'] == 'refine':
+        #        pos_inds_list = pos_inds_list_refine
+        #        gt_inds_per_pos_list = gt_inds_per_pos_list_refine
+        #    wall_pos_inds_list, wall_gt_inds_per_pos_list = self.get_wall_pos(
+        #        gt_labels, pos_inds_list, gt_inds_per_pos_list)
+        #    #num_flat = sum([cs['refine'].shape[2:].numel() for cs in cls_scores])
+        #    #num_flats = (num_flat, ) * len(gt_labels)
+        #    relation_scores, relation_inds, gt_inds_per_rel = \
+        #      self.forward_relation_cls(rel_feat_outs,
+        #              wall_pos_inds_list, wall_gt_inds_per_pos_list,
+        #              self.relation_cfg['max_relation_num'])
+        #    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        #    loss_relation_wall, = multi_apply(
+        #        self.obj_relation_cls_loss,
+        #        relation_scores,
+        #        relation_inds,
+        #        gt_inds_per_rel,
+        #        gt_relations,
+        #        gt_labels,
+        #        gt_bboxes,)
+        #    loss_dict_all['loss_relation'] = loss_relation_wall
 
-        #-----------------------------------------------------------------------
+        ##-----------------------------------------------------------------------
         # target for corner
         if self.corner_hm:
           loss_corner_hm = self.corner_loss(corner_outs, gt_bboxes,
@@ -1500,7 +1536,7 @@ class StrPointsHead(nn.Module):
           t_A = t1 - t0
           t_B = time.time() - t1
           print(f't_A: {t_A:.3f}\nt loss: {t_B:.3f}')
-        return loss_dict_all
+        return loss_dict_all, pos_inds_list_refine, gt_inds_per_pos_list_refine
 
     def get_wall_pos(self,  gt_labels, pos_inds_list, gt_inds_per_pos_list):
       batch_size = len(gt_labels)
@@ -1520,7 +1556,18 @@ class StrPointsHead(nn.Module):
         '''
         Valid sample for relation classification: in both high_score_inds and pos_inds
         wall only input
+
+        n: num of positive detections for all classes
+        relation_scores: [1,1,n,n]
+        relation_inds: [n]
+        gt_inds_per_rel: [n]
+        gt_relations: [n_gt_all, n_gt_wall]
+        gt_labels: [n_gt_all]
         '''
+        n = gt_inds_per_rel.numel()
+        assert relation_scores.shape == (1,1,n,n)
+        assert gt_relations.shape[0] == gt_labels.shape[0]
+
         self_relation =  'True'
         weight = None
         if self_relation == 'True':
