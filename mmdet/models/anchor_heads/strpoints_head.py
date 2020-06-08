@@ -100,10 +100,17 @@ class StrPointsHead(nn.Module):
                      loss_weight=1.0,),
                  num_ps_long_axis = 9,
                  adjust_5pts_by_4 = False,
+                 cls_groups = None,
                  ):
         super(StrPointsHead, self).__init__()
-        self.cls_groups = [[1],[2]]  # 0 is background
+        if cls_groups is None:
+          self.cls_groups = [ list(range(1, num_classes)) ]
+        else:
+          self.cls_groups = cls_groups  # 0 is background
+        assert 0 not in np.array(self.cls_groups)
+        assert sum([len(g) for g in self.cls_groups]) == num_classes-1
         self.num_per_group = [len(g) for g in self.cls_groups]
+
         self.wall_label = 1
         self.line_constrain_loss = False
         self.obj_rep = obj_rep
@@ -1295,12 +1302,11 @@ class StrPointsHead(nn.Module):
           #num_flats = (num_flat, ) * len(gt_labels)
           relation_scores, relation_inds, gt_inds_per_rel = \
             self.forward_relation_cls(rel_feat_outs,
-                    wall_pos_inds_list, wall_gt_inds_per_pos_list,
+                    pos_inds_list, gt_inds_per_pos_list,
                     self.relation_cfg['max_relation_num'])
           loss_relation_wall, = multi_apply(
               self.obj_relation_cls_loss,
               relation_scores,
-              relation_inds,
               gt_inds_per_rel,
               gt_relations,
               gt_labels,
@@ -1551,7 +1557,7 @@ class StrPointsHead(nn.Module):
 
       return wall_pos_inds_list, wall_gt_inds_per_pos_list
 
-    def obj_relation_cls_loss(self, relation_scores, relation_inds,
+    def obj_relation_cls_loss(self, relation_scores,
               gt_inds_per_rel, gt_relations, gt_labels, gt_bboxes=None ):
         '''
         Valid sample for relation classification: in both high_score_inds and pos_inds
@@ -1565,8 +1571,10 @@ class StrPointsHead(nn.Module):
         gt_labels: [n_gt_all]
         '''
         n = gt_inds_per_rel.numel()
+        n_gt_all, n_gt_wall = gt_relations.shape
         assert relation_scores.shape == (1,1,n,n)
         assert gt_relations.shape[0] == gt_labels.shape[0]
+        assert sum(gt_labels == self.wall_label) == n_gt_wall
 
         self_relation =  'True'
         weight = None
@@ -1580,10 +1588,16 @@ class StrPointsHead(nn.Module):
         else:
           raise ValueError
 
+        # only cal rel between wall and other categories (including wall)
+        gt_labels_per_rel = gt_labels[gt_inds_per_rel]
+        mask = gt_labels_per_rel == self.wall_label
+        relation_scores = relation_scores[:,:,:, mask]
+        non_wall_gt_inds_per_rel = gt_inds_per_rel[mask]
+
         c = relation_scores.shape[1]
         assert c==1, f"class num ={c}, but current version only allow wall"
         relation_scores_flat = relation_scores.permute(0,2,3,1).view(-1,c)
-        gt_relations_rel = gt_relations[gt_inds_per_rel, :][:,gt_inds_per_rel]
+        gt_relations_rel = gt_relations[gt_inds_per_rel, :][:,non_wall_gt_inds_per_rel]
         gt_relation_labels = gt_relations_rel.view(-1).to(torch.long)
         num_rel_sample = gt_relation_labels.sum()
 

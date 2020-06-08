@@ -19,7 +19,7 @@ wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs6_lr10_LsW510R2P1N1_Rfiou741_Fpn44_P
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 
-LR=0.001
+LR=0.01
 ROTATE=1
 BASE_PLANE=32
 BS=1

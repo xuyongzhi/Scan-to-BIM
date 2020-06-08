@@ -968,6 +968,11 @@ def load_relations_1scene(anno_folder, filename, classes):
   relations_dict = np.load(connect_file, allow_pickle=True).tolist()
   relations = [relations_dict[c] for c in classes if c!='background']
   relations = np.concatenate(relations, axis=0)
+  #n_all, n_wall = relations.shape
+  #n_others = n_all - n_wall
+  #tmp = np.zeros([n_all, n_all-n_wall])==1
+  #tmp[:n_wall, :] = relations[n_wall:, :n_wall].T
+  #relations = np.concatenate([relations, tmp], axis=1)
   return relations
 
 def load_gt_lines_bk(img_meta, img, classes, filter_edges):

@@ -32,6 +32,9 @@ dim_parse = DIM_PARSE(_obj_rep, len(classes)+1)
 _obj_dim = dim_parse.OBJ_DIM
 
 #*******************************************************************************
+cls_groups = None
+#cls_groups = [[1], [2]]
+#*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
 model = dict(
@@ -87,6 +90,7 @@ model = dict(
                           score_threshold=0.2,
                           max_relation_num=120),
         adjust_5pts_by_4=False,
+        cls_groups = cls_groups,
         )
     )
         #transform_method='minmax'))

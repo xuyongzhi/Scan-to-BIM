@@ -10,6 +10,7 @@
 * image size = 512, max feature size=128. Is it better to use max feature size=256
 
 # Big ideas
+* Currently, relations between wall-wall, and wall-room are decoded in one single conv and feat map. Is it better to in differnet channel.
 * use guassion weights for initial stage
 * only use two reppoints and sample the other 7 based on the two
 * compare performance of feeding images and point clouds
