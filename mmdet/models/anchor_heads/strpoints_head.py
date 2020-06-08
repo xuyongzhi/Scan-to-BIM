@@ -102,8 +102,8 @@ class StrPointsHead(nn.Module):
                  adjust_5pts_by_4 = False,
                  ):
         super(StrPointsHead, self).__init__()
-        self.cls_groups = [2]
-        self.num_group = len(self.cls_groups)
+        self.cls_groups = [[1],[2]]  # 0 is background
+        self.num_per_group = [len(g) for g in self.cls_groups]
         self.wall_label = 1
         self.line_constrain_loss = False
         self.obj_rep = obj_rep
@@ -170,11 +170,12 @@ class StrPointsHead(nn.Module):
             self.moment_mul = moment_mul
         if self.use_sigmoid_cls:
             self.cls_out_channels = self.num_classes - 1
-            assert sum(self.cls_groups) == self.cls_out_channels
+            assert sum(self.num_per_group) == self.cls_out_channels
         else:
             self.cls_out_channels = self.num_classes
-            assert sum(self.cls_groups) == self.cls_out_channels - 1
-            self.cls_groups = [c+1 for c in self.cls_groups]
+            assert sum(self.num_per_group) == self.cls_out_channels-1
+            self.num_per_group = [c+1 for c in self.num_per_group]
+            self.cls_groups = [[0]+c for c in self.cls_groups ]
         self.point_generators = [PointGenerator() for _ in self.point_strides]
         # we use deformable conv to extract points features
         self.dcn_kernel = int(np.sqrt(num_points))
@@ -191,7 +192,7 @@ class StrPointsHead(nn.Module):
         dcn_base_offset = np.stack([dcn_base_y, dcn_base_x], axis=1).reshape(
             (-1))
         self.dcn_base_offset = torch.tensor(dcn_base_offset).view(1, -1, 1, 1)
-        self.dcn_base_offset = self.dcn_base_offset.repeat(1,self.num_group,1,1)
+        self.dcn_base_offset = self.dcn_base_offset.repeat(1,len(self.num_per_group),1,1)
 
         self.relation_cfg = relation_cfg
         if self.relation_cfg['enable']:
@@ -229,7 +230,7 @@ class StrPointsHead(nn.Module):
                     conv_cfg=self.conv_cfg,
                     norm_cfg=self.norm_cfg))
         pts_out_dim = 4 if self.use_grid_points else 2 * self.num_points
-        pts_out_dim *= self.num_group
+        pts_out_dim *= len(self.num_per_group)
         self.reppoints_cls_conv = DeformConv(self.feat_channels,
                                              self.point_feat_channels,
                                              self.dcn_kernel, 1, self.dcn_pad)
@@ -750,7 +751,7 @@ class StrPointsHead(nn.Module):
           cls_ls = []
           pts_out_refine = []
           s = 0
-          for i, num_cls in enumerate(self.cls_groups):
+          for i, num_cls in enumerate(self.num_per_group):
             cls_i = self.reppoints_cls_out(
                self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset[:,i*npts:(i+1)*npts])))
             cls_ls.append(cls_i[:,s:s+num_cls])
@@ -782,7 +783,7 @@ class StrPointsHead(nn.Module):
             dcn_offset_refine = pts_out_refine_grad_mul - dcn_base_offset
           s = 0
           cls_ls = []
-          for i, num_cls in enumerate(self.cls_groups):
+          for i, num_cls in enumerate(self.num_per_group):
             cls_i = self.reppoints_cls_out(
               self.relu(self.reppoints_cls_conv(cls_feat, dcn_offset_refine[:,i*npts:(i+1)*npts])))
             cls_ls.append(cls_i[:,s:s+num_cls])
@@ -1232,9 +1233,10 @@ class StrPointsHead(nn.Module):
              gt_bboxes_ignore=None):
       npts = self.num_points * 2
       num_level = len(pts_preds_init)
+      bs = len(gt_labels)
       s = 0
-      for i, ncg in enumerate(self.cls_groups):
-        self.cls_out_channels_g = self.cls_groups[i]
+      for i, ncg in enumerate(self.num_per_group):
+        self.cls_out_channels_g = self.num_per_group[i]
         self.group_id = i
         cls_scores_i = []
         for cs in cls_scores:
@@ -1242,6 +1244,14 @@ class StrPointsHead(nn.Module):
         s += ncg
         pts_preds_init_i = [pts_preds_init[j][:,i*npts:(i+1)*npts] for j in range(num_level)]
         pts_preds_refine_i = [pts_preds_refine[j][:,i*npts:(i+1)*npts] for j in range(num_level)]
+        gt_bboxes_i = []
+        gt_labels_i = []
+        for j in range(bs):
+          mask_ls = [gt_labels[j] == c for c in self.cls_groups[i] ]
+          gt_mask = sum(mask_ls)>0
+          gt_bboxes_i.append( gt_bboxes[j][gt_mask] )
+          gt_labels_i.append( gt_labels[j][gt_mask] )
+
         loss_dict_i = self.loss_per_group(
               cls_scores_i,
               pts_preds_init_i,
@@ -1250,12 +1260,13 @@ class StrPointsHead(nn.Module):
               rel_feat_outs,
               box_extra_init,
               box_extra_refine,
-              gt_bboxes,
-              gt_labels,
+              gt_bboxes_i,
+              gt_labels_i,
               gt_relations,
               img_metas,
               cfg,
               gt_bboxes_ignore)
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         if i==0:
           loss_dict_all = loss_dict_i
         else:
