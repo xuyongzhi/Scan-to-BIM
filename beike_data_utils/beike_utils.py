@@ -40,6 +40,7 @@ gt_out_pcl = ['vZIjhovtYde9e2qUjMzvz3', 'pMh3-KweDzzp_b_HI11eMA',
 lost_gt_scenes = ['vYlCbx-H_v_uvacuiMq0no']
 #BAD_SCENES = ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y','B9Abt6B78a0j2eRcygHjqC']
 BAD_SCENES = []
+PRE_LOAD_ALL = False
 
 BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159 - 0.5),
                             'IDZkUGse-74FIy2OqM2u_Y': (30, -0.788 - 0.45, 0.681 + 0.08),
@@ -97,6 +98,7 @@ class BEIKE(BEIKE_CLSINFO):
         self.anno_folder = anno_folder
         self.test_mode = test_mode
         phase = os.path.basename(img_prefix)
+        self.classes = classes
         self.is_save_connection = is_save_connection
         if is_save_connection:
           filter_edges = False
@@ -118,60 +120,27 @@ class BEIKE(BEIKE_CLSINFO):
         #self.seperate_room_data_path = anno_folder.replace('json', 'seperate_room_data/test')
         base_path = os.path.dirname( os.path.dirname(anno_folder) )
 
-        img_infos = []
-        all_min_line_sizes = []
+        self.img_infos = []
         for scene_name in self.scene_list:
-          jfn = scene_name+'.json'
-          file_path = os.path.join(self.anno_folder, jfn)
-          if not os.path.exists(file_path):
-            continue
-          anno_raw = load_anno_1scene(self.anno_folder, jfn,
-                                self._classes, filter_edges=filter_edges,
-                                is_save_connection = self.is_save_connection)
+            if scene_name in BAD_SCENES:
+              continue
+            jfn = scene_name+'.json'
+            file_path = os.path.join(self.anno_folder, jfn)
+            if not os.path.exists(file_path):
+              continue
+            filename = scene_name + data_format
+            img_info = {'filename': filename,}
+            self.img_infos.append(img_info)
 
-          anno_img = raw_anno_to_img(classes, self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
-          filename = jfn.split('.')[0]+data_format
-          img_info = {'filename': filename,
-                      'ann': anno_img,
-                      'ann_raw': anno_raw}
-          img_infos.append(img_info)
-          all_min_line_sizes.append(anno_img['min_line_size'])
-
-        self.img_infos = img_infos
-        self.all_min_line_sizes = np.array( all_min_line_sizes )
-        print(f'min line size: {self.all_min_line_sizes.min():.3f}')
-
-        self.rm_bad_scenes()
-        #if self.img_prefix is not None:
-        #  self.rm_anno_withno_data()
+        n0 = len(self.scene_list)
+        self.num_scenes = len(self.img_infos)
+        if PRE_LOAD_ALL:
+            for i in range(self.num_scenes):
+              self.load_1_anno(i)
 
         t = time.time() - t0
-        n0 = len(self.scene_list)
-        n1 = len(self.img_infos)
-        print(f'Data loading finished. {n1} valid in {n0},  time : {t:.3f}s\n')
-        n0 = len(self.img_infos)
-
-    def rm_bad_scenes(self):
-      valid_ids = []
-      n0 = len(self.img_infos)
-      for i in range(n0):
-        sn = self.img_infos[i]['filename'].split('.')[0]
-        if sn not in BAD_SCENES:
-          valid_ids.append(i)
-      self.img_infos = [self.img_infos[i] for i in valid_ids]
-
-    def rm_anno_withno_data(self):
-      n0 = len(self.img_infos)
-      valid_inds = []
-      valid_files = os.listdir(self.img_prefix)
-      for i, img_info in enumerate(self.img_infos):
-        filename = img_info['filename']
-        if img_info['filename'] in valid_files:
-          valid_inds.append(i)
-      valid_img_infos = [self.img_infos[i] for i in valid_inds]
-      self.img_infos = valid_img_infos
-      n = len(self.img_infos)
-      print(f'\n{n} valid scenes with annotation found in total {n0} in {self.img_prefix}\n')
+        print(f'Data loading finished. {self.num_scenes} valid in {n0},  time : {t:.3f}s\n')
+        pass
 
     def show_summary(self, idx):
       img_info = self.img_infos[idx]
@@ -191,7 +160,19 @@ class BEIKE(BEIKE_CLSINFO):
       print(f'line_length_min_mean_max: {line_length_min_mean_max}')
 
     def __len__(self):
-      return len(self.img_infos)
+      return self.num_scenes
+
+    def load_1_anno(self, idx):
+      jfn = self.img_infos[idx]['filename'].split('.')[0] + '.json'
+      anno_raw = load_anno_1scene(self.anno_folder, jfn,
+                            self._classes, filter_edges=self.filter_edges,
+                            is_save_connection = self.is_save_connection)
+
+      anno_img = raw_anno_to_img(self.classes, self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
+      self.img_infos[idx]['ann'] = anno_img
+      #self.img_infos[idx]['ann_raw'] = anno_raw
+      return anno_img
+
 
     def getCatIds(self):
       return list(self._category_ids_map.values())

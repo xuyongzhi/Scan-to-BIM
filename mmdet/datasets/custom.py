@@ -99,7 +99,8 @@ class CustomDataset(Dataset):
         return mmcv.load(proposal_file)
 
     def get_ann_info(self, idx):
-        return self.img_infos[idx]['ann']
+        return self.load_1_anno(idx)
+        #return self.img_infos[idx]['ann']
 
     def pre_pipeline(self, results):
         results['img_prefix'] = self.img_prefix

@@ -26,6 +26,9 @@ class BeikeDataset(CustomDataset):
         img_infos = self.beike.img_infos
         return img_infos
 
+    def load_1_anno(self, idx):
+      return self.beike.load_1_anno(idx)
+
 
     def _filter_imgs(self):
         """Filter images too small or without ground truths."""
