@@ -14,8 +14,8 @@ wkdir=test
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 
 #CP=./work_dirs/${wkdir}/best.pth
-#CP=./checkpoints/beike/jun1_wado_bev.pth
-CP=./checkpoints/beike/May4_wd_Bev.pth
+CP=./checkpoints/beike/jun1_wado_bev.pth
+#CP=./checkpoints/beike/May4_wd_Bev.pth
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 

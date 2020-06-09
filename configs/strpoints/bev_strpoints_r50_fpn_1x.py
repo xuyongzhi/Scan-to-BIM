@@ -22,8 +22,8 @@ if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
   _transform_method='moment_XYXYSin2'
 
-  _obj_rep = 'XYXYSin2WZ0Z1'
-  _transform_method='moment_XYXYSin2WZ0Z1'
+  #_obj_rep = 'XYXYSin2WZ0Z1'
+  #_transform_method='moment_XYXYSin2WZ0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
   _transform_method = 'sort_4corners'
@@ -189,7 +189,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  img_prefix_test = img_prefix_train
+  #img_prefix_test = img_prefix_train
 
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
