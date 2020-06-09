@@ -89,6 +89,8 @@ class BEIKE(BEIKE_CLSINFO):
                  classes = ['wall', ],
                  is_save_connection = False,
                  ):
+        t0 = time.time()
+        print(f'\nStart loading data: {img_prefix}')
         super().__init__(classes, always_load_walls=1)
         assert  anno_folder[-5:] == 'json/'
         self.obj_rep = obj_rep
@@ -116,14 +118,12 @@ class BEIKE(BEIKE_CLSINFO):
         #self.seperate_room_data_path = anno_folder.replace('json', 'seperate_room_data/test')
         base_path = os.path.dirname( os.path.dirname(anno_folder) )
 
-        json_files = os.listdir(anno_folder)
-        assert len(json_files) > 0
-
         img_infos = []
         all_min_line_sizes = []
-        for jfn in json_files:
-          scene_name = jfn.split('.')[0]
-          if scene_name not in self.scene_list:
+        for scene_name in self.scene_list:
+          jfn = scene_name+'.json'
+          file_path = os.path.join(self.anno_folder, jfn)
+          if not os.path.exists(file_path):
             continue
           anno_raw = load_anno_1scene(self.anno_folder, jfn,
                                 self._classes, filter_edges=filter_edges,
@@ -139,22 +139,17 @@ class BEIKE(BEIKE_CLSINFO):
 
         self.img_infos = img_infos
         self.all_min_line_sizes = np.array( all_min_line_sizes )
-        print(f'min line size: {self.all_min_line_sizes.min()}')
+        print(f'min line size: {self.all_min_line_sizes.min():.3f}')
 
         self.rm_bad_scenes()
-        #self.fix_unaligned_scenes()
         #if self.img_prefix is not None:
         #  self.rm_anno_withno_data()
 
+        t = time.time() - t0
+        n0 = len(self.scene_list)
+        n1 = len(self.img_infos)
+        print(f'Data loading finished. {n1} valid in {n0},  time : {t:.3f}s\n')
         n0 = len(self.img_infos)
-
-
-    def unused_fix_unaligned_scenes(self):
-      n0 = len(self.img_infos)
-      for i in range(n0):
-        sn = self.img_infos[i]['filename'].split('.')[0]
-        self.img_infos[i]['ann']['bboxes'] = fix_1_unaligned_scene(sn, \
-                                self.img_infos[i]['ann']['bboxes'], DIM_PARSE.IMAGE_SIZE)
 
     def rm_bad_scenes(self):
       valid_ids = []
@@ -164,8 +159,6 @@ class BEIKE(BEIKE_CLSINFO):
         if sn not in BAD_SCENES:
           valid_ids.append(i)
       self.img_infos = [self.img_infos[i] for i in valid_ids]
-      n1 = len(self.img_infos)
-      print(f'\n {self.split_file}\t load {n0} scenes with {n1} valid\n')
 
     def rm_anno_withno_data(self):
       n0 = len(self.img_infos)
