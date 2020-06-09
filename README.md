@@ -36,6 +36,7 @@ all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bbox
 3. json和ply 是链接。在training 过程中需要加载 json，　但不加载ply。
 4. TopView_VerD_Imgs 和　relationImgs　仅用于验证生成效果，在训练是不需要。
 5. train.txt 和　test.txt 每次都会随机打乱更新。
+6. 如果某个scene 出错，应该是这个scene生成了　size 为0的文件，删掉后重跑应该可过。
 
 
 # Training

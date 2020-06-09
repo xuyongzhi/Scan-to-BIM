@@ -127,8 +127,11 @@ class BEIKE(BEIKE_CLSINFO):
             json_file = self.get_json_file(scene_name)
             tv_file = self.get_topview_file(scene_name)
             scope_file = self.get_scope_file(scene_name)
+            rel_file = self.get_relation_file(scene_name)
             valid = os.path.exists(json_file) and os.path.exists(tv_file) and os.path.exists(scope_file)
             if not valid:
+              continue
+            if not (is_save_connection or os.path.exists(rel_file)):
               continue
             filename = scene_name + data_format
             img_info = {'filename': filename,}
@@ -149,6 +152,8 @@ class BEIKE(BEIKE_CLSINFO):
         return os.path.join(self.data_dir, 'TopView_VerD', scene_name + '.npy')
     def get_scope_file(self, scene_name):
         return os.path.join(self.data_dir, 'pcl_scopes', scene_name + '.txt')
+    def get_relation_file(self, scene_name):
+        return os.path.join(self.data_dir, 'relations', scene_name + '.npy')
 
     def show_summary(self, idx):
       img_info = self.img_infos[idx]
