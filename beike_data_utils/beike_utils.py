@@ -14,6 +14,8 @@ from collections import defaultdict
 import time
 import mmcv
 import glob
+from multiprocessing import Pool
+from functools import partial
 
 
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, find_wall_wall_connection,\
@@ -56,6 +58,7 @@ BAD_SCENE_TRANSFERS_PCL  = {'7w6zvVsOBAQK4h4Bne7caQ': (-44, -2.071 - 0.2, -1.159
 class BEIKE_CLSINFO(object):
   def __init__(self, classes_in, always_load_walls=1):
       classes_order = ['background', 'wall', 'door', 'window', 'room', 'other']
+      assert all([c in classes_order for c in classes_in])
       classes = [c for c in classes_order if c in classes_in]
       if 'background' not in classes:
         classes = ['background']+ classes
@@ -105,14 +108,11 @@ class BEIKE(BEIKE_CLSINFO):
           phase = 'all.txt'
         self.filter_edges = filter_edges
 
-        #self.scene_list = [*BAD_SCENE_TRANSFERS_1024.keys()]
-        #self.scene_list = ['wcSLwyAKZafnozTPsaQMyv']
-
         self.img_prefix = os.path.dirname( img_prefix )
-        data_dir = os.path.dirname(os.path.dirname(anno_folder))
-        self.split_file = os.path.join(data_dir, phase)
-        self.scene_list = np.loadtxt(self.split_file,str).tolist()
-        assert len(self.scene_list)>0
+        self.data_dir = os.path.dirname(os.path.dirname(anno_folder))
+        self.split_file = os.path.join(self.data_dir, phase)
+        raw_scene_list = np.loadtxt(self.split_file,str).tolist()
+        n0 = len(raw_scene_list)
         self.is_pcl = os.path.basename(self.img_prefix) == 'ply'
         data_format = '.ply' if self.is_pcl else '.npy'
 
@@ -121,18 +121,19 @@ class BEIKE(BEIKE_CLSINFO):
         base_path = os.path.dirname( os.path.dirname(anno_folder) )
 
         self.img_infos = []
-        for scene_name in self.scene_list:
+        for scene_name in raw_scene_list:
             if scene_name in BAD_SCENES:
               continue
-            jfn = scene_name+'.json'
-            file_path = os.path.join(self.anno_folder, jfn)
-            if not os.path.exists(file_path):
+            json_file = self.get_json_file(scene_name)
+            tv_file = self.get_topview_file(scene_name)
+            scope_file = self.get_scope_file(scene_name)
+            valid = os.path.exists(json_file) and os.path.exists(tv_file) and os.path.exists(scope_file)
+            if not valid:
               continue
             filename = scene_name + data_format
             img_info = {'filename': filename,}
             self.img_infos.append(img_info)
 
-        n0 = len(self.scene_list)
         self.num_scenes = len(self.img_infos)
         if PRE_LOAD_ALL:
             for i in range(self.num_scenes):
@@ -141,6 +142,13 @@ class BEIKE(BEIKE_CLSINFO):
         t = time.time() - t0
         print(f'Data loading finished. {self.num_scenes} valid in {n0},  time : {t:.3f}s\n')
         pass
+
+    def get_json_file(self, scene_name):
+        return os.path.join(self.data_dir, 'json', scene_name + '.json')
+    def get_topview_file(self, scene_name):
+        return os.path.join(self.data_dir, 'TopView_VerD', scene_name + '.npy')
+    def get_scope_file(self, scene_name):
+        return os.path.join(self.data_dir, 'pcl_scopes', scene_name + '.txt')
 
     def show_summary(self, idx):
       img_info = self.img_infos[idx]
@@ -220,12 +228,16 @@ class BEIKE(BEIKE_CLSINFO):
                        'window': (0,255,255), 'other':(100,100,0)}
       colors_corner = {'wall': (0,0,255), 'door': (0,255,0),
                        'window': (255,0,0), 'other':(255,255,255)}
+      self.load_1_anno(idx)
       anno = self.img_infos[idx]['ann']
       bboxes = anno['gt_bboxes']
       labels = anno['labels']
-      rooms_line_ids = anno['rooms_line_ids']
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
+      anno_img_file = os.path.join(img_dir, scene_name+'-density.png')
+      if os.path.exists(anno_img_file):
+        return
+
       print(f'{scene_name}')
 
       if not with_img:
@@ -258,7 +270,7 @@ class BEIKE(BEIKE_CLSINFO):
         img, [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=2, point_thickness=2,
-                               rooms_line_ids_ls = [rooms_line_ids],
+                               draw_rooms = True,
                                out_file=anno_img_file, only_save=write)
       if write:
         anno_img_file = os.path.join(img_dir, scene_name+'-room_box.png')
@@ -405,18 +417,30 @@ class BEIKE(BEIKE_CLSINFO):
       return density_sum_mean
       pass
 
-    def find_connection(self, save_connection_imgs=False):
+    def find_connection(self, save_connection_imgs=False, pool_num=0):
       assert self.filter_edges == False
       self.connection_dir = self.anno_folder.replace('json', 'relations')
-      self.connection_img_dir = os.path.join(self.connection_dir, 'imgs')
+      self.connection_img_dir = self.anno_folder.replace('json', 'relationImgs')
       if not os.path.exists(self.connection_dir):
         os.makedirs( self.connection_dir )
         os.makedirs( self.connection_img_dir )
-      for i in range(len(self)):
-        self.find_connection_1_scene(i, save_connection_imgs=save_connection_imgs)
+      n = len(self)
+      if pool_num == 0:
+        for i in range(n):
+          self.find_connection_1_scene(i, save_connection_imgs=save_connection_imgs)
+      else:
+          func = partial(self.find_connection_1_scene,  save_connection_imgs=save_connection_imgs)
+          ids = list(range(n))
+          with Pool(pool_num) as pool:
+            pool.map(func, ids )
 
     def find_connection_1_scene(self, idx, connect_threshold = 3, save_connection_imgs=False):
-      print(self.img_infos[idx]['filename'])
+      connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'] )
+      if os.path.exists( connection_file ):
+        return
+      filename = self.img_infos[idx]['filename']
+      print(f'Find connection of {filename}')
+      self.load_1_anno(idx)
       anno = self.img_infos[idx]['ann']
       bboxes = anno['gt_bboxes']
       labels = anno['labels']
@@ -441,7 +465,6 @@ class BEIKE(BEIKE_CLSINFO):
 
       #connect_mask = np.concatenate([wall_connect_wall_mask, door_in_wall_mask, window_in_wall_mask ], axis=0).astype(np.uint8)
 
-      connection_file = os.path.join(self.connection_dir, self.img_infos[idx]['filename'] )
       np.save(connection_file, relations, allow_pickle=True)
       print('\n\t', connection_file)
 
@@ -665,7 +688,7 @@ def load_topview_img(file_name):
     img = np.concatenate([img, normal_image], axis=2)
     return  img
 
-def load_pcl_scope(anno_folder):
+def unused_load_pcl_scope(anno_folder):
     base_path = anno_folder.split('json')[0]
     pcl_scopes_file = os.path.join(base_path, 'pcl_scopes.json')
     with open(pcl_scopes_file, 'r') as f:
@@ -778,6 +801,9 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
       if 'wall' not in classes and always_load_walls:
         classes =  ['wall'] + classes
 
+      scene_name = os.path.splitext(filename)[0]
+      data_dir = anno_folder.split('json')[0]
+
       file_path = os.path.join(anno_folder, filename)
       with open(file_path, 'r') as f:
         metadata = json.load(f)
@@ -807,8 +833,9 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
       lines_leng = np.linalg.norm(anno['lines'][:,0] - anno['lines'][:,1], axis=-1)
       anno['line_length_min_mean_max'] = [lines_leng.min(), lines_leng.mean(), lines_leng.max()]
 
-      pcl_scopes_all = load_pcl_scope(anno_folder)
-      anno['pcl_scope'] = pcl_scopes_all[filename.split('.')[0]]
+      scope_file = os.path.join(data_dir, 'pcl_scopes', scene_name+'.txt')
+      scope = np.loadtxt(scope_file, dtype=float)
+      anno['pcl_scope'] = scope
 
       # normalize zero
       pcl_scope = anno['pcl_scope']
@@ -1023,7 +1050,7 @@ def _UnUsed_gen_images_from_npy(data_path):
 
   pass
 
-def get_scene_pcl_scopes(data_path):
+def Unused_get_scene_pcl_scopes(data_path):
   pcl_scopes_file = os.path.join(data_path, 'pcl_scopes.json')
   if os.path.exists(pcl_scopes_file):
     return
@@ -1076,7 +1103,9 @@ def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
       mean: [2.872 0.044 0.043 0.102]
       std : [16.182  0.144  0.142  0.183]
   '''
-  #npy_path = os.path.join(data_path, base+'/test')
+  res_file = os.path.join( data_path, 'mean_std.txt' )
+  if os.path.exists(res_file):
+    return
   npy_path = os.path.join(data_path, base)
   files = glob.glob(npy_path + '/*.npy')
   n =  len(files)
@@ -1105,7 +1134,6 @@ def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
   res = f'normnorm_method: {normnorm_method}\n'
   res += f'mean: {mean}\n'
   res += f'std : {std}\n'
-  res_file = os.path.join( data_path, 'mean_std.txt' )
   with open(res_file, 'w') as f:
     f.write(res)
   print(res)
@@ -1152,14 +1180,14 @@ def gen_images_from_npy(data_path):
 
 def gen_gts(data_path):
   obj_rep = 'XYXYSin2'
-  obj_rep = 'XYZLgWsHA'
+  #obj_rep = 'XYZLgWsHA'
   obj_rep = 'XYXYSin2WZ0Z1'
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'all.txt'
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
   is_save_connection = 0
-  classes = ['wall', 'door', 'window', 'rooom']
+  classes = ['wall', 'door', 'window', 'room']
   beike = BEIKE(obj_rep, ANNO_PATH, topview_path,
                 classes = classes,
                 filter_edges= 0,
@@ -1170,8 +1198,9 @@ def gen_gts(data_path):
   scenes = np.loadtxt(scene_list, str).tolist()
 
   rotate_angle = 30
-  for s in scenes:
+  for s in scenes[:100]:
     beike.show_scene_anno(s, True, rotate_angle, write=True)
+    pass
 
 
 def save_unscanned_edges(data_path):
@@ -1194,11 +1223,11 @@ def save_unscanned_edges(data_path):
 
   pass
 
-def gen_connections(data_path):
+def gen_connections(data_path, pool_num):
   obj_rep = 'XYXYSin2'
   obj_rep = 'XYXYSin2WZ0Z1'
   ANNO_PATH = os.path.join(data_path, 'json/')
-  phase = 'test.txt'
+  phase = 'all.txt'
   topview_path = os.path.join(data_path, 'TopView_VerD', phase)
 
   is_save_connection = 1
@@ -1208,23 +1237,22 @@ def gen_connections(data_path):
                 filter_edges= 0,
                 is_save_connection=is_save_connection,
                 )
-  beike.find_connection(True)
+  beike.find_connection(True, pool_num)
   n = len(beike)
-  print(f'find connections ok: {n}\n')
+  print(f'\nGenerate connections ok: {n}\n')
 
   pass
 
 
-def last_steps():
+def gen_connection_gt(pool_num=3):
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
 
   #save_unscanned_edges(data_path)
 
-  get_scene_pcl_scopes(data_path)
   cal_topview_npy_mean_std(data_path, base='TopView_VerD', normnorm_method='abs')
-  gen_connections(data_path)
+  gen_connections(data_path, pool_num)
   gen_gts(data_path)
 
 def debug():

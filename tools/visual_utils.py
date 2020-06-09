@@ -67,7 +67,7 @@ def _show_objs_ls_points_ls(img,
                             out_file=None,
                             obj_thickness=1,
                             point_thickness=1,
-                            rooms_line_ids_ls = None,
+                            draw_rooms = False,
                             only_save=False,
                             ):
   '''
@@ -77,7 +77,7 @@ def _show_objs_ls_points_ls(img,
   img = _draw_objs_ls_points_ls(img, objs_ls, obj_rep, points_ls, obj_colors,
       point_colors=point_colors, out_file=out_file, obj_thickness=obj_thickness,
       point_thickness=point_thickness, obj_scores_ls=obj_scores_ls,
-      point_scores_ls=point_scores_ls, rooms_line_ids_ls=rooms_line_ids_ls)
+      point_scores_ls=point_scores_ls, draw_rooms=draw_rooms)
   if not only_save:
     mmcv.imshow(img)
 
@@ -93,7 +93,7 @@ def _draw_objs_ls_points_ls(img,
                             obj_scores_ls=None,
                             point_scores_ls=None,
                             obj_cats_ls=None,
-                            rooms_line_ids_ls = None,
+                            draw_rooms = False,
                             text_colors_ls='green',
                             ):
   if objs_ls is not None:
@@ -108,8 +108,6 @@ def _draw_objs_ls_points_ls(img,
       obj_cats_ls = [obj_cats_ls] * len(objs_ls)
     if not isinstance(text_colors_ls, list):
       text_colors_ls = [text_colors_ls] * len(objs_ls)
-    if not isinstance(rooms_line_ids_ls, list):
-      rooms_line_ids_ls = [rooms_line_ids_ls] * len(objs_ls)
 
   if points_ls is not None:
     assert isinstance(points_ls, list)
@@ -128,7 +126,7 @@ def _draw_objs_ls_points_ls(img,
                       scores = obj_scores_ls[i],
                       cats = obj_cats_ls[i],
                       text_color=text_colors_ls[i],
-                      rooms_line_ids = rooms_line_ids_ls[i],
+                      draw_rooms = draw_rooms,
                        )
 
   if points_ls is not None:
@@ -188,20 +186,18 @@ def _draw_lines(img, lines, color, point_thickness, line_scores=None, font_scale
     return img
 
 def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
-              rooms_line_ids=None,
+              draw_rooms=False,
               cats=None, font_scale=FONT_SCALE, text_color='green'):
   if obj_rep != 'XYLgWsA':
     objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'XYLgWsA')
-  if  rooms_line_ids is not None:
-    #img = draw_rooms_from_wall_room_mapping(img.shape[:2], objs, rooms_line_ids, 'XYLgWsA')
+  if draw_rooms:
+    #img = draw_rooms_from_wall_room_mapping(img.shape[:2], objs, draw_rooms, 'XYLgWsA')
     img = draw_rooms_from_walls(img.shape[:2], objs,  'XYLgWsA')
   draw_XYLgWsA(img, objs, color, obj_thickness=obj_thickness, scores=scores,
-               rooms_line_ids = rooms_line_ids,
                cats=cats, font_scale=font_scale, text_color=text_color)
   return img
 
 def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None,
-                 rooms_line_ids = None,
                  cats=None, font_scale=0.5, text_color='green'):
     '''
     img: [h,w,3]
@@ -281,10 +277,10 @@ def draw_rooms_from_walls( img_size, edges, obj_rep ):
   #mmcv.imshow(img_mask)
   return img_mask
 
-def get_rooms_masks_with_mapping_ids( img_size, objs, rooms_line_ids, obj_rep ):
+def get_rooms_masks_with_mapping_ids( img_size, objs, draw_rooms, obj_rep ):
   assert (objs[:,3]==0).all()
-  n = len(rooms_line_ids)
-  masks = [get_1_room_mask_from_edges(img_size, objs[ rooms_line_ids[i] ], obj_rep) for i in range(n)]
+  n = len(draw_rooms)
+  masks = [get_1_room_mask_from_edges(img_size, objs[ draw_rooms[i] ], obj_rep) for i in range(n)]
   return masks
 
 def get_1_room_mask_from_edges( img_size, edges, obj_rep ):

@@ -252,7 +252,7 @@ log_level = 'INFO'
 work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun1_wado_bev.pth'
-  load_from ='./checkpoints/beike/May4_wd_Bev.pth'
+  #load_from ='./checkpoints/beike/May4_wd_Bev.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
