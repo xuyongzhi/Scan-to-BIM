@@ -33,7 +33,7 @@ _obj_dim = dim_parse.OBJ_DIM
 
 #*******************************************************************************
 cls_groups = None
-cls_groups = [[1], [2]]
+#cls_groups = [[1], [2]]
 #*******************************************************************************
 norm_cfg = dict(type='GN', num_groups=32, requires_grad=True)
 
@@ -189,7 +189,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  #img_prefix_test = img_prefix_train
+  img_prefix_test = img_prefix_train
 
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
@@ -252,7 +252,7 @@ log_level = 'INFO'
 work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun1_wado_bev.pth'
-  #load_from ='./checkpoints/beike/Apr16FineTuneApr12_Fpn44_Bp32.pth'
+  load_from ='./checkpoints/beike/May4_wd_Bev.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
