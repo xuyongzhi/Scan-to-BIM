@@ -11,6 +11,8 @@ from functools import partial
 
 IMAGE_SIZE = 512
 
+GEN_IMGS = False
+
 def gen_top_view( pool_num=0 ):
   CUR_DIR = os.path.dirname(os.path.realpath(__file__))
   ROOT_DIR = os.path.dirname(CUR_DIR)
@@ -26,11 +28,12 @@ def gen_top_view( pool_num=0 ):
     topview_write_base += '_VerD'
   else:
     topview_write_base += '_All'
-  topview_write_base_imgs = os.path.join(base_dir, 'TopViewImgs')
   if not os.path.exists(topview_write_base):
       os.mkdir(topview_write_base)
-  if not os.path.exists(topview_write_base_imgs):
-      os.mkdir(topview_write_base_imgs)
+  topview_write_base_imgs = os.path.join(base_dir, 'TopViewImgs')
+  if GEN_IMGS:
+    if not os.path.exists(topview_write_base_imgs):
+        os.mkdir(topview_write_base_imgs)
 
   if pool_num == 0:
     for i, scene in enumerate(scenes):
@@ -247,7 +250,7 @@ def write_example(base_dir, topview_write_base, topview_write_base_imgs, num_poi
     with open(output_path, 'wb') as f:
         np.save(f, room_data)
 
-    if 0:
+    if GEN_IMGS:
       output_path_d = os.path.join(topview_write_base_imgs, scene + '-density.png')
       cv2.imwrite(output_path_d, topview_image)
       output_path_n = os.path.join(topview_write_base_imgs, scene + '-norm.png')
