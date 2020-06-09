@@ -23,10 +23,20 @@ Or refer to [Detectron 2](https://github.com/facebookresearch/detectron2/blob/ma
 ```
 cd mmdetection/beike_data_utils
 python data_preprocess.py
-```
 
-4. 验证生成的图片： mmdetection/data/beike/processed_512/TopView_VerD 
-5. 将 mmdetection/data/beike/processed_512/train.txt 和 test.txt 换成官方的设置。 
+在　data/beike/processed_512　中会生成一下文件：
+all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bboxes  test.txt  TopView_VerD  TopView_VerD_Imgs  train.txt
+```
+1. 配置　data_preprocess.py　中的　pool_num　可以设置多进程。 
+2. scene_start=0, max_scene_num = 100 控制处理的数据范围。预处理最开始会将所有的scene排序，把第scene_start到scene_start+max_scene_num 放到　all.txt。后续所有的操作都只针对all.txt中的scene进行。
+比如可以先跑： scene_start=0, max_scene_num = 100 
+再跑： scene_start=100, max_scene_num = 100  (第100 到　200)
+重复处理不会增加太多的时间，因为只检测文件是否存在。
+再跑： scene_start=0, max_scene_num = 200  应该会很快。
+3. json和ply 是链接。在training 过程中需要加载 json，　但不加载ply。
+4. TopView_VerD_Imgs 和　relationImgs　仅用于验证生成效果，在训练是不需要。
+5. train.txt 和　test.txt 每次都会随机打乱更新。
+
 
 # Training
 
