@@ -26,7 +26,7 @@ import time
 
 RECORD_TIME = 0
 
-DEBUG = 1
+DEBUG = 0
 
 @HEADS.register_module
 class StrPointsHead(nn.Module):
