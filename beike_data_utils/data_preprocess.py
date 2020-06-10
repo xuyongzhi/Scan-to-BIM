@@ -14,7 +14,7 @@ Every operation will skip exist file. So  repeat process does not cost long time
 train.txt, test.txt will update every time because they are randomly sampled from all.txt.
 '''
 
-pool_num = 6
+pool_num = 0
 
 from gen_scene_list_scope import gen_scene_list_pcl_scope
 gen_scene_list_pcl_scope(scene_start=0, max_scene_num = 100, pool_num=pool_num)

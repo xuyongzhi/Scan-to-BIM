@@ -1802,15 +1802,19 @@ def show_free_corners(bboxes, obj_rep, cor_connect_thre=0.15):
 
 def find_wall_wd_connection(walls, windows, obj_rep):
   from obj_geo_utils.geometry_utils import  points_in_lines
+  from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_3d_bboxes_ids
   #windows = windows[3:4]
   #walls = walls[-1:]
-  #_show_objs_ls_points_ls((512,512), [walls, windows], 'XYXYSin2', obj_colors=['red', 'green'])
+  #_show_objs_ls_points_ls((512,512), [walls, windows], obj_rep, obj_colors=['red', 'green'])
+  nw = windows.shape[0]
+  nwa = walls.shape[0]
+  if nw==0 or nwa==0:
+    return np.zeros([nw,nwa])==1
   walls_2p = OBJ_REPS_PARSE.encode_obj( walls, obj_rep, 'RoLine2D_2p' ).reshape(-1,2,2)
   window_centroids = OBJ_REPS_PARSE.encode_obj( windows, obj_rep, 'RoLine2D_2p' ).reshape(-1,2,2).mean(axis=1)
   win_in_wall_mask = points_in_lines(window_centroids, walls_2p, threshold_dis=10, one_point_in_max_1_line=True)
   win_ids, wall_ids_per_win = np.where(win_in_wall_mask)
 
-  nw = windows.shape[0]
   if not (np.all(win_ids == np.arange(nw)) and win_ids.shape[0] == nw):
     print(f'win_ids: {win_ids}, nw={nw}')
     missed_win_ids = [i for i in range(windows.shape[0]) if i not in win_ids]

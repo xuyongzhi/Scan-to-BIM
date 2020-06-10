@@ -1268,6 +1268,7 @@ def debug():
   #gen_connections(data_path)
 
 if __name__ == '__main__':
-  debug()
+  #debug()
+  gen_connection_gt()
 
 
