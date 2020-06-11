@@ -1,5 +1,4 @@
 import pickle
-from beike_data_utils.beike_utils import load_gt_lines_bk
 from configs.common import DIM_PARSE
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
 from obj_geo_utils.obj_utils import GraphUtils, OBJ_REPS_PARSE, find_wall_wall_connection
@@ -438,7 +437,7 @@ class GraphEval():
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
             pass
-        draw_eval_all_classes_1img(eval_draws_ls, self.obj_rep)
+        draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep)
         pass
 
     corner_recall_precision_perimg = defaultdict(list)
@@ -625,7 +624,7 @@ class GraphEval():
 
             pass
         res_filename = os.path.join( self.eval_dir_all_cls, scene_name)
-        draw_1img(img, all_gts, all_dets,  all_ious, labels_to_cats, self.obj_rep, self.iou_threshold, res_filename)
+        draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, self.obj_rep, self.iou_threshold, res_filename)
         pass
 
     line_recall_precision_perimg = defaultdict(list)
@@ -1032,10 +1031,10 @@ def get_z_by_iou(dets, det_cats, gts, gt_cats, obj_rep):
     dets[i, [2,5]] = gts[k, [2,5]]
   return dets
 
-def draw_1img(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_threshold, res_filename):
+def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_threshold, res_filename):
   import mmcv
-  from tools.color import COLOR_MAP
-  colors_map = COLOR_MAP
+  from tools.color import COLOR_MAP_3D
+  colors_map = COLOR_MAP_3D
   num_cats = len(labels_to_cats)
   img_det = None
   img_det_pts = None
@@ -1203,10 +1202,10 @@ def rm_short(bboxes, colors):
   return bboxes[mask], colors
 
 
-def draw_eval_all_classes_1img(eval_draws_ls, obj_rep ):
+def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
   import mmcv
-  from tools.color import COLOR_MAP
-  colors_map = COLOR_MAP
+  from tools.color import COLOR_MAP_2D
+  colors_map = COLOR_MAP_2D
   num_cats = len(eval_draws_ls)
   img_det = None
   img_det_pts = None

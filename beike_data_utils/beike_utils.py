@@ -183,7 +183,10 @@ class BEIKE(BEIKE_CLSINFO):
                             self._classes, filter_edges=self.filter_edges,
                             is_save_connection = self.is_save_connection)
 
-      room_label = self._category_ids_map['room']
+      if 'room' in self._category_ids_map:
+        room_label = self._category_ids_map['room']
+      else:
+        room_label = None
       anno_img = raw_anno_to_img(self.classes, room_label, self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
       self.img_infos[idx]['ann'] = anno_img
       #self.img_infos[idx]['ann_raw'] = anno_raw
@@ -388,11 +391,11 @@ class BEIKE(BEIKE_CLSINFO):
 
     def find_unscanned_edges_1_scene(self, idx):
       from obj_geo_utils.line_operations import getOrientedLineRectSubPix
-
+      self.load_1_anno(idx)
       anno = self.img_infos[idx]['ann']
       bboxes = anno['gt_bboxes']
       labels = anno['labels']
-      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, DIM_PARSE.OBJ_REP)
+      corners,_,_,_ = gen_corners_from_lines_np(bboxes, None, self.obj_rep, 2)
 
       scene_name = self.img_infos[idx]['filename'].split('.')[0]
       print(f'{scene_name}')
@@ -401,7 +404,7 @@ class BEIKE(BEIKE_CLSINFO):
 
       density_sum_mean = []
       for i in range(0, bboxes.shape[0]):
-        inside_i = getOrientedLineRectSubPix(img, bboxes[i], DIM_PARSE.OBJ_REP)
+        inside_i = getOrientedLineRectSubPix(img, bboxes[i], self.obj_rep)
         density_sum_mean_i = [inside_i.sum(), inside_i.mean()]
         density_sum_mean.append( density_sum_mean_i )
         if 0:

@@ -25,8 +25,6 @@ if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2WZ0Z1'
   _transform_method='moment_XYXYSin2WZ0Z1'
 
-  _obj_rep = 'Rect4CornersZ0Z1'
-  _transform_method = 'sort_4corners'
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
   _transform_method = 'sort_4corners'
@@ -264,7 +262,7 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

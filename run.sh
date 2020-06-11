@@ -3,8 +3,8 @@
 #export CUDA_LAUNCH_BLOCKING=1
 #export CUDA_VISIBLE_DEVICES=1
 
-#CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_room.py
+CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_room.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
@@ -25,7 +25,7 @@ ROTATE=1
 BASE_PLANE=32
 BS=7
 DATA_TYPES=cnx
-FILTER_EDGES=0
+FILTER_EDGES=1
 REL=0
 
 #CLS=abcdif

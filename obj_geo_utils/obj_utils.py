@@ -1711,6 +1711,7 @@ def merge_close_corners(corners_0, min_cor_dis_thr, labels_0=None, scores_0=None
       else:
         s0 = None
       c1, s1 = merge_corners_1_cls(corners_0[mask], min_cor_dis_thr, s0)
+      #c1, s1 = merge_corners_1_cls(c1, min_cor_dis_thr, s1)
       corners_1[mask] = c1
       if scores_0 is not None:
         scores_1[mask] = s1
@@ -1734,11 +1735,11 @@ def merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_0=None):
   else:
     scores_1 = scores_0
 
+  corners_0 = corners_0.copy()
   diss = corners_0[None,:,:] - corners_0[:,None,:]
   diss = np.linalg.norm(diss, axis=2)
   mask = diss < min_cor_dis_thr
   merging_ids = []
-  corners_1 = corners_0.copy()
   for i in range(nc):
     ids_i = np.where(mask[i])[0]
     merging_ids.append(ids_i)
@@ -1749,9 +1750,9 @@ def merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_0=None):
       merged_cor = ( corners_0[ids_i] * weights[:,None]).sum(axis=0)
     else:
       merged_cor = ( corners_0[ids_i] ).mean(axis=0)
-    corners_1[ids_i] = merged_cor
+    corners_0[ids_i] = merged_cor
     pass
-  return corners_1, scores_1
+  return corners_0, scores_1
 
 def merge_lines_intersect(lines, obj_rep, pairs):
     assert obj_rep == 'XYXYSin2'
