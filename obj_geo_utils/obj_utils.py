@@ -37,6 +37,8 @@ class OBJ_REPS_PARSE():
     'XYZLgWsHA': 7,
     'XYLgWsA': 5,
 
+    'XYLgWsSin2Cos2Z0Z1': 8,
+
     'XYLgWsAbsSin2Z0Z1': 8,
 
     'XYLgWsAsinSin2Z0Z1': 8,

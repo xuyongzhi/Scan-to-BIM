@@ -443,6 +443,7 @@ class StrPointsHead(nn.Module):
                              dim=1)
         elif self.transform_method == 'moment_XYXYSin2':
             bbox = self.tran_fun_moment_XYXYSin2(pts_x, pts_y, box_extra, out_line_constrain)
+
         elif self.transform_method == 'moment_XYXYSin2WZ0Z1':
             bbox = self.tran_fun_moment_XYXYSin2WZ0Z1(pts_x, pts_y, box_extra, out_line_constrain)
 
