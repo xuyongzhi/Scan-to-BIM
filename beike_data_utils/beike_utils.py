@@ -183,7 +183,8 @@ class BEIKE(BEIKE_CLSINFO):
                             self._classes, filter_edges=self.filter_edges,
                             is_save_connection = self.is_save_connection)
 
-      anno_img = raw_anno_to_img(self.classes, self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
+      room_label = self._category_ids_map['room']
+      anno_img = raw_anno_to_img(self.classes, room_label, self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
       self.img_infos[idx]['ann'] = anno_img
       #self.img_infos[idx]['ann_raw'] = anno_raw
       return anno_img
@@ -620,7 +621,7 @@ def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor
 
   return corners_pt, lines_pt
 
-def raw_anno_to_img(classes, obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
+def raw_anno_to_img(classes, room_label, obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
       anno_img = {}
       anno_img['classes'] = [c for c in classes if c!='background']
       if 'voxel_size' in pixel_config:
@@ -649,7 +650,7 @@ def raw_anno_to_img(classes, obj_rep, anno_raw, anno_style, pixel_config, anno_f
       if 'room' in classes:
         #anno_raw['rooms_line_ids'] = get_room_line_ids_from_edges(lines_pt_ordered, obj_rep)
         anno_img['rooms_line_ids'] = anno_raw['rooms_line_ids']
-        add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
+        add_room_to_anno(room_label, anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
 
       #assert gt_bboxes.min() >= 0
       if DEBUG_CFG.VISUAL_CONNECTIONS:
@@ -670,16 +671,16 @@ def get_room_line_ids_from_edges(lines_pt_ordered, obj_rep):
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
-def add_room_to_anno(anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder):
+def add_room_to_anno( room_label, anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder):
       rooms_line_ids = anno_raw['rooms_line_ids']
       # add room
-      room_bboxes = load_room_bboxes(anno_folder, anno_raw['filename'])
+      room_bboxes = load_room_bboxes(anno_folder, anno_raw['filename'], obj_rep)
       if room_bboxes is None:
         room_bboxes = gen_room_bboxes(lines_pt_ordered, rooms_line_ids, obj_rep, anno_folder, anno_raw['filename'])
       #_show_objs_ls_points_ls( (512,512), [anno_img['gt_bboxes'], room_bboxes], obj_rep=obj_rep, obj_colors=[anno_img['labels'], 'black'], obj_thickness=[10,3] )
       n = room_bboxes.shape[0]
       anno_img['gt_bboxes'] = np.concatenate([anno_img['gt_bboxes'], room_bboxes], 0)
-      room_labels = np.ones([n], dtype=np.int64) * 4
+      room_labels = np.ones([n], dtype=np.int64) * room_label
       anno_img['labels'] = np.concatenate([anno_img['labels'], room_labels])
 
       if 0:
@@ -898,9 +899,9 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
         show_ann_pcl(anno, file_path)
       return anno
 
-def gen_room_bboxes(lines, rooms_line_ids, obj_rep, anno_folder, filename):
+def gen_room_bboxes(lines, rooms_line_ids, obj_rep_out, anno_folder, filename):
   from obj_geo_utils.geometry_utils import points_to_oriented_bbox
-  assert obj_rep == 'XYXYSin2WZ0Z1'
+  obj_rep = 'XYXYSin2WZ0Z1'
 
   line_corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
   num_rooms = len(rooms_line_ids)
@@ -922,9 +923,13 @@ def gen_room_bboxes(lines, rooms_line_ids, obj_rep, anno_folder, filename):
     os.makedirs(rooms_dir)
   np.savetxt(rooms_file, rooms, fmt='%.3f')
   print(f'save: {rooms_file}')
+
+  if obj_rep_out != obj_rep:
+    rooms = OBJ_REPS_PARSE.encode_obj(rooms, obj_rep, obj_rep_out)
   return rooms
 
-def load_room_bboxes(anno_folder, filename):
+def load_room_bboxes(anno_folder, filename, obj_rep_out):
+  obj_rep = 'XYXYSin2WZ0Z1'
   rooms_dir = anno_folder.replace('json', 'room_bboxes')
   filename = filename.replace('json', 'txt')
   rooms_file = os.path.join(rooms_dir, filename)
@@ -932,6 +937,8 @@ def load_room_bboxes(anno_folder, filename):
     return None
   else:
     rooms = np.loadtxt(rooms_file)
+    if obj_rep_out != obj_rep:
+      rooms = OBJ_REPS_PARSE.encode_obj(rooms, obj_rep, obj_rep_out)
     return rooms
 
 
@@ -983,7 +990,7 @@ def load_relations_1scene(anno_folder, filename, classes):
   #relations = np.concatenate([relations, tmp], axis=1)
   return relations
 
-def load_gt_lines_bk(img_meta, img, classes, filter_edges):
+def unused_load_gt_lines_bk(img_meta, img, classes, filter_edges):
   beike_clsinfo = BEIKE_CLSINFO(classes)
   filename = img_meta['filename']
   scene_name = os.path.basename(filename).replace('.npy', '')

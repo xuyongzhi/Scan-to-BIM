@@ -22,8 +22,11 @@ if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
   _transform_method='moment_XYXYSin2'
 
-  #_obj_rep = 'XYXYSin2WZ0Z1'
-  #_transform_method='moment_XYXYSin2WZ0Z1'
+  _obj_rep = 'XYXYSin2WZ0Z1'
+  _transform_method='moment_XYXYSin2WZ0Z1'
+
+  _obj_rep = 'Rect4CornersZ0Z1'
+  _transform_method = 'sort_4corners'
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
   _transform_method = 'sort_4corners'

@@ -111,7 +111,7 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=0.01, ref='union'):
   n1 = bboxes1.shape[0]
   n2 = bboxes2.shape[0]
   if n1==0 or n2==0:
-    return torch.zeros([n1,n2])
+    return torch.zeros([n1,n2]).to(bboxes2.device)
 
   if not bboxes1[:,-1].abs().max() < np.pi*2:
     import pdb; pdb.set_trace()  # XXX BREAKPOINT

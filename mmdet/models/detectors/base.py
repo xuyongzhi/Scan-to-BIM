@@ -9,7 +9,7 @@ import torch
 
 from mmdet.core import auto_fp16, get_classes, tensor2imgs
 from configs.common import DIM_PARSE, DEBUG_CFG
-from beike_data_utils.beike_utils import load_gt_lines_bk
+#from beike_data_utils.beike_utils import load_gt_lines_bk
 from obj_geo_utils.obj_utils import GraphUtils
 #from tools.debug_utils import _show_lines_ls_points_ls
 
