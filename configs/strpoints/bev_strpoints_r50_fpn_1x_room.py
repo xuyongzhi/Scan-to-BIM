@@ -25,7 +25,13 @@ if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2WZ0Z1'
   _transform_method='moment_XYXYSin2WZ0Z1'
 
-  #_transform_method='XYLgWsSin2Cos2Z0Z1'
+  _obj_rep = 'XYXYSin2WZ0Z1'
+  _transform_method='XYLgWsSin2Cos2Z0Z1'
+  #_transform_method='dis_XYLgWsSin2Cos2Z0Z1'
+
+  #_obj_rep_out = _obj_rep
+
+  _obj_rep_out='XYLgWsSin2Cos2Z0Z1'
 
 
 elif DATA == 'stanford2d':
@@ -102,7 +108,7 @@ model = dict(
 # training and testing settings
 train_cfg = dict(
     init=dict(
-        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep),
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep_out),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -114,7 +120,7 @@ train_cfg = dict(
             min_pos_iou=0.15,
             ignore_iof_thr=-1,
             overlap_fun='dil_iou_dis_rotated_3d',
-            obj_rep=_obj_rep),
+            obj_rep=_obj_rep_out),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -265,7 +271,7 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 1:
+if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

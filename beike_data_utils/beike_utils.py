@@ -112,6 +112,8 @@ class BEIKE(BEIKE_CLSINFO):
         self.data_dir = os.path.dirname(os.path.dirname(anno_folder))
         self.split_file = os.path.join(self.data_dir, phase)
         raw_scene_list = np.loadtxt(self.split_file,str).tolist()
+        if isinstance(raw_scene_list, str):
+          raw_scene_list = [raw_scene_list]
         n0 = len(raw_scene_list)
         self.is_pcl = os.path.basename(self.img_prefix) == 'ply'
         data_format = '.ply' if self.is_pcl else '.npy'

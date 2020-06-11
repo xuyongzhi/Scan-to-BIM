@@ -19,7 +19,7 @@ class PointAssigner(BaseAssigner):
     """
 
     def __init__(self, scale=4, pos_num=3, obj_rep=''):
-        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAsinSin2Z0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1']
+        assert obj_rep in ['XYXYSin2', 'XYXYSin2WZ0Z1', 'XYLgWsAsinSin2Z0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYDAsinAsinSin2Z0Z1', 'Rect4CornersZ0Z1', 'XYLgWsSin2Cos2Z0Z1']
         self.scale = scale
         self.pos_num = pos_num
         self.obj_rep = obj_rep
@@ -114,7 +114,7 @@ class PointAssigner(BaseAssigner):
           gt_bboxes_wh = gt_bboxes[:,2:3].repeat(1,2) * level_fac
           gt_bboxes_xy = gt_bboxes[:,:2]
 
-        elif self.obj_rep == 'XYLgWsAsinSin2Z0Z1' or self.obj_rep == 'XYLgWsAbsSin2Z0Z1':
+        elif self.obj_rep in ['XYLgWsAsinSin2Z0Z1', 'XYLgWsAbsSin2Z0Z1', 'XYLgWsSin2Cos2Z0Z1']:
           assert gt_bboxes.shape[1] == 8
           if gt_bboxes_ignore is not None:
             assert gt_bboxes_ignore.shape[1] == 8
@@ -249,6 +249,7 @@ class PointAssigner(BaseAssigner):
               h = points_scope[1] + 100
               w = points_scope[0] + 100
               pos_levels = gt_bboxes_lvl[ pos_gt_inds ]
+              #_show_objs_ls_points_ls((h,w), [gt_bboxes_raw], obj_rep=self.obj_rep)
               _show_objs_ls_points_ls((h,w), [gt_bboxes_raw[pos_gt_inds], missed_gt_bboxes], obj_rep=self.obj_rep, points_ls=[pos_points], obj_colors=['red', 'green'], obj_scores_ls=[pos_levels, None])
               for i in range(len(pos_inds)):
                 l = gt_bboxes_lvl[ pos_gt_inds[i] ]

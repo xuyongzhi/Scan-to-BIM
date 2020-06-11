@@ -166,6 +166,20 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYXYSin2W':
       return bboxes[:,:-2]
 
+    # XYLgWsSin2Cos2Z0Z1  ---------------------------------------------------------------
+    elif obj_rep_in == 'XYZLgWsHA' and obj_rep_out == 'XYLgWsSin2Cos2Z0Z1':
+        return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYLgWsSin2Cos2Z0Z1(bboxes)
+
+    elif obj_rep_in == 'XYLgWsSin2Cos2Z0Z1' and obj_rep_out == 'XYZLgWsHA':
+        return OBJ_REPS_PARSE.XYLgWsSin2Cos2Z0Z1_TO_XYZLgWsHA(bboxes)
+
+    elif obj_rep_in == 'XYXYSin2WZ0Z1' and obj_rep_out == 'XYLgWsSin2Cos2Z0Z1':
+        bboxes = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep_in, 'XYZLgWsHA')
+        return OBJ_REPS_PARSE.XYZLgWsHA_TO_XYLgWsSin2Cos2Z0Z1(bboxes)
+
+    elif obj_rep_in == 'XYLgWsSin2Cos2Z0Z1' and obj_rep_out == 'XYLgWsA':
+      bboxes = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep_in, 'XYZLgWsHA')
+      return OBJ_REPS_PARSE.encode_obj(bboxes, 'XYZLgWsHA', 'XYLgWsA')
     # essential  ---------------------------------------------------------------
 
 
@@ -844,6 +858,34 @@ class OBJ_REPS_PARSE():
     return bboxes_new
 
   @staticmethod
+  def XYLgWsSin2Cos2Z0Z1_TO_XYZLgWsHA(bboxes):
+    nb = bboxes.shape[0]
+    bboxes_new = np.zeros([nb, 7])
+    bboxes_new[:,[0,1]] = bboxes[:,[0,1]]
+    bboxes_new[:,[3,4]] = bboxes[:,[2,3]]
+    sin2theta = bboxes[:,4]
+    cos2theta = bboxes[:,5]
+
+    tmp = 1/np.sqrt(sin2theta**2 + cos2theta**2)
+    cos2theta *= tmp
+    sin2theta *= tmp
+
+    sin2theta = np.clip(sin2theta, a_min=-1, a_max=1)
+    cos2theta = np.clip(cos2theta, a_min=-1, a_max=1)
+
+    theta_0 = np.arcsin(sin2theta) / 2
+    theta_1 = limit_period_np( np.pi/2 - theta_0, 0.5, np.pi )
+    flag = (cos2theta > 0).astype(np.int)
+    theta = theta_0 * flag + theta_1 * (1-flag)
+
+    bboxes_new[:,6] = theta
+    z0 = bboxes[:,6]
+    z1 = bboxes[:,7]
+    bboxes_new[:,2] = (z0+z1)/2
+    bboxes_new[:,5] = z1 - z0
+    return bboxes_new
+
+  @staticmethod
   def XYZLgWsHA_TO_XYLgWsAbsSin2Z0Z1(bboxes):
     nb = bboxes.shape[0]
     bboxes_new = np.zeros([nb, 8])
@@ -851,6 +893,20 @@ class OBJ_REPS_PARSE():
     bboxes_new[:,[2,3]] = bboxes[:,[3,4]]
     bboxes_new[:,[4]] = np.abs(bboxes[:,[6]])
     bboxes_new[:,[5]] = np.sin(2*bboxes[:,[6]])
+    zc = bboxes[:,2]
+    h = bboxes[:,5]
+    bboxes_new[:,6] = zc - h/2
+    bboxes_new[:,7] = zc + h/2
+    return bboxes_new
+
+  @staticmethod
+  def XYZLgWsHA_TO_XYLgWsSin2Cos2Z0Z1(bboxes):
+    nb = bboxes.shape[0]
+    bboxes_new = np.zeros([nb, 8])
+    bboxes_new[:,[0,1]] = bboxes[:,[0,1]]
+    bboxes_new[:,[2,3]] = bboxes[:,[3,4]]
+    bboxes_new[:,[4]] = np.sin(2*bboxes[:,[6]])
+    bboxes_new[:,[5]] = np.cos(2*bboxes[:,[6]])
     zc = bboxes[:,2]
     h = bboxes[:,5]
     bboxes_new[:,6] = zc - h/2

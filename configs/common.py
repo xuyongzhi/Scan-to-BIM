@@ -129,7 +129,7 @@ class DIM_PARSE:
 
 class DEBUG_CFG:
   # tem
-  SET_WIDTH_0 = True
+  SET_WIDTH_0 = False
   SET_Z_0 = True
 
   # debug in input
