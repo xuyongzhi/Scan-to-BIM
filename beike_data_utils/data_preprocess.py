@@ -14,10 +14,12 @@ Every operation will skip exist file. So  repeat process does not cost long time
 train.txt, test.txt will update every time because they are randomly sampled from all.txt.
 '''
 
-pool_num = 0
+# To make sure all data generated successfully. Please use pool_num=0 run all
+# the pre-processing afture using pool_num>0
+pool_num = 5
 
 from gen_scene_list_scope import gen_scene_list_pcl_scope
-gen_scene_list_pcl_scope(scene_start=0, max_scene_num = 100, pool_num=pool_num)
+gen_scene_list_pcl_scope(scene_start=0, max_scene_num = 200, pool_num=pool_num)
 
 from gen_topview_from_pcl import gen_top_view
 gen_top_view( pool_num=pool_num)

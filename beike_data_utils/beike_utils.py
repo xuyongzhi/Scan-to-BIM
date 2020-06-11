@@ -143,7 +143,9 @@ class BEIKE(BEIKE_CLSINFO):
               self.load_1_anno(i)
 
         t = time.time() - t0
-        print(f'Data loading finished. {self.num_scenes} valid in {n0},  time : {t:.3f}s\n')
+        dstr = f'Data loading finished. {self.num_scenes} valid in {n0},  time : {t:.3f}s\n'
+        assert self.num_scenes > 0, dstr
+        print(dstr)
         pass
 
     def get_json_file(self, scene_name):
@@ -539,7 +541,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
         print('meter_2_pixel corner scope error', scene)
         print(corners_pt.min())
         print(corners_pt.max())
-        #import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
     corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
     if floor:
