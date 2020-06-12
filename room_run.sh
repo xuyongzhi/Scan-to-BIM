@@ -8,7 +8,7 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_room.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
-wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1__beike2d_ro_bs1_lr10_LsW510_NR_R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
+wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1__beike2d_ro_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
 #wkdir=test
 
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
@@ -21,7 +21,7 @@ CP=./work_dirs/${wkdir}/best.pth
 
 
 LR=0.01
-ROTATE=0
+ROTATE=1
 BASE_PLANE=32
 BS=1
 DATA_TYPES=cnx
@@ -37,7 +37,7 @@ CLS=r
 
 
 # Multi gpu
-#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS   --relation $REL
+./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS   --relation $REL 
 #--resume $CP 
 
 
@@ -45,4 +45,4 @@ ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 #STYLE=--show
 
-ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL
+#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL

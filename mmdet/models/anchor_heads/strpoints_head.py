@@ -2614,6 +2614,8 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
       _show_objs_ls_points_ls( (800, 800), [raw_gt_bboxes, bbox_gt_[[j]], bbox_pred_[[j]]], obj_rep = obj_rep,
                           points_ls = [pts_pred[j]], point_colors='yellow', point_thickness=6,
                           obj_colors=['white', 'red', 'green'], obj_thickness=[4,2,2])
+      if j>3:
+        break
 
   pass
 
