@@ -299,8 +299,8 @@ class GraphEval():
       os.makedirs(self.eval_dir_all_cls)
 
   def __call__(self, results_datas, out_file):
-    eval_fn = self.evaluate_by_corner
-    #eval_fn = self.evaluate_by_iou
+    #eval_fn = self.evaluate_by_corner
+    eval_fn = self.evaluate_by_iou
     for out_type, opt_g, opt_rel in zip(self._all_out_types, self._opti_graph, self._opti_by_rel):
       self.out_type = out_type
       eval_fn(results_datas, out_file, out_type, opt_g, opt_rel)
@@ -506,9 +506,10 @@ class GraphEval():
     np.save(eval_res_file, eval_res)
     return eval_res_str
 
-  def evaluate_by_iou(self, results_datas, out_file, out_type, optimize_graph=True):
+  def evaluate_by_iou(self, results_datas, out_file, out_type, optimize_graph=True, optimize_graph_by_relation=False):
     assert self.obj_rep  == 'XYZLgWsHA'
     self.optimize_graph = optimize_graph
+    self.optimize_graph_by_relation = optimize_graph_by_relation
     debug = 0
 
     self.num_img = len(results_datas)

@@ -28,7 +28,7 @@ if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2WZ0Z1'
   #_transform_method='XYLgWsSin2Cos2Z0Z1'
   _transform_method='moment_XYDRSin2Cos2Z0Z1'
-  #_transform_method='XYDRSin2Cos2Z0Z1'
+  _transform_method='XYDRSin2Cos2Z0Z1'
 
   #_obj_rep_out = _obj_rep
 

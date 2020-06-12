@@ -1940,12 +1940,14 @@ def find_wall_wd_connection(walls, windows, obj_rep):
   win_in_wall_mask = points_in_lines(window_centroids, walls_2p, threshold_dis=10, one_point_in_max_1_line=True)
   win_ids, wall_ids_per_win = np.where(win_in_wall_mask)
 
-  if not (np.all(win_ids == np.arange(nw)) and win_ids.shape[0] == nw):
-    print(f'win_ids: {win_ids}, nw={nw}')
-    missed_win_ids = [i for i in range(windows.shape[0]) if i not in win_ids]
-    _show_objs_ls_points_ls((512,512), [walls, windows[missed_win_ids] ], obj_rep, obj_colors=['white', 'green'])
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    pass
+  check_all_windows_mapped = 0
+  if check_all_windows_mapped:
+    if not (np.all(win_ids == np.arange(nw)) and win_ids.shape[0] == nw):
+      print(f'win_ids: {win_ids}, nw={nw}')
+      missed_win_ids = [i for i in range(windows.shape[0]) if i not in win_ids]
+      _show_objs_ls_points_ls((512,512), [walls, windows[missed_win_ids] ], obj_rep, obj_colors=['white', 'green'])
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
   if 0:
     for i,j in zip(win_ids, wall_ids_per_win):
       _show_objs_ls_points_ls((512,512), [walls, walls[j:j+1], windows[i:i+1] ], obj_rep, [window_centroids[i:i+1]], obj_colors=['white', 'green', 'red'])

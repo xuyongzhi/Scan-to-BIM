@@ -2137,6 +2137,8 @@ class StrPointsHead(nn.Module):
               num_loc = 2
             elif self.obj_rep == 'Rect4CornersZ0Z1':
               num_loc = 4
+            elif self.obj_rep in ['XYDRSin2Cos2Z0Z1']:
+              num_loc = 1
             else:
               raise NotImplementedError
             bbox_pos_center = points[:, :2].repeat(1, num_loc)
