@@ -644,13 +644,16 @@ class StrPointsHead(nn.Module):
             xs = pts_x - pts_x_mean
             ys = pts_y - pts_y_mean
             tmp = torch.cat([xs[None], ys[None]], 0)
-            pts_max_norm = torch.norm(tmp, dim=0).max(dim=1, keepdim=True)[0]
+            pts_norm = torch.norm(tmp, dim=0)
+            pts_norm_max = pts_norm.max(dim=1, keepdim=True)[0]
+            pts_norm_std = torch.std(pts_norm, dim=1, keepdim=True)
 
             moment_transfer = (self.moment_transfer * self.moment_mul) + (
                 self.moment_transfer.detach() * (1 - self.moment_mul))
             moment_diag_transfer = moment_transfer[0]
 
-            diags = pts_max_norm * torch.exp(moment_diag_transfer)
+            half_diags = pts_norm_max* torch.exp(moment_diag_transfer)
+            diags = half_diags * 2
 
             bbox = torch.cat([
                 pts_x_mean, pts_y_mean, diags, box_extra[:,3:]
@@ -2532,7 +2535,6 @@ def cal_composite_score(line_preds):
       line_preds = torch.cat([line_preds, score_composite], dim=1)
       return line_preds
 
-
 def convert_list_dict_order(f_ls_dict):
   '''
   in : [{}]
@@ -2546,7 +2548,6 @@ def convert_list_dict_order(f_ls_dict):
     for key in f_ls_dict[i].keys():
       f_dict_ls[key].append( f_ls_dict[i][key] )
   return f_dict_ls
-
 
 def show_pred_batch(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
               loss_linec_init, pts_pred, raw_gt_bboxes, level_id
@@ -2576,6 +2577,7 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
   print(f'img {img_id}, stage:{stage}, level id: {level_id}')
   inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
   pos_n = inds.numel()
+  loss_pts = { e: int(loss_pts[e].data*1000)/1000.0 for e in loss_pts }
   print(f'loss_pts: \n{loss_pts}')
   print(f'num points: {np}, num of positive samples: {pos_n}, all num gt={all_ngt}')
   m = bbox_gt.shape[1]
@@ -2594,6 +2596,15 @@ def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
   #_show_objs_ls_points_ls( (512,512), [bbox_gt, ], obj_rep = obj_rep)
   _show_objs_ls_points_ls( (800, 800), [raw_gt_bboxes, bbox_gt_, bbox_pred_], obj_rep = obj_rep,
                           points_ls = [pts_pred], point_colors='blue', point_thickness=2,
+                          obj_colors=['white', 'red', 'green'], obj_thickness=[6, 3, 3])
+
+  num_pred = bbox_pred_.shape[0]
+  pts_pred = pts_pred.reshape(num_pred, 9, 2)
+  show_1by1 = 1
+  if show_1by1:
+    for j in range(num_pred):
+      _show_objs_ls_points_ls( (800, 800), [raw_gt_bboxes, bbox_gt_[[j]], bbox_pred_[[j]]], obj_rep = obj_rep,
+                          points_ls = [pts_pred[j]], point_colors='blue', point_thickness=2,
                           obj_colors=['white', 'red', 'green'], obj_thickness=[6, 3, 3])
 
   pass

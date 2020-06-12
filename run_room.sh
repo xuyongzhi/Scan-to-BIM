@@ -8,7 +8,7 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_room.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
-wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1__beike2d_ro_bs7_lr10_LsW510_NR_R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
+wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1__beike2d_ro_bs1_lr10_LsW510_NR_R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
 #wkdir=test
 
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
@@ -33,7 +33,7 @@ REL=0
 CLS=r
 
 # single gpu
-ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL 
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
 #--resume $CP 
 
 
