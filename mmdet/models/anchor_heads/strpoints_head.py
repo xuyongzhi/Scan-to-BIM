@@ -638,7 +638,7 @@ class StrPointsHead(nn.Module):
             if not box_extra.shape[2:] == pts_x.shape[2:]:
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
               pass
-            diag_method = ['max', 'std'][0]
+            diag_method = ['max', 'std'][1]
 
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
