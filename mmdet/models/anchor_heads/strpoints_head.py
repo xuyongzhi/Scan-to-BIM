@@ -1069,8 +1069,11 @@ class StrPointsHead(nn.Module):
                     labels,
                     label_weights, bbox_gt_init, bbox_weights_init,
                     bbox_gt_refine, bbox_weights_refine, stride,
+                    level_id,
                     num_total_samples_init, num_total_samples_refine,
-                    num_total_samples_cls):
+                    num_total_samples_cls,
+                    raw_gt_bboxes=None,
+                    ):
         '''
         n = batch_size * num_feature
         bbox_gt_init: [n,5/8]
@@ -1212,9 +1215,8 @@ class StrPointsHead(nn.Module):
         if DEBUG_CFG.VISUALIZE_VALID_LOSS_SAMPLES:
           print(f'num_total_samples_init:  {num_total_samples_init}\nnum_total_samples_refine: {num_total_samples_refine}')
           print(f'stride: {stride}')
-          show_pred('init',self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_linec_init, pts_pred_init)
-          show_pred('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_linec_refine, pts_pred_refine)
-
+          show_pred_batch('init',self.obj_rep, bbox_pred_init, bbox_gt_init, bbox_weights_init, loss_pts_init, loss_linec_init, pts_pred_init, raw_gt_bboxes, level_id)
+          show_pred_batch('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_linec_refine, pts_pred_refine, raw_gt_bboxes, level_id)
 
         return loss_cls, loss_pts_init, loss_pts_refine, loss_linec_init, loss_linec_refine
 
@@ -1292,10 +1294,10 @@ class StrPointsHead(nn.Module):
         return bbox_list
 
     def convert_gt_obj(self, gt_bboxes):
-      #_show_objs_ls_points_ls_torch( (512,512), [gt_bboxes[0]], self.obj_rep_in)
+      #_show_objs_ls_points_ls_torch( (512,512), [gt_bboxes[0]], self.obj_rep_in, obj_colors='red')
       if self.obj_rep != self.obj_rep_in:
         gt_bboxes = [OBJ_REPS_PARSE.encode_obj(b, self.obj_rep_in, self.obj_rep) for b in gt_bboxes]
-      #_show_objs_ls_points_ls_torch( (512,512), [gt_bboxes[0]], self.obj_rep)
+      #_show_objs_ls_points_ls_torch( (512,512), [gt_bboxes[0]], self.obj_rep, obj_colors='red')
       return gt_bboxes
 
     def loss(self,
@@ -1407,6 +1409,7 @@ class StrPointsHead(nn.Module):
           t0 = time.time()
 
         #_show_objs_ls_points_ls_torch((512,512), gt_bboxes, self.obj_rep)
+        num_level = len(cls_scores)
 
         if gt_relations is None:
           assert self.relation_cfg['enable'] == 0
@@ -1536,6 +1539,7 @@ class StrPointsHead(nn.Module):
           t1 = time.time()
         #-----------------------------------------------------------------------
         # compute loss per level
+        level_ids = list(range(num_level))
         losses_cls, losses_pts_init, losses_pts_refine,\
           loss_linec_init, loss_linec_refine\
             = multi_apply(
@@ -1552,9 +1556,12 @@ class StrPointsHead(nn.Module):
             bbox_gt_list_refine,
             bbox_weights_list_refine,
             self.point_strides,
+            level_ids,
             num_total_samples_init=num_total_samples_init,
             num_total_samples_refine=num_total_samples_refine,
-            num_total_samples_cls=num_total_samples_cls)
+            num_total_samples_cls=num_total_samples_cls,
+            raw_gt_bboxes = gt_bboxes,
+            )
         loss_dict_all = {}
         for ele in losses_pts_init[0].keys():
           loss_dict_all[ele] = [l[ele] for l in losses_pts_init]
@@ -2472,37 +2479,54 @@ def convert_list_dict_order(f_ls_dict):
   return f_dict_ls
 
 
+def show_pred_batch(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
+              loss_linec_init, pts_pred, raw_gt_bboxes, level_id
+              ):
+  bs = len(raw_gt_bboxes)
+  c = bbox_gt.shape[1]
+  p = pts_pred.shape[1]
+  bbox_pred = bbox_pred.reshape(bs, -1, c)
+  bbox_gt = bbox_gt.reshape(bs, -1, c)
+  bbox_weights = bbox_weights.reshape(bs, -1, c)
+  pts_pred = pts_pred.reshape(bs, -1, p)
+  for i in range(bs):
+      show_pred(stage, obj_rep, bbox_pred[i], bbox_gt[i], bbox_weights[i], loss_pts,
+              loss_linec_init, pts_pred[i], raw_gt_bboxes[i], level_id, i
+              )
+
 def show_pred(stage, obj_rep, bbox_pred, bbox_gt, bbox_weights, loss_pts,
-              loss_linec_init, pts_pred
+              loss_linec_init, pts_pred, raw_gt_bboxes, level_id, img_id
               ):
   np = bbox_pred.shape[0]
+  all_ngt = raw_gt_bboxes.shape[0]
   if obj_rep == 'XYDAsinAsinSin2Z0Z1':
     npts = 5
     pts_pred = pts_pred.reshape(np,-1,2)[:,:npts].reshape(np,-1)
 
   print(f'\n------------------------------------')
-  print(f'stage:{stage}')
+  print(f'img {img_id}, stage:{stage}, level id: {level_id}')
   inds = torch.nonzero(bbox_weights.sum(dim=1)).squeeze()
   pos_n = inds.numel()
   print(f'loss_pts: \n{loss_pts}')
-  print(f'num points: {np}, pos_n: {pos_n}')
+  print(f'num points: {np}, num of positive samples: {pos_n}, all num gt={all_ngt}')
   m = bbox_gt.shape[1]
   bbox_pred = bbox_pred[:,:m]
   bbox_pred_ = bbox_pred[inds].cpu().data.numpy().reshape(-1,m)
   bbox_gt_ = bbox_gt[inds].cpu().data.numpy().reshape(-1,m)
   pts_pred = pts_pred[inds].cpu().data.numpy().reshape(-1,2)
+  raw_gt_bboxes = raw_gt_bboxes.cpu().data.numpy()
 
   errs = bbox_pred_ - bbox_gt_
-  print(f'obj_rep:{obj_rep}\nerr:\n{errs}')
-  print(f'bbox_pred_:\n{bbox_pred_}')
-  print(f'bbox_gt_:\n{bbox_gt_}')
+  print(f'obj_rep:{obj_rep}')
+  #print(f'err:\n{errs}')
+  #print(f'bbox_pred_:\n{bbox_pred_}')
+  #print(f'bbox_gt_:\n{bbox_gt_}')
 
   #_show_objs_ls_points_ls( (512,512), [bbox_gt, ], obj_rep = obj_rep)
-  _show_objs_ls_points_ls( (800, 800), [bbox_gt_, bbox_pred_], obj_rep = obj_rep,
+  _show_objs_ls_points_ls( (800, 800), [raw_gt_bboxes, bbox_gt_, bbox_pred_], obj_rep = obj_rep,
                           points_ls = [pts_pred], point_colors='blue', point_thickness=2,
-                          obj_colors=['red', 'green'], obj_thickness=[2,1])
+                          obj_colors=['white', 'red', 'green'], obj_thickness=[6, 3, 3])
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 def show_nms_out(det_bboxes, det_labels, obj_rep, num_classes):
