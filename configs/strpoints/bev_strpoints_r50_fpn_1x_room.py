@@ -26,12 +26,12 @@ if DATA == 'beike2d':
   _transform_method='moment_XYXYSin2WZ0Z1'
 
   _obj_rep = 'XYXYSin2WZ0Z1'
-  _transform_method='XYLgWsSin2Cos2Z0Z1'
-  #_transform_method='dis_XYLgWsSin2Cos2Z0Z1'
+  #_transform_method='XYLgWsSin2Cos2Z0Z1'
+  _transform_method='moment_XYDRSin2Cos2Z0Z1'
 
   #_obj_rep_out = _obj_rep
 
-  _obj_rep_out='XYLgWsSin2Cos2Z0Z1'
+  _obj_rep_out='XYDRSin2Cos2Z0Z1'
 
 
 elif DATA == 'stanford2d':

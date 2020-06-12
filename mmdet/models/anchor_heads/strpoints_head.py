@@ -124,7 +124,11 @@ class StrPointsHead(nn.Module):
             elif transform_method in ['XYLgWsSin2Cos2Z0Z1', 'dis_XYLgWsSin2Cos2Z0Z1']:
                 self.box_extra_dims = 8
                 self.obj_rep = 'XYLgWsSin2Cos2Z0Z1'
-                #self.line_constrain_loss = False
+                self.line_constrain_loss = False
+            elif transform_method in ['XYDRSin2Cos2Z0Z1', 'moment_XYDRSin2Cos2Z0Z1']:
+                self.box_extra_dims = 8
+                self.obj_rep = 'XYDRSin2Cos2Z0Z1'
+                self.line_constrain_loss = False
 
         elif obj_rep == 'XYXYSin2':
             self.box_extra_dims = 0
@@ -175,8 +179,7 @@ class StrPointsHead(nn.Module):
         self.use_grid_points = use_grid_points
         self.center_init = center_init
         self.transform_method = transform_method
-        if self.transform_method == 'moment' or \
-            self.transform_method in ['moment_XYXYSin2', 'moment_XYXYSin2WZ0Z1']:
+        if 'moment' in self.transform_method:
             self.moment_transfer = nn.Parameter(
                 data=torch.zeros(2), requires_grad=True)
             self.moment_mul = moment_mul
@@ -402,6 +405,9 @@ class StrPointsHead(nn.Module):
               bbox[:,3] *= 0
             pass
 
+        elif self.transform_method == 'moment_XYDRSin2Cos2Z0Z1':
+            bbox = self.tran_fun_moment_XYDRSin2Cos2Z0Z1(pts_x, pts_y, box_extra, out_line_constrain)
+
         elif self.transform_method == 'minAreaRect':
             assert self.box_extra_dims == 3
             assert box_extra.shape[1] == 3
@@ -622,6 +628,33 @@ class StrPointsHead(nn.Module):
                 pts_x_mean + half_width, pts_y_mean + half_height,
                 sin_2theta, width_z0_z1
             ],  dim=1)
+            if out_line_constrain:
+              bbox = torch.cat([bbox, isaline], dim=1)
+            return bbox
+            pass
+
+    def tran_fun_moment_XYDRSin2Cos2Z0Z1(self, pts_x, pts_y, box_extra, out_line_constrain):
+            assert self.box_extra_dims == 8 and box_extra.shape[1] == self.box_extra_dims
+            if not box_extra.shape[2:] == pts_x.shape[2:]:
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
+
+            pts_y_mean = pts_y.mean(dim=1, keepdim=True)
+            pts_x_mean = pts_x.mean(dim=1, keepdim=True)
+            xs = pts_x - pts_x_mean
+            ys = pts_y - pts_y_mean
+            tmp = torch.cat([xs[None], ys[None]], 0)
+            pts_max_norm = torch.norm(tmp, dim=0).max(dim=1, keepdim=True)[0]
+
+            moment_transfer = (self.moment_transfer * self.moment_mul) + (
+                self.moment_transfer.detach() * (1 - self.moment_mul))
+            moment_diag_transfer = moment_transfer[0]
+
+            diags = pts_max_norm * torch.exp(moment_diag_transfer)
+
+            bbox = torch.cat([
+                pts_x_mean, pts_y_mean, diags, box_extra[:,3:]
+                ], dim=1)
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             return bbox
@@ -1144,7 +1177,7 @@ class StrPointsHead(nn.Module):
           bbox_gt_init_nm = bbox_gt_init / normalize_term
           bbox_pred_init_nm[:,[Asin, Sin2]] = bbox_pred_init[:,[Asin, Sin2]]
           bbox_gt_init_nm[:,[Asin, Sin2]] = bbox_gt_init[:,[Asin, Sin2]]
-        elif self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
+        elif self.obj_rep in [ 'XYDAsinAsinSin2Z0Z1', 'XYDRSin2Cos2Z0Z1']:
           Xc, Yc, Dl, AsinCor, Asin, Sin2, Z0, Z1 = range(8)
           bbox_pred_init_nm = bbox_pred_init / normalize_term
           bbox_gt_init_nm = bbox_gt_init / normalize_term
@@ -1185,7 +1218,7 @@ class StrPointsHead(nn.Module):
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,[Asin, Sin2]] = bbox_pred_refine[:,[Asin, Sin2]]
           bbox_gt_refine_nm[:,[Asin, Sin2]] = bbox_gt_refine[:,[Asin, Sin2]]
-        elif self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
+        elif self.obj_rep in ['XYDAsinAsinSin2Z0Z1', 'XYDRSin2Cos2Z0Z1']:
           bbox_pred_refine_nm = bbox_pred_refine / normalize_term
           bbox_gt_refine_nm = bbox_gt_refine / normalize_term
           bbox_pred_refine_nm[:,[AsinCor, Asin, Sin2]] = bbox_pred_refine[:,[AsinCor, Asin, Sin2]]
@@ -1273,7 +1306,7 @@ class StrPointsHead(nn.Module):
                   wz0z1 =  bbox_preds_init_i[:,5:8] * self.point_strides[i_lvl]
                   bbox_i = torch.cat([bbox_i, istopleft, wz0z1], dim=1)
                   bbox.append(bbox_i)
-                elif self.obj_rep == 'XYDAsinAsinSin2Z0Z1':
+                elif self.obj_rep in ['XYDRSin2Cos2Z0Z1', 'XYDAsinAsinSin2Z0Z1']:
                   assert bbox_preds_init.shape[1] == 8
                   bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,8)
                   bbox_i[:,[0,1,2,6,7]] *=  self.point_strides[i_lvl]
@@ -2393,6 +2426,43 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
               loss_pts_init[f'loss_ws{s}'] = loss_pts_init_ws
               loss_pts_init[f'loss_lw{s}'] = loss_init_lw
 
+        elif obj_rep == 'XYDRSin2Cos2Z0Z1':
+            Xc, Yc, Dl, lwR, Sin2, Cos2, Z0, Z1 = range(8)
+
+            loss_pts_init_loc = loss_bbox_fun(
+              bbox_pred_init_nm[:,[Xc, Yc]],
+              bbox_gt_init_nm[:,[Xc, Yc]],
+              bbox_weights_init[:,[Xc, Yc]],
+              avg_factor=num_total_samples_init)
+            loss_pts_init_diag_len = loss_bbox_fun(
+              bbox_pred_init_nm[:,[Dl]],
+              bbox_gt_init_nm[:,  [Dl]],
+              bbox_weights_init[:,[Dl]],
+              avg_factor=num_total_samples_init)
+            loss_pts_init_lwr = loss_bbox_fun(
+              bbox_pred_init_nm[:,[lwR]],
+              bbox_gt_init_nm[:,  [lwR]],
+              bbox_weights_init[:,[lwR]],
+              avg_factor=num_total_samples_init)
+
+            loss_pts_init_cos2 = loss_bbox_fun(
+              bbox_pred_init_nm[:,[Cos2]],
+              bbox_gt_init_nm[:,  [Cos2]],
+              bbox_weights_init[:,[Cos2]],
+              avg_factor=num_total_samples_init)
+            loss_pts_init_sin2 = loss_bbox_fun(
+              bbox_pred_init_nm[:,[Sin2]],
+              bbox_gt_init_nm[:,  [Sin2]],
+              bbox_weights_init[:,[Sin2]],
+              avg_factor=num_total_samples_init)
+
+            loss_pts_init = {
+                f'loss_loc{s}':  loss_pts_init_loc,
+                f'loss_sin2{s}': loss_pts_init_sin2,
+                f'loss_cos2{s}': loss_pts_init_cos2,
+                f'loss_dial{s}': loss_pts_init_diag_len,
+                f'loss_lwr{s}': loss_pts_init_lwr,
+              }
         elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
             Xc, Yc, Dl, AsinCor, Asin, Sin2, Z0, Z1 = range(8)
 
@@ -2431,14 +2501,13 @@ def cal_loss_bbox(stage, obj_rep, loss_bbox_fun, bbox_pred_init_nm, bbox_gt_init
 
             loss_pts_init_asin *= 0.5
             loss_pts_init_sin2 *= 0.5
-
             loss_pts_init = {
-              f'loss_loc{s}':  loss_pts_init_loc,
-              f'loss_sin2{s}': loss_pts_init_sin2,
-              f'loss_asin{s}': loss_pts_init_asin,
-              f'loss_dial{s}': loss_pts_init_diag_len,
-              f'loss_asc{s}': loss_pts_init_ascor,
-            }
+                f'loss_loc{s}':  loss_pts_init_loc,
+                f'loss_sin2{s}': loss_pts_init_sin2,
+                f'loss_asin{s}': loss_pts_init_asin,
+                f'loss_dial{s}': loss_pts_init_diag_len,
+                f'loss_asc{s}': loss_pts_init_ascor,
+              }
         else:
           raise NotImplementedError
 
