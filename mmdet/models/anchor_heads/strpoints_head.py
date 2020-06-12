@@ -397,7 +397,7 @@ class StrPointsHead(nn.Module):
             bbox = torch.cat([bbox_left, bbox_up, bbox_right, bbox_bottom],
                              dim=1)
 
-        elif self.transform_method == 'XYLgWsAbsSin2Z0Z1' or self.transform_method == 'XYLgWsSin2Cos2Z0Z1':
+        elif self.transform_method in ['XYLgWsAbsSin2Z0Z1', 'XYLgWsSin2Cos2Z0Z1', 'XYDRSin2Cos2Z0Z1']:
             assert self.box_extra_dims == 8
             assert box_extra.shape[1] == 8
             bbox = box_extra
@@ -638,7 +638,7 @@ class StrPointsHead(nn.Module):
             if not box_extra.shape[2:] == pts_x.shape[2:]:
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
               pass
-            diag_method = ['max', 'std'][1]
+            diag_method = ['max', 'std'][0]
 
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)
