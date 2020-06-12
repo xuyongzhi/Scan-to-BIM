@@ -2,6 +2,7 @@
 import torch, math
 import numpy as np
 import time
+from collections import defaultdict
 np.set_printoptions(precision=3,suppress=True)
 
 '''
@@ -1065,6 +1066,74 @@ def points_to_oriented_bbox(points, obj_rep_out='XYLgWsA'):
   if obj_rep_out != 'XYLgWsA':
     box2d = OBJ_REPS_PARSE.encode_obj(box2d, 'XYLgWsA', obj_rep_out)
   return box2d
+
+def get_rooms_from_edges(edges, obj_rep):
+  from scipy import ndimage
+  from tools.visual_utils import draw_1_obj
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  from tools.visual_utils import _show_objs_ls_points_ls
+  debug = 0
+
+  edges = OBJ_REPS_PARSE.encode_obj(edges, obj_rep, 'XYLgWsA')
+  s = int(edges[:,:2].max() + 100)
+  img_size = (s,s)
+  img = np.zeros(img_size)
+  obj_thickness = 1
+  c = (255,255,255)
+
+  for edge in edges:
+    draw_1_obj(img, edge, c, obj_thickness, 'XYLgWsA')
+  img = (img==0).astype(np.uint8)
+  mask, num_rooms = ndimage.label(img)
+  bg_label = mask[0,0]
+  background = mask == bg_label
+  mask[background] = 0
+  room_labels = [i for i in range(1, num_rooms+1) if i != bg_label]
+  num_edge = edges.shape[0]
+  room_ids_per_edge = np.zeros([num_edge, 2]) - 1
+
+  orth_edges = edges.copy()
+  orth_edges[:,2] = 6
+  orth_edges[:,-1] = orth_edges[:,-1] - np.pi/2
+  orth_corners = OBJ_REPS_PARSE.encode_obj(orth_edges, 'XYLgWsA', 'RoLine2D_2p').reshape(-1,2,2).astype(np.int32)
+
+  if debug:
+    from tools.color import ColorValuesNp
+    import mmcv
+    img_mask = ColorValuesNp[mask]
+    img_mask[background] = 255
+    #mmcv.imshow(img_mask)
+
+  edge_ids_per_room = defaultdict(list)
+  num_edges_inside_room = 0
+  for i in range(num_edge):
+    x1, y1 = orth_corners[i,0]
+    x2, y2 = orth_corners[i,1]
+    room_1 = mask[y1,x1]
+    room_2 = mask[y2,x2]
+
+    if room_1 in room_labels:
+      edge_ids_per_room[room_1].append(i)
+    if room_2 in room_labels:
+      edge_ids_per_room[room_2].append(i)
+
+    room_ids_per_edge[i,0] = room_1
+    room_ids_per_edge[i,1] = room_2
+
+    inside_wall = room_1 == room_2
+    if inside_wall:
+      num_edges_inside_room += 1
+    if debug and inside_wall:
+      room_1 = img_mask[ y1, x1 ]
+      room_2 = img_mask[ y2, x2 ]
+      print(f'room: {room_1}, {room_2}')
+      _show_objs_ls_points_ls( img_mask, [edges[[i]]], obj_rep='XYLgWsA',
+          points_ls=[ orth_corners[i] ], obj_colors='red', point_colors='green',  point_thickness=5 )
+    pass
+
+  edge_ids_per_room_out = [edge_ids_per_room[i] for i in room_labels]
+  return edge_ids_per_room_out, num_edges_inside_room
+
 
 def ununsed_get_cf_from_wall(floors0, walls, obj_rep, cat_name):
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE

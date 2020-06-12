@@ -191,7 +191,6 @@ def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
   if obj_rep != 'XYLgWsA':
     objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'XYLgWsA')
   if draw_rooms:
-    #img = draw_rooms_from_wall_room_mapping(img.shape[:2], objs, draw_rooms, 'XYLgWsA')
     img = draw_rooms_from_walls(img.shape[:2], objs,  'XYLgWsA')
   draw_XYLgWsA(img, objs, color, obj_thickness=obj_thickness, scores=scores,
                cats=cats, font_scale=font_scale, text_color=text_color)
@@ -254,13 +253,6 @@ def draw_1_obj(img, obj, color, obj_thickness, obj_rep):
         box = np.int0(np.ceil(box))
         cv2.drawContours(img, [box],0, color, obj_thickness)
 
-def draw_rooms_from_wall_room_mapping(img, objs, room_line_ids, colors):
-  img_size = img.shape[:2]
-  n = len(room_line_ids)
-  colors_ = parse_colors(n, colors)
-  #masks = get_rooms_masks_with_mapping_ids(img_size, objs, room_line_ids, 'XYLgWsA')
-  img_rooms = get_rooms_mask_from_edges(img_size, objs,  'XYLgWsA')
-  return img_rooms
 
 def draw_rooms_from_walls( img_size, edges, obj_rep ):
   img = np.zeros(img_size)
@@ -277,25 +269,6 @@ def draw_rooms_from_walls( img_size, edges, obj_rep ):
   #mmcv.imshow(img_mask)
   return img_mask
 
-def get_rooms_masks_with_mapping_ids( img_size, objs, draw_rooms, obj_rep ):
-  assert (objs[:,3]==0).all()
-  n = len(draw_rooms)
-  masks = [get_1_room_mask_from_edges(img_size, objs[ draw_rooms[i] ], obj_rep) for i in range(n)]
-  return masks
-
-def get_1_room_mask_from_edges( img_size, edges, obj_rep ):
-  img = np.zeros(img_size)
-  obj_thickness = 1
-  c = (255,255,255)
-  for edge in edges:
-    draw_1_obj(img, edge, c, obj_thickness, obj_rep)
-  img = (img==0).astype(np.uint8)
-  mask, num_rooms = ndimage.label(img)
-  assert num_rooms == 2
-  mask = (mask==2).astype(np.uint8)
-  mmcv.imshow(img)
-  mmcv.imshow(mask*255)
-  return mask
 
 def draw_XYXYSin2(img, objs, color, obj_thickness=1, font_scale=0.5, text_color='green'):
     '''

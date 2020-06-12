@@ -292,7 +292,7 @@ class BEIKE(BEIKE_CLSINFO):
       _show_objs_ls_points_ls(
         img[:,:,0], [room_bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
-                               obj_thickness=2, point_thickness=2,
+                               obj_thickness=6, point_thickness=2,
                                out_file=anno_img_file, only_save=write)
 
       # draw density
@@ -678,10 +678,13 @@ def get_room_line_ids_from_edges(lines_pt_ordered, obj_rep):
 
 def add_room_to_anno( room_label, anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder):
       rooms_line_ids = anno_raw['rooms_line_ids']
+      #rooms_line_ids = None
       # add room
       room_bboxes = load_room_bboxes(anno_folder, anno_raw['filename'], obj_rep)
       if room_bboxes is None:
-        room_bboxes = gen_room_bboxes(lines_pt_ordered, rooms_line_ids, obj_rep, anno_folder, anno_raw['filename'])
+        wall_mask = anno_img['labels'] == 1
+        assert anno_img['classes'][0] == 'wall'
+        room_bboxes = gen_room_bboxes_by_room_label(lines_pt_ordered[wall_mask], rooms_line_ids, obj_rep, anno_folder, anno_raw['filename'])
       #_show_objs_ls_points_ls( (512,512), [anno_img['gt_bboxes'], room_bboxes], obj_rep=obj_rep, obj_colors=[anno_img['labels'], 'black'], obj_thickness=[10,3] )
       n = room_bboxes.shape[0]
       anno_img['gt_bboxes'] = np.concatenate([anno_img['gt_bboxes'], room_bboxes], 0)
@@ -904,9 +907,21 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
         show_ann_pcl(anno, file_path)
       return anno
 
-def gen_room_bboxes(lines, rooms_line_ids, obj_rep_out, anno_folder, filename):
-  from obj_geo_utils.geometry_utils import points_to_oriented_bbox
+
+def gen_room_bboxes_by_room_label(lines, rooms_line_ids, obj_rep_out, anno_folder, filename):
+  from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges
+  room_label_non_intact = ['uxMhs9XTA7txv6_kvoDjHv', 'isDTo3WSrPK99A14wmpcYg', '8Ej90dGb8mD7ykRTOsWVbV', '18H6WOCclkJY34-TVuOqX3']
   obj_rep = 'XYXYSin2WZ0Z1'
+  rooms_line_ids_in = rooms_line_ids.copy()
+  rooms_line_ids = None
+  if rooms_line_ids is None:
+    rooms_line_ids, num_walls_inside_room = get_rooms_from_edges(lines, obj_rep)
+  else:
+    num_walls_inside_room = -1
+
+  if len(rooms_line_ids)!=len(rooms_line_ids_in):
+    print(f'\n\troom label not intact: {filename}')
+    pass
 
   line_corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
   num_rooms = len(rooms_line_ids)
@@ -928,6 +943,13 @@ def gen_room_bboxes(lines, rooms_line_ids, obj_rep_out, anno_folder, filename):
     os.makedirs(rooms_dir)
   np.savetxt(rooms_file, rooms, fmt='%.3f')
   print(f'save: {rooms_file}')
+
+  if num_walls_inside_room >= 0:
+    scene = os.path.splitext(filename)[0]
+    summary_file = os.path.join(anno_folder.split('json')[0], 'num_walls_inside_room.txt')
+    num_walls = lines.shape[0]
+    with open( summary_file, 'a' ) as f:
+      f.write( f'{scene}: {num_walls_inside_room} {num_walls}\n' )
 
   if obj_rep_out != obj_rep:
     rooms = OBJ_REPS_PARSE.encode_obj(rooms, obj_rep, obj_rep_out)
@@ -1282,7 +1304,6 @@ def debug():
   #gen_connections(data_path)
 
 if __name__ == '__main__':
-  #debug()
-  gen_connection_gt()
+  debug()
 
 
