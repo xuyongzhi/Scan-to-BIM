@@ -125,7 +125,7 @@ class StrPointsHead(nn.Module):
                 self.box_extra_dims = 8
                 self.obj_rep = 'XYLgWsSin2Cos2Z0Z1'
                 self.line_constrain_loss = False
-            elif transform_method in ['XYDRSin2Cos2Z0Z1', 'moment_XYDRSin2Cos2Z0Z1']:
+            elif transform_method in ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1']:
                 self.box_extra_dims = 8
                 self.obj_rep = 'XYDRSin2Cos2Z0Z1'
                 self.line_constrain_loss = False
@@ -405,7 +405,7 @@ class StrPointsHead(nn.Module):
               bbox[:,3] *= 0
             pass
 
-        elif self.transform_method == 'moment_XYDRSin2Cos2Z0Z1':
+        elif self.transform_method in ['moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1']:
             bbox = self.tran_fun_moment_XYDRSin2Cos2Z0Z1(pts_x, pts_y, box_extra, out_line_constrain)
 
         elif self.transform_method == 'minAreaRect':
@@ -638,7 +638,10 @@ class StrPointsHead(nn.Module):
             if not box_extra.shape[2:] == pts_x.shape[2:]:
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
               pass
-            diag_method = ['max', 'std'][0]
+            if self.transform_method == 'moment_std_XYDRSin2Cos2Z0Z1':
+              diag_method = 'std'
+            elif self.transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
+              diag_method = 'max'
 
             pts_y_mean = pts_y.mean(dim=1, keepdim=True)
             pts_x_mean = pts_x.mean(dim=1, keepdim=True)

@@ -26,10 +26,8 @@ if DATA == 'beike2d':
   #_transform_method='moment_XYXYSin2WZ0Z1'
 
   _obj_rep = 'XYXYSin2WZ0Z1'
-  #_transform_method='moment_XYDRSin2Cos2Z0Z1'
-  _transform_method='XYDRSin2Cos2Z0Z1'
+  _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
   _obj_rep_out='XYDRSin2Cos2Z0Z1'
-
 
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
@@ -238,7 +236,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs =  2010
+total_epochs =  1510
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -257,7 +255,11 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}_'
+work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}'
+if _transform_method == 'moment_std_XYDRSin2Cos2Z0Z1':
+  work_dir += '_Std_'
+if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
+  work_dir += '_Max_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun1_wado_bev.pth'
   #load_from ='./checkpoints/beike/May4_wd_Bev.pth'
