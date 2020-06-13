@@ -17,8 +17,8 @@ SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
 DEBUG = 1
 
-def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
-    dim_parse = DIM_PARSE(obj_rep_org, len(classes)+1)
+def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
+    dim_parse = DIM_PARSE(obj_rep_pred, len(classes)+1)
     dim_parse_out = DIM_PARSE(obj_rep_out, len(classes)+1)
     re_s, re_e = dim_parse.OUT_ORDER['bbox_refine']
     in_s, in_e = dim_parse.OUT_ORDER['bbox_init']
@@ -38,13 +38,14 @@ def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
         gt_labels = gt_labels[0]
       else:
         raise NotImplementedError
-      gt_bboxes = OBJ_REPS_PARSE.encode_obj(gt_bboxes, obj_rep_org, obj_rep_out)
+      gt_bboxes = OBJ_REPS_PARSE.encode_obj(gt_bboxes, obj_rep_gt, obj_rep_out)
+      #_show_objs_ls_points_ls( (512,512), [gt_bboxes.cpu().data.numpy()], obj_rep_out )
       num_level = len(det_bboxes)
       for l in range(num_level):
           assert det_bboxes[l].shape[1] == dim_parse.OUT_DIM_FINAL
-          #_show_objs_ls_points_ls( (512,512), [det_bboxes[l][:,re_s:re_e]], obj_rep_org )
-          bbox_refine = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, re_s:re_e], obj_rep_org, obj_rep_out)
-          bbox_init = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, in_s:in_e], obj_rep_org, obj_rep_out)
+          #_show_objs_ls_points_ls( (512,512), [det_bboxes[l][:,re_s:re_e]], obj_rep_pred )
+          bbox_refine = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, re_s:re_e], obj_rep_pred, obj_rep_out)
+          bbox_init = OBJ_REPS_PARSE.encode_obj(det_bboxes[l][:, in_s:in_e], obj_rep_pred, obj_rep_out)
           det_bboxes_new = np.concatenate([ bbox_refine, bbox_init, det_bboxes[l][:,in_e:] ], axis=1)
           #_show_objs_ls_points_ls( (512,512), [ bbox_refine ], obj_rep_out )
           if not det_bboxes_new.shape[1] == dim_parse_out.OUT_DIM_FINAL:
@@ -60,8 +61,9 @@ def change_result_rep(results, classes, obj_rep_org, obj_rep_out='XYZLgWsHA'):
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     filter_edges = data_test_cfg['filter_edges']
     classes = data_test_cfg['classes']
-    obj_rep = data_test_cfg['obj_rep']
-    results, obj_rep = change_result_rep(results, classes, obj_rep, 'XYZLgWsHA')
+    obj_rep_pred = data_test_cfg['obj_rep_out']
+    obj_rep_gt = data_test_cfg['obj_rep']
+    results, obj_rep = change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, 'XYZLgWsHA')
     dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
     num_imgs = len(results)
     assert len(data_loader) == num_imgs
@@ -604,9 +606,9 @@ class GraphEval():
               walls = det_lines_merged
             all_dets[label] = det_lines_merged
 
-            if debug and 0:
+            if debug and 1:
               print('raw prediction')
-              _show_objs_ls_points_ls(img[:,:,0], [det_lines[:,:5], gt_lines_l], obj_colors=['green','red'])
+              _show_objs_ls_points_ls(img[:,:,0], [det_lines[:,:-1], gt_lines_l], obj_rep=self.obj_rep, obj_colors=['green','red'])
 
 
             det_category_id = detections[label-1]['category_id']

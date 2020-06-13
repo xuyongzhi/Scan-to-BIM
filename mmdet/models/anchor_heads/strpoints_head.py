@@ -1277,63 +1277,127 @@ class StrPointsHead(nn.Module):
                   box_extra_i = None
                 bbox_preds_init = self.points2bbox(
                     pts_preds[i_lvl].detach(), box_extra=box_extra_i, stage=stage+'_get_bbox_from_pts')
-                if self.transform_method == 'center_size_istopleft':
-                  raise NotImplementedError
-                elif self.obj_rep == 'XYXY':
-                  assert self.transform_method == 'moment'
-                  assert bbox_preds_init.shape[1] == 4
-                  bbox_shift = bbox_preds_init * self.point_strides[i_lvl]
-                  bbox_center = torch.cat(
-                      [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
-                  bbox.append(bbox_center +
-                              bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4))
-                elif self.obj_rep == 'XYXYSin2':
-                  assert self.transform_method == 'moment_XYXYSin2'
-                  assert bbox_preds_init.shape[1] == 5
-                  bbox_shift = bbox_preds_init[:,:4] * self.point_strides[i_lvl]
-                  istopleft = bbox_preds_init[i_img,4:5]. permute(1,2,0).reshape(-1,1)
-                  bbox_center = torch.cat([center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
-                  bbox_i = bbox_center + bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
-                  bbox_i = torch.cat([bbox_i, istopleft], dim=1)
-                  bbox.append(bbox_i)
-                elif self.obj_rep == 'Rect4CornersZ0Z1':
-                  assert self.transform_method == 'sort_4corners'
-                  assert bbox_preds_init.shape[1] == 10
-                  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,10)
-                  bbox_i *=  self.point_strides[i_lvl]
-                  bbox_center = center[i_lvl][:, :2].repeat(1,4)
-                  bbox_i[:, :8] += bbox_center
-                  bbox.append(bbox_i)
-                elif self.obj_rep == 'XYXYSin2WZ0Z1':
-                  assert self.transform_method == 'moment_XYXYSin2WZ0Z1'
-                  assert bbox_preds_init.shape[1] == 8
-                  bbox_preds_init_i = bbox_preds_init[i_img].permute(1,2,0).reshape(-1,8)
-                  bbox_shift = bbox_preds_init_i[:,:4] * self.point_strides[i_lvl]
-                  istopleft = bbox_preds_init_i[:,4:5]
-                  bbox_center = torch.cat([center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
-                  bbox_i = bbox_center + bbox_shift
-                  wz0z1 =  bbox_preds_init_i[:,5:8] * self.point_strides[i_lvl]
-                  bbox_i = torch.cat([bbox_i, istopleft, wz0z1], dim=1)
-                  bbox.append(bbox_i)
-                elif self.obj_rep in ['XYDRSin2Cos2Z0Z1', 'XYDAsinAsinSin2Z0Z1']:
-                  assert bbox_preds_init.shape[1] == 8
-                  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,8)
-                  bbox_i[:,[0,1,2,6,7]] *=  self.point_strides[i_lvl]
-                  bbox_center = center[i_lvl][:, :2]
-                  bbox_i[:,[0,1]] += bbox_center
-                  bbox.append(bbox_i)
-                elif self.obj_rep in ['XYLgWsAbsSin2Z0Z1', 'XYLgWsSin2Cos2Z0Z1']:
-                  assert bbox_preds_init.shape[1] == 8
-                  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,8)
-                  bbox_i[:,[0,1,2,3,6,7]] *=  self.point_strides[i_lvl]
-                  bbox_center = center[i_lvl][:, :2]
-                  bbox_i[:,[0,1]] += bbox_center
-                  bbox.append(bbox_i)
-                  pass
-                else:
-                  raise NotImplementedError
+                bbox_i = self.scaling_bboxes(bbox_preds_init[i_img], self.point_strides[i_lvl], center[i_lvl] )
+                bbox.append(bbox_i)
+                #if self.transform_method == 'center_size_istopleft':
+                #  raise NotImplementedError
+                #elif self.obj_rep == 'XYXY':
+                #  assert self.transform_method == 'moment'
+                #  assert bbox_preds_init.shape[1] == 4
+                #  bbox_shift = bbox_preds_init * self.point_strides[i_lvl]
+                #  bbox_center = torch.cat(
+                #      [center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
+                #  bbox.append(bbox_center +
+                #              bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4))
+                #elif self.obj_rep == 'XYXYSin2':
+                #  assert self.transform_method == 'moment_XYXYSin2'
+                #  assert bbox_preds_init.shape[1] == 5
+                #  bbox_shift = bbox_preds_init[:,:4] * self.point_strides[i_lvl]
+                #  istopleft = bbox_preds_init[i_img,4:5]. permute(1,2,0).reshape(-1,1)
+                #  bbox_center = torch.cat([center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
+                #  bbox_i = bbox_center + bbox_shift[i_img].permute(1, 2, 0).reshape(-1, 4)
+                #  bbox_i = torch.cat([bbox_i, istopleft], dim=1)
+                #  bbox.append(bbox_i)
+                #elif self.obj_rep == 'Rect4CornersZ0Z1':
+                #  assert self.transform_method == 'sort_4corners'
+                #  assert bbox_preds_init.shape[1] == 10
+                #  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,10)
+                #  bbox_i *=  self.point_strides[i_lvl]
+                #  bbox_center = center[i_lvl][:, :2].repeat(1,4)
+                #  bbox_i[:, :8] += bbox_center
+                #  bbox.append(bbox_i)
+                #elif self.obj_rep == 'XYXYSin2WZ0Z1':
+                #  assert self.transform_method == 'moment_XYXYSin2WZ0Z1'
+                #  assert bbox_preds_init.shape[1] == 8
+                #  bbox_preds_init_i = bbox_preds_init[i_img].permute(1,2,0).reshape(-1,8)
+                #  bbox_shift = bbox_preds_init_i[:,:4] * self.point_strides[i_lvl]
+                #  istopleft = bbox_preds_init_i[:,4:5]
+                #  bbox_center = torch.cat([center[i_lvl][:, :2], center[i_lvl][:, :2]], dim=1)
+                #  bbox_i = bbox_center + bbox_shift
+                #  wz0z1 =  bbox_preds_init_i[:,5:8] * self.point_strides[i_lvl]
+                #  bbox_i = torch.cat([bbox_i, istopleft, wz0z1], dim=1)
+                #  bbox.append(bbox_i)
+                #elif self.obj_rep in ['XYDRSin2Cos2Z0Z1', 'XYDAsinAsinSin2Z0Z1']:
+                #  assert bbox_preds_init.shape[1] == 8
+                #  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,8)
+                #  bbox_i[:,[0,1,2,6,7]] *=  self.point_strides[i_lvl]
+                #  bbox_center = center[i_lvl][:, :2]
+                #  bbox_i[:,[0,1]] += bbox_center
+                #  bbox.append(bbox_i)
+                #elif self.obj_rep in ['XYLgWsAbsSin2Z0Z1', 'XYLgWsSin2Cos2Z0Z1']:
+                #  assert bbox_preds_init.shape[1] == 8
+                #  bbox_i = bbox_preds_init[i_img].permute(1, 2, 0).reshape(-1,8)
+                #  bbox_i[:,[0,1,2,3,6,7]] *=  self.point_strides[i_lvl]
+                #  bbox_center = center[i_lvl][:, :2]
+                #  bbox_i[:,[0,1]] += bbox_center
+                #  bbox.append(bbox_i)
+                #  pass
+                #else:
+                #  raise NotImplementedError
             bbox_list.append(bbox)
         return bbox_list
+
+    def scaling_bboxes(self, bbox_preds, point_stride, center):
+      '''
+      bbox_preds: [8,128,128] or [1000, 8]
+      point_stride: 4
+      center: [16384, 3] or [1000, 8]
+      bboxes_out: [n,8]
+      '''
+      invert = False
+      if bbox_preds.ndim == 3:
+        obj_dim, w, h = bbox_preds.shape
+        assert center.shape == (w*h, 3)
+        invert = True
+        bbox_preds = bbox_preds.permute(1, 2, 0).reshape(-1,obj_dim)
+      assert bbox_preds.ndim == 2
+      n, obj_dim = bbox_preds.shape
+      assert center.shape == (n, 3)
+      assert obj_dim == self.obj_dim
+
+      if self.obj_rep == 'XYXY':
+        assert self.transform_method == 'moment'
+        bbox_shift = bbox_preds * point_stride
+        bbox_center = torch.cat(
+            [center[:, :2], center[:, :2]], dim=1)
+        bboxes_out = bbox_center +\
+                    bbox_shift.permute(1, 2, 0).reshape(-1, 4)
+      elif self.obj_rep == 'XYXYSin2':
+        assert self.transform_method == 'moment_XYXYSin2'
+        bbox_shift = bbox_preds[:,:4] * point_stride
+        istopleft = bbox_preds[4:5]. permute(1,2,0).reshape(-1,1)
+        bbox_center = torch.cat([center[:, :2], center[:, :2]], dim=1)
+        bboxes_out = bbox_center + bbox_shift.permute(1, 2, 0).reshape(-1, 4)
+        bboxes_out = torch.cat([bboxes_out, istopleft], dim=1)
+      elif self.obj_rep == 'Rect4CornersZ0Z1':
+        assert self.transform_method == 'sort_4corners'
+        bboxes_out = bbox_preds
+        bboxes_out *=  point_stride
+        bbox_center = center[:, :2].repeat(1,4)
+        bboxes_out[:, :8] += bbox_center
+      elif self.obj_rep == 'XYXYSin2WZ0Z1':
+        assert self.transform_method == 'moment_XYXYSin2WZ0Z1'
+        bbox_preds_i = bbox_preds
+        bbox_shift = bbox_preds_i[:,:4] * point_stride
+        istopleft = bbox_preds_i[:,4:5]
+        bbox_center = torch.cat([center[:, :2], center[:, :2]], dim=1)
+        bboxes_out = bbox_center + bbox_shift
+        wz0z1 =  bbox_preds_i[:,5:8] * point_stride
+        bboxes_out = torch.cat([bboxes_out, istopleft, wz0z1], dim=1)
+      elif self.obj_rep in ['XYDRSin2Cos2Z0Z1', 'XYDAsinAsinSin2Z0Z1']:
+        bboxes_out = bbox_preds
+        bboxes_out[:,[0,1,2,6,7]] *=  point_stride
+        bbox_center = center[:, :2]
+        bboxes_out[:,[0,1]] += bbox_center
+      elif self.obj_rep in ['XYLgWsAbsSin2Z0Z1', 'XYLgWsSin2Cos2Z0Z1']:
+        bboxes_out = bbox_preds
+        bboxes_out[:,[0,1,2,3,6,7]] *=  point_stride
+        bbox_center = center[:, :2]
+        bboxes_out[:,[0,1]] += bbox_center
+        pass
+      else:
+        raise NotImplementedError
+      return bboxes_out
 
     def convert_gt_obj(self, gt_bboxes):
       #_show_objs_ls_points_ls_torch( (512,512), [gt_bboxes[0]], self.obj_rep_in, obj_colors='red')
@@ -2133,24 +2197,25 @@ class StrPointsHead(nn.Module):
             #  wz0z1 = bbox_pred[:,5:8] * self.point_strides[i_lvl]
             #  bboxes = torch.cat([bboxes, bbox_pred[:,4:5], wz0z1], dim=1)
 
-            if self.obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
-              num_loc = 2
-            elif self.obj_rep == 'Rect4CornersZ0Z1':
-              num_loc = 4
-            elif self.obj_rep in ['XYDRSin2Cos2Z0Z1']:
-              num_loc = 1
-            else:
-              raise NotImplementedError
-            bbox_pos_center = points[:, :2].repeat(1, num_loc)
-            bboxes = bbox_pred[:, :self.obj_dim]
-            bboxes[:,:num_loc*2] = bboxes[:,:num_loc*2] * self.point_strides[i_lvl] + bbox_pos_center
+
+            #if self.obj_rep == 'XYXYSin2' or self.obj_rep == 'XYXYSin2WZ0Z1':
+            #  num_loc = 2
+            #elif self.obj_rep == 'Rect4CornersZ0Z1':
+            #  num_loc = 4
+            #elif self.obj_rep in ['XYDRSin2Cos2Z0Z1']:
+            #  num_loc = 1
+            #else:
+            #  raise NotImplementedError
+            #bbox_pos_center = points[:, :2].repeat(1, num_loc)
+            #bboxes = bbox_pred[:, :self.obj_dim]
+            #bboxes[:,:num_loc*2] = bboxes[:,:num_loc*2] * self.point_strides[i_lvl] + bbox_pos_center
+            bboxes = self.scaling_bboxes(bbox_pred[:, :self.obj_dim], self.point_strides[i_lvl], points)
 
             if self.dim_parse.OUT_EXTAR_DIM > 0:
               _bboxes_refine, bboxes_init, points_refine, points_init, \
                     score_refine, score_final, score_ave, _, _,_,_,_ = \
                     self.dim_parse.parse_bboxes_out(bbox_pred, 'before_nms')
-              #bboxes_init = bbox_pred[:, OBJ_DIM:OBJ_DIM*2]
-              bboxes_init[:,:num_loc*2] = bboxes_init[:,:num_loc*2] * self.point_strides[i_lvl] + bbox_pos_center
+              bboxes_init = self.scaling_bboxes(bboxes_init, self.point_strides[i_lvl], points)
 
               bbox_pos_center = points[:, :2].repeat(1, self.dim_parse.POINTS_DIM//2)
               bn = bboxes.shape[0]

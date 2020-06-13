@@ -46,8 +46,13 @@ class CustomDataset(Dataset):
                  proposal_file=None,
                  test_mode=False,
                  classes=['wall'],
+                 obj_rep_out = None,
                  filter_edges=True):
         self.obj_rep = obj_rep
+        if obj_rep_out is None:
+          self.obj_rep_out = obj_rep
+        else:
+          self.obj_rep_out = obj_rep_out
         self.ann_file = ann_file
         self.data_root = data_root
         self.img_prefix = img_prefix

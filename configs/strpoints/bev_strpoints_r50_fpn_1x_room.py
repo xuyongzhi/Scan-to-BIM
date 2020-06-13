@@ -232,6 +232,7 @@ data = dict(
     test=dict(
         type=dataset_type,
         obj_rep = _obj_rep,
+        obj_rep_out = _obj_rep_out,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
         pipeline=test_pipeline,
