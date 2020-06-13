@@ -195,7 +195,7 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
   t0 = time.time()
   obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
   assert det_lines.shape[1] == obj_dim+1
-  det_lines = filter_low_score_det(det_lines, score_threshold)
+  det_lines, ids0 = filter_low_score_det(det_lines, score_threshold)
   labels_i = np.ones(det_lines.shape[0], dtype=np.int)*label
   #show_connectivity(walls[:,:-1], det_lines[:,:-1], det_relations[cat], self.obj_rep)
   if cat == 'wall':
@@ -207,8 +207,9 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
       det_lines_merged = np.concatenate([det_lines_merged, scores_merged.reshape(-1,1)], axis=1)
       m = det_lines_merged.shape[0]
       labels_merged = labels_i[:m]
+      ids = ids0[ids]
   else:
-    ids = None
+    ids = ids0
     if cat in ['door', 'window']:
       det_lines_merged = align_bboxes_with_wall(det_lines, walls, cat, obj_rep)
     else:
@@ -573,8 +574,10 @@ class GraphEval():
         eval_draws_ls = []
         walls = None
         time_post = 0
-        all_dets = {}
-        all_gts = {}
+        dets_1s = {}
+        gts_1s = {}
+        det_points_1s = {}
+        ious_1s = {}
         labels_to_cats = {}
         for label in range(1, num_labels+1):
             cat = catid_2_cat[label]
@@ -585,8 +588,7 @@ class GraphEval():
             gt_lines_l = gt_lines[label_mask]
             det_lines = detections[label-1][f'detection_{out_type}'].copy()
 
-            all_gts[label] = gt_lines_l
-
+            gts_1s[label] = gt_lines_l
 
             if out_type == 'bInit_sRefine':
               det_points = detections[label-1]['points_init']
@@ -601,10 +603,12 @@ class GraphEval():
                   self.dim_parse.OBJ_REP, self._min_out_length, walls=walls)
               time_post += t
             else:
-              det_lines_merged = filter_low_score_det(det_lines, self._score_threshold)
+              det_lines_merged, ids_merged = filter_low_score_det(det_lines, self._score_threshold)
             if cat == 'wall':
               walls = det_lines_merged
-            all_dets[label] = det_lines_merged
+            dets_1s[label] = det_lines_merged
+
+            det_points_1s[label] = det_points[ids_merged]
 
             if debug and 1:
               print('raw prediction')
@@ -617,7 +621,9 @@ class GraphEval():
               #raise NotImplementedError
             line_nums_gt_pos_tp, ious = self.eval_1img_1cls_by_iou(img, det_lines_merged, gt_lines_l, scene_name, cat, det_points)
             all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
-            all_ious[label] = ious
+            ious_of_dets = ious.max(1)
+            all_ious[label].append( ious_of_dets )
+            ious_1s[label] = ious
             #eval_draws_ls.append(eval_draws)
 
             if debug or 0:
@@ -627,7 +633,7 @@ class GraphEval():
 
             pass
         res_filename = os.path.join( self.eval_dir_all_cls, scene_name)
-        draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, self.obj_rep, self.iou_threshold, res_filename)
+        draw_1_scene(img, gts_1s, dets_1s,  ious_1s, labels_to_cats, self.obj_rep, self.iou_threshold, res_filename, det_points_1s)
         pass
 
     line_recall_precision_perimg = defaultdict(list)
@@ -648,8 +654,9 @@ class GraphEval():
       line_nums_sum[cat] = line
 
       # cal iou
-      ious_l = all_ious[label]
-      ave_iou = ious_l[ious_l > iou_thres].mean()
+      ious_l = np.concatenate(all_ious[label])
+      ave_iou = ious_l.mean()
+      #ave_iou = ious_l[ious_l > iou_thres].mean()
       ave_ious[cat] = ave_iou
 
 
@@ -1034,9 +1041,9 @@ def get_z_by_iou(dets, det_cats, gts, gt_cats, obj_rep):
     dets[i, [2,5]] = gts[k, [2,5]]
   return dets
 
-def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_threshold, res_filename):
+def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou_threshold, res_filename, all_det_points):
   import mmcv
-  from tools.color import COLOR_MAP_3D
+  from tools.color import COLOR_MAP_3D, ColorList
   colors_map = COLOR_MAP_3D
   num_cats = len(labels_to_cats)
   img_det = None
@@ -1057,6 +1064,8 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
           continue
       c = colors_map[cat]
       dets = all_dets[l]
+      num_det = dets.shape[0]
+      pts = all_det_points[l].reshape(num_det, 9,2)
       if dets.shape[0]==0:
         continue
       gts = all_gts[l]
@@ -1093,9 +1102,10 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
         w+=100
         img_det =  (h,w)
         img_det_pts =  (h,w)
+        img_det_pts =  img[:,:,0]
         det_file = res_filename + '_Det.png'
         det_pts_file = res_filename + '_DetPts.png'
-      #obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]]
+
       obj_scores_ls = [ious_det[det_pos_mask], ious_det[det_pos_mask==False]]
       img_det = _draw_objs_ls_points_ls(img_det,
               [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
@@ -1109,17 +1119,17 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
               out_file=None,
               text_colors_ls=['green', 'red'])
 
-      img_det_pts = _draw_objs_ls_points_ls(img_det_pts,
-              [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
+      for di in range(num_det):
+        ci = ColorList[di]
+        img_det_pts = _draw_objs_ls_points_ls(img_det_pts,
+              [dets[[di]][:,:obj_dim]],
               obj_rep,
-              obj_colors=c,
-              obj_scores_ls = obj_scores_ls,
-              obj_cats_ls = ['', 'F'],
-              point_colors='blue',
-              obj_thickness=[2,2],
-              point_thickness=[3,3],
-              out_file=None,
-              text_colors_ls=['green', 'red'])
+              points_ls = [pts[di]],
+              obj_colors=ci,
+              point_colors=ci,
+              obj_thickness=2,
+              point_thickness=5,
+              out_file=None,)
 
       if img_gt is None:
         img_gt = img.shape[:2]
@@ -1139,7 +1149,7 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
       pass
 
   mmcv.imwrite(img_det, det_file)
-  #mmcv.imwrite(img_det_pts, det_pts_file)
+  mmcv.imwrite(img_det_pts, det_pts_file)
   mmcv.imwrite(img_gt, gt_file)
 
   det_bboxes = np.concatenate( det_bboxes, axis=0 )
@@ -1371,7 +1381,8 @@ def show_2dlines_as_3d(lines_2d, labels):
 def filter_low_score_det(det_lines, score_threshold=0.5):
   mask = det_lines[:,-1] > score_threshold
   det_lines_ = det_lines[mask]
-  return det_lines_
+  ids = np.where(mask)[0]
+  return det_lines_, ids
 
 def apply_mask_on_ids(ids, mask):
   return (ids + 1) * mask - 1
