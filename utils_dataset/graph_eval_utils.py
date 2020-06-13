@@ -1046,7 +1046,7 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
   from tools.color import COLOR_MAP_3D, ColorList
   colors_map = COLOR_MAP_3D
   num_cats = len(labels_to_cats)
-  img_det = None
+  img_det_score = None
   img_det_pts = None
   img_gt = None
   obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
@@ -1096,18 +1096,33 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
       det_cats += [cat] * dn
       gt_cats += [cat] * gn
 
-      if img_det is None:
+      if img_det_score is None:
         h, w = img.shape[:2]
         h+= 100
         w+=100
-        img_det =  (h,w)
+        img_det_iou =  (h,w)
+        img_det_score =  (h,w)
         img_det_pts =  (h,w)
         img_det_pts =  img[:,:,0]
-        det_file = res_filename + '_Det.png'
+        det_iou_file = res_filename + '_Det_IoU.png'
+        det_score_file = res_filename + '_Det_Score.png'
         det_pts_file = res_filename + '_DetPts.png'
 
+      obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]]
+      img_det_score = _draw_objs_ls_points_ls(img_det_score,
+              [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
+              obj_rep,
+              obj_colors=c,
+              obj_scores_ls = obj_scores_ls,
+              obj_cats_ls = ['', 'F'],
+              point_colors=['blue', 'yellow'],
+              obj_thickness=[2,2],
+              point_thickness=[3,3],
+              out_file=None,
+              text_colors_ls=['green', 'red'])
+
       obj_scores_ls = [ious_det[det_pos_mask], ious_det[det_pos_mask==False]]
-      img_det = _draw_objs_ls_points_ls(img_det,
+      img_det_iou = _draw_objs_ls_points_ls(img_det_iou,
               [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
               obj_rep,
               obj_colors=c,
@@ -1148,7 +1163,8 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
       #mmcv.imshow(img_gt)
       pass
 
-  mmcv.imwrite(img_det, det_file)
+  mmcv.imwrite(img_det_iou, det_iou_file)
+  mmcv.imwrite(img_det_score, det_score_file)
   mmcv.imwrite(img_det_pts, det_pts_file)
   mmcv.imwrite(img_gt, gt_file)
 
