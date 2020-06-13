@@ -19,19 +19,15 @@ DATA = 'beike2d'
 classes= ['wall']
 
 if DATA == 'beike2d':
-  _obj_rep = 'XYXYSin2'
-  _transform_method='moment_XYXYSin2'
+  #_obj_rep = 'XYXYSin2'
+  #_transform_method='moment_XYXYSin2'
+
+  #_obj_rep = 'XYXYSin2WZ0Z1'
+  #_transform_method='moment_XYXYSin2WZ0Z1'
 
   _obj_rep = 'XYXYSin2WZ0Z1'
-  _transform_method='moment_XYXYSin2WZ0Z1'
-
-  _obj_rep = 'XYXYSin2WZ0Z1'
-  #_transform_method='XYLgWsSin2Cos2Z0Z1'
-  _transform_method='moment_XYDRSin2Cos2Z0Z1'
+  #_transform_method='moment_XYDRSin2Cos2Z0Z1'
   _transform_method='XYDRSin2Cos2Z0Z1'
-
-  #_obj_rep_out = _obj_rep
-
   _obj_rep_out='XYDRSin2Cos2Z0Z1'
 
 
@@ -270,7 +266,7 @@ if DATA == 'beike2d':
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
