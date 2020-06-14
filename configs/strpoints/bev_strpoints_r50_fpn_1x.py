@@ -16,7 +16,7 @@ from configs.common import DIM_PARSE, Track_running_stats
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 #DATA = 'stanford2d'
-classes= ['wall']
+classes= ['room']
 
 if DATA == 'beike2d':
   #_obj_rep = 'XYXYSin2'
@@ -27,7 +27,8 @@ if DATA == 'beike2d':
   _obj_rep_out = _obj_rep
 
   if 'room' in classes:
-    _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
+    # std is best
+    _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][0]
     _obj_rep_out='XYDRSin2Cos2Z0Z1'
 
 elif DATA == 'stanford2d':

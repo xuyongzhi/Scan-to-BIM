@@ -12,7 +12,7 @@ from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wal
 import torch
 import time
 
-EVAL_METHOD = ['corner', 'iou'][0]
+EVAL_METHOD = ['corner', 'iou'][1]
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
@@ -229,6 +229,8 @@ def eval_graph(res_file):
     results_datas = pickle.load(f)
   img_meta = results_datas[0]['img_meta']
   classes = img_meta['classes']
+  if 'room' in classes:
+    assert EVAL_METHOD == 'iou'
   filter_edges =  results_datas[0]['filter_edges']
   obj_rep =  results_datas[0]['obj_rep']
   graph_eval = GraphEval(obj_rep, classes, filter_edges)
@@ -300,7 +302,7 @@ class GraphEval():
     self.classes = classes
     self.filter_edges = filter_edges
     self.dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
-    self.iou_threshold = 0.5
+    self.iou_threshold = 0.7
     pass
 
   def __str__(self):
@@ -718,6 +720,7 @@ class GraphEval():
     eval_str = '\n\n--------------------------------------\n\n' + \
                 str(self) + f'num_img: {self.num_img}\n'
     eval_str += f'optimize_graph: {self.optimize_graph}\n'
+    eval_str += f'IoU threshold: {self.iou_threshold}\n'
 
     eval_str += 'Precision-Recall\n\n'
     cats = line_recall_precision.keys()
