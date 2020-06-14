@@ -8,11 +8,11 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_room.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
-wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1__beike2d_ro_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
+wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1_beike2d_ro_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32
 #wkdir=test
 
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
-#CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
+#CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x_room.py
 
 CP=./work_dirs/${wkdir}/best.pth
 #CP=./checkpoints/beike/jun1_wado_bev.pth

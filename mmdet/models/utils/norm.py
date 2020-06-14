@@ -61,4 +61,7 @@ def build_norm_layer(cfg, num_features, postfix=''):
     for param in layer.parameters():
         param.requires_grad = requires_grad
 
+    if layer_type in ['BN', 'BN3d']:
+      layer.track_running_stats = False
+
     return name, layer
