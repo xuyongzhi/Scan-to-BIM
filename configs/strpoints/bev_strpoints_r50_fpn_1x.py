@@ -26,10 +26,10 @@ if DATA == 'beike2d':
   _transform_method='moment_XYXYSin2WZ0Z1'
   _obj_rep_out = _obj_rep
 
-  if 'room' in classes:
-    # std is best
-    _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][0]
-    _obj_rep_out='XYDRSin2Cos2Z0Z1'
+  #if 'room' in classes:
+  # std is best
+  _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
+  _obj_rep_out='XYDRSin2Cos2Z0Z1'
 
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
