@@ -12,7 +12,7 @@ from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wal
 import torch
 import time
 
-EVAL_METHOD = ['corner', 'iou'][1]
+EVAL_METHOD = ['corner', 'iou'][0]
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
@@ -247,21 +247,32 @@ def eval_graph_2_files(wall_res_file, room_res_file):
   filter_edges =  results_datas[0]['filter_edges']
   obj_rep =  results_datas[0]['obj_rep']
   graph_eval = GraphEval(obj_rep, classes, filter_edges)
-  graph_eval(results_datas, res_file)
+  graph_eval(results_datas, wall_res_file)
 
 def merge_two_results(results_datas_1, results_datas_2):
   results_datas_3 = []
-  same_eles = ['img_id', 'img', 'img_meta']
+  same_eles = ['img_id', 'img', 'img_meta', 'catid_2_cat', 'filter_edges', 'obj_rep']
+  concat_eles = ['gt_bboxes', 'gt_labels']
   for res1, res2 in zip(results_datas_1, results_datas_2):
     res3 = {}
     assert res1['img_id'] == res2['img_id']
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     assert res1['img_meta']['filename'] == res2['img_meta']['filename']
+    assert res1['obj_rep'] == res2['obj_rep']
     for e in same_eles:
       res3[e] = res1[e]
     classes1 = res1['img_meta']['classes']
+    n1 = len(classes1)
     classes2 = res2['img_meta']['classes']
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    assert classes2 == ['room']
+    res3['img_meta']['classes'] = classes1 + classes2
+    res3['catid_2_cat'][n1+1] = 'room'
+    res2['gt_labels'] +=n1
+    for e in concat_eles:
+      res3[e] = np.concatenate( [res1[e], res2[e]], 0 )
+    res3['detections'] = res1['detections'] + res2['detections']
+    res3['det_relations'] = res1['det_relations']
+
+    results_datas_3.append(res3)
   return results_datas_3
 
 class GraphEval():
@@ -826,7 +837,11 @@ class GraphEval():
     if det_lines.shape[0] == 0:
       return np.array([])
     iou_matrix = dsiou_rotated_3d_bbox_np(det_lines[:,:-1], gt_lines, iou_w=1, size_rate_thres=0.07)
-    ious = iou_matrix.max(1)
+    try:
+      ious = iou_matrix.max(1)
+    except:
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
     return ious
 
   def eval_1img_1cls_by_corner(self, img, det_lines, gt_lines, scene_name, det_cat, det_points):
@@ -1444,14 +1459,14 @@ def apply_mask_on_ids(ids, mask):
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
 
-  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
+  dirname = 'A/bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
   filename = 'detection_10_Imgs.pickle'
   #filename = 'detection_90_Imgs.pickle'
 
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
   #eval_graph(res_file)
 
-  dirname_room = 'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
+  dirname_room = 'A/bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
   res_file_room = os.path.join( os.path.join(workdir, dirname_room), filename)
   eval_graph_2_files(res_file, res_file_room)
 
