@@ -1368,9 +1368,9 @@ class StrPointsHead(nn.Module):
       elif self.obj_rep == 'XYXYSin2':
         assert self.transform_method == 'moment_XYXYSin2'
         bbox_shift = bbox_preds[:,:4] * point_stride
-        istopleft = bbox_preds[4:5]. permute(1,2,0).reshape(-1,1)
+        istopleft = bbox_preds[:,4:5].reshape(-1,1)
         bbox_center = torch.cat([center[:, :2], center[:, :2]], dim=1)
-        bboxes_out = bbox_center + bbox_shift.permute(1, 2, 0).reshape(-1, 4)
+        bboxes_out = bbox_center + bbox_shift.reshape(-1, 4)
         bboxes_out = torch.cat([bboxes_out, istopleft], dim=1)
       elif self.obj_rep == 'Rect4CornersZ0Z1':
         assert self.transform_method == 'sort_4corners'

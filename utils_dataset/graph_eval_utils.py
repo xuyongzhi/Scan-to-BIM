@@ -12,6 +12,8 @@ from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wal
 import torch
 import time
 
+EVAL_METHOD = ['corner', 'iou'][0]
+
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
@@ -61,8 +63,11 @@ def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='X
 def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
     filter_edges = data_test_cfg['filter_edges']
     classes = data_test_cfg['classes']
-    obj_rep_pred = data_test_cfg['obj_rep_out']
     obj_rep_gt = data_test_cfg['obj_rep']
+    if 'obj_rep_out' in data_test_cfg:
+      obj_rep_pred = data_test_cfg['obj_rep_out']
+    else:
+      obj_rep_pred = obj_rep_gt
     results, obj_rep = change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, 'XYZLgWsHA')
     dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
     num_imgs = len(results)
@@ -229,6 +234,33 @@ def eval_graph(res_file):
   graph_eval = GraphEval(obj_rep, classes, filter_edges)
   graph_eval(results_datas, res_file)
 
+def eval_graph_2_files(wall_res_file, room_res_file):
+  with open(wall_res_file, 'rb') as f:
+    wall_results_datas = pickle.load(f)
+  with open(room_res_file, 'rb') as f:
+    room_results_datas = pickle.load(f)
+  results_datas = merge_two_results(wall_results_datas, room_results_datas)
+  img_meta = results_datas[0]['img_meta']
+  classes = img_meta['classes']
+  filter_edges =  results_datas[0]['filter_edges']
+  obj_rep =  results_datas[0]['obj_rep']
+  graph_eval = GraphEval(obj_rep, classes, filter_edges)
+  graph_eval(results_datas, res_file)
+
+def merge_two_results(results_datas_1, results_datas_2):
+  results_datas_3 = []
+  same_eles = ['img_id', 'img', 'img_meta']
+  for res1, res2 in zip(results_datas_1, results_datas_2):
+    res3 = {}
+    assert res1['img_id'] == res2['img_id']
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    assert res1['img_meta']['filename'] == res2['img_meta']['filename']
+    for e in same_eles:
+      res3[e] = res1[e]
+    classes1 = res1['img_meta']['classes']
+    classes2 = res2['img_meta']['classes']
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  return results_datas_3
 
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
@@ -302,8 +334,10 @@ class GraphEval():
       os.makedirs(self.eval_dir_all_cls)
 
   def __call__(self, results_datas, out_file):
-    #eval_fn = self.evaluate_by_corner
-    eval_fn = self.evaluate_by_iou
+    if EVAL_METHOD == 'corner':
+      eval_fn = self.evaluate_by_corner
+    if EVAL_METHOD == 'iou':
+      eval_fn = self.evaluate_by_iou
     for out_type, opt_g, opt_rel in zip(self._all_out_types, self._opti_graph, self._opti_by_rel):
       self.out_type = out_type
       eval_fn(results_datas, out_file, out_type, opt_g, opt_rel)
@@ -1407,12 +1441,16 @@ def apply_mask_on_ids(ids, mask):
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
 
-  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wa_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
+  dirname = 'bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
   filename = 'detection_10_Imgs.pickle'
-  filename = 'detection_90_Imgs.pickle'
+  #filename = 'detection_90_Imgs.pickle'
 
   res_file = os.path.join( os.path.join(workdir, dirname), filename)
-  eval_graph(res_file)
+  #eval_graph(res_file)
+
+  dirname_room = 'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
+  res_file_room = os.path.join( os.path.join(workdir, dirname_room), filename)
+  eval_graph_2_files(res_file, res_file_room)
 
 if __name__ == '__main__'  :
   main()

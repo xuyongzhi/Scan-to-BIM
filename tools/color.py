@@ -55,7 +55,7 @@ class Color_RGB(Enum):
     black = (0,0,0)
     white = (255,255,255)
 
-ColorList = [e.name for e in Color_RGB][:-2]
+ColorList = [e.name for e in Color_RGB][:-2] * 10
 ColorValues = [e.value for e in Color_RGB] * 10
 ColorValuesNp = np.array(ColorValues).astype(np.uint8)
 NumColors = len(ColorList)

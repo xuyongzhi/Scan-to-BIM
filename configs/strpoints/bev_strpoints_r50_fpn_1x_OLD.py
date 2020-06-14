@@ -19,17 +19,11 @@ DATA = 'beike2d'
 classes= ['wall']
 
 if DATA == 'beike2d':
-  #_obj_rep = 'XYXYSin2'
-  #_transform_method='moment_XYXYSin2'
+  _obj_rep = 'XYXYSin2'
+  _transform_method='moment_XYXYSin2'
 
-  _obj_rep = 'XYXYSin2WZ0Z1'
-  _transform_method='moment_XYXYSin2WZ0Z1'
-  _obj_rep_out = _obj_rep
-
-  if 'room' in classes:
-    _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
-    _obj_rep_out='XYDRSin2Cos2Z0Z1'
-
+  #_obj_rep = 'XYXYSin2WZ0Z1'
+  #_transform_method='moment_XYXYSin2WZ0Z1'
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
   _transform_method = 'sort_4corners'
@@ -104,7 +98,7 @@ model = dict(
 # training and testing settings
 train_cfg = dict(
     init=dict(
-        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep_out),
+        assigner=dict(type='PointAssigner', scale=4, pos_num=1, obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -116,7 +110,7 @@ train_cfg = dict(
             min_pos_iou=0.15,
             ignore_iof_thr=-1,
             overlap_fun='dil_iou_dis_rotated_3d',
-            obj_rep=_obj_rep_out),
+            obj_rep=_obj_rep),
         allowed_border=-1,
         pos_weight=-1,
         debug=False),
@@ -227,7 +221,6 @@ data = dict(
     test=dict(
         type=dataset_type,
         obj_rep = _obj_rep,
-        obj_rep_out = _obj_rep_out,
         ann_file=ann_file,
         img_prefix=img_prefix_test,
         pipeline=test_pipeline,
@@ -237,7 +230,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs =  1510
+total_epochs =  1010
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -256,17 +249,11 @@ log_config = dict(
 # runtime settings
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-tra_run = '' if Track_running_stats else '_Trun'
-work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn{tra_run}_{_obj_rep}'
-if _transform_method == 'moment_std_XYDRSin2Cos2Z0Z1':
-  work_dir += '_Std_'
-if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
-  work_dir += '_Max_'
+work_dir = f'./work_dirs/{DATA[0]}TPV_r50_fpn_{_obj_rep}_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun1_wado_bev.pth'
   #load_from ='./checkpoints/beike/May4_wd_Bev.pth'
   load_from = './checkpoints/beike/jun10_wd_rel.pth'
-  load_from = './checkpoints/beike/jun12_room.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
