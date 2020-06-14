@@ -224,6 +224,8 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
   t = t1 - t0
   return det_lines_merged, labels_merged, ids, t
 
+def optimize_wall_by_room(walls, rooms, obj_rep ):
+  pass
 def eval_graph(res_file):
   with open(res_file, 'rb') as f:
     results_datas = pickle.load(f)
@@ -487,6 +489,7 @@ class GraphEval():
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
             pass
+        #optimize_wall_by_room(walls, rooms, obj_rep)
         draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep)
         pass
 
