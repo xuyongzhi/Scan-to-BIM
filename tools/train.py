@@ -73,6 +73,7 @@ def parse_args():
 
 
 def update_config(cfg, args, split):
+    from utils_dataset.classes_order import sort_classes
     assert split == 'train' or split == 'test'
     if args.config.split('/')[1] != 'strpoints':
       #return
@@ -97,11 +98,15 @@ def update_config(cfg, args, split):
 
       classes = [cls_full[c] for c in cls_str]
       cfg['classes'] = classes
-      cfg['model']['bbox_head']['num_classes'] = len(classes)+1
+      cfg['model']['bbox_head']['classes'] = classes
       for sp in ['train', 'val', 'test']:
         cfg['data'][sp]['classes'] = classes
       pass
+    cfg['classes'] = sort_classes(cfg['classes'])
     classes = cfg['classes']
+    cfg['model']['bbox_head']['classes'] = classes
+    for sp in ['train', 'val', 'test']:
+          cfg['data'][sp]['classes'] = classes
 
     if filter_edges is not None:
         for sp in ['train', 'val', 'test']:

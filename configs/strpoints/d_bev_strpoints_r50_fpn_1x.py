@@ -11,20 +11,20 @@ from configs.common import DIM_PARSE, Track_running_stats
 IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 #DATA = 'stanford2d'
-classes= ['wall']
+classes= ['room']
 
 if DATA == 'beike2d':
-  _obj_rep = 'XYXYSin2'
-  _transform_method='moment_XYXYSin2'
+  #_obj_rep = 'XYXYSin2'
+  #_transform_method='moment_XYXYSin2'
 
-  #_obj_rep = 'XYXYSin2WZ0Z1'
+  _obj_rep = 'XYXYSin2WZ0Z1'
   #_transform_method='moment_XYXYSin2WZ0Z1'
-  _obj_rep_out = _obj_rep
+  #_obj_rep_out = _obj_rep
 
   #if 'room' in classes:
   # std is best
-  #_transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
-  #_obj_rep_out='XYDRSin2Cos2Z0Z1'
+  _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
+  _obj_rep_out='XYDRSin2Cos2Z0Z1'
 
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
@@ -263,15 +263,15 @@ if DATA == 'beike2d':
   #load_from ='./checkpoints/beike/May4_wd_Bev.pth'
   load_from = './checkpoints/beike/jun10_wd_rel.pth'
   load_from = './checkpoints/beike/jun12_room.pth'
-  load_from = './checkpoints/beike/best.pth'
+  #load_from = './checkpoints/beike/best.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
-#load_from = None
+load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

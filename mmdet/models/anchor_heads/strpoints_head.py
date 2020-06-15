@@ -53,7 +53,7 @@ class StrPointsHead(nn.Module):
 
     def __init__(self,
                  obj_rep,
-                 num_classes,
+                 classes,
                  in_channels,
                  feat_channels=256,
                  point_feat_channels=256,
@@ -103,6 +103,11 @@ class StrPointsHead(nn.Module):
                  cls_groups = None,
                  ):
         super(StrPointsHead, self).__init__()
+        assert 'background' not in classes
+        classes = ['background'] + classes
+        self.classes = classes
+        num_classes = len(classes)
+        self._category_ids_map = {classes[i]:i for i in range(num_classes)}
         if cls_groups is None:
           self.cls_groups = [ list(range(1, num_classes)) ]
         else:
@@ -111,7 +116,8 @@ class StrPointsHead(nn.Module):
         assert sum([len(g) for g in self.cls_groups]) == num_classes-1
         self.num_per_group = [len(g) for g in self.cls_groups]
 
-        self.wall_label = 1
+        self.wall_label = self._category_ids_map['wall']
+        self.building_labels = [l for l in range(num_classes) if classes[l] in ['wall','door','window']]
         self.line_constrain_loss = False
         self.obj_rep_in = obj_rep
         self.obj_rep = obj_rep
@@ -128,7 +134,7 @@ class StrPointsHead(nn.Module):
             elif transform_method in ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1']:
                 self.box_extra_dims = 8
                 self.obj_rep = 'XYDRSin2Cos2Z0Z1'
-                self.line_constrain_loss = False
+                self.line_constrain_loss = True
 
         elif obj_rep == 'XYXYSin2':
             self.box_extra_dims = 0
@@ -555,7 +561,6 @@ class StrPointsHead(nn.Module):
             half_width = pts_x_std * torch.exp(moment_width_transfer)
             half_height = pts_y_std * torch.exp(moment_height_transfer)
 
-
             vec_pts_y = pts_y - pts_y_mean
             vec_pts_x = pts_x - pts_x_mean
             vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
@@ -584,6 +589,26 @@ class StrPointsHead(nn.Module):
               bbox = torch.cat([bbox, isaline], dim=1)
             return bbox
             pass
+
+    def rot_from_pts(self,pts_x, pts_y, pts_x_mean, pts_y_mean ):
+            vec_pts_y = pts_y - pts_y_mean
+            vec_pts_x = pts_x - pts_x_mean
+            vec_pts = torch.cat([vec_pts_x.view(-1,1), vec_pts_y.view(-1,1)], dim=1)
+            vec_start = torch.zeros_like(vec_pts)
+            vec_start[:,1] = -1
+
+            sin_2thetas, sin_thetas = sin2theta(vec_start, vec_pts)
+            abs_sins = torch.abs(sin_thetas).view(pts_x.shape)
+            sin_2thetas = sin_2thetas.view(pts_x.shape)
+
+            npla = self.num_ps_long_axis
+            sin_2theta = sin_2thetas[:,:npla].mean(dim=1, keepdim=True)
+            abs_sin = abs_sins[:,:npla].mean(dim=1, keepdim=True)
+
+            isaline_0 = sin_2thetas[:,:npla].std(dim=1, keepdim=True)
+            isaline_1 = abs_sins[:,:npla].std(dim=1, keepdim=True)
+            isaline = (isaline_0 + isaline_1) / 2
+            return sin_2thetas, isaline
 
     def tran_fun_moment_XYXYSin2WZ0Z1(self, pts_x, pts_y, box_extra, out_line_constrain):
             assert self.box_extra_dims == 3 and box_extra.shape[1] == self.box_extra_dims
@@ -664,13 +689,14 @@ class StrPointsHead(nn.Module):
               half_diags = pts_norm_std * torch.exp(moment_diag_transfer) * 1.5
             diags = half_diags * 2
 
+            sin_2thetas, isaline = self.rot_from_pts( pts_x, pts_y, pts_x_mean, pts_y_mean )
+
             bbox = torch.cat([
                 pts_x_mean, pts_y_mean, diags, box_extra[:,3:]
                 ], dim=1)
             if out_line_constrain:
               bbox = torch.cat([bbox, isaline], dim=1)
             return bbox
-            pass
 
     def tran_fun_dis_XYLgWsSin2Cos2Z0Z1(self, pts_x, pts_y, box_extra, out_line_constrain):
             assert self.box_extra_dims == 8 and box_extra.shape[1] == self.box_extra_dims
@@ -1247,7 +1273,9 @@ class StrPointsHead(nn.Module):
         if self.line_constrain_loss:
           assert bbox_pred_refine.shape[1] == self.obj_dim + 1
           gt_line_constrain_refine = torch.zeros_like(bbox_gt_refine)[:,0:1]
-          line_cons_weights_refine = bbox_weights_refine[:,0:1]
+          labels_refine = labels['refine'].reshape(-1,1)
+          building_mask = self.get_line_class_mask(labels_refine)
+          line_cons_weights_refine = bbox_weights_refine[:,0:1] * building_mask
           loss_linec_refine = self.loss_line_constrain_refine(
               bbox_pred_refine[:,self.obj_dim:],
               gt_line_constrain_refine,
@@ -1264,6 +1292,14 @@ class StrPointsHead(nn.Module):
           show_pred_batch('refine',self.obj_rep, bbox_pred_refine, bbox_gt_refine, bbox_weights_refine, loss_pts_refine, loss_linec_refine, pts_pred_refine, raw_gt_bboxes, level_id)
 
         return loss_cls, loss_pts_init, loss_pts_refine, loss_linec_init, loss_linec_refine
+
+    def get_line_class_mask(self, labels):
+      if len(self.building_labels)==0:
+        return labels == -1
+      mask = labels == self.building_labels[0]
+      for l in self.building_labels[1:]:
+        mask += labels == l
+        return mask
 
     def get_bbox_from_pts(self, center_list, pts_preds, box_extras, stage=None):
         if self.box_extra_dims > 0:
@@ -1763,6 +1799,9 @@ class StrPointsHead(nn.Module):
         n = gt_inds_per_rel.numel()
         n_gt_all, n_gt_wall = gt_relations.shape
         assert relation_scores.shape == (1,1,n,n)
+        if not gt_relations.shape[0] == gt_labels.shape[0]:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         assert gt_relations.shape[0] == gt_labels.shape[0]
         assert sum(gt_labels == self.wall_label) == n_gt_wall
 
