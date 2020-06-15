@@ -3,18 +3,18 @@
 #export CUDA_LAUNCH_BLOCKING=1
 #export CUDA_VISIBLE_DEVICES=1
 
-CONFIG=configs/strpoints/d_bev_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
-wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel
+wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel
 #wkdir=test
 
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 #CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 
 #CP=./work_dirs/${wkdir}/best.pth
-CP=./checkpoints/beike/jun2_wado_bev.pth
+CP=./checkpoints/beike/jun2_wd_bev.pth
 #CP=./checkpoints/beike/May4_wd_Bev.pth
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
@@ -28,7 +28,7 @@ FILTER_EDGES=0
 REL=1
 
 #CLS=abcdif
-CLS=da
+CLS=ad
 #CLS=r
 
 # single gpu

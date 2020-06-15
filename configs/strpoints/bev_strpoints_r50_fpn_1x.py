@@ -191,7 +191,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  #img_prefix_test = img_prefix_train
+  img_prefix_test = img_prefix_train
 
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
@@ -259,11 +259,8 @@ if _transform_method == 'moment_std_XYDRSin2Cos2Z0Z1':
 if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
   work_dir += '_Max_'
 if DATA == 'beike2d':
-  load_from = './checkpoints/beike/jun1_wado_bev.pth'
-  #load_from ='./checkpoints/beike/May4_wd_Bev.pth'
-  load_from = './checkpoints/beike/jun10_wd_rel.pth'
-  load_from = './checkpoints/beike/jun12_room.pth'
-  load_from = './checkpoints/beike/best.pth'
+  load_from = './checkpoints/beike/jun2_wd_bev.pth'
+  #load_from = './checkpoints/beike/jun14_room_bev.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
