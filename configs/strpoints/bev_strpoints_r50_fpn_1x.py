@@ -12,6 +12,7 @@ IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 #DATA = 'stanford2d'
 classes= ['wall']
+classes= ['room']
 
 if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
@@ -21,10 +22,10 @@ if DATA == 'beike2d':
   #_transform_method='moment_XYXYSin2WZ0Z1'
   _obj_rep_out = _obj_rep
 
-  #if 'room' in classes:
-  # std is best
-  #_transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
-  #_obj_rep_out='XYDRSin2Cos2Z0Z1'
+  if 'room' in classes:
+    _obj_rep = 'XYXYSin2WZ0Z1'
+    _transform_method = ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1'][1]
+    _obj_rep_out='XYDRSin2Cos2Z0Z1'
 
 elif DATA == 'stanford2d':
   _obj_rep = 'Rect4CornersZ0Z1'
@@ -191,7 +192,7 @@ if DATA == 'beike2d':
   ann_file = data_root + 'json/'
   img_prefix_train = data_root + f'TopView_{TOPVIEW}/train.txt'
   img_prefix_test = data_root + f'TopView_{TOPVIEW}/test.txt'
-  img_prefix_test = img_prefix_train
+  #img_prefix_test = img_prefix_train
 
 elif DATA == 'stanford2d':
   dataset_type = 'Stanford_2D_Dataset'
@@ -260,7 +261,8 @@ if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
   work_dir += '_Max_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun2_wd_bev.pth'
-  #load_from = './checkpoints/beike/jun14_room_bev.pth'
+  if 'room' in classes:
+    load_from = './checkpoints/beike/jun14_room_bev.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 

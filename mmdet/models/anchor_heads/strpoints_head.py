@@ -116,7 +116,8 @@ class StrPointsHead(nn.Module):
         assert sum([len(g) for g in self.cls_groups]) == num_classes-1
         self.num_per_group = [len(g) for g in self.cls_groups]
 
-        self.wall_label = self._category_ids_map['wall']
+        if 'wall' in self._category_ids_map:
+          self.wall_label = self._category_ids_map['wall']
         self.building_labels = [l for l in range(num_classes) if classes[l] in ['wall','door','window']]
         self.line_constrain_loss = False
         self.obj_rep_in = obj_rep
