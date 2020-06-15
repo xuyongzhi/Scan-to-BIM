@@ -225,14 +225,48 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
   return det_lines_merged, labels_merged, ids, t
 
 def optimize_wall_by_room(walls, rooms, obj_rep ):
-  _show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
+  score_th = 0.5
+  #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
   rooms = sort_rooms(rooms, obj_rep)
   num_rooms = rooms.shape[0]
   num_walls = walls.shape[0]
+  walls_aug = walls.copy()
+  walls_aug[:,4] = 3
+  room_ids_per_wall = np.zeros([num_walls, 2], dtype=np.int32) - 1
+  room_nums_per_wall = np.zeros([num_walls], dtype=np.int32)
+  candi_w_mask = room_nums_per_wall != 2
   for i in range(num_rooms):
-    _show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[i:i+1,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    room_i_raw = rooms[i:i+1,:-1].copy()
+    room_i_aug = room_i_raw.copy()
+    room_i_aug[:,3:5] += 15
+    candi_ids = np.where(candi_w_mask)[0]
+    w_in_r_scores = cal_edge_in_room_scores(walls_aug[candi_ids,:-1], room_i_aug, obj_rep)
+    mask = w_in_r_scores > score_th
+    inside_ids = np.where(mask)[0]
+    inside_ids = candi_ids[inside_ids]
+    in_scores = w_in_r_scores[mask]
+    max_out_score = w_in_r_scores[mask==False].max()
+
+    for j in inside_ids:
+      try:
+        room_ids_per_wall[j, room_nums_per_wall[j]] = i
+      except:
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+    room_nums_per_wall[inside_ids] += 1
+
+    if 1:
+      print(f'in_scores: {in_scores}\n max_out_score:{max_out_score:.3f}')
+      _show_objs_ls_points_ls( (512,512), [walls_aug[candi_w_mask,:-1], room_i_raw, room_i_aug ], obj_rep, obj_colors=['red', 'white', 'white'], obj_thickness=1 )
+      _show_objs_ls_points_ls( (512,512), [walls[inside_ids,:-1], room_i_raw ], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
+    candi_w_mask = room_nums_per_wall != 2
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   return walls
+
+def cal_edge_in_room_scores(walls, rooms, obj_rep):
+  from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
+  ious = dsiou_rotated_3d_bbox_np( walls, rooms, iou_w=1.0, size_rate_thres=None, ref='bboxes1', only_2d=True )
+  return ious
 
 def sort_rooms(rooms, obj_rep):
   '''

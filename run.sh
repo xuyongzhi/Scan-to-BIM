@@ -1,9 +1,10 @@
 # xyz
 
-export CUDA_LAUNCH_BLOCKING=1
-#export CUDA_VISIBLE_DEVICES=1
+#export CUDA_LAUNCH_BLOCKING=1
+export CUDA_VISIBLE_DEVICES=1
 
-CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_qc.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
@@ -15,7 +16,7 @@ wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_P
 
 #CP=./work_dirs/${wkdir}/best.pth
 #CP=./checkpoints/beike/jun2_wd_bev.pth
-CP=./checkpoints/beike/jun14_room_bev.pth
+#CP=./checkpoints/beike/jun14_room_bev.pth
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 
@@ -34,12 +35,12 @@ REL=1
 #REL=0
 
 # single gpu
-#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
+ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
 #--resume $CP 
 
 
 # Multi gpu
-./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS   --relation $REL
+#./tools/dist_train.sh ${CONFIG} 2 --rotate $ROTATE   --lr $LR --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS   --relation $REL
 #--resume $CP 
 
 
