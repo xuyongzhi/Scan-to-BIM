@@ -12,7 +12,7 @@ from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wal
 import torch
 import time
 
-EVAL_METHOD = ['corner', 'iou'][1]
+EVAL_METHOD = ['corner', 'iou'][0]
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
@@ -225,7 +225,34 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
   return det_lines_merged, labels_merged, ids, t
 
 def optimize_wall_by_room(walls, rooms, obj_rep ):
-  pass
+  _show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
+  rooms = sort_rooms(rooms, obj_rep)
+  num_rooms = rooms.shape[0]
+  num_walls = walls.shape[0]
+  for i in range(num_rooms):
+    _show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[i:i+1,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  return walls
+
+def sort_rooms(rooms, obj_rep):
+  '''
+  Small first, Align first
+  '''
+  from obj_geo_utils.geometry_utils import limit_period_np
+  assert rooms.shape[1] == 7+1
+  assert obj_rep == 'XYZLgWsHA'
+  areas = rooms[:,3] * rooms[:,4]
+  # smaller is better
+  area_scores = 1 - areas / areas.mean()
+  rotations = limit_period_np( rooms[:,6], 0.5, np.pi/2) * 180 / np.pi
+  # smaller is better
+  align_scores = 1 - np.abs(rotations) / 45
+  det_scores = rooms[:,-1]
+  final_scores = area_scores * 0.4 + align_scores * 0.3 + det_scores * 0.3
+  ids = np.argsort(-final_scores)
+  rooms_new = rooms[ids]
+  return rooms_new
+
 def eval_graph(res_file):
   with open(res_file, 'rb') as f:
     results_datas = pickle.load(f)
@@ -426,58 +453,15 @@ class GraphEval():
 
         num_labels = len(detections)
         eval_draws_ls = []
-        walls = None
-        time_post = 0
-        for label in range(1, num_labels+1):
-            cat = catid_2_cat[label]
-            label_mask = (gt_labels == label).reshape(-1)
-            gt_lines_l = gt_lines[label_mask]
-            det_lines = detections[label-1][f'detection_{out_type}'].copy()
 
-            if out_type == 'bInit_sRefine':
-              det_points = detections[label-1]['points_init']
-            elif out_type == 'bRefine_sAve':
-              det_points = detections[label-1]['points_refine']
+        cat_ls, det_lines_merged_ls, gt_lines_ls, det_points_ls = self.geo_opti_per_cls(num_labels, catid_2_cat, gt_labels, gt_lines, detections, out_type, optimize_graph, optimize_graph_by_relation, with_rel, det_relations)
+        #self.wall_room_opti(cat_ls, det_lines_merged_ls)
 
-            det_lines[:,:2] = det_lines[:,:2] * self._eval_img_scale_ratio + self._eval_img_size_aug
-            det_lines[:,3] = det_lines[:,3] * self._eval_img_scale_ratio
-
-
-            if optimize_graph:
-              det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines,
-                  self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
-                  self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
-              time_post += t
-
-              if cat == 'wall' and with_rel:
-                  for c in det_relations:
-                    if c == 'wall':
-                      det_relations[c] = det_relations[c][ids_merged, :][:, ids_merged]
-                    else:
-                      det_relations[c] = det_relations[c][:, ids_merged]
-                  if optimize_graph_by_relation:
-                    det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged, det_relations[cat], self._max_ofs_by_rel, self.obj_rep, self.eval_dir_all_cls, scene_name)
-                    det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines_merged,
-                      self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
-                      self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
-
-            else:
-              det_lines_merged = filter_low_score_det(det_lines, self._score_threshold)
-            if cat == 'wall':
-              walls = det_lines_merged
-            #show_connectivity(walls[:,:-1], det_lines_merged[:,:-1], det_relations[cat], self.obj_rep)
-
-            if debug and 0:
-              print('raw prediction')
-              _show_objs_ls_points_ls(img.shape[:2], [det_lines[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep)
-
-
-            det_category_id = detections[label-1]['category_id']
-            if det_category_id != 1:
-              pass
-              #raise NotImplementedError
-            cor_nums_gt_pos_tp, line_nums_gt_pos_tp, eval_draws = self.eval_1img_1cls_by_corner(img, det_lines_merged, gt_lines_l, scene_name, cat, det_points)
-            ious = self.cal_iou_1img_1cls(img, det_lines_merged, gt_lines_l, scene_name, cat, det_points)
+        for i in range(num_labels):
+            label = i+1
+            cat = cat_ls[i]
+            cor_nums_gt_pos_tp, line_nums_gt_pos_tp, eval_draws = self.eval_1img_1cls_by_corner(img, det_lines_merged_ls[i], gt_lines_ls[i], scene_name, cat, det_points_ls[i])
+            ious = self.cal_iou_1img_1cls(img, det_lines_merged_ls[i], gt_lines_ls[i], scene_name, cat, det_points_ls[i])
             all_cor_nums_gt_pos_tp[label].append(cor_nums_gt_pos_tp)
             all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
             all_ious[label].append(ious)
@@ -489,7 +473,6 @@ class GraphEval():
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
             pass
-        #optimize_wall_by_room(walls, rooms, obj_rep)
         draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep)
         pass
 
@@ -558,6 +541,72 @@ class GraphEval():
     eval_res_file = out_file.replace('.pickle', f'_EvalRes{s}.npy')
     np.save(eval_res_file, eval_res)
     return eval_res_str
+
+  def geo_opti_per_cls(self, num_labels, catid_2_cat, gt_labels, gt_lines, detections, out_type, optimize_graph, optimize_graph_by_relation, with_rel, det_relations):
+        debug = 0
+        walls = None
+        time_post = 0
+        det_lines_merged_ls = []
+        gt_lines_ls = []
+        det_points_ls = []
+        cat_ls = []
+        for label in range(1, num_labels+1):
+            cat = catid_2_cat[label]
+            cat_ls.append(cat)
+            label_mask = (gt_labels == label).reshape(-1)
+            gt_lines_l = gt_lines[label_mask]
+            det_lines = detections[label-1][f'detection_{out_type}'].copy()
+
+            if out_type == 'bInit_sRefine':
+              det_points = detections[label-1]['points_init']
+            elif out_type == 'bRefine_sAve':
+              det_points = detections[label-1]['points_refine']
+
+            det_lines[:,:2] = det_lines[:,:2] * self._eval_img_scale_ratio + self._eval_img_size_aug
+            det_lines[:,3] = det_lines[:,3] * self._eval_img_scale_ratio
+
+
+            if optimize_graph:
+              det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines,
+                  self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
+                  self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
+              time_post += t
+
+              if cat == 'wall' and with_rel:
+                  for c in det_relations:
+                    if c == 'wall':
+                      det_relations[c] = det_relations[c][ids_merged, :][:, ids_merged]
+                    else:
+                      det_relations[c] = det_relations[c][:, ids_merged]
+                  if optimize_graph_by_relation:
+                    det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged, det_relations[cat], self._max_ofs_by_rel, self.obj_rep, self.eval_dir_all_cls, scene_name)
+                    det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines_merged,
+                      self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
+                      self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
+
+            else:
+              det_lines_merged = filter_low_score_det(det_lines, self._score_threshold)
+            if cat == 'wall':
+              walls = det_lines_merged
+            #show_connectivity(walls[:,:-1], det_lines_merged[:,:-1], det_relations[cat], self.obj_rep)
+            det_lines_merged_ls.append(det_lines_merged)
+            gt_lines_ls.append( gt_lines_l )
+            det_points_ls.append( det_points )
+
+            if debug and 0:
+              print('raw prediction')
+              _show_objs_ls_points_ls(img.shape[:2], [det_lines[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep)
+
+        return cat_ls, det_lines_merged_ls, gt_lines_ls, det_points_ls
+
+  def wall_room_opti(self, cat_ls, det_lines_merged_ls):
+    if not ('wall' in cat_ls and 'room' in cat_ls):
+      return
+    n = len(cat_ls)
+    wall_i = [i for i in range(n) if cat_ls[i]=='wall'][0]
+    room_i = [i for i in range(n) if cat_ls[i]=='room'][0]
+    new_walls = optimize_wall_by_room( det_lines_merged_ls[wall_i], det_lines_merged_ls[room_i], self.obj_rep )
+    det_lines_merged_ls[wall_i] = new_walls
 
   def evaluate_by_iou(self, results_datas, out_file, out_type, optimize_graph=True, optimize_graph_by_relation=False):
     assert self.obj_rep  == 'XYZLgWsHA'
@@ -1460,18 +1509,18 @@ def apply_mask_on_ids(ids, mask):
 
 
 def main():
-  workdir = '/home/z/Research/mmdetection/work_dirs/'
+  workdir = '/home/z/Research/mmdetection/work_dirs/_master/'
+  dir1 = 'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr0_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
+  dir2 = 'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr0_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
 
-  dirname = 'A/bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
   filename = 'detection_10_Imgs.pickle'
-  #filename = 'detection_90_Imgs.pickle'
+  filename = 'detection_90_Imgs.pickle'
 
-  res_file = os.path.join( os.path.join(workdir, dirname), filename)
-  #eval_graph(res_file)
+  resf1 = os.path.join( os.path.join(workdir, dir1), filename)
+  resf2 = os.path.join( os.path.join(workdir, dir2), filename)
+  #eval_graph(resf1)
 
-  dirname_room = 'A/bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
-  res_file_room = os.path.join( os.path.join(workdir, dirname_room), filename)
-  eval_graph_2_files(res_file, res_file_room)
+  eval_graph_2_files(resf1, resf2)
 
 if __name__ == '__main__'  :
   main()
