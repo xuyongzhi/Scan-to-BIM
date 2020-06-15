@@ -131,11 +131,9 @@ class StrPointsHead(nn.Module):
             elif transform_method in ['XYLgWsSin2Cos2Z0Z1', 'dis_XYLgWsSin2Cos2Z0Z1']:
                 self.box_extra_dims = 8
                 self.obj_rep = 'XYLgWsSin2Cos2Z0Z1'
-                self.line_constrain_loss = False
             elif transform_method in ['XYDRSin2Cos2Z0Z1', 'moment_std_XYDRSin2Cos2Z0Z1', 'moment_max_XYDRSin2Cos2Z0Z1']:
                 self.box_extra_dims = 8
                 self.obj_rep = 'XYDRSin2Cos2Z0Z1'
-                self.line_constrain_loss = True
 
         elif obj_rep == 'XYXYSin2':
             self.box_extra_dims = 0
@@ -146,7 +144,6 @@ class StrPointsHead(nn.Module):
               self.box_extra_dims = 3
             if transform_method == 'XYLgWsAbsSin2Z0Z1':
               self.box_extra_dims = 8
-            self.line_constrain_loss = False
         elif obj_rep == 'XYDAsinAsinSin2Z0Z1':
             assert transform_method == '4corners_to_rect'
             self.box_extra_dims = 2
@@ -1233,7 +1230,9 @@ class StrPointsHead(nn.Module):
         if self.line_constrain_loss:
           assert bbox_pred_init.shape[1] == self.obj_dim + 1
           gt_line_constrain_init = torch.zeros_like(bbox_gt_init)[:,0:1]
-          line_cons_weights_init = bbox_weights_init[:,0:1]
+          labels_refine = labels['refine'].reshape(-1,1)
+          building_mask = self.get_line_class_mask(labels_refine)
+          line_cons_weights_init = bbox_weights_init[:,0:1] * building_mask
           loss_linec_init = self.loss_line_constrain_init(
               bbox_pred_init[:,self.obj_dim:],
               gt_line_constrain_init,
@@ -1274,8 +1273,8 @@ class StrPointsHead(nn.Module):
         if self.line_constrain_loss:
           assert bbox_pred_refine.shape[1] == self.obj_dim + 1
           gt_line_constrain_refine = torch.zeros_like(bbox_gt_refine)[:,0:1]
-          labels_refine = labels['refine'].reshape(-1,1)
-          building_mask = self.get_line_class_mask(labels_refine)
+          labels_final = labels['final'].reshape(-1,1)
+          building_mask = self.get_line_class_mask(labels_final)
           line_cons_weights_refine = bbox_weights_refine[:,0:1] * building_mask
           loss_linec_refine = self.loss_line_constrain_refine(
               bbox_pred_refine[:,self.obj_dim:],
