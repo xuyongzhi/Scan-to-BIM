@@ -1084,6 +1084,41 @@ def points_to_oriented_bbox(points, obj_rep_out='XYLgWsA'):
     box2d = OBJ_REPS_PARSE.encode_obj(box2d, 'XYLgWsA', obj_rep_out)
   return box2d
 
+def draw_rooms_from_edges(edges, obj_rep, img_size=None):
+  from scipy import ndimage
+  from tools.visual_utils import draw_1_obj
+  from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
+  from tools.visual_utils import _show_objs_ls_points_ls
+  from tools.color import ColorValuesNp
+  import mmcv
+
+  edges = OBJ_REPS_PARSE.encode_obj(edges, obj_rep, 'XYLgWsA')
+  if img_size is None:
+    s = int(edges[:,:2].max() + 100)
+    img_size = (s,s)
+
+  img = np.zeros(img_size)
+  obj_thickness = 1
+  c = (255,255,255)
+
+  for edge in edges:
+    draw_1_obj(img, edge, c, obj_thickness, 'XYLgWsA')
+  img = (img==0).astype(np.uint8)
+  mask, num_rooms = ndimage.label(img)
+  bg_label = mask[0,0]
+  background = mask == bg_label
+  mask[background] = 0
+
+
+  img_mask = ColorValuesNp[mask]
+  img_mask[background] = 255
+  #mmcv.imshow(img_mask)
+  return img_mask
+
+  room_labels = [i for i in range(1, num_rooms+1) if i != bg_label]
+  num_edge = edges.shape[0]
+  room_ids_per_edge = np.zeros([num_edge, 2]) - 11
+
 def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
   from scipy import ndimage
   from tools.visual_utils import draw_1_obj
@@ -1094,6 +1129,7 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
   edges = OBJ_REPS_PARSE.encode_obj(edges, obj_rep, 'XYLgWsA')
   s = int(edges[:,:2].max() + 100)
   img_size = (s,s)
+
   img = np.zeros(img_size)
   obj_thickness = 1
   c = (255,255,255)
