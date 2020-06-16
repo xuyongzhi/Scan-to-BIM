@@ -9,6 +9,8 @@ import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,\
   _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
+from obj_geo_utils.topology_utils import optimize_walls_by_rooms_main
+from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges
 import torch
 import time
 
@@ -224,7 +226,8 @@ def post_process_bboxes_1cls(det_lines, score_threshold, label, cat,
   t = t1 - t0
   return det_lines_merged, labels_merged, ids, t
 
-def optimize_wall_by_room(walls, rooms, obj_rep ):
+
+def _optimize_wall_by_room(walls, rooms, obj_rep ):
   score_th = 0.5
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
   rooms = sort_rooms(rooms, obj_rep)
@@ -263,29 +266,6 @@ def optimize_wall_by_room(walls, rooms, obj_rep ):
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   return walls
 
-def cal_edge_in_room_scores(walls, rooms, obj_rep):
-  from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
-  ious = dsiou_rotated_3d_bbox_np( walls, rooms, iou_w=1.0, size_rate_thres=None, ref='bboxes1', only_2d=True )
-  return ious
-
-def sort_rooms(rooms, obj_rep):
-  '''
-  Small first, Align first
-  '''
-  from obj_geo_utils.geometry_utils import limit_period_np
-  assert rooms.shape[1] == 7+1
-  assert obj_rep == 'XYZLgWsHA'
-  areas = rooms[:,3] * rooms[:,4]
-  # smaller is better
-  area_scores = 1 - areas / areas.mean()
-  rotations = limit_period_np( rooms[:,6], 0.5, np.pi/2) * 180 / np.pi
-  # smaller is better
-  align_scores = 1 - np.abs(rotations) / 45
-  det_scores = rooms[:,-1]
-  final_scores = area_scores * 0.4 + align_scores * 0.3 + det_scores * 0.3
-  ids = np.argsort(-final_scores)
-  rooms_new = rooms[ids]
-  return rooms_new
 
 def eval_graph(res_file):
   with open(res_file, 'rb') as f:
@@ -340,6 +320,9 @@ def merge_two_results(results_datas_1, results_datas_2):
 
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
+
+  _img_ids_debuging = [3]
+  _opti_room = 1
 
   if 1:
     _all_out_types = [ 'bRefine_sAve' ] * 1
@@ -402,6 +385,8 @@ class GraphEval():
       self.par_nice += f'_OptGraph{self._opt_graph_cor_dis_thr}'
     if self.optimize_graph_by_relation:
       self.par_nice += f'_OptRel'
+    if self._opti_room:
+      self.par_nice += '_Room'
     self.eval_dir = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/PerClass')
     self.eval_dir_all_cls = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/AllClasses')
     if not os.path.exists(self.eval_dir):
@@ -442,6 +427,9 @@ class GraphEval():
       self._eval_img_scale_ratio = 1.5
 
     for i_img, res_data in enumerate(results_datas):
+        if self._img_ids_debuging is not None:
+          if i_img not in self._img_ids_debuging:
+            continue
 
         detections = res_data['detections']
         if with_rel:
@@ -489,7 +477,8 @@ class GraphEval():
         eval_draws_ls = []
 
         cat_ls, det_lines_merged_ls, gt_lines_ls, det_points_ls = self.geo_opti_per_cls(num_labels, catid_2_cat, gt_labels, gt_lines, detections, out_type, optimize_graph, optimize_graph_by_relation, with_rel, det_relations)
-        #self.wall_room_opti(cat_ls, det_lines_merged_ls)
+        if self._opti_room:
+          wall_ids_per_room = self.wall_room_opti(cat_ls, det_lines_merged_ls)
 
         for i in range(num_labels):
             label = i+1
@@ -613,7 +602,8 @@ class GraphEval():
                     else:
                       det_relations[c] = det_relations[c][:, ids_merged]
                   if optimize_graph_by_relation:
-                    det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged, det_relations[cat], self._max_ofs_by_rel, self.obj_rep, self.eval_dir_all_cls, scene_name)
+                    det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged,
+                              det_relations[cat], self._max_ofs_by_rel, self.obj_rep, self.eval_dir_all_cls, scene_name)
                     det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines_merged,
                       self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
                       self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
@@ -639,8 +629,10 @@ class GraphEval():
     n = len(cat_ls)
     wall_i = [i for i in range(n) if cat_ls[i]=='wall'][0]
     room_i = [i for i in range(n) if cat_ls[i]=='room'][0]
-    new_walls = optimize_wall_by_room( det_lines_merged_ls[wall_i], det_lines_merged_ls[room_i], self.obj_rep )
+    new_walls = optimize_walls_by_rooms_main( det_lines_merged_ls[wall_i], det_lines_merged_ls[room_i], self.obj_rep )
     det_lines_merged_ls[wall_i] = new_walls
+    wall_ids_per_room, _,_,_ = get_rooms_from_edges(new_walls[:,:7], self.obj_rep)
+    return wall_ids_per_room
 
   def evaluate_by_iou(self, results_datas, out_file, out_type, optimize_graph=True, optimize_graph_by_relation=False):
     assert self.obj_rep  == 'XYZLgWsHA'
@@ -1388,6 +1380,8 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
         det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false,\
         det_points_pos, det_points_neg = eval_draws_ls[i]
       c = colors_map[cat]
+      if cat == 'room':
+        continue
 
       det_points_pos = det_points_pos.reshape(-1, 2)
       det_points_neg = det_points_neg.reshape(-1, 2)

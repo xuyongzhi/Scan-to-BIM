@@ -1770,6 +1770,7 @@ def merge_two_parallel_walls(wall0, wall1, cor0, cor1, obj_rep, cor_degree0, cor
     return wall0_new, wall1_new
 
 def crop_two_intersect_overlaip_wall(w_croped, w_fix, obj_rep):
+  assert w_croped.ndim == w_fix.ndim == 1
   cor_c = OBJ_REPS_PARSE.encode_obj(w_croped[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
   cor_f = OBJ_REPS_PARSE.encode_obj(w_fix[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
   intersect = line_intersection_2d(cor_c, cor_f, min_angle=np.pi/8).reshape(1,2)
@@ -1778,6 +1779,7 @@ def crop_two_intersect_overlaip_wall(w_croped, w_fix, obj_rep):
   w_a = OBJ_REPS_PARSE.encode_obj(cor_a, 'RoLine2D_2p', obj_rep)[0]
   w_b = OBJ_REPS_PARSE.encode_obj(cor_b, 'RoLine2D_2p', obj_rep)[0]
   return w_a, w_b
+
 
 def crop_two_parallel_overlaip_wall(long_w, short_w, obj_rep):
   corners_l = OBJ_REPS_PARSE.encode_obj(long_w, obj_rep, 'RoLine2D_2p').reshape(2,2)

@@ -1,7 +1,7 @@
 # xyz
 
 #export CUDA_LAUNCH_BLOCKING=1
-export CUDA_VISIBLE_DEVICES=1
+#export CUDA_VISIBLE_DEVICES=1
 
 #CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_qc.py
@@ -20,7 +20,7 @@ wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_P
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 
-LR=0.0001
+LR=0.01
 ROTATE=1
 BASE_PLANE=32
 BS=7
@@ -28,11 +28,11 @@ DATA_TYPES=cnx
 FILTER_EDGES=0
 
 #CLS=abcdif
-CLS=ad
-REL=1
+#CLS=ad
+#REL=1
 
-#CLS=r
-#REL=0
+CLS=r
+REL=0
 
 # single gpu
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  

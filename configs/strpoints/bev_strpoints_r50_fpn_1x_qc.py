@@ -12,7 +12,7 @@ IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 #DATA = 'stanford2d'
 classes= ['wall']
-#classes= ['room']
+classes= ['room']
 
 if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'

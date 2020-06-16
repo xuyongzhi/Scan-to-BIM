@@ -488,6 +488,23 @@ def sort_four_corners( pred_corners, pred_center=None ):
     bboxes_out = corners.reshape(n,8)
   return bboxes_out, rect_loss
 
+def arg_sort_points_np( corners ):
+  '''
+  corners: [n,m,2]
+  sort_ids: [n,m]
+  '''
+  assert corners.ndim == 3
+  assert corners.shape[2] == 2
+  n, npts, _ = corners.shape
+  center = corners.mean(axis=1, keepdims=True)
+  corners = corners - center
+
+  # 1. sort by angles, start from 0 to 2pi
+  angles = angle_with_x_np(corners.reshape(n*npts,2), scope_id=3) # (0, pi*2]
+  angles = angles.reshape(n,npts)
+  sort_ids = angles.argsort(axis=1)
+  return sort_ids
+
 def sort_corners_np( pred_corners, pred_center=None ):
   pred_corners = torch.from_numpy( pred_corners ).to(torch.float32)
   sorted_corners, _ =  sort_corners(pred_corners)
@@ -1067,12 +1084,12 @@ def points_to_oriented_bbox(points, obj_rep_out='XYLgWsA'):
     box2d = OBJ_REPS_PARSE.encode_obj(box2d, 'XYLgWsA', obj_rep_out)
   return box2d
 
-def get_rooms_from_edges(edges, obj_rep):
+def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
   from scipy import ndimage
   from tools.visual_utils import draw_1_obj
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
   from tools.visual_utils import _show_objs_ls_points_ls
-  debug = 0
+  debug = show_rooms
 
   edges = OBJ_REPS_PARSE.encode_obj(edges, obj_rep, 'XYLgWsA')
   s = int(edges[:,:2].max() + 100)
@@ -1090,7 +1107,7 @@ def get_rooms_from_edges(edges, obj_rep):
   mask[background] = 0
   room_labels = [i for i in range(1, num_rooms+1) if i != bg_label]
   num_edge = edges.shape[0]
-  room_ids_per_edge = np.zeros([num_edge, 2]) - 1
+  room_ids_per_edge = np.zeros([num_edge, 2]) - 11
 
   orth_edges = edges.copy()
   orth_edges[:,2] = 6
@@ -1106,6 +1123,8 @@ def get_rooms_from_edges(edges, obj_rep):
 
   edge_ids_per_room = defaultdict(list)
   num_edges_inside_room = 0
+  inside_edge_ids = []
+  non_loop_edge_ids = []
   for i in range(num_edge):
     x1, y1 = orth_corners[i,0]
     x2, y2 = orth_corners[i,1]
@@ -1114,25 +1133,46 @@ def get_rooms_from_edges(edges, obj_rep):
 
     if room_1 in room_labels:
       edge_ids_per_room[room_1].append(i)
+      room_ids_per_edge[i,0] = room_1
     if room_2 in room_labels:
       edge_ids_per_room[room_2].append(i)
+      room_ids_per_edge[i,1] = room_2
 
-    room_ids_per_edge[i,0] = room_1
-    room_ids_per_edge[i,1] = room_2
+    special = ''
+    if room_1 == room_2:
+      if room_1 in room_labels:
+        special = 'inside'
+        inside_edge_ids.append(i)
+        num_edges_inside_room += 1
+      else:
+        non_loop_edge_ids.append(i)
+        special = 'non_loop'
 
-    inside_wall = room_1 == room_2
-    if inside_wall:
-      num_edges_inside_room += 1
-    if debug and inside_wall:
-      room_1 = img_mask[ y1, x1 ]
-      room_2 = img_mask[ y2, x2 ]
+    if debug:
+      cor_1 = img_mask[ y1, x1 ]
+      cor_2 = img_mask[ y2, x2 ]
+      print(f'\nspecial: {special}')
       print(f'room: {room_1}, {room_2}')
+      print(f'room: {cor_1}, {cor_2}')
       _show_objs_ls_points_ls( img_mask, [edges[[i]]], obj_rep='XYLgWsA',
           points_ls=[ orth_corners[i] ], obj_colors='red', point_colors='green',  point_thickness=5 )
     pass
 
   edge_ids_per_room_out = [edge_ids_per_room[i] for i in room_labels]
-  return edge_ids_per_room_out, num_edges_inside_room
+
+  if gen_bbox:
+    edge_corners = OBJ_REPS_PARSE.encode_obj(edges, 'XYLgWsA', 'RoLine2D_2p')
+    num_rooms = len(edge_ids_per_room_out)
+    room_bboxes = []
+    for i in range(num_rooms):
+      ids_i = edge_ids_per_room_out[i]
+      room_corners = edge_corners[ids_i]
+      room_bbox = points_to_oriented_bbox(room_corners.reshape(-1,2), obj_rep)
+      room_bboxes.append(room_bbox)
+    room_bboxes = np.concatenate(room_bboxes, 0)
+  else:
+    room_bboxes = None
+  return edge_ids_per_room_out, room_ids_per_edge, num_edges_inside_room, room_bboxes
 
 
 def ununsed_get_cf_from_wall(floors0, walls, obj_rep, cat_name):

@@ -653,7 +653,6 @@ def raw_anno_to_img(classes, room_label, obj_rep, anno_raw, anno_style, pixel_co
       assert gt_bboxes.max() < DIM_PARSE.IMAGE_SIZE
 
       if 'room' in classes:
-        #anno_raw['rooms_line_ids'] = get_room_line_ids_from_edges(lines_pt_ordered, obj_rep)
         anno_img['rooms_line_ids'] = anno_raw['rooms_line_ids']
         add_room_to_anno(room_label, anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder)
 
@@ -662,19 +661,6 @@ def raw_anno_to_img(classes, room_label, obj_rep, anno_raw, anno_style, pixel_co
         walls = anno_img['gt_bboxes'][ anno_img['labels'] == 1 ]
         show_connection_2( walls, anno_img['gt_bboxes'], anno_img['relations'], obj_rep )
       return anno_img
-
-def get_room_line_ids_from_edges(lines_pt_ordered, obj_rep):
-  img = np.zeros(img_size)
-  obj_thickness = 1
-  c = (255,255,255)
-  for edge in edges:
-    draw_1_obj(img, edge, c, obj_thickness, obj_rep)
-  img = (img==0).astype(np.uint8)
-  mask, num_rooms = ndimage.label(img)
-  background = mask == mask[0,0]
-  mask[background] = 0
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
-  pass
 
 def add_room_to_anno( room_label, anno_img, anno_raw, lines_pt_ordered, obj_rep, anno_folder):
       rooms_line_ids = anno_raw['rooms_line_ids']
@@ -913,27 +899,23 @@ def gen_room_bboxes_by_room_label(lines, rooms_line_ids, obj_rep_out, anno_folde
   room_label_non_intact = ['uxMhs9XTA7txv6_kvoDjHv', 'isDTo3WSrPK99A14wmpcYg', '8Ej90dGb8mD7ykRTOsWVbV', '18H6WOCclkJY34-TVuOqX3']
   obj_rep = 'XYXYSin2WZ0Z1'
   rooms_line_ids_in = rooms_line_ids.copy()
-  rooms_line_ids = None
-  if rooms_line_ids is None:
-    rooms_line_ids, num_walls_inside_room = get_rooms_from_edges(lines, obj_rep)
-  else:
-    num_walls_inside_room = -1
+  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(lines, obj_rep, gen_bbox=True)
 
   if len(rooms_line_ids)!=len(rooms_line_ids_in):
     print(f'\n\troom label not intact: {filename}')
     pass
 
-  line_corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
-  num_rooms = len(rooms_line_ids)
-  rooms = []
-  for i in range(num_rooms):
-    ids_i = rooms_line_ids[i]
-    room_corners = line_corners[ids_i]
-    room_bbox = points_to_oriented_bbox(room_corners.reshape(-1,2), obj_rep)
-    rooms.append(room_bbox)
-    if 0:
-      _show_objs_ls_points_ls( (1024, 1024),[room_bbox], obj_rep, [ room_corners.reshape(-1,2) ], point_thickness=5, obj_thickness=2 )
-  rooms = np.concatenate(rooms, 0)
+  #line_corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
+  #num_rooms = len(rooms_line_ids)
+  #rooms = []
+  #for i in range(num_rooms):
+  #  ids_i = rooms_line_ids[i]
+  #  room_corners = line_corners[ids_i]
+  #  room_bbox = points_to_oriented_bbox(room_corners.reshape(-1,2), obj_rep)
+  #  rooms.append(room_bbox)
+  #  if 0:
+  #    _show_objs_ls_points_ls( (1024, 1024),[room_bbox], obj_rep, [ room_corners.reshape(-1,2) ], point_thickness=5, obj_thickness=2 )
+  #rooms = np.concatenate(rooms, 0)
 
   rooms_dir = anno_folder.replace('json', 'room_bboxes')
   filename = filename.replace('json', 'txt')
