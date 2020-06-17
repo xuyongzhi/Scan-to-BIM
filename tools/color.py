@@ -69,7 +69,7 @@ def _color(c, RGB=False):
 
 def get_random_color():
   # except black and white
-  i = random.randint(0, NumColors)
+  i = random.randint(0, len(ColorValues)-1)
   return ColorValues[i]
 
 def _label2color(labels):
