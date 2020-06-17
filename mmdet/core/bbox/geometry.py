@@ -133,10 +133,8 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=0.01, ref='union'):
   #  assert bboxes2[:,2:4].min() >= 0.01
   ious_2d = _C.box_iou_rotated(bboxes1, bboxes2)
   if torch.isnan(ious_2d).any():
-    print("nan iou from rotated_bbox_overlaps")
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    print("\n nan iou from rotated_bbox_overlaps")
     pass
-
 
   assert ref in ['union', 'bboxes1', 'bboxes2', 'min']
   if ref=='union':

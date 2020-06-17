@@ -181,6 +181,8 @@ class BEIKE(BEIKE_CLSINFO):
 
     def load_1_anno(self, idx):
       jfn = self.img_infos[idx]['filename'].split('.')[0] + '.json'
+      if DEBUG_CFG:
+        print(f'{jfn}')
       anno_raw = load_anno_1scene(self.anno_folder, jfn,
                             self._classes, filter_edges=self.filter_edges,
                             is_save_connection = self.is_save_connection)
@@ -231,7 +233,6 @@ class BEIKE(BEIKE_CLSINFO):
 
       ids = np.where( line_lengths == line_lengths.min() )[0]
       print(f'line with min length:\n {lines[ids]}')
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
 
@@ -484,7 +485,7 @@ class BEIKE(BEIKE_CLSINFO):
       if save_connection_imgs:
         scene = self.img_infos[idx]['filename'].split('.')[0]
         for cat in relations:
-        #for cat in ['door']:
+        #for cat in ['room']:
           img_file = os.path.join(self.connection_img_dir, scene + f'-{cat}.png' )
           #img_file = None
           objs = bboxes[self._category_ids_map[cat] == labels]
@@ -520,6 +521,14 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     corners_norm = corners - min_xy[None, :]
 
     lines_pt = (lines_norm * img_size / max_range).astype(np.float32)
+    mask_fail_0 = lines_pt < 0
+    mask_fail_1 = lines_pt > img_size
+    mask_fail = (mask_fail_0 + mask_fail_1).reshape(-1,4).any(1)
+    fail_line_ids = np.where(mask_fail)[0]
+    num_fail = len(fail_line_ids)
+    mask_good = mask_fail == False
+    good_line_ids = np.where(mask_good)[0]
+    lines_failed = lines_pt[fail_line_ids].copy()
     lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
   if anno_style == 'voxelization':
     # in voxelization of pcl: coords = floor( position / voxel_size)
@@ -542,87 +551,26 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     if anno_style == 'voxelization':
       corners_pt = (corners) / voxel_size
 
-    if not( corners_pt.min() > -PCL_LINE_BOUND_PIXEL and corners_pt.max() < DIM_PARSE.IMAGE_SIZE+PCL_LINE_BOUND_PIXEL ):
-        scene_name = scene.split('.')[0]
-        print('meter_2_pixel corner scope error', scene)
-        print(corners_pt.min())
-        print(corners_pt.max())
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        pass
-    corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
+    #if not( corners_pt.min() > -PCL_LINE_BOUND_PIXEL and corners_pt.max() < DIM_PARSE.IMAGE_SIZE+PCL_LINE_BOUND_PIXEL ):
+    #    scene_name = scene.split('.')[0]
+    #    print('meter_2_pixel corner scope error', scene)
+    #    print(corners_pt.min())
+    #    print(corners_pt.max())
+    #    pass
+    #corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
     if floor:
       corners_pt = np.floor(corners_pt).astype(np.uint32)
 
 
   check = 0
-  if check:
+  if check and num_fail > 0:
     json_file = os.path.join('/home/z/Research/mmdetection/data/beike/processed_512/TopView_VerD', scene.replace('json','npy'))
     img = load_topview_img(json_file)
-    _show_objs_ls_points_ls(img[:,:,0], objs_ls=[lines_pt.reshape(-1,4)], obj_rep='RoLine2D_2p')
-
-  return corners_pt, lines_pt
-
-def old_meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=False, scene=None):
-  '''
-  corners: [n,2]
-  lines: [m,2,2]
-  pcl_scope: [2,3]
-  '''
-  assert lines.shape[1:] == (2,2)
-  assert pcl_scope.shape == (2,3)
-  assert anno_style in ['topview', 'voxelization']
-  if anno_style == 'topview':
-    img_size = pixel_config['img_size']
-  elif anno_style == 'voxelization':
-    voxel_size = pixel_config['voxel_size']
-
-  if pcl_scope is None:
-    raise NotImplementedError
-    min_xy = corners.min(axis=0)
-    max_xy = corners.max(axis=0)
-  else:
-    min_xy = pcl_scope[0,0:2]
-    max_xy = pcl_scope[1,0:2]
-
-
-  if anno_style == 'topview':
-    # leave a bit gap along the boundaries
-    max_range = (max_xy - min_xy).max()
-    padding = max_range * 0.05
-    min_xy = (min_xy + max_xy) / 2 - max_range / 2 - padding
-    max_range += padding * 2
-
-    lines_pt = ((lines - min_xy) * img_size / max_range).astype(np.float32)
-    lines_pt = np.clip(lines_pt, a_min=0, a_max=img_size-1)
-  if anno_style == 'voxelization':
-    lines_pt = (lines - min_xy - voxel_size / 2) / voxel_size
-    lines_pt = np.clip(lines_pt, a_min=0, a_max=None)
-
-  if floor:
-    lines_pt = np.floor(lines_pt).astype(np.uint32)
-
-  #line_size = np.linalg.norm( lines[:,0] - lines[:,1], axis=1 )
-  #line_size_pt = np.linalg.norm( lines_pt[:,0] - lines_pt[:,1], axis=1 )
-  #assert line_size_pt.min() > 3
-
-  if corners is None:
-    corners_pt = None
-  else:
-    if anno_style == 'topview':
-      corners_pt = ((corners - min_xy) * DIM_PARSE.IMAGE_SIZE / max_range).astype(np.float32)
-    if anno_style == 'voxelization':
-      corners_pt = (corners - min_xy) / voxel_size
-    if not( corners_pt.min() > -1 and corners_pt.max() < DIM_PARSE.IMAGE_SIZE ):
-          scene_name = scene.split('.')[0]
-          if scene_name not in UNALIGNED_SCENES:
-            print(scene)
-            print(corners_pt.min())
-            print(corners_pt.max())
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
-            pass
-    corners_pt = np.clip(corners_pt, a_min=0, a_max=DIM_PARSE.IMAGE_SIZE-1)
-    if floor:
-      corners_pt = np.floor(corners_pt).astype(np.uint32)
+    edges = lines_pt.reshape(-1,4)
+    print(f'fail lines: {lines_failed}')
+    _show_objs_ls_points_ls(img[:,:,0], objs_ls=[edges, edges[fail_line_ids]], obj_rep='RoLine2D_2p', obj_colors=['white', 'red'], obj_thickness=[5,2])
+    _show_objs_ls_points_ls(img[:,:,1:4], objs_ls=[edges], obj_rep='RoLine2D_2p', obj_thickness=5)
+    _show_objs_ls_points_ls(img[:,:,0], objs_ls=[edges[mask_good]], obj_rep='RoLine2D_2p', obj_thickness=5)
 
   return corners_pt, lines_pt
 
@@ -666,21 +614,21 @@ def add_room_to_anno( room_label, anno_img, anno_raw, lines_pt_ordered, obj_rep,
       rooms_line_ids = anno_raw['rooms_line_ids']
       #rooms_line_ids = None
       # add room
-      room_bboxes = load_room_bboxes(anno_folder, anno_raw['filename'], obj_rep)
+      room_bboxes, rooms_line_ids = load_room_bboxes(anno_folder, anno_raw['filename'], obj_rep)
       if room_bboxes is None:
         wall_mask = anno_img['labels'] == 1
         assert anno_img['classes'][0] == 'wall'
-        room_bboxes = gen_room_bboxes_by_room_label(lines_pt_ordered[wall_mask], rooms_line_ids, obj_rep, anno_folder, anno_raw['filename'])
+        room_bboxes, rooms_line_ids = gen_room_bboxes_by_room_label(lines_pt_ordered[wall_mask], obj_rep, anno_folder, anno_raw['filename'])
       #_show_objs_ls_points_ls( (512,512), [anno_img['gt_bboxes'], room_bboxes], obj_rep=obj_rep, obj_colors=[anno_img['labels'], 'black'], obj_thickness=[10,3] )
       n = room_bboxes.shape[0]
       anno_img['gt_bboxes'] = np.concatenate([anno_img['gt_bboxes'], room_bboxes], 0)
       room_labels = np.ones([n], dtype=np.int64) * room_label
       anno_img['labels'] = np.concatenate([anno_img['labels'], room_labels])
+      anno_img['rooms_line_ids'] = rooms_line_ids
 
       if 0:
         walls = anno_img['gt_bboxes'][ anno_img['labels'] == 1 ]
         show_connection_2( walls, room_bboxes, rel_room_wall, obj_rep )
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
 
 def load_topview_img(file_name):
@@ -783,7 +731,7 @@ def parse_line_items(anno, line_items, classes, beike_clsinfo):
 
           pass
 
-def parse_areas(anno, areas):
+def load_areas(anno, areas):
     for area in areas:
       points = area['points']
       roomName = area['roomName']
@@ -823,7 +771,7 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
           parse_wall(anno, points, lines, beike_clsinfo)
 
         parse_line_items(anno, line_items, classes, beike_clsinfo)
-        parse_areas(anno, areas)
+        #load_areas(anno, areas)
 
       for ele in ['corners', 'lines', ]:
               anno[ele] = np.concatenate(anno[ele], 0).astype(np.float32)
@@ -865,15 +813,12 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
       if 0:
         if not( anno['corners'].min() > -PCL_LINE_BOUND_METER and anno['corners'].min() < 1 ):
           print(anno['corners'].min())
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
         if not (anno['lines'].min() > -PCL_LINE_BOUND_METER and anno['lines'].min() < 1):
           print(  anno['lines'].min() )
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
         if not (all(anno['lines'].max(axis=0).max(axis=0) <  pcl_scope[1,:2] - pcl_scope[0,:2]) + 0.1):
           print(  anno['lines'].max(axis=0).max(axis=0) )
-          import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
 
       if not is_save_connection:
@@ -894,16 +839,11 @@ def load_anno_1scene(anno_folder, filename, classes,  filter_edges=False, is_sav
       return anno
 
 
-def gen_room_bboxes_by_room_label(lines, rooms_line_ids, obj_rep_out, anno_folder, filename):
+def gen_room_bboxes_by_room_label(lines, obj_rep_out, anno_folder, filename):
   from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges
   room_label_non_intact = ['uxMhs9XTA7txv6_kvoDjHv', 'isDTo3WSrPK99A14wmpcYg', '8Ej90dGb8mD7ykRTOsWVbV', '18H6WOCclkJY34-TVuOqX3']
   obj_rep = 'XYXYSin2WZ0Z1'
-  rooms_line_ids_in = rooms_line_ids.copy()
-  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(lines, obj_rep, gen_bbox=True)
-
-  if len(rooms_line_ids)!=len(rooms_line_ids_in):
-    print(f'\n\troom label not intact: {filename}')
-    pass
+  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(lines, obj_rep, gen_bbox=True, show_rooms=False)
 
   #line_corners = OBJ_REPS_PARSE.encode_obj(lines, obj_rep, 'RoLine2D_2p')
   #num_rooms = len(rooms_line_ids)
@@ -918,12 +858,12 @@ def gen_room_bboxes_by_room_label(lines, rooms_line_ids, obj_rep_out, anno_folde
   #rooms = np.concatenate(rooms, 0)
 
   rooms_dir = anno_folder.replace('json', 'room_bboxes')
-  filename = filename.replace('json', 'txt')
+  filename = filename.replace('json', 'npy')
   rooms_file = os.path.join(rooms_dir, filename)
 
   if not os.path.exists(rooms_dir):
     os.makedirs(rooms_dir)
-  np.savetxt(rooms_file, rooms, fmt='%.3f')
+  np.save(rooms_file, dict(rooms=rooms, rooms_line_ids = rooms_line_ids), allow_pickle=True)
   print(f'save: {rooms_file}')
 
   if num_walls_inside_room >= 0:
@@ -935,21 +875,35 @@ def gen_room_bboxes_by_room_label(lines, rooms_line_ids, obj_rep_out, anno_folde
 
   if obj_rep_out != obj_rep:
     rooms = OBJ_REPS_PARSE.encode_obj(rooms, obj_rep, obj_rep_out)
-  return rooms
+  return filter_small_rooms( rooms, rooms_line_ids, obj_rep_out )
+
+def filter_small_rooms(rooms, rooms_line_ids, obj_rep):
+  area_thr = 10 * 10
+  rooms_1 = OBJ_REPS_PARSE.encode_obj(rooms, obj_rep, 'XYZLgWsHA')
+  areas = rooms_1[:,3] * rooms_1[:,4]
+  mask = areas > area_thr
+  ids  = np.where(mask)[0]
+  rooms_new = rooms[ids]
+  rooms_line_ids_new = [rooms_line_ids[i] for i in ids]
+  return rooms_new, rooms_line_ids_new
 
 def load_room_bboxes(anno_folder, filename, obj_rep_out):
+  assert obj_rep_out == 'XYXYSin2WZ0Z1'
   obj_rep = 'XYXYSin2WZ0Z1'
   rooms_dir = anno_folder.replace('json', 'room_bboxes')
-  filename = filename.replace('json', 'txt')
+  filename = filename.replace('json', 'npy')
   rooms_file = os.path.join(rooms_dir, filename)
   if not os.path.exists(rooms_file):
-    return None
+    return None, None
   else:
-    rooms = np.loadtxt(rooms_file)
+    room_datas = np.load(rooms_file, allow_pickle=True).tolist()
+    rooms = room_datas['rooms']
+    rooms_line_ids = room_datas['rooms_line_ids']
     if obj_rep_out != obj_rep:
       rooms = OBJ_REPS_PARSE.encode_obj(rooms, obj_rep, obj_rep_out)
-    rooms = rooms.reshape(-1,8)
-    return rooms
+    num_rooms = len(rooms_line_ids)
+    rooms = rooms.reshape(num_rooms,8)
+    return rooms, rooms_line_ids
 
 
 def show_ann_pcl(anno, json_path):
@@ -1000,28 +954,6 @@ def load_relations_1scene(anno_folder, filename, classes):
   #relations = np.concatenate([relations, tmp], axis=1)
   return relations
 
-def unused_load_gt_lines_bk(img_meta, img, classes, filter_edges):
-  beike_clsinfo = BEIKE_CLSINFO(classes)
-  filename = img_meta['filename']
-  scene_name = os.path.basename(filename).replace('.npy', '')
-  processed_dir = os.path.dirname(os.path.dirname(filename))
-  json_dir = os.path.join(processed_dir, 'json/')
-  anno_raw = load_anno_1scene(json_dir, scene_name+'.json', beike_clsinfo._classes, filter_edges=filter_edges)
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
-  anno_img = raw_anno_to_img(anno_raw,  'topview', {'img_size': DIM_PARSE.IMAGE_SIZE},)
-  lines = anno_img['bboxes']
-  labels = anno_img['labels']
-  mask = labels >= 0
-
-  lines = lines[mask]
-  labels = labels[mask]
-  #_show_lines_ls_points_ls(img[:,:,0], [lines])
-  if 'rotate_angle' in img_meta:
-    rotate_angle = img_meta['rotate_angle']
-    lines, _ = rotate_bboxes_img(lines, img, rotate_angle, DIM_PARSE.OBJ_REP)
-    return lines, labels
-  else:
-    return lines, labels
 
 def fix_1_unaligned_scene(scene_name, lines_unaligned, image_size, line_obj_rep):
     '''
@@ -1162,16 +1094,6 @@ def cal_topview_npy_mean_std(data_path, base, normnorm_method='raw'):
     f.write(res)
   print(res)
 
-def draw_img_lines(img, lines):
-      img = img.copy()
-      for i in range(lines.shape[0]):
-        s, e = lines[i]
-        cv2.line(img, (s[0], s[1]), (e[0], e[1]), (255,0,0), 6)
-        #cv2.putText(img, obj, (s[0], s[1] - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-        #            (255, 255, 255), 1)
-      mmcv.imshow(img)
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
 # ------------------------------------------------------------------------------
 
 def gen_images_from_npy(data_path):

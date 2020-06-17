@@ -23,16 +23,16 @@ wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_P
 LR=0.01
 ROTATE=1
 BASE_PLANE=32
-BS=7
+BS=1
 DATA_TYPES=cnx
 FILTER_EDGES=0
 
 #CLS=abcdif
-#CLS=ad
-#REL=1
+CLS=ad
+REL=1
 
-CLS=r
-REL=0
+#CLS=r
+#REL=0
 
 # single gpu
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  

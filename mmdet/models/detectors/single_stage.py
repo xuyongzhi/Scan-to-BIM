@@ -163,7 +163,7 @@ class SingleStageDetector(BaseDetector):
           _det_bboxes0 = det_bboxes.cpu().data.numpy()
           assert not 'background' in img_metas[0]['classes']
           dim_parse = DIM_PARSE( self.obj_rep, len(img_metas[0]['classes'])+1 )
-          _det_bboxes1 = dim_parse.clean_bboxes_out(_det_bboxes0,'final', 'line_ave' )
+          _det_bboxes1 = dim_parse.clean_bboxes_out(_det_bboxes0,'final', 'bRefine_sAve' )
           _det_bboxes = [_det_bboxes1]
           ngt = len(_gt_bboxes[0])
           ndt = len(_det_bboxes[0])
@@ -175,11 +175,12 @@ class SingleStageDetector(BaseDetector):
 
           #debug_utils._show_lines_ls_points_ls((512,512), _det_bboxes)
           #debug_utils._show_lines_ls_points_ls((512,512), _gt_bboxes)
-          _show_objs_ls_points_ls((512,512),
-                                  objs_ls = [_gt_bboxes[0][:,:5], _det_bboxes[0][mask][:,:5]],
-                                  obj_scores_ls = [None, _det_bboxes[0][mask][:,5]],
-                                  obj_colors=['red','green'],  obj_rep=self.obj_rep )
-          _show_objs_ls_points_ls(img[:,:,0], [_gt_bboxes[0]], obj_rep=self.obj_rep)
+          _show_objs_ls_points_ls((511,512),
+                                  objs_ls = [ _det_bboxes[0][mask][:,:5] , _gt_bboxes[0][:,:5] ],
+                                  obj_scores_ls = [ _det_bboxes[0][mask][:,5] , None ],
+                                  obj_colors=['blue','red'],  obj_rep=self.obj_rep,
+                                  obj_thickness=[4,1] )
+          #_show_objs_ls_points_ls(img[:,:,0], [_gt_bboxes[0]], obj_rep=self.obj_rep)
           pass
 
     def simple_test(self, img, img_meta, rescale=False, gt_bboxes=None, gt_labels=None, gt_relations=None):

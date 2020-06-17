@@ -12,7 +12,7 @@ IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 #DATA = 'stanford2d'
 classes= ['wall']
-classes= ['room']
+#classes= ['room']
 
 if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
@@ -261,16 +261,17 @@ if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
   work_dir += '_Max_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun2_wd_bev.pth'
+  load_from = './checkpoints/beike/jun17_wd_bev_qc.pth'
   if 'room' in classes:
     load_from = './checkpoints/beike/jun14_room_bev.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
-load_from = None
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=1)
