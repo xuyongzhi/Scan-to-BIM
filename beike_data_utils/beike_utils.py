@@ -948,6 +948,7 @@ def load_room_bboxes(anno_folder, filename, obj_rep_out):
     rooms = np.loadtxt(rooms_file)
     if obj_rep_out != obj_rep:
       rooms = OBJ_REPS_PARSE.encode_obj(rooms, obj_rep, obj_rep_out)
+    rooms = rooms.reshape(-1,8)
     return rooms
 
 
