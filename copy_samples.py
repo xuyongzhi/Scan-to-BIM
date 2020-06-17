@@ -12,6 +12,7 @@ if not os.path.exists(dst_path):
 folder_ls = ['TopView_VerD', 'room_bboxes', 'relations', 'json']
 formats = ['.npy', '.txt', '.npy', '.json']
 
+
 for scene in scenes:
   for fold, fmt in zip(folder_ls, formats):
     src = os.path.join(path, fold, scene+'.npy')
