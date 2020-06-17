@@ -488,21 +488,31 @@ def sort_four_corners( pred_corners, pred_center=None ):
     bboxes_out = corners.reshape(n,8)
   return bboxes_out, rect_loss
 
-def arg_sort_points_np( corners ):
+def arg_sort_points_np( corners, center=None):
   '''
   corners: [n,m,2]
   sort_ids: [n,m]
   '''
   assert corners.ndim == 3
   assert corners.shape[2] == 2
+  if center is not None:
+    assert center.ndim == 3
   n, npts, _ = corners.shape
-  center = corners.mean(axis=1, keepdims=True)
-  corners = corners - center
+  if center is None:
+    #center = corners.mean(axis=1, keepdims=True)
+    min_xy = corners.min(axis=1, keepdims=True)
+    max_xy = corners.max(axis=1, keepdims=True)
+    center = (min_xy + max_xy) / 2
+  corners_nm = corners - center
 
   # 1. sort by angles, start from 0 to 2pi
-  angles = angle_with_x_np(corners.reshape(n*npts,2), scope_id=3) # (0, pi*2]
+  angles = angle_with_x_np(corners_nm.reshape(n*npts,2), scope_id=3) # (0, pi*2]
   angles = angles.reshape(n,npts)
   sort_ids = angles.argsort(axis=1)
+
+  #from tools.visual_utils import _show_objs_ls_points_ls
+  #_show_objs_ls_points_ls( (512,512), points_ls=[corners[0][sort_ids[0]], center[0]], point_scores_ls=[range(corners[0].shape[0]), None], point_colors=['red', 'green'] )
+
   return sort_ids
 
 def sort_corners_np( pred_corners, pred_center=None ):

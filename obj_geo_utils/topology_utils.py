@@ -13,6 +13,7 @@ from obj_geo_utils.obj_utils import find_wall_wall_connection
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
 from collections import defaultdict
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls
+from obj_geo_utils.geometry_utils import arg_sort_points_np
 
 
 def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr, min_out_length):
@@ -145,26 +146,84 @@ def fix_failed_room_by_room(walls, rooms, wall_ids_per_r, obj_rep):
     walls_fixed = np.concatenate([walls_fixed, walls_new], 0)
   return walls_fixed
 
+def fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_process_per_room=0):
+  '''
+  There are only two walls for one room. Add these two walls are connected.
+  Add one extra corner and two extra walls to fulfil a rectangle.
+  '''
+  cors = corners_sorted
+  cor3 = cors[0] - cors[1] + cors[2]
+  tmp = np.repeat(cor3[None], 2, 0)
+  wall_cors_new = np.concatenate([tmp, cors[[0,2]]], 1).reshape(2,4)
+  walls_new = OBJ_REPS_PARSE.encode_obj(wall_cors_new, 'RoLine2D_2p', obj_rep)
+  walls_new = np.concatenate([walls_new, walls[:,7:8]], 1)
+  if show_fix_process_per_room:
+    _show_objs_ls_points_ls( (512,512), [ walls[:,:7], room[None,:7], walls_new[:,:7] ], obj_rep, obj_colors=['red', 'white', 'lime'])
+  return walls, walls_new
+
+def sort_connected_corners(walls, obj_rep):
+  '''
+  Split the corners into several group_ids by connection. Then sort the splited group_ids.
+  '''
+  corners, _, corIds_per_w0, n_cor = gen_corners_from_lines_np(walls[:,:7], None, obj_rep, min_cor_dis_thr=2)
+  group_ids = []
+  n_wall = walls.shape[0]
+  for i in range(n_wall):
+    c0, c1 = corIds_per_w0[i]
+    new_wall = True
+    for j in range( len(group_ids) ):
+      if c0 in group_ids[j]:
+        group_ids[j].append(c1)
+        new_wall = False
+        break
+      if c1 in group_ids[j]:
+        group_ids[j].append(c0)
+        new_wall = False
+        break
+    if new_wall:
+      group_ids.append( [c0, c1] )
+
+  min_xy = corners.min(axis=0, keepdims=True)
+  max_xy = corners.max(axis=0, keepdims=True)
+  center = (min_xy + max_xy) / 2
+
+  group_centers = []
+  for ids in group_ids:
+    group_centers.append( corners[ids].mean(0)[None] )
+  group_centers = np.concatenate(group_centers, 0)
+
+  sort_ids = arg_sort_points_np( group_centers[None], center[None] ).reshape(-1)
+
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
+
 def fix_walls_1_room(walls, room, obj_rep):
   '''
   1. Sort the corners by angle.
   2. Find corner pairs needed to be fixed.
   3. Connect two corners pair by pair. (i) Direct connect by adding an edge. (ii) Modify one corner by the intersection.
   '''
-  from obj_geo_utils.geometry_utils import arg_sort_points_np
-  from obj_geo_utils.obj_utils import find_wall_wall_connection
-  from obj_geo_utils.topology_utils import connect_two_walls
 
-  show_fix_process_per_room = 1
+  show_fix_process_per_room = 0
+  sort_connected_corners(walls, obj_rep)
 
   n_wall = walls.shape[0]
   corners, _, corIds_per_w0, n_cor = gen_corners_from_lines_np(walls[:,:7], None, obj_rep, min_cor_dis_thr=2)
-  sort_ids = arg_sort_points_np( corners[None] ).reshape(-1)
+
+  sort_ids, center = arg_sort_points_np( corners[None] ).reshape(-1)
+  sort_ids = sort_ids.reshape(-1)
   corners_sorted = corners[sort_ids]
   ids0_to_ids1 = np.arange(n_cor)
   ids0_to_ids1[sort_ids] = np.arange(n_cor)
   corIds_per_w1 = ids0_to_ids1[ corIds_per_w0 ]
 
+  if walls.shape[0] == 2 and corners_sorted.shape[0] == 3:
+    #room_cors = OBJ_REPS_PARSE.encode_obj(room[None,:7], obj_rep, 'Rect4CornersZ0Z1')[:,:8].reshape(4,2)
+    return fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_process_per_room)
+
+  _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [corners_sorted, center[0]], point_scores_ls=[range(n_cor), None] )
+
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   wIds_per_cor = defaultdict(list)
   con_cor_ids = defaultdict(list)
   for i in range(n_wall):
@@ -287,7 +346,14 @@ def sort_rooms(rooms, obj_rep):
   rooms_new = rooms[ids]
   return rooms_new
 
-def connect_two_walls(walls0, obj_rep, walls_all=None):
+
+
+
+
+
+
+
+def unused_connect_two_walls(walls0, obj_rep, walls_all=None):
   assert obj_rep == 'XYZLgWsHA'
   connection, corner_degrees, corners_per_line = find_wall_wall_connection(walls0, 3, obj_rep)
   con_num = connection[0].sum()

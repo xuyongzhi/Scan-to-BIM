@@ -322,7 +322,8 @@ def merge_two_results(results_datas_1, results_datas_2):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = [3]
+  _img_ids_debuging = [5]
+  _img_ids_debuging = None
   _opti_room = 0
 
   if 1:
@@ -854,6 +855,7 @@ class GraphEval():
                 str(self) + f'num_img: {self.num_img}\n'
     eval_str += f'optimize graph geometrically: {self.optimize_graph}\n'
     eval_str += f'optimize graph semantically: {self.optimize_graph_by_relation}\n'
+    eval_str += f'optimize walls by rooms: {self._opti_room}\n'
 
     eval_str += 'Precision-Recall\n\n'
     cats = corner_recall_precision.keys()
@@ -1375,10 +1377,12 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
   gt_bboxes = []
   det_cats = []
   gt_cats = []
+  cat_ls = []
   for i in range(num_cats):
       cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, \
         det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false,\
         det_points_pos, det_points_neg = eval_draws_ls[i]
+      cat_ls.append(cat)
       det_lines = np.concatenate([det_lines_pos, det_lines_neg], 0)
       gt_lines = np.concatenate([gt_lines_true, gt_lines_false], 0)
       num_pos = det_lines_pos.shape[0]
@@ -1391,9 +1395,20 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       det_points_pos = det_points_pos.reshape(-1, 2)
       det_points_neg = det_points_neg.reshape(-1, 2)
 
+      if img_det is None:
+        img_det = img.shape[:2]
+        det_file = img_file_base_all_cls + '_Det.png'
+
+        img_det_pts = img.shape[:2]
+        det_pts_file = img_file_base_all_cls + '_DetPts.png'
+
+        img_gt = img[:,:,0]
+        gt_file = img_file_base_all_cls + '_Gt.png'
+
       if cat == 'room':
         img_det_rooms = img[:,:,0]
         img_det_rooms_pts = img[:,:,0]
+
 
         det_rooms_file = img_file_base_all_cls + '_DetRoomScores.png'
         det_rooms_pts_file = img_file_base_all_cls + '_DetRoomsPts.png'
@@ -1404,7 +1419,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
                 obj_colors=c,
                 obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]],
                 obj_cats_ls = ['', 'F'],
-                point_colors=['yellow', 'blue'],
+                point_colors=['yellow', 'red'],
                 obj_thickness=[2,2],
                 point_thickness=[8,8],
                 out_file=None,
@@ -1425,8 +1440,8 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
 
       if cat == 'wall':
         walls = np.concatenate([det_lines_pos, det_lines_neg], 0)
-        img_det_rooms = draw_rooms_from_edges(walls[:,:7], obj_rep, img_size)
-        img_gt_rooms = draw_rooms_from_edges(gt_lines[:,:7], obj_rep, img_size)
+        img_det = draw_rooms_from_edges(walls[:,:7], obj_rep, img_size)
+        img_gt = draw_rooms_from_edges(gt_lines[:,:7], obj_rep, img_size)
       if cat in ['window', 'door']:
         det_lines_pos = align_bboxes_with_wall(det_lines_pos, walls, cat, obj_rep)
         det_lines_neg = align_bboxes_with_wall(det_lines_neg, walls, cat, obj_rep)
@@ -1440,19 +1455,15 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       det_cats += [cat] * dn
       gt_cats += [cat] * gn
 
-      if img_det is None:
-        img_det = img.shape[:2]
-        img_det_pts = img.shape[:2]
-        det_file = img_file_base_all_cls + '_Det.png'
-        det_pts_file = img_file_base_all_cls + '_DetPts.png'
-      img_det = _draw_objs_ls_points_ls(img_det_rooms,
+
+      img_det = _draw_objs_ls_points_ls(img_det,
               [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
               obj_rep,
               [det_corners_neg, det_corners_pos],
               obj_colors=c,
               obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]],
               obj_cats_ls = ['', 'F'],
-              point_colors=['yellow', 'blue'],
+              point_colors=['yellow', 'red'],
               obj_thickness=[2,2],
               point_thickness=[6,2],
               out_file=None,
@@ -1474,11 +1485,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
 
       #mmcv.imshow(img_det_pts)
 
-      if img_gt is None:
-        img_gt = img.shape[:2]
-        img_gt = img[:,:,0]
-      gt_file = img_file_base_all_cls + '_Gt.png'
-      img_gt = _draw_objs_ls_points_ls(img_gt_rooms,
+      img_gt = _draw_objs_ls_points_ls(img_gt,
               [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
               obj_rep,
               [gt_corners_true, gt_corners_false],
@@ -1486,7 +1493,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
               obj_cats_ls = ['', 'F'],
               point_colors=['blue', 'yellow'],
               obj_thickness=[2,2],
-              point_thickness=[3,3],
+              point_thickness=[2,2],
               out_file=None,
               text_colors_ls=['green', 'red'])
       #mmcv.imshow(img_gt)
@@ -1495,8 +1502,9 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
   mmcv.imwrite(img_det, det_file)
   mmcv.imwrite(img_det_pts, det_pts_file)
   mmcv.imwrite(img_gt, gt_file)
-  mmcv.imwrite(img_det_rooms, det_rooms_file)
-  mmcv.imwrite(img_det_rooms_pts, det_rooms_pts_file)
+  if 'room' in cat_ls:
+    mmcv.imwrite(img_det_rooms, det_rooms_file)
+    mmcv.imwrite(img_det_rooms_pts, det_rooms_pts_file)
 
   det_bboxes = np.concatenate( det_bboxes, axis=0 )
   gt_bboxes = np.concatenate( gt_bboxes, axis=0 )
