@@ -9,17 +9,17 @@ dst_path = os.path.join(path, 'SmallSamples')
 if not os.path.exists(dst_path):
   os.makedirs(dst_path)
 
-folder_ls = ['TopView_VerD', 'room_bboxes', 'relations', 'json']
-formats = ['.npy', '.txt', '.npy', '.json']
+folder_ls = ['TopView_VerD', 'room_bboxes', 'relations', 'json', 'pcl_scopes']
+formats = ['.npy', '.txt', '.npy', '.json', '.txt']
 
 
 for scene in scenes:
   for fold, fmt in zip(folder_ls, formats):
-    src = os.path.join(path, fold, scene+'.npy')
+    src = os.path.join(path, fold, scene+fmt)
     dst_fold = os.path.join(dst_path, fold)
     if not os.path.exists(dst_fold):
         os.makedirs(dst_fold)
     dst = os.path.join(dst_fold, scene + fmt)
     copyfile(src, dst)
-print('finish')
+print(f'finish copy these scenes to\n\t {dst_path}')
 
