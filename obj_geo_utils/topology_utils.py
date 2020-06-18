@@ -17,7 +17,11 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls
 from obj_geo_utils.geometry_utils import arg_sort_points_np
 
 
-def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr, min_out_length):
+def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr=None, min_out_length=None):
+      from utils_dataset.graph_eval_utils import GraphEval
+      if opt_graph_cor_dis_thr is None:
+        opt_graph_cor_dis_thr = GraphEval._opt_graph_cor_dis_thr
+        min_out_length = GraphEval._min_out_length
       obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
       scores_i = det_lines[:,-1]
       det_lines_merged, scores_merged, ids = \
@@ -40,7 +44,7 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
   #walls = walls[:,:7]
 
   num_rooms = rooms.shape[0]
-  wall_ids_per_room, room_ids_per_wall, num_walls_inside_room, rooms_from_w = get_rooms_from_edges(walls[:,:7], obj_rep, gen_bbox=True, show_rooms=True)
+  wall_ids_per_room, room_ids_per_wall, num_walls_inside_room, rooms_from_w = get_rooms_from_edges(walls[:,:7], obj_rep, gen_bbox=True, show_rooms=False)
   non_full_mask = (room_ids_per_wall<0).any(1)
   full_w_ids = np.where(non_full_mask==False)[0]
   non_full_w_ids = np.where(non_full_mask)[0]
@@ -52,7 +56,7 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
   fail_rooms = rooms[fail_r_ids]
   fail_walls = walls[non_full_w_ids]
   if 0:
-    _show_objs_ls_points_ls( (512,512), [rooms_from_w, rooms[succ_r_ids][:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'red', 'green'] )
+    _show_objs_ls_points_ls( (512,512), [rooms_from_w, rooms[succ_r_ids][:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'red', 'green'] , obj_thickness=[6,2,2])
     _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'red'] )
     _show_objs_ls_points_ls( (512,512), [ fail_walls[:,:7], fail_rooms[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
     #_show_objs_ls_points_ls( (512,512), [walls, walls[ wall_ids_per_room[0] ], rooms_from_w[0:1]], obj_rep, obj_colors=['white', 'green','red'] )
@@ -71,11 +75,12 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
                             obj_rep, obj_colors=['white', 'lime'], obj_thickness=[1, 2] )
 
 
-  walls_final, ids_geo_opt = geometrically_opti_walls( walls_fixed, obj_rep, 10, 20 )
   if 0:
     _show_objs_ls_points_ls( (512,512), [walls_final[:,:7],  walls_fixed[:,:7] ],
                             obj_rep, obj_colors=['red', 'lime'], obj_thickness=[4, 1] )
     _show_objs_ls_points_ls( (512,512), [walls_final[:,:7] ], obj_rep, obj_colors=['random'], obj_thickness=4 )
+  #return walls_fixed
+  walls_final, ids_geo_opt = geometrically_opti_walls( walls_fixed, obj_rep)
   return walls_final
 
 def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
@@ -95,7 +100,7 @@ def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
   walls_aug[:,3] *= 0.8
   walls_aug[:,4] = 10
   rooms_aug = rooms.copy()
-  rooms_aug[:,3:5] *= 1.3
+  rooms_aug[:,3:5] *= 1.2
 
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms_aug[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
@@ -373,16 +378,17 @@ def fix_walls_1_room(walls, room, obj_rep):
         wid_i = wIds_per_cor[i]
         wid_j = wIds_per_cor[j]
 
-        if len(wid_i)!=1:
-          _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[wid_i,:7]], obj_rep,
-              obj_colors=['white', 'lime'], points_ls=[corners_sorted[[i]] ], point_thickness=3 )
-        if len(wid_j)!=1:
-          _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[wid_j,:7]], obj_rep,
-              obj_colors=['white', 'lime'], points_ls=[corners_sorted[[j]] ], point_thickness=3 )
+        if 0:
+          if len(wid_i)!=1:
+            _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[wid_i,:7]], obj_rep,
+                obj_colors=['white', 'lime'], points_ls=[corners_sorted[[i]] ], point_thickness=3 )
+          if len(wid_j)!=1:
+            _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[wid_j,:7]], obj_rep,
+                obj_colors=['white', 'lime'], points_ls=[corners_sorted[[j]] ], point_thickness=3 )
         pass
         if not( len(wid_i) == len(wid_j) == 1):
           print( "The corners needed to be fixed should only belong to one wall.")
-          assert False
+          #assert False
         fix_wall_ids.append( [wid_i[0], wid_j[0]] )
 
   walls_fixed = walls.copy()

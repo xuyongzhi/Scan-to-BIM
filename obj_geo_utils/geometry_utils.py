@@ -1165,7 +1165,7 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
     import mmcv
     img_mask = ColorValuesNp[mask]
     img_mask[background] = 255
-    #mmcv.imshow(img_mask)
+    mmcv.imshow(img_mask)
 
   edge_ids_per_room = defaultdict(list)
   num_edges_inside_room = 0

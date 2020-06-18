@@ -1247,11 +1247,10 @@ class GraphUtils:
         wi = walls_0[i:i+1]
         wj = walls_0[j:j+1]
         iou_ij = ious[i,j]
-        print(f'Found a big iou: {iou_ij}')
+        print(f'Found a duplicate with big iou: {iou_ij}')
         iou_ij_ck = dsiou_rotated_3d_bbox_np(wi, wj, iou_w=1, size_rate_thres=0.3, ref='union')
         #_show_objs_ls_points_ls( (512,512), objs_ls=[walls_0, wi, wj], obj_rep=obj_rep, obj_thickness=[1,3,3], obj_colors=['white','lime','red'] )
-        _show_3d_points_objs_ls( objs_ls=[ wi, wj], obj_rep=obj_rep, obj_colors=['green','red'] )
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        #_show_3d_points_objs_ls( objs_ls=[ wi, wj], obj_rep=obj_rep, obj_colors=['green','red'] )
         pass
 
     iofs = dsiou_rotated_3d_bbox_np(walls_0, walls_0, iou_w=1, size_rate_thres=0.3, ref='min')
