@@ -322,9 +322,9 @@ def merge_two_results(results_datas_1, results_datas_2):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = [5]
-  _img_ids_debuging = None
-  _opti_room = 0
+  _img_ids_debuging = list(range(12,13))
+  #_img_ids_debuging = None
+  _opti_room = 1
 
   if 1:
     _all_out_types = [ 'bRefine_sAve' ] * 1
@@ -343,7 +343,7 @@ class GraphEval():
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
   _opt_graph_cor_dis_thr = 10
-  _min_out_length = 5
+  _min_out_length = 20
 
   _eval_img_scale_ratio = 1.0
   _eval_img_size_aug = 0

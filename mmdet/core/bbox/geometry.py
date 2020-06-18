@@ -122,8 +122,8 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=0.01, ref='union'):
     _show_objs_ls_points_ls((512,512), [bboxes1.cpu().numpy()], obj_rep='XYLgWsA')
     pass
 
-  bboxes1[:,-1] *= 180/np.pi
-  bboxes2[:,-1] *= 180/np.pi
+  bboxes1[:,-1] *= -180/np.pi
+  bboxes2[:,-1] *= -180/np.pi
 
   bboxes1[:,2:4] = bboxes1[:,2:4].clamp( min=min_size)
   bboxes2[:,2:4] = bboxes2[:,2:4].clamp( min=min_size)
@@ -151,8 +151,10 @@ def rotated_bbox_overlaps(bboxes1, bboxes2, min_size=0.01, ref='union'):
       ref_area = np.minimum(area1[:,None], area2[None,:])
     ious_2d = intersection / ref_area
 
-  if 0:
+  if 0 and ious_2d.shape == (1,1):
         from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+        bboxes1[:,-1] /= 180/np.pi
+        bboxes2[:,-1] /= 180/np.pi
         _show_3d_points_objs_ls( objs_ls=[ bboxes1, bboxes2], obj_rep='XYLgWsA', obj_colors=['green','red'] )
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
@@ -347,10 +349,24 @@ def test():
     [cx, cy, cz, sy, sx, sz, 0*u,],
     [cx, cy, cz, sx, sy, sz, 30*u,],
   ])
+
+  bboxes0 = torch.Tensor([
+    [ 321.0848, 285.9437, 0,  104.3308,  40.0000,  0, -0.3567 ]
+  ])
+  bboxes1 = torch.Tensor([
+    [ 348.8709, 361.3858, 0, 209.9841, 125.4045, 0,  1.2741 ]
+  ])
+
+  a = -np.pi/2 * 0.9
+  bboxes0 = torch.Tensor([
+    [ 321.0848, 285.9437, 0,  24.3308,  30.0000,  0, 0.3567 ]
+  ])
+  bboxes1 = torch.Tensor([
+    [ 348.8709, 361.3858, 0, 209.9841, 125.4045, 0,  -1.2741 ]
+  ])
+
   #ious = rotated_bbox_overlaps(bboxes0, bboxes1)
-  ious = dsiou_rotated_3d_bbox(bboxes0, bboxes1, iou_w=0.8)
-  s = ious[0][0:1]
-  s[:] = 1
+  ious = dsiou_rotated_3d_bbox(bboxes0, bboxes1, iou_w=1.0, ref='bboxes1')
   print(ious)
   for i in range(bboxes1.shape[0]):
     print(ious[0,i])
@@ -358,6 +374,8 @@ def test():
                                 obj_colors=['green', 'red'] )
   #_show_objs_ls_points_ls_torch( (512,512), [bboxes0, bboxes1], obj_rep='XYLgWsA',
   #                              obj_colors=['red','green'], obj_scores_ls=[s, ious[0]] )
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
 
 if __name__ == '__main__':
   test()

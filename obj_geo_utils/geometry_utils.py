@@ -1194,7 +1194,7 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
         non_loop_edge_ids.append(i)
         special = 'non_loop'
 
-    if debug:
+    if debug and False:
       cor_1 = img_mask[ y1, x1 ]
       cor_2 = img_mask[ y2, x2 ]
       print(f'\nspecial: {special}')

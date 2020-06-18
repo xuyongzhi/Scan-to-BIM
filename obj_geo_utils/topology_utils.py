@@ -7,7 +7,8 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
 import cv2
 import torch
 from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box,\
-  sort_four_corners, line_intersection_2d, mean_angles, angle_dif_by_period_np
+  sort_four_corners, line_intersection_2d, mean_angles, angle_dif_by_period_np,\
+  lines_intersection_2d
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from obj_geo_utils.obj_utils import find_wall_wall_connection
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
@@ -34,12 +35,12 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
   '''
   from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges
   from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
-  debug = 1
+  show_fixed_res = 0
   #rooms = rooms[:,:7]
   #walls = walls[:,:7]
 
   num_rooms = rooms.shape[0]
-  wall_ids_per_room, room_ids_per_wall, num_walls_inside_room, rooms_from_w = get_rooms_from_edges(walls[:,:7], obj_rep, gen_bbox=True)
+  wall_ids_per_room, room_ids_per_wall, num_walls_inside_room, rooms_from_w = get_rooms_from_edges(walls[:,:7], obj_rep, gen_bbox=True, show_rooms=True)
   non_full_mask = (room_ids_per_wall<0).any(1)
   full_w_ids = np.where(non_full_mask==False)[0]
   non_full_w_ids = np.where(non_full_mask)[0]
@@ -56,24 +57,26 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
     _show_objs_ls_points_ls( (512,512), [ fail_walls[:,:7], fail_rooms[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
     #_show_objs_ls_points_ls( (512,512), [walls, walls[ wall_ids_per_room[0] ], rooms_from_w[0:1]], obj_rep, obj_colors=['white', 'green','red'] )
 
+  _, cor_degress, _ = find_wall_wall_connection(walls[:,:7], 2, obj_rep)
+
   room_ids_per_fail_wall = room_ids_per_wall[non_full_w_ids]
   num_rooms_per_fail_wall = (room_ids_per_fail_wall>=0).sum(1)
   walls_fail_fixed = fix_failed_rooms_walls(fail_walls, fail_rooms, num_rooms_per_fail_wall, obj_rep)
   walls_fixed = np.concatenate([walls[full_w_ids], walls_fail_fixed ], 0)
 
-  if 0:
+  if show_fixed_res:
     _show_objs_ls_points_ls( (512,512), [rooms[:,:7], walls[:,:7], walls_fixed[:,:7] ],
-                            obj_rep, obj_colors=['white', 'red', 'lime'], obj_thickness=[1, 5, 1] )
+                            obj_rep, obj_colors=['white', 'red', 'lime'], obj_thickness=[1, 6, 2] )
     _show_objs_ls_points_ls( (512,512), [rooms[:,:7],  walls_fixed[:,:7] ],
                             obj_rep, obj_colors=['white', 'lime'], obj_thickness=[1, 2] )
 
 
-  #walls_final, ids_geo_opt = geometrically_opti_walls( walls_fixed, obj_rep, 2, 5 )
+  walls_final, ids_geo_opt = geometrically_opti_walls( walls_fixed, obj_rep, 10, 20 )
   if 0:
     _show_objs_ls_points_ls( (512,512), [walls_final[:,:7],  walls_fixed[:,:7] ],
                             obj_rep, obj_colors=['red', 'lime'], obj_thickness=[4, 1] )
     _show_objs_ls_points_ls( (512,512), [walls_final[:,:7] ], obj_rep, obj_colors=['random'], obj_thickness=4 )
-  return walls_fixed
+  return walls_final
 
 def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
   '''
@@ -82,22 +85,24 @@ def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
   3. Fix room by room
   '''
   show_room_ids_per_wall = 0
+  show_walls_per_room = 0
+  show_fail_fixed = 0
 
-  score_th = 0.4
+  score_th = 0.5
   num_rooms = rooms.shape[0]
   num_walls = walls.shape[0]
   walls_aug = walls.copy()
   walls_aug[:,3] *= 0.8
-  walls_aug[:,4] = 3
+  walls_aug[:,4] = 10
   rooms_aug = rooms.copy()
-  rooms_aug[:,3:5] *= 1.2
+  rooms_aug[:,3:5] *= 1.3
 
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms_aug[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
 
   w_in_r_scores = cal_edge_in_room_scores(walls_aug[:,:7], rooms_aug[:,:7], obj_rep)
   room_qua_scores = get_room_quality_scores(rooms, obj_rep)
-  w_in_r_scores = w_in_r_scores *  room_qua_scores[None,:]
+  #w_in_r_scores = w_in_r_scores *  room_qua_scores[None,:]
   sort_room_ids = (-w_in_r_scores).argsort(1)
 
   room_ids_per_w = []
@@ -113,23 +118,68 @@ def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
     for j in room_ids_wi:
       wall_ids_per_r[j].append(i)
 
-    if show_room_ids_per_wall:
+    if show_room_ids_per_wall and i ==16:
       room_scores_wi = room_scores_i[mask_i]
-      max_out_score = room_scores_i[mask_i==False][0]
       print(f'\nwall {i}')
       print(f'room_scores_i: {room_scores_wi}')
-      print(f'max_out_score: {max_out_score:.3f}')
-      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[i:i+1,:-1], rooms[room_ids_wi,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+      max_out_score = room_scores_i[mask_i==False]
+      if len(max_out_score)>0:
+        max_out_score = max_out_score[0]
+        print(f'max_out_score: {max_out_score:.3f}')
+      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[i:i+1,:-1], rooms_aug[room_ids_wi,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+      _show_objs_ls_points_ls( (512,512), [walls_aug[:,:-1], walls[i:i+1,:-1], rooms_aug[:,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
 
-  walls_fixed = fix_failed_room_by_room( walls, rooms, wall_ids_per_r, obj_rep )
+  num_r = rooms.shape[0]
+  for i in range(num_r):
+    wids = wall_ids_per_r[i]
+    valid_ids_i =  clean_outer_false_walls_of_1_room(rooms[i], walls[wids], obj_rep)
+    wids_valid = [wids[vi] for vi in  valid_ids_i]
+    wall_ids_per_r[i] = wids_valid
+    if show_walls_per_room:
+      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[wids,:-1], rooms[i:i+1,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[wids_valid,:-1], rooms[i:i+1,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+
+  walls_fixed, walls_new = fix_failed_room_by_room( walls.copy(), rooms, wall_ids_per_r, obj_rep )
+  num_new = walls_new.shape[0]
+  if show_fail_fixed:
+    print(f'\nadd {num_new} walls\n')
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls_fixed[:,:7], walls_new[:,:7]], obj_rep, obj_colors=['white', 'blue', 'red'], obj_thickness=[8,2,2] )
+  walls_fixed = np.concatenate([walls_fixed, walls_new], 0)
 
   return walls_fixed
+
+def clean_outer_false_walls_of_1_room(room, walls, obj_rep):
+  from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
+  assert obj_rep == 'XYZLgWsHA'
+  nw = walls.shape[0]
+  cen_room = room[None, :2]
+  w_lines = OBJ_REPS_PARSE.encode_obj(walls[:,:7], obj_rep, 'RoLine2D_2p').reshape(-1,2,2)
+  valid_ids = []
+  for i in range(nw):
+    cen_i = walls[i:i+1, :2]
+    box = np.concatenate([cen_i, cen_room], 1)
+    box = OBJ_REPS_PARSE.encode_obj(box, 'RoLine2D_2p', obj_rep)
+    box[:, 3:5] *= 0.9
+
+    line_i = OBJ_REPS_PARSE.encode_obj(box, obj_rep, 'RoLine2D_2p').reshape(1,2,2)
+    intsects = lines_intersection_2d( line_i, w_lines, True, True )
+    valid_i = np.isnan(intsects).all()
+
+    if valid_i:
+      valid_ids.append( i )
+    if 0:
+      print(valid_i)
+      print(intsects)
+      _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[i:i+1,:7], box], obj_rep, obj_colors=['white', 'lime', 'red'] )
+  return valid_ids
 
 def cal_edge_in_room_scores(walls, rooms, obj_rep):
   from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
   ious = dsiou_rotated_3d_bbox_np( walls, rooms, iou_w=1.0, size_rate_thres=None, ref='bboxes1', only_2d=True )
+  #print(ious)
+  #_show_objs_ls_points_ls( (512,512), [walls, rooms], obj_rep, obj_colors=['green', 'red' ], obj_thickness=[1,3] )
   return ious
 
 def fix_failed_room_by_room(walls, rooms, wall_ids_per_r, obj_rep):
@@ -141,10 +191,11 @@ def fix_failed_room_by_room(walls, rooms, wall_ids_per_r, obj_rep):
     walls[wids] = walls_fixed_i
     walls_new.append( walls_new_i )
   walls_fixed = walls
-  if len(walls_new)>0:
+  if len(walls_new) > 0:
     walls_new = np.concatenate(walls_new, 0)
-    walls_fixed = np.concatenate([walls_fixed, walls_new], 0)
-  return walls_fixed
+  else:
+    walls_new = walls_fixed[0:0]
+  return walls_fixed, walls_new
 
 def fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_process_per_room=0):
   '''
@@ -161,41 +212,111 @@ def fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_proce
     _show_objs_ls_points_ls( (512,512), [ walls[:,:7], room[None,:7], walls_new[:,:7] ], obj_rep, obj_colors=['red', 'white', 'lime'])
   return walls, walls_new
 
+def insert_with_order(groups, exist_i, new_i):
+  '''
+  groups: []
+  exist_i: alread in groups
+  new_i: not in groups, connected with exist_i
+
+  insert new_i into groups. make exist_i and new_i connected
+  exist_i should at the start or end of groups
+  '''
+  if exist_i == groups[0]:
+    groups = [new_i] +  groups
+  elif exist_i == groups[-1]:
+    groups = groups + [new_i]
+  else:
+    print("Not a loop")
+    #raise NotImplementedError
+  return groups
+
+def merge_groups( group_ids, w_in_g_ids ):
+  gi0 = w_in_g_ids[0]
+  for i in w_in_g_ids[1:]:
+    group_ids[gi0] = merge_two_groups( group_ids[gi0], group_ids[i] )
+  group_ids = [group_ids[ i ] for i in range(len(group_ids)) if i not in w_in_g_ids[1:] ]
+  return group_ids
+
+def merge_two_groups(group0, group1):
+  if group0[0] == group1[-1]:
+    return group1 + group0[1:]
+  if group1[0] == group0[-1]:
+    return group0 + group1[1:]
+  if group0[0] == group1[0]:
+    group0.reverse()
+    return group0 + group1[1:]
+  if group0[-1] == group1[-1]:
+    group1.reverse()
+    return group0 + group1[1:]
+  raise NotImplementedError
+
 def sort_connected_corners(walls, obj_rep):
   '''
   Split the corners into several group_ids by connection. Then sort the splited group_ids.
   '''
+  #_show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, )
+
   corners, _, corIds_per_w0, n_cor = gen_corners_from_lines_np(walls[:,:7], None, obj_rep, min_cor_dis_thr=2)
   group_ids = []
   n_wall = walls.shape[0]
   for i in range(n_wall):
     c0, c1 = corIds_per_w0[i]
-    new_wall = True
+    w_in_g_ids = []
     for j in range( len(group_ids) ):
-      if c0 in group_ids[j]:
-        group_ids[j].append(c1)
-        new_wall = False
-        break
-      if c1 in group_ids[j]:
-        group_ids[j].append(c0)
-        new_wall = False
-        break
-    if new_wall:
+      if c0 in group_ids[j] or c1 in group_ids[j]:
+        if len(w_in_g_ids) == 0:
+            if c0 not in group_ids[j]:
+              group_ids[j] = insert_with_order( group_ids[j], c1, c0 )
+            if c1 not in group_ids[j]:
+              group_ids[j] = insert_with_order( group_ids[j], c0, c1 )
+        w_in_g_ids.append(j)
+    if len(w_in_g_ids) >= 2:
+      # merge the groups of w_in_g_ids
+      group_ids = merge_groups(group_ids, w_in_g_ids)
+    if len(w_in_g_ids) == 0:
       group_ids.append( [c0, c1] )
+    #print(i, group_ids)
+  group_ids = [np.array(ids) for ids in group_ids]
+  cor_nums_per_g = [len(g) for g in group_ids]
+  n_cor_1 = sum(cor_nums_per_g)
+  if not n_cor_1 == n_cor:
+    assert False, f"{n_cor} != {n_cor_1}"
 
   min_xy = corners.min(axis=0, keepdims=True)
   max_xy = corners.max(axis=0, keepdims=True)
   center = (min_xy + max_xy) / 2
 
-  group_centers = []
-  for ids in group_ids:
-    group_centers.append( corners[ids].mean(0)[None] )
+  group_centers = [ corners[ids].mean(0)[None] for ids in group_ids]
   group_centers = np.concatenate(group_centers, 0)
+  group_sort_ids = arg_sort_points_np( group_centers[None], center[None] ).reshape(-1)
+  group_ids = [ group_ids[i] for i in group_sort_ids ]
 
-  sort_ids = arg_sort_points_np( group_centers[None], center[None] ).reshape(-1)
+  if 0:
+    for ids in group_ids:
+      _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [corners[ids], center], point_scores_ls=[range(len(ids)), None] )
 
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
-  pass
+  num_groups = len(group_ids)
+  for i in  range(1, num_groups):
+    anchor_last = corners[ group_ids[i-1][-1] ][None]
+    s, e = group_ids[i][0], group_ids[i][-1]
+    cor_cur_s_e = corners[ [s, e] ]
+    dis_s_e = np.linalg.norm( anchor_last - cor_cur_s_e, axis=1 )
+    if dis_s_e[0] > dis_s_e[1]:
+      group_ids[i] = group_ids[i][::-1]
+    if 0:
+      print(dis_s_e)
+      _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [anchor_last, cor_cur_s_e[0:1], cor_cur_s_e[1:2] ], point_scores_ls=[[0],[1],[2]] )
+    pass
+
+  cor_sort_ids = np.concatenate(group_ids, 0)
+  corners_sorted = corners[ cor_sort_ids ]
+
+  ids0_to_ids1 = np.arange(n_cor)
+  ids0_to_ids1[cor_sort_ids] = np.arange(n_cor)
+  corIds_per_w1 = ids0_to_ids1[ corIds_per_w0 ]
+
+  #_show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [corners_sorted], point_scores_ls=[range(n_cor)] )
+  return corners_sorted, corIds_per_w1
 
 def fix_walls_1_room(walls, room, obj_rep):
   '''
@@ -204,26 +325,21 @@ def fix_walls_1_room(walls, room, obj_rep):
   3. Connect two corners pair by pair. (i) Direct connect by adding an edge. (ii) Modify one corner by the intersection.
   '''
 
+  if walls.shape[0] == 0:
+    return walls, walls
+
   show_fix_process_per_room = 0
-  sort_connected_corners(walls, obj_rep)
+  show_fix_res_per_room = 0
 
   n_wall = walls.shape[0]
-  corners, _, corIds_per_w0, n_cor = gen_corners_from_lines_np(walls[:,:7], None, obj_rep, min_cor_dis_thr=2)
+  corners_sorted, corIds_per_w1 = sort_connected_corners(walls, obj_rep)
+  n_cor = corners_sorted.shape[0]
 
-  sort_ids, center = arg_sort_points_np( corners[None] ).reshape(-1)
-  sort_ids = sort_ids.reshape(-1)
-  corners_sorted = corners[sort_ids]
-  ids0_to_ids1 = np.arange(n_cor)
-  ids0_to_ids1[sort_ids] = np.arange(n_cor)
-  corIds_per_w1 = ids0_to_ids1[ corIds_per_w0 ]
 
   if walls.shape[0] == 2 and corners_sorted.shape[0] == 3:
     #room_cors = OBJ_REPS_PARSE.encode_obj(room[None,:7], obj_rep, 'Rect4CornersZ0Z1')[:,:8].reshape(4,2)
-    return fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_process_per_room)
+    return fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_res_per_room)
 
-  _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [corners_sorted, center[0]], point_scores_ls=[range(n_cor), None] )
-
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   wIds_per_cor = defaultdict(list)
   con_cor_ids = defaultdict(list)
   for i in range(n_wall):
@@ -273,7 +389,7 @@ def fix_walls_1_room(walls, room, obj_rep):
   walls_new = []
   for  i in range( len(fix_pairs) ):
     cors_i = corners_sorted[fix_pairs[i]]
-    walls_i = walls[fix_wall_ids[i]]
+    walls_i = walls_fixed[fix_wall_ids[i]]
     walls1, new_wall = connect_two_corner(cors_i, walls_i, obj_rep)
     walls_fixed[fix_wall_ids[i],:7] = walls1
     walls_new.append( new_wall )
@@ -284,7 +400,13 @@ def fix_walls_1_room(walls, room, obj_rep):
       wn= np.concatenate(walls_new, 0)
       _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls_fixed[:,:7], wn[:,:7] ], obj_rep,
           obj_colors=['green', 'red', 'yellow'], obj_thickness=[5, 2, 2] )
+      pass
   walls_new = np.concatenate(walls_new, 0)
+
+  if show_fix_res_per_room:
+    walls_final = np.concatenate([walls_fixed, walls_new], 0)
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7], room[None,:7], walls_final[:,:7]], obj_rep,
+            obj_colors=['red', 'white', 'lime'], obj_thickness=[5,1,1])
   return walls_fixed, walls_new
 
 def connect_two_corner(corners, walls0, obj_rep):
@@ -295,11 +417,12 @@ def connect_two_corner(corners, walls0, obj_rep):
   c = walls0.shape[1]
   angle_dif = limit_period_np( walls0[0,6] - walls0[1,6], 0.5, np.pi)
   angle_dif = abs(angle_dif)
-  walls1 = None
+  need_add = True
   if angle_dif > np.pi / 4:
       walls1 = connect_two_edges_by_intersect( walls0[:,:7], obj_rep, corners )
       new_wall = walls0[0:0,:c]
-  if walls1 is None:
+      need_add = walls1 is None
+  if need_add:
       new_wall = OBJ_REPS_PARSE.encode_obj(corners.reshape(1,4), 'RoLine2D_2p', obj_rep)
       if c==8:
         score = walls0[:, 7:8].mean().reshape(1,1)
@@ -350,51 +473,31 @@ def sort_rooms(rooms, obj_rep):
 
 
 
-
-
-
-def unused_connect_two_walls(walls0, obj_rep, walls_all=None):
-  assert obj_rep == 'XYZLgWsHA'
-  connection, corner_degrees, corners_per_line = find_wall_wall_connection(walls0, 3, obj_rep)
-  con_num = connection[0].sum()
-  if con_num == 1:
-    # (1) One corner of the two walls is already connected. Connect the other
-    # corner to a triangle. Add one wall.
-    walls1 = connect_two_edges_to_a_triangle( corner_degrees, corners_per_line, obj_rep )
-  else:
-    angle_dif = limit_period_np( walls0[0,6] - walls0[1,6], 0.5, np.pi)
-    angle_dif = abs(angle_dif)
-    if angle_dif > np.pi / 4:
-      # (2) Only connect one closer point by the intersected point. Do not add
-      # walls.
-      walls1 = connect_two_edges_by_intersect( walls0[:,:7], obj_rep )
-    else:
-      # (3) Only connect one closer point by adding a wall.
-      pass
-  _show_objs_ls_points_ls( (512,512), [  walls_all[:,:7], walls0[:,:7], walls1[:,:7] ], obj_rep, obj_colors=['white', 'red', 'lime'], obj_thickness=[1, 3,1] )
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
-  pass
-
 def connect_two_edges_to_a_triangle(corner_degrees, corners_per_line, obj_rep):
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
-def connect_two_edges_by_intersect(walls0, obj_rep, corners_fixed=None):
+def connect_two_edges_by_intersect(walls0, obj_rep, corners_bad=None):
   '''
-  corners_fixed: if this is not None, this is the corners that should be fixed.
+  corners_bad: if this is not None, this is the corners that should be fixed.
   '''
   assert walls0.shape[0] == 2
+  #_show_objs_ls_points_ls( (512,512), [walls0], obj_rep, points_ls=[corners_bad] )
   w0, w1 = walls0[0], walls0[1]
   cor_0 = OBJ_REPS_PARSE.encode_obj(w0[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
   cor_1 = OBJ_REPS_PARSE.encode_obj(w1[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
   intersect = line_intersection_2d(cor_0, cor_1, min_angle=np.pi/8).reshape(1,2)
   cor_0_new = replace_1cor_of_edge(cor_0, intersect).reshape(1,4)
   cor_1_new = replace_1cor_of_edge(cor_1, intersect).reshape(1,4)
-  if corners_fixed is not None:
-    dif0 = corners_fixed[0:1] - cor_0_new.reshape(2,2)
-    dis0 = np.linalg.norm( dif0, axis=1 ).min()
-    if dis0 < 2:
-      # The corners_fixed should be replaced. But it is still here. Invalid
+  if corners_bad is not None:
+    dis_to_bad = np.linalg.norm( corners_bad - intersect, axis=1 )
+    dis0 = np.linalg.norm( cor_0 - intersect, axis=1 )
+    dis1 = np.linalg.norm( cor_1 - intersect, axis=1 )
+    check0 =  abs(dis_to_bad[0] - dis0.min()) < 1
+    check1 =  abs(dis_to_bad[1] - dis1.min()) < 1
+    check = check0 * check1
+    if not check:
+      # The corners_bad should be replaced. But it is still here. Invalid
       # connection
       return None
   w_0_new = OBJ_REPS_PARSE.encode_obj(cor_0_new, 'RoLine2D_2p', obj_rep)[0]

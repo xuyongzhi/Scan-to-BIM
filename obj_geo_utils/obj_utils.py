@@ -401,7 +401,7 @@ class OBJ_REPS_PARSE():
     elif obj_rep_in == 'XYLgWsA' and obj_rep_out == 'XYXYSin2W':
       bboxes_s2t = OBJ_REPS_PARSE.XYLgWsA_TO_XYXYSin2W(bboxes)
       check = 1
-      if check:
+      if check and bboxes_s2t.shape[0]>0:
         bboxes_c = OBJ_REPS_PARSE.encode_obj(bboxes_s2t, 'XYXYSin2W', 'XYLgWsA')
         err = bboxes_c - bboxes
         err[:,-1] = limit_period_np(err[:,-1], 0.5, np.pi)
@@ -1985,15 +1985,15 @@ def find_wall_wall_connection(bboxes, connect_threshold, obj_rep):
       wall_con_mask = corner_con_mask0.reshape(n,2,n,2).any(1).any(-1)
       return wall_con_mask, corner_degrees, corners_per_line.reshape(n,2,2)
 
-      xinds, yinds = np.where(connect_mask)
-      connection = np.concatenate([xinds[:,None], yinds[:,None]], axis=1).astype(np.uint8)
-      relations = []
-      for i in range(n):
-        relations.append([])
-      for i in range(connection.shape[0]):
-        x,y = connection[i]
-        relations[x].append(y)
-      return connect_mask
+      #xinds, yinds = np.where(connect_mask)
+      #connection = np.concatenate([xinds[:,None], yinds[:,None]], axis=1).astype(np.uint8)
+      #relations = []
+      #for i in range(n):
+      #  relations.append([])
+      #for i in range(connection.shape[0]):
+      #  x,y = connection[i]
+      #  relations[x].append(y)
+      #return connect_mask
 
 def connectivity_distance_1_pair(relations, x, y, max_search=3):
   np.fill_diagonal(relations, 0)

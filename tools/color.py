@@ -5,7 +5,7 @@ import numpy as np
 
 from mmcv.utils import is_str
 
-COLOR_MAP_2D = {'wall': 'lime', 'door': 'red', 'window':'blue', 'room': 'green'}
+COLOR_MAP_2D = {'wall': 'black', 'door': 'red', 'window':'blue', 'room': 'green'}
 COLOR_MAP_3D = {'wall': 'gray', 'beam':'brown', 'column':'blue', 'door':'cyan',  'window':'yellow',  'floor':'silver', 'ceiling':'navy', 'room':'green'}
 
 class OLDColor(Enum):
