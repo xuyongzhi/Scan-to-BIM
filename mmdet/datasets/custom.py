@@ -236,8 +236,8 @@ def show_results_train(results, obj_rep):
   print(f'flip: {flip}\nrotate_angle: {rotate_angle}')
 
   #_show_lines_ls_points_ls(img[:,:,0], [gt_bboxes])
-  #_show_objs_ls_points_ls(img[:,:,0], [gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_labels])
-  _show_objs_ls_points_ls(img[:,:,0], [gt_bboxes], obj_rep=obj_rep, obj_colors='random')
+  _show_objs_ls_points_ls(img[:,:,0], [gt_bboxes], obj_rep=obj_rep, obj_colors=[gt_labels])
+  #_show_objs_ls_points_ls(img[:,:,0], [gt_bboxes], obj_rep=obj_rep, obj_colors='random')
   #_show_lines_labels(img[:,:,0], gt_bboxes, gt_labels)
   #_show_img_with_norm(img)
   #_show_lines_ls_points_ls(img[:,:,1:])

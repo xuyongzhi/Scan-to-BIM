@@ -32,7 +32,7 @@ PCL_LINE_BOUND_PIXEL = PCL_LINE_BOUND_METER / 0.04
 #LOAD_CLASSES = ['wall', 'window', 'door']
 #LOAD_CLASSES = ['wall']
 
-DEBUG = True
+DEBUG = False
 #UNALIGNED_SCENES =  ['7w6zvVsOBAQK4h4Bne7caQ', 'IDZkUGse-74FIy2OqM2u_Y',
 #                    'B9Abt6B78a0j2eRcygHjqC', 'Akkq4Ch_48pVUAum3ooSnK',
 #                    'w2BaBfwjX0iN2cMjvpUNfa', 'yY5OzetjnLred7G8oOzZr1',
@@ -181,8 +181,8 @@ class BEIKE(BEIKE_CLSINFO):
 
     def load_1_anno(self, idx):
       jfn = self.img_infos[idx]['filename'].split('.')[0] + '.json'
-      if DEBUG_CFG:
-        print(f'{jfn}')
+      if DEBUG:
+        print(jfn)
       anno_raw = load_anno_1scene(self.anno_folder, jfn,
                             self._classes, filter_edges=self.filter_edges,
                             is_save_connection = self.is_save_connection)

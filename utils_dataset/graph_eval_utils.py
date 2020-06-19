@@ -668,6 +668,9 @@ class GraphEval():
     new_walls = optimize_walls_by_rooms_main( walls_org, rooms_org, self.obj_rep )
     det_lines_merged_ls[wall_i] = new_walls
     wall_ids_per_room, _,_, room_bboxes = get_rooms_from_edges(new_walls[:,:7], self.obj_rep, gen_bbox=True)
+    scores_r = room_bboxes[:,0:1].copy()
+    scores_r[:] = 1
+    room_bboxes = np.concatenate([room_bboxes, scores_r], 1)
     det_lines_merged_ls[room_i] = room_bboxes
     return wall_ids_per_room
 
@@ -1737,7 +1740,7 @@ def main():
   dir2 = 'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr0_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
 
   filename = 'detection_10_Imgs.pickle'
-  filename = 'detection_90_Imgs.pickle'
+  #filename = 'detection_90_Imgs.pickle'
 
   resf1 = os.path.join( os.path.join(workdir, dir1), filename)
   resf2 = os.path.join( os.path.join(workdir, dir2), filename)

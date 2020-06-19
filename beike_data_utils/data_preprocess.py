@@ -16,7 +16,7 @@ train.txt, test.txt will update every time because they are randomly sampled fro
 
 # To make sure all data generated successfully. Please use pool_num=0 run all
 # the pre-processing afture using pool_num>0
-pool_num = 0
+pool_num = 5
 
 from gen_scene_list_scope import gen_scene_list_pcl_scope
 # max_scene_num = None for all scenes

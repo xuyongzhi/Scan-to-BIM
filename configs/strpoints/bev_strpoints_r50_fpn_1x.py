@@ -12,7 +12,7 @@ IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 #DATA = 'stanford2d'
 classes= ['wall']
-classes= ['room']
+#classes= ['room']
 
 if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
@@ -79,10 +79,10 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=1.0,),
+            loss_weight=2.0,),
         cls_types=['refine', 'final'],
-        loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
-        loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
+        loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.3),
+        loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         transform_method=_transform_method,
         dcn_zero_base=False,
         corner_hm = False,
@@ -108,9 +108,9 @@ train_cfg = dict(
     refine=dict(
         assigner=dict(
             type='MaxIoUAssigner',
-            pos_iou_thr=0.7,
-            neg_iou_thr=0.4,
-            min_pos_iou=0.15,
+            pos_iou_thr=0.65,
+            neg_iou_thr=0.3,
+            min_pos_iou=0.1,
             ignore_iof_thr=-1,
             overlap_fun='dil_iou_dis_rotated_3d',
             obj_rep=_obj_rep_out),
@@ -234,17 +234,17 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs =  1510
+total_epochs =  10
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.4), int(total_epochs*0.7)])
-checkpoint_config = dict(interval=50)
+checkpoint_config = dict(interval=5)
 # yapf:disable
 log_config = dict(
-    interval=1,
+    interval=10,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
@@ -261,17 +261,19 @@ if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
   work_dir += '_Max_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun2_wd_bev.pth'
+  load_from = './checkpoints/beike/jun17_wd_bev_L.pth'
   if 'room' in classes:
     load_from = './checkpoints/beike/jun14_room_bev.pth'
+    load_from = './checkpoints/beike/jun18_r_bev_L.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 
-load_from = None
+#load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 1:
+if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
-  checkpoint_config = dict(interval=100)
+  checkpoint_config = dict(interval=10)
 

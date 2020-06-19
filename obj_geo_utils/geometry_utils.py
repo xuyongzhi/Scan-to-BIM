@@ -1217,8 +1217,6 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
       room_bboxes.append(room_bbox)
     room_bboxes = np.concatenate(room_bboxes, 0)
     r_scores = room_bboxes[:,0:1].copy()
-    r_scores[:] = 1
-    room_bboxes = np.concatenate([room_bboxes, r_scores], 1)
   else:
     room_bboxes = None
 

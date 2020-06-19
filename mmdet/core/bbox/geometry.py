@@ -337,33 +337,34 @@ def test():
   cx = 200
   cy = 200
   cz = 0
-  sx = 0
-  sy = 0
+  sx = 100
+  sy = 50
   sz = 0
-  u = np.pi/180
+  u = -np.pi/180
   bboxes0 = torch.Tensor([
     [cx, cy, cz, sx, sy, sz, 0]
   ])
   bboxes1 = torch.Tensor([
-    [cx, cy, cz, sx, sy, sz, 0*u,],
-    [cx, cy, cz, sy, sx, sz, 0*u,],
+    [cx, cy, cz, sx, sy, sz, 10*u,],
+    [cx, cy, cz, sy, sx, sz, 5*u,],
     [cx, cy, cz, sx, sy, sz, 30*u,],
   ])
+  bboxes1[:,0] += 60
 
-  bboxes0 = torch.Tensor([
-    [ 321.0848, 285.9437, 0,  104.3308,  40.0000,  0, -0.3567 ]
-  ])
-  bboxes1 = torch.Tensor([
-    [ 348.8709, 361.3858, 0, 209.9841, 125.4045, 0,  1.2741 ]
-  ])
+  #bboxes0 = torch.Tensor([
+  #  [ 321.0848, 285.9437, 0,  104.3308,  40.0000,  0, -0.3567 ]
+  #])
+  #bboxes1 = torch.Tensor([
+  #  [ 348.8709, 361.3858, 0, 209.9841, 125.4045, 0,  1.2741 ]
+  #])
 
-  a = -np.pi/2 * 0.9
-  bboxes0 = torch.Tensor([
-    [ 321.0848, 285.9437, 0,  24.3308,  30.0000,  0, 0.3567 ]
-  ])
-  bboxes1 = torch.Tensor([
-    [ 348.8709, 361.3858, 0, 209.9841, 125.4045, 0,  -1.2741 ]
-  ])
+  #a = -np.pi/2 * 0.9
+  #bboxes0 = torch.Tensor([
+  #  [ 321.0848, 285.9437, 0,  24.3308,  30.0000,  0, 0.3567 ]
+  #])
+  #bboxes1 = torch.Tensor([
+  #  [ 348.8709, 361.3858, 0, 209.9841, 125.4045, 0,  -1.2741 ]
+  #])
 
   #ious = rotated_bbox_overlaps(bboxes0, bboxes1)
   ious = dsiou_rotated_3d_bbox(bboxes0, bboxes1, iou_w=1.0, ref='bboxes1')
@@ -374,7 +375,6 @@ def test():
                                 obj_colors=['green', 'red'] )
   #_show_objs_ls_points_ls_torch( (512,512), [bboxes0, bboxes1], obj_rep='XYLgWsA',
   #                              obj_colors=['red','green'], obj_scores_ls=[s, ious[0]] )
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
 if __name__ == '__main__':
