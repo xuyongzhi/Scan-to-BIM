@@ -12,7 +12,7 @@ IMAGE_SIZE = DIM_PARSE.IMAGE_SIZE
 DATA = 'beike2d'
 #DATA = 'stanford2d'
 classes= ['wall']
-#classes= ['room']
+classes= ['room']
 
 if DATA == 'beike2d':
   _obj_rep = 'XYXYSin2'
@@ -179,7 +179,7 @@ test_pipeline = [
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
             dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
-            dict(type='ImageToTensor', keys=['img', 'gt_bboxes', 'gt_labels']),
+            dict(type='ImageToTensor', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_relations']),
             dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_relations']),
         ])
 ]
@@ -270,7 +270,7 @@ load_from = None
 resume_from = None
 auto_resume = True
 workflow = [('train', 5), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=100)

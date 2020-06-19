@@ -15,7 +15,7 @@ from tools.color import COLOR_MAP_3D, ColorList
 import torch
 import time
 
-EVAL_METHOD = ['corner', 'iou'][0]
+EVAL_METHOD = ['corner', 'iou'][1]
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
@@ -123,6 +123,8 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
             gt_labels = gt_labels[0]
           res_data['gt_bboxes'] = gt_bboxes.cpu().numpy()
           res_data['gt_labels'] = gt_labels.cpu().numpy()
+          gt_relations = result['gt_relations'][0][0]
+          res_data['gt_relations'] = gt_relations.cpu().numpy()
 
           #_show_objs_ls_points_ls(img_i, [res_data['gt_bboxes'][0]], obj_rep='XYXYSin2')
           pass
@@ -322,7 +324,7 @@ def merge_two_results(results_datas_1, results_datas_2):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  #_img_ids_debuging = list(range(50,70))
+  _img_ids_debuging = list(range(5))
   _img_ids_debuging = None
   _opti_room = 1
 
@@ -349,6 +351,8 @@ class GraphEval():
   _eval_img_size_aug = 0
   _max_ofs_by_rel = 30
 
+  _iou_threshold = 0.7
+
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['0Kajc_nnyZ6K0cRGCQJW56']
   scene_list = None
@@ -361,7 +365,6 @@ class GraphEval():
     self.classes = classes
     self.filter_edges = filter_edges
     self.dim_parse = DIM_PARSE(obj_rep, len(classes)+1)
-    self.iou_threshold = 0.7
     pass
 
   def __str__(self):
@@ -382,7 +385,10 @@ class GraphEval():
   def update_path(self, out_file):
     self.work_dir = os.path.dirname(out_file)
     s = int(self._score_threshold*10)
-    self.par_nice = f'Score{s}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
+    if EVAL_METHOD == 'corner':
+      self.par_nice = f'Score{s}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
+    if EVAL_METHOD == 'iou':
+      self.par_nice = f'Score{s}_minLen{self._min_out_length}_{self.out_type}_IoU{self._iou_threshold}'
     if self.optimize_graph:
       self.par_nice += f'_OptGraph{self._opt_graph_cor_dis_thr}'
     if self.optimize_graph_by_relation:
@@ -401,6 +407,8 @@ class GraphEval():
       eval_fn = self.evaluate_by_corner
     if EVAL_METHOD == 'iou':
       eval_fn = self.evaluate_by_iou
+    if EVAL_METHOD == 'rel':
+      eval_fn = self.evaluate_by_rel
     for out_type, opt_g, opt_rel in zip(self._all_out_types, self._opti_graph, self._opti_by_rel):
       self.out_type = out_type
       eval_fn(results_datas, out_file, out_type, opt_g, opt_rel)
@@ -417,8 +425,8 @@ class GraphEval():
       return
     self.num_img = len(results_datas)
     self.update_path(out_file)
-    all_cor_nums_gt_pos_tp = defaultdict(list)
-    all_line_nums_gt_pos_tp = defaultdict(list)
+    all_cor_nums_gt_dt_tp = defaultdict(list)
+    all_line_nums_gt_dt_tp = defaultdict(list)
     all_ious = defaultdict(list)
     catid_2_cat = results_datas[0]['catid_2_cat']
     scene_list = []
@@ -481,14 +489,15 @@ class GraphEval():
         cat_ls, det_lines_merged_ls, gt_lines_ls, det_points_ls = self.geo_opti_per_cls(num_labels, catid_2_cat, gt_labels, gt_lines, detections, out_type, optimize_graph, optimize_graph_by_relation, with_rel, det_relations)
         if self._opti_room:
           wall_ids_per_room = self.wall_room_opti(cat_ls, det_lines_merged_ls)
+          self.eval_rooms_rel(det_lines_merged_ls, gt_lines_ls, cat_ls, wall_ids_per_room)
 
         for i in range(num_labels):
             label = i+1
             cat = cat_ls[i]
-            cor_nums_gt_pos_tp, line_nums_gt_pos_tp, eval_draws = self.eval_1img_1cls_by_corner(img, det_lines_merged_ls[i], gt_lines_ls[i], scene_name, cat, det_points_ls[i])
+            cor_nums_gt_dt_tp, line_nums_gt_dt_tp, eval_draws = self.eval_1img_1cls_by_corner(img, det_lines_merged_ls[i], gt_lines_ls[i], scene_name, cat, det_points_ls[i])
             ious = self.cal_iou_1img_1cls(img, det_lines_merged_ls[i], gt_lines_ls[i], scene_name, cat, det_points_ls[i])
-            all_cor_nums_gt_pos_tp[label].append(cor_nums_gt_pos_tp)
-            all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
+            all_cor_nums_gt_dt_tp[label].append(cor_nums_gt_dt_tp)
+            all_line_nums_gt_dt_tp[label].append(line_nums_gt_dt_tp)
             all_ious[label].append(ious)
             eval_draws_ls.append(eval_draws)
 
@@ -511,10 +520,10 @@ class GraphEval():
     ave_ious = {}
     iou_thres = 0.3
 
-    for label in all_cor_nums_gt_pos_tp:
+    for label in all_cor_nums_gt_dt_tp:
       cat =  catid_2_cat[label]
-      cor_nums = np.array(all_cor_nums_gt_pos_tp[label])
-      line_nums = np.array(all_line_nums_gt_pos_tp[label])
+      cor_nums = np.array(all_cor_nums_gt_dt_tp[label])
+      line_nums = np.array(all_line_nums_gt_dt_tp[label])
       corner_recall_precision_perimg[cat].append( (cor_nums[:,2] / cor_nums[:,0], cor_nums[:,2] / cor_nums[:,1] ))
       line_recall_precision_perimg[cat].append( (line_nums[:,2] / line_nums[:,0], line_nums[:,2] / line_nums[:,1] ))
 
@@ -644,7 +653,7 @@ class GraphEval():
 
     self.num_img = len(results_datas)
     self.update_path(out_file)
-    all_line_nums_gt_pos_tp = defaultdict(list)
+    all_line_nums_gt_dt_tp = defaultdict(list)
     all_ious = defaultdict(list)
     catid_2_cat = results_datas[0]['catid_2_cat']
 
@@ -654,9 +663,9 @@ class GraphEval():
       self._eval_img_scale_ratio = 1.5
 
     for i_img, res_data in enumerate(results_datas):
-        if i_img < 0:
-          continue
-          pass
+        if self._img_ids_debuging is not None:
+          if i_img not in self._img_ids_debuging:
+            continue
 
         detections = res_data['detections']
         img_meta = res_data['img_meta']
@@ -746,8 +755,8 @@ class GraphEval():
             if det_category_id != 1:
               pass
               #raise NotImplementedError
-            line_nums_gt_pos_tp, ious = self.eval_1img_1cls_by_iou(img, det_lines_merged, gt_lines_l, scene_name, cat, det_points)
-            all_line_nums_gt_pos_tp[label].append(line_nums_gt_pos_tp)
+            line_nums_gt_dt_tp, ious = self.eval_1img_1cls_by_iou(img, det_lines_merged, gt_lines_l, scene_name, cat, det_points)
+            all_line_nums_gt_dt_tp[label].append(line_nums_gt_dt_tp)
             ious_of_dets = ious.max(1)
             all_ious[label].append( ious_of_dets )
             ious_1s[label] = ious
@@ -760,7 +769,7 @@ class GraphEval():
 
             pass
         res_filename = os.path.join( self.eval_dir_all_cls, scene_name)
-        draw_1_scene(img, gts_1s, dets_1s,  ious_1s, labels_to_cats, self.obj_rep, self.iou_threshold, res_filename, det_points_1s)
+        draw_1_scene(img, gts_1s, dets_1s,  ious_1s, labels_to_cats, self.obj_rep, self._iou_threshold, res_filename, det_points_1s)
         pass
 
     line_recall_precision_perimg = defaultdict(list)
@@ -770,9 +779,9 @@ class GraphEval():
     ave_ious = {}
     iou_thres = 0.3
 
-    for label in all_line_nums_gt_pos_tp:
+    for label in all_line_nums_gt_dt_tp:
       cat =  catid_2_cat[label]
-      line_nums = np.array(all_line_nums_gt_pos_tp[label])
+      line_nums = np.array(all_line_nums_gt_dt_tp[label])
       line_recall_precision_perimg[cat].append( (line_nums[:,2] / line_nums[:,0], line_nums[:,2] / line_nums[:,1] ))
 
       line = line_nums.sum(axis=0)
@@ -806,12 +815,46 @@ class GraphEval():
     np.save(eval_res_file, eval_res)
     return eval_res_str
 
+  def eval_rooms_rel(self, dets_ls, gts_ls, cat_ls, det_wall_ids_per_room):
+    from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
+    num_cats = len(cat_ls)
+    cats_to_label = {cat_ls[i]: i for i in range(num_cats)}
+    gt_rooms = gts_ls[cats_to_label['room']]
+    gt_walls = gts_ls[cats_to_label['wall']]
+    dt_rooms0 = dets_ls[cats_to_label['room']]
+    dt_walls0 = dets_ls[cats_to_label['wall']]
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
+
+    dt_rooms = dt_rooms0[dt_rooms0[:,-1] > self._score_threshold][:,:7]
+    dt_walls = dt_walls0[dt_walls0[:,-1] > self._score_threshold][:,:7]
+    num_gt_r = gt_rooms.shape[0]
+    num_dt_r = dt_rooms.shape[0]
+
+    dt_rooms = dt_rooms[:5]
+
+    ious = dsiou_rotated_3d_bbox_np( gt_rooms, dt_rooms, iou_w=1, size_rate_thres=None )
+    dt_id_per_gt = ious.argmax(0)
+    iou_per_gt = ious.max(0)
+    gt_true_mask = iou_per_gt >= self._iou_threshold
+
+    gt_true_ids = np.where(gt_true_mask)[0]
+    dt_pos_ids = dt_id_per_gt[gt_true_mask]
+    num_tp = gt_true_ids.shape[0]
+
+    room_nums_gt_dt_tp = [num_gt_r, num_dt_r, num_tp]
+
+    get_rooms_from_edges()
+
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+
   def get_eval_res_str_iou(self, line_recall_precision, img_meta, line_nums_sum, ave_ious ):
     rotate = False
     eval_str = '\n\n--------------------------------------\n\n' + \
                 str(self) + f'num_img: {self.num_img}\n'
     eval_str += f'optimize_graph: {self.optimize_graph}\n'
-    eval_str += f'IoU threshold: {self.iou_threshold}\n'
+    eval_str += f'IoU threshold: {self._iou_threshold}\n'
 
     eval_str += 'Precision-Recall\n\n'
     cats = line_recall_precision.keys()
@@ -908,10 +951,10 @@ class GraphEval():
     # [num_det, num_gt]
     iou_matrix = dsiou_rotated_3d_bbox_np(det_lines[:,:-1], gt_lines, iou_w=1, size_rate_thres=0.07)
     ious = iou_matrix.max(0)
-    mask = ious > self.iou_threshold
+    mask = ious > self._iou_threshold
     num_tp = sum(mask)
-    obj_nums_gt_pos_tp = [num_gt, num_det, num_tp]
-    return obj_nums_gt_pos_tp, iou_matrix
+    obj_nums_gt_dt_tp = [num_gt, num_det, num_tp]
+    return obj_nums_gt_dt_tp, iou_matrix
 
   def cal_iou_1img_1cls(self, img, det_lines, gt_lines, scene_name, det_cat, det_points):
     from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
@@ -934,7 +977,7 @@ class GraphEval():
                                           None, self.obj_rep, self._opt_graph_cor_dis_thr//2)
     gt_corners, _, gt_corIds_per_line,_ = gen_corners_from_lines_np(gt_lines, None, self.obj_rep, self._opt_graph_cor_dis_thr//2)
 
-    cor_nums_gt_pos_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
+    cor_nums_gt_dt_tp, cor_detIds_per_gt = self.eval_corners(gt_corners, det_corners)
 
     # cal det_lineIds_per_cor: [num_det_corner]
     det_lineIds_per_cor = get_lineIdsPerCor_from_corIdsPerLine(det_cor_ids_per_line, det_corners.shape[0])
@@ -965,7 +1008,7 @@ class GraphEval():
     line_detIds_per_gt = np.array(line_detIds_per_gt)
 
     num_ture_pos_line = (line_detIds_per_gt>=0).sum()
-    line_nums_gt_pos_tp = [gt_lines.shape[0], det_lines.shape[0], num_ture_pos_line]
+    line_nums_gt_dt_tp = [gt_lines.shape[0], det_lines.shape[0], num_ture_pos_line]
 
     if show_all_matching:
       #_show_objs_ls_points_ls(img[:,:,0], [det_lines[:,:-1], gt_lines], obj_colors=['random', 'white'], obj_rep=self.obj_rep, obj_thickness=[3,1])
@@ -984,9 +1027,9 @@ class GraphEval():
       #det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false
       eval_draws = self.save_eval_res_img_1cls(img, det_lines, gt_lines, det_corners, gt_corners,
                             cor_detIds_per_gt, line_detIds_per_gt,
-                            cor_nums_gt_pos_tp, scene_name, det_cat, det_points)
+                            cor_nums_gt_dt_tp, scene_name, det_cat, det_points)
       #self.debug_line_eval(det_lines, gt_lines, line_detIds_per_gt)
-    return cor_nums_gt_pos_tp, line_nums_gt_pos_tp, eval_draws
+    return cor_nums_gt_dt_tp, line_nums_gt_dt_tp, eval_draws
 
   def eval_corners(self, gt_corners, det_corners):
     '''
@@ -998,7 +1041,7 @@ class GraphEval():
       1. det_j is the cloest to gt_i, and the distance is below corner_dis_threshold
       2. gt_i is the cloest to det_j
 
-    nums_gt_pos_tp: [3]
+    nums_gt_dt_tp: [3]
     detIds_per_gt_2: [n]
     '''
     if det_corners.shape[0]==0:
@@ -1025,8 +1068,8 @@ class GraphEval():
     num_ture_pos = (detIds_per_gt_2 >=0).sum()
     num_gt = gt_corners.shape[0]
     num_pos = det_corners.shape[0]
-    nums_gt_pos_tp = [num_gt, num_pos, num_ture_pos]
-    return nums_gt_pos_tp, detIds_per_gt_2
+    nums_gt_dt_tp = [num_gt, num_pos, num_ture_pos]
+    return nums_gt_dt_tp, detIds_per_gt_2
 
   def debug_line_eval(self, det_lines, gt_lines, line_detIds_per_gt, obj_wise=1):
     pos_line_ids = line_detIds_per_gt[line_detIds_per_gt>=0]
@@ -1041,17 +1084,17 @@ class GraphEval():
 
   def save_eval_res_img_1cls(self, img, det_lines, gt_lines, det_corners, gt_corners,
                         cor_detIds_per_gt, line_detIds_per_gt,
-                        cor_nums_gt_pos_tp,  scene_name, det_cat,
+                        cor_nums_gt_dt_tp,  scene_name, det_cat,
                         det_points, obj_wise=0):
-    if cor_nums_gt_pos_tp[0] == 0:
+    if cor_nums_gt_dt_tp[0] == 0:
       cor_recall = 1
     else:
-      cor_recall = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[0]
-    if cor_nums_gt_pos_tp[1] == 0:
+      cor_recall = cor_nums_gt_dt_tp[2]/cor_nums_gt_dt_tp[0]
+    if cor_nums_gt_dt_tp[1] == 0:
       cor_precision=1
     else:
-      cor_precision = cor_nums_gt_pos_tp[2]/cor_nums_gt_pos_tp[1]
-    print(f'\ncor_nums_gt_pos_tp: {cor_nums_gt_pos_tp}')
+      cor_precision = cor_nums_gt_dt_tp[2]/cor_nums_gt_dt_tp[1]
+    print(f'\ncor_nums_gt_dt_tp: {cor_nums_gt_dt_tp}')
     print(f'\ncor recall: {cor_recall}\ncor precision: {cor_precision}')
 
     # parse corner detection

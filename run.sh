@@ -3,8 +3,8 @@
 #export CUDA_LAUNCH_BLOCKING=1
 #export CUDA_VISIBLE_DEVICES=1
 
-#CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
-CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_qc.py
+CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
+#CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_qc.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
@@ -31,8 +31,8 @@ FILTER_EDGES=0
 CLS=ad
 REL=1
 
-#CLS=r
-#REL=0
+CLS=r
+REL=0
 
 # single gpu
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  

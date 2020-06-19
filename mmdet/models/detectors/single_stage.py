@@ -210,7 +210,7 @@ class SingleStageDetector(BaseDetector):
         else:
           relation_scores = [None]
 
-        results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels, img = img, det_relations = relation_scores[0])
+        results = dict( det_bboxes=bbox_results[0], gt_bboxes=gt_bboxes, gt_labels=gt_labels, img = img, det_relations = relation_scores[0], gt_relations=gt_relations)
         if record_time:
           t3 = time.time()
           print(f'\nTime\nbackbone:\t {t1-t0:.4f}')

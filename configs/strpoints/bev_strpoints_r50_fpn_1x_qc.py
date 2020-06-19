@@ -179,7 +179,7 @@ test_pipeline = [
             dict(type='RandomLineFlip', obj_rep=_obj_rep),
             dict(type='RandomRotate', rotate_ratio=0.0, obj_rep=_obj_rep),
             dict(type='NormalizeTopview', **img_norm_cfg),
-            dict(type='ImageToTensor', keys=['img', 'gt_bboxes', 'gt_labels']),
+            dict(type='ImageToTensor', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_relations']),
             dict(type='Collect', keys=['img', 'gt_bboxes', 'gt_labels', 'gt_relations']),
         ])
 ]
