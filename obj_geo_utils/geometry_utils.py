@@ -1216,10 +1216,39 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
       room_bbox = points_to_oriented_bbox(room_corners.reshape(-1,2), obj_rep)
       room_bboxes.append(room_bbox)
     room_bboxes = np.concatenate(room_bboxes, 0)
+    r_scores = room_bboxes[:,0:1].copy()
+    r_scores[:] = 1
+    room_bboxes = np.concatenate([room_bboxes, r_scores], 1)
   else:
     room_bboxes = None
+
+  if gen_bbox and 0:
+    num_rooms = len(edge_ids_per_room_out)
+    for i in range(num_rooms):
+      eids = edge_ids_per_room_out[i]
+      _show_objs_ls_points_ls( (512,512), [edges, edges[eids], room_bboxes[i:i+1, [0,1,3,4,6]] ],\
+                              'XYLgWsA', obj_colors=['white','lime', 'red'] )
+
   return edge_ids_per_room_out, room_ids_per_edge, num_edges_inside_room, room_bboxes
 
+def relation_mask_to_ids(relations):
+  '''
+  relations: [num_obj, num_wall]
+  rel_ids: [ []*? ]* num_obj
+  '''
+  num_obj, num_wall = relations.shape
+  rel_ids = []
+  for i in range(num_obj):
+    ids_i = np.where(relations[i])[0]
+    rel_ids.append(ids_i)
+  return rel_ids
+
+def rel_ids_to_mask(rel_ids, num_wall):
+  num_obj = len(rel_ids)
+  mask = np.zeros( [num_obj, num_wall] ) == 1
+  for i in range(num_obj):
+    mask[i, rel_ids[i] ] = True
+  return mask
 
 def ununsed_get_cf_from_wall(floors0, walls, obj_rep, cat_name):
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE

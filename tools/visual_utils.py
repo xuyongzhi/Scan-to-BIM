@@ -804,6 +804,17 @@ def show_connectivity(walls, bboxes, relations, obj_rep, only_connected=False, o
       break
   pass
 
+def show_1by1(img, objs, obj_rep, bg_objs=None):
+  n = objs.shape[0]
+  for i in range(n):
+    print(f'{i} / {n}')
+    show_objs = [objs, objs[i:i+1]]
+    show_colors = ['green', 'red']
+    if bg_objs is not None:
+      show_objs =  [bg_objs] + show_objs
+      show_colors = ['white'] + show_colors
+    _show_objs_ls_points_ls( img, show_objs, obj_rep, obj_colors=show_colors )
+
 #- feature ------------------------------------------------------------------------------
 def _show_feats(feats, gt_bboxes, stride):
   '''

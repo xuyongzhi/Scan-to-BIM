@@ -176,7 +176,6 @@ class CustomDataset(Dataset):
 
         if DEBUG_CFG.VISUAL_TOPVIEW_INPUT:
           show_results_train(results, self.obj_rep)
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
         return results
 
     def prepare_test_img(self, idx):

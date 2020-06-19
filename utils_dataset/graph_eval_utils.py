@@ -7,20 +7,21 @@ from collections import defaultdict
 import os
 import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,\
-  _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity
+  _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity, show_1by1
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 from obj_geo_utils.topology_utils import optimize_walls_by_rooms_main
-from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges, draw_rooms_from_edges
+from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges, draw_rooms_from_edges, relation_mask_to_ids, rel_ids_to_mask
 from tools.color import COLOR_MAP_3D, ColorList
 import torch
 import time
 
-EVAL_METHOD = ['corner', 'iou'][1]
+EVAL_METHOD = ['corner', 'iou'][0]
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
 DEBUG = 1
+_draw_pts = 0
 
 def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_pred, len(classes)+1)
@@ -318,15 +319,17 @@ def merge_two_results(results_datas_1, results_datas_2):
     res3['detections'] = res1['detections'] + res2['detections']
     res3['det_relations'] = res1['det_relations']
 
+    res3['gt_relations_room_wall'] = res2['gt_relations']
     results_datas_3.append(res3)
   return results_datas_3
 
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(5))
+  #_img_ids_debuging = list(range(7))
   _img_ids_debuging = None
   _opti_room = 1
+
 
   if 1:
     _all_out_types = [ 'bRefine_sAve' ] * 1
@@ -427,6 +430,7 @@ class GraphEval():
     self.update_path(out_file)
     all_cor_nums_gt_dt_tp = defaultdict(list)
     all_line_nums_gt_dt_tp = defaultdict(list)
+    rooms_gt_dt_tp_rel_ls = []
     all_ious = defaultdict(list)
     catid_2_cat = results_datas[0]['catid_2_cat']
     scene_list = []
@@ -473,6 +477,14 @@ class GraphEval():
 
         gt_lines = results_datas[i_img]['gt_bboxes'].copy()
         gt_labels = results_datas[i_img]['gt_labels'].copy()
+        if 'gt_relations' in results_datas[i_img]:
+          gt_relations = results_datas[i_img]['gt_relations'].copy()
+        else:
+          gt_relations = None
+        if 'gt_relations_room_wall' in results_datas[i_img]:
+          gt_relations_room_wall = results_datas[i_img]['gt_relations_room_wall'].copy()
+        else:
+          gt_relations_room_wall = None
         if gt_lines.ndim == 1:
           gt_lines = gt_lines[None,:]
         gt_lines[:,:4] = gt_lines[:,:4] * self._eval_img_scale_ratio + self._eval_img_size_aug
@@ -489,7 +501,9 @@ class GraphEval():
         cat_ls, det_lines_merged_ls, gt_lines_ls, det_points_ls = self.geo_opti_per_cls(num_labels, catid_2_cat, gt_labels, gt_lines, detections, out_type, optimize_graph, optimize_graph_by_relation, with_rel, det_relations)
         if self._opti_room:
           wall_ids_per_room = self.wall_room_opti(cat_ls, det_lines_merged_ls)
-          self.eval_rooms_rel(det_lines_merged_ls, gt_lines_ls, cat_ls, wall_ids_per_room)
+          if 'room' in cat_ls:
+            rooms_gt_dt_tp_rel = self.eval_rooms_with_rel(det_lines_merged_ls, gt_lines_ls, cat_ls, wall_ids_per_room, gt_relations_room_wall)
+            rooms_gt_dt_tp_rel_ls.append( rooms_gt_dt_tp_rel )
 
         for i in range(num_labels):
             label = i+1
@@ -540,6 +554,15 @@ class GraphEval():
       ave_iou = ious_l[ious_l > iou_thres].mean()
       ave_ious[cat] = ave_iou
       pass
+
+    if len(rooms_gt_dt_tp_rel_ls) > 0:
+      all_rooms_gt_dt_tp_rel = np.array(rooms_gt_dt_tp_rel_ls).sum(0)
+      iou_rec = all_rooms_gt_dt_tp_rel[2]/  all_rooms_gt_dt_tp_rel[0]
+      iou_prec = all_rooms_gt_dt_tp_rel[2]/  all_rooms_gt_dt_tp_rel[1]
+      rel_rec = all_rooms_gt_dt_tp_rel[3]/  all_rooms_gt_dt_tp_rel[0]
+      rel_prec = all_rooms_gt_dt_tp_rel[3]/  all_rooms_gt_dt_tp_rel[1]
+      line_recall_precision['room_iou'] = [iou_rec, iou_prec]
+      line_recall_precision['room_rel'] = [rel_rec, rel_prec]
 
     eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum, ave_ious, time_post)
     path = os.path.dirname(out_file)
@@ -640,9 +663,12 @@ class GraphEval():
     n = len(cat_ls)
     wall_i = [i for i in range(n) if cat_ls[i]=='wall'][0]
     room_i = [i for i in range(n) if cat_ls[i]=='room'][0]
-    new_walls = optimize_walls_by_rooms_main( det_lines_merged_ls[wall_i], det_lines_merged_ls[room_i], self.obj_rep )
+    walls_org = det_lines_merged_ls[wall_i]
+    rooms_org = det_lines_merged_ls[room_i]
+    new_walls = optimize_walls_by_rooms_main( walls_org, rooms_org, self.obj_rep )
     det_lines_merged_ls[wall_i] = new_walls
-    wall_ids_per_room, _,_,_ = get_rooms_from_edges(new_walls[:,:7], self.obj_rep)
+    wall_ids_per_room, _,_, room_bboxes = get_rooms_from_edges(new_walls[:,:7], self.obj_rep, gen_bbox=True)
+    det_lines_merged_ls[room_i] = room_bboxes
     return wall_ids_per_room
 
   def evaluate_by_iou(self, results_datas, out_file, out_type, optimize_graph=True, optimize_graph_by_relation=False):
@@ -815,27 +841,34 @@ class GraphEval():
     np.save(eval_res_file, eval_res)
     return eval_res_str
 
-  def eval_rooms_rel(self, dets_ls, gts_ls, cat_ls, det_wall_ids_per_room):
+  def eval_rooms_with_rel(self, dets_ls, gts_ls, cat_ls, det_wall_ids_per_room, gt_relations_room_wall):
     from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
+    show_gt_dt_compare = 0
+    show_in_relations = 0
+    show_fail_rooms = 0
+    show_per_room = 0
+
     num_cats = len(cat_ls)
     cats_to_label = {cat_ls[i]: i for i in range(num_cats)}
     gt_rooms = gts_ls[cats_to_label['room']]
     gt_walls = gts_ls[cats_to_label['wall']]
-    dt_rooms0 = dets_ls[cats_to_label['room']]
-    dt_walls0 = dets_ls[cats_to_label['wall']]
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    dt_rooms = dets_ls[cats_to_label['room']]
+    dt_walls = dets_ls[cats_to_label['wall']]
+    num_dt_w = dt_walls.shape[0]
 
+    if show_in_relations:
+      det_relations = rel_ids_to_mask(det_wall_ids_per_room, num_dt_w)
+      show_connectivity( gt_walls, gt_rooms, gt_relations_room_wall, self.obj_rep)
+      show_connectivity( dt_walls[:,:7], dt_rooms[:,:7], det_relations, self.obj_rep)
 
-    dt_rooms = dt_rooms0[dt_rooms0[:,-1] > self._score_threshold][:,:7]
-    dt_walls = dt_walls0[dt_walls0[:,-1] > self._score_threshold][:,:7]
+    #dt_rooms = dt_rooms0[dt_rooms0[:,-1] > self._score_threshold][:,:7]
+    #dt_walls = dt_walls0[dt_walls0[:,-1] > self._score_threshold][:,:7]
     num_gt_r = gt_rooms.shape[0]
     num_dt_r = dt_rooms.shape[0]
 
-    dt_rooms = dt_rooms[:5]
-
-    ious = dsiou_rotated_3d_bbox_np( gt_rooms, dt_rooms, iou_w=1, size_rate_thres=None )
-    dt_id_per_gt = ious.argmax(0)
-    iou_per_gt = ious.max(0)
+    ious = dsiou_rotated_3d_bbox_np( gt_rooms, dt_rooms[:,:7], iou_w=1, size_rate_thres=None )
+    dt_id_per_gt = ious.argmax(1)
+    iou_per_gt = ious.max(1)
     gt_true_mask = iou_per_gt >= self._iou_threshold
 
     gt_true_ids = np.where(gt_true_mask)[0]
@@ -844,10 +877,66 @@ class GraphEval():
 
     room_nums_gt_dt_tp = [num_gt_r, num_dt_r, num_tp]
 
-    get_rooms_from_edges()
+    # analye walls of per room
+    gt_wids_per_room = relation_mask_to_ids(gt_relations_room_wall)
 
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    pass
+    if show_gt_dt_compare:
+      _show_objs_ls_points_ls( (512,512), [gt_walls, dt_walls[:,:7]],
+                  self.obj_rep, obj_colors=['white', 'red', ], obj_thickness = [6,1] )
+
+    if show_fail_rooms:
+      gt_false_ids = np.where(gt_true_mask==False)[0]
+      fail_wids = [gt_wids_per_room[i] for i in  gt_false_ids]
+      fail_wids = np.concatenate(fail_wids)
+      _show_objs_ls_points_ls( (512,512), [gt_walls, gt_walls[fail_wids], gt_rooms[gt_false_ids]],
+                              self.obj_rep, obj_colors=['white', 'red', 'lime' ] )
+      _show_objs_ls_points_ls( (512,512), [dt_walls[:,:7], ],
+                              self.obj_rep, obj_colors=['lime' ] )
+      pass
+
+    succ_room_ids = []
+    fail_room_ids = []
+    for i in range(num_tp):
+      gt_i = gt_true_ids[i]
+      dt_i = dt_id_per_gt[gt_i]
+      wids_gt_i = gt_wids_per_room[gt_i]
+      wids_dt_i = det_wall_ids_per_room[dt_i]
+      gtws_i = gt_walls[wids_gt_i]
+      dtws_i = dt_walls[wids_dt_i]
+      gtn = gtws_i.shape[0]
+      dtn = dtws_i.shape[0]
+      if gtn == dtn:
+        ious_i = dsiou_rotated_3d_bbox_np(gtws_i, dtws_i[:,:7], 0.7, size_rate_thres=0.3).max(0)
+        miou = ious_i.mean()
+        if miou > 0.7:
+          succ_room_ids.append( gt_i )
+          if show_per_room:
+            print(f'success')
+        else:
+          fail_room_ids.append( gt_i )
+        if show_per_room:
+          print(f'{i} ious: {ious_i}, {miou:.3f}')
+
+        #ni = gtws_i.shape[0]
+        #dtws_i = OBJ_REPS_PARSE.encode_obj(dtws_i[:,:7], self.obj_rep, 'RoLine2D_2p').reshape(1,ni, 2,1, 2)
+        #gtws_i = OBJ_REPS_PARSE.encode_obj(gtws_i, self.obj_rep, 'RoLine2D_2p').reshape(ni,1, 1,2, 2)
+        #dif_i = dtws_i - gtws_i
+        #dif_i = np.linalg.norm(dif_i, axis=-1)
+        #dif_i = dif_i.max(-1).min(-1)
+      else:
+        if show_per_room:
+          print(f'{i} gtn:{gtn}, dtn:{dtn}, iou:{iou_per_gt[gt_i]:.3f}')
+        pass
+      if show_per_room:
+        _show_objs_ls_points_ls( (512,512), [gt_rooms[gt_i,None], dt_rooms[dt_i,None][:,:7]], self.obj_rep, obj_colors=['red','lime'] )
+        _show_objs_ls_points_ls( (512,512), [gtws_i, dtws_i[:,:7]], self.obj_rep, obj_colors=['red','lime'] )
+        #show_1by1((512,512), gtws_i, self.obj_rep, gt_walls)
+        #show_1by1((512,512), dtws_i[:,:7], self.obj_rep, dt_walls[:,:7])
+      pass
+
+    num_rel_tp = len(succ_room_ids)
+    rooms_gt_dt_tp_rel = room_nums_gt_dt_tp + [num_rel_tp]
+    return rooms_gt_dt_tp_rel
 
   def get_eval_res_str_iou(self, line_recall_precision, img_meta, line_nums_sum, ave_ious ):
     rotate = False
@@ -901,7 +990,7 @@ class GraphEval():
     eval_str += f'optimize walls by rooms: {self._opti_room}\n'
 
     eval_str += 'Precision-Recall\n\n'
-    cats = corner_recall_precision.keys()
+    cats = line_recall_precision.keys()
     eval_str += '| split |'
     for cat in cats:
       str_c = f'{cat} corner'
@@ -912,10 +1001,14 @@ class GraphEval():
       eval_str += '-|-|'
 
     eval_str += '\n|pre-rec|'
-    for cat in corner_recall_precision:
-      cor_rec, cor_prec = corner_recall_precision[cat]
+    for cat in cats:
+      if cat in corner_recall_precision:
+        cor_rec, cor_prec = corner_recall_precision[cat]
+        cor_str = f'{cor_prec:.3} - {cor_rec:.3}'
+      else:
+        cor_str = ''
+
       line_rec, line_prec = line_recall_precision[cat]
-      cor_str = f'{cor_prec:.3} - {cor_rec:.3}'
       line_str = f'{line_prec:.3} - {line_rec:.3}'
       eval_str += f'{cor_str:14}|{line_str:14}|'
       pass
@@ -932,8 +1025,12 @@ class GraphEval():
 
     eval_str += '|gt num |'
     for cat in cats:
-      cor_num = cor_nums_sum[cat][0]
-      line_num = line_nums_sum[cat][0]
+      if cat in cor_nums_sum:
+        cor_num = cor_nums_sum[cat][0]
+        line_num = line_nums_sum[cat][0]
+      else:
+        cor_num = 0
+        line_num = 0
       eval_str += f'{cor_num:14}|{line_num:14}|'
       pass
     eval_str += '\n'
@@ -960,12 +1057,8 @@ class GraphEval():
     from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
     if det_lines.shape[0] == 0:
       return np.array([])
-    iou_matrix = dsiou_rotated_3d_bbox_np(det_lines[:,:-1], gt_lines, iou_w=1, size_rate_thres=0.07)
-    try:
-      ious = iou_matrix.max(1)
-    except:
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
-      pass
+    iou_matrix = dsiou_rotated_3d_bbox_np(det_lines[:,:7], gt_lines, iou_w=1, size_rate_thres=0.07)
+    ious = iou_matrix.max(1)
     return ious
 
   def eval_1img_1cls_by_corner(self, img, det_lines, gt_lines, scene_name, det_cat, det_points):
@@ -1118,7 +1211,10 @@ class GraphEval():
       det_points_neg = det_points[0:0]
     else:
       det_lines_neg = det_lines[neg_line_ids]
-      det_points_neg = det_points[neg_line_ids]
+      if _draw_pts:
+        det_points_neg = det_points[neg_line_ids]
+      else:
+        det_points_neg = None
 
 
     gt_line_true_ids = np.where(line_detIds_per_gt>=0)[0]
@@ -1434,9 +1530,10 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       c = colors_map[cat]
       img_size = img.shape[:2]
 
-      det_points = np.concatenate([det_points_pos, det_points_neg], 0).reshape(-1,9,2)
-      det_points_pos = det_points_pos.reshape(-1, 2)
-      det_points_neg = det_points_neg.reshape(-1, 2)
+      if _draw_pts:
+        det_points = np.concatenate([det_points_pos, det_points_neg], 0).reshape(-1,9,2)
+        det_points_pos = det_points_pos.reshape(-1, 2)
+        det_points_neg = det_points_neg.reshape(-1, 2)
 
       if img_det is None:
         img_det = img.shape[:2]
@@ -1467,18 +1564,20 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
                 point_thickness=[8,8],
                 out_file=None,
                 text_colors_ls=['green', 'red'])
-        for di in range(num_dets):
-          ci = ColorList[di]
-          img_det_rooms_pts = _draw_objs_ls_points_ls(img_det_rooms_pts,
-                  [det_lines[di:di+1,:obj_dim]],
-                  obj_rep,
-                  [det_points[di]],
-                  obj_colors=c,
-                  obj_scores_ls = [det_lines[di:di+1,obj_dim]],
-                  point_colors=ci,
-                  obj_thickness=2,
-                  point_thickness=3,
-                  out_file=None,)
+
+        if _draw_pts:
+          for di in range(num_dets):
+            ci = ColorList[di]
+            img_det_rooms_pts = _draw_objs_ls_points_ls(img_det_rooms_pts,
+                    [det_lines[di:di+1,:obj_dim]],
+                    obj_rep,
+                    [det_points[di]],
+                    obj_colors=c,
+                    obj_scores_ls = [det_lines[di:di+1,obj_dim]],
+                    point_colors=ci,
+                    obj_thickness=2,
+                    point_thickness=3,
+                    out_file=None,)
         continue
 
       if cat == 'wall':
@@ -1513,22 +1612,23 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
               text_colors_ls=['green', 'red'])
       #mmcv.imshow(img_det)
 
-      for di in range(num_dets):
-        ci = ColorList[di]
-        if det_points.shape[0] <= di:
-          continue
-        img_det_pts = _draw_objs_ls_points_ls(img_det_pts,
-              [det_lines[:,:obj_dim]],
-              obj_rep,
-              [det_points[di]],
-              obj_colors='white',
-              obj_scores_ls = [det_lines[:,obj_dim]],
-              point_colors=ci,
-              obj_thickness=1,
-              point_thickness=2,
-              out_file=None,)
+      if _draw_pts:
+        for di in range(num_dets):
+          ci = ColorList[di]
+          if det_points.shape[0] <= di:
+            continue
+          img_det_pts = _draw_objs_ls_points_ls(img_det_pts,
+                [det_lines[:,:obj_dim]],
+                obj_rep,
+                [det_points[di]],
+                obj_colors='white',
+                obj_scores_ls = [det_lines[:,obj_dim]],
+                point_colors=ci,
+                obj_thickness=1,
+                point_thickness=2,
+                out_file=None,)
 
-      #mmcv.imshow(img_det_pts)
+        #mmcv.imshow(img_det_pts)
 
       img_gt = _draw_objs_ls_points_ls(img_gt,
               [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
@@ -1545,7 +1645,8 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       pass
 
   mmcv.imwrite(img_det, det_file)
-  mmcv.imwrite(img_det_pts, det_pts_file)
+  if _draw_pts:
+    mmcv.imwrite(img_det_pts, det_pts_file)
   mmcv.imwrite(img_gt, gt_file)
   if 'room' in cat_ls:
     mmcv.imwrite(img_det_rooms, det_rooms_file)

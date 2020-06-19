@@ -39,27 +39,32 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
   '''
   from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges
   from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
+  show_fail_rooms = 0
   show_fixed_res = 0
-  #rooms = rooms[:,:7]
-  #walls = walls[:,:7]
 
   num_rooms = rooms.shape[0]
   wall_ids_per_room, room_ids_per_wall, num_walls_inside_room, rooms_from_w = get_rooms_from_edges(walls[:,:7], obj_rep, gen_bbox=True, show_rooms=False)
   non_full_mask = (room_ids_per_wall<0).any(1)
   full_w_ids = np.where(non_full_mask==False)[0]
   non_full_w_ids = np.where(non_full_mask)[0]
-  ious = dsiou_rotated_3d_bbox_np( rooms[:,:7], rooms_from_w, iou_w=1.0, size_rate_thres=None, ref='union', only_2d=True )
+  ious = dsiou_rotated_3d_bbox_np( rooms[:,:7], rooms_from_w[:,:7], iou_w=1.0, size_rate_thres=None, ref='union', only_2d=True )
   succ_r_ids = ious.argmax(0)
   succ_ious = ious.max(0)
   fail_r_ids = [i for i in range(num_rooms) if i not in succ_r_ids]
 
   fail_rooms = rooms[fail_r_ids]
   fail_walls = walls[non_full_w_ids]
-  if 0:
-    _show_objs_ls_points_ls( (512,512), [rooms_from_w, rooms[succ_r_ids][:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'red', 'green'] , obj_thickness=[6,2,2])
+  if show_fail_rooms:
+    print(f'detected rooms')
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
+    print(f'rooms from wall')
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms_from_w[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
+    print(f'success rooms')
+    _show_objs_ls_points_ls( (512,512), [rooms_from_w[:,:7], rooms[succ_r_ids][:,:7], ], obj_rep, obj_colors=['white', 'red', ], obj_thickness=[6,2,2])
+    print(f'fail rooms')
     _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'red'] )
+    print(f'faiil walls')
     _show_objs_ls_points_ls( (512,512), [ fail_walls[:,:7], fail_rooms[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
-    #_show_objs_ls_points_ls( (512,512), [walls, walls[ wall_ids_per_room[0] ], rooms_from_w[0:1]], obj_rep, obj_colors=['white', 'green','red'] )
 
   _, cor_degress, _ = find_wall_wall_connection(walls[:,:7], 2, obj_rep)
 

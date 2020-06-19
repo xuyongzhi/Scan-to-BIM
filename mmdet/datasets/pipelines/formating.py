@@ -201,7 +201,7 @@ class Collect(object):
         else:
           mask = data['gt_labels'].data >= 0
           data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
-          data['gt_relations'] = DC(data['gt_relations'][mask])
+          data['gt_relations'] = DC(data['gt_relations'].data[mask])
           data['gt_labels'] = DC(data['gt_labels'].data[mask])
 
 
