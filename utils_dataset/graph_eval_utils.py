@@ -7,7 +7,7 @@ from collections import defaultdict
 import os
 import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,\
-  _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity, show_1by1
+  _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity, show_1by1, draw_building_objs
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 from obj_geo_utils.topology_utils import optimize_walls_by_rooms_main
 from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges, draw_rooms_from_edges, relation_mask_to_ids, rel_ids_to_mask
@@ -326,7 +326,7 @@ def merge_two_results(results_datas_1, results_datas_2):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  #_img_ids_debuging = list(range(7))
+  _img_ids_debuging = list(range(2))
   _img_ids_debuging = None
   _opti_room = 1
 
@@ -1509,6 +1509,8 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
   import mmcv
   from tools.color import COLOR_MAP_2D
   colors_map = COLOR_MAP_2D
+  thick_map = {'wall':2, 'door':1, 'window':1, 'room':2}
+
   num_cats = len(eval_draws_ls)
   img_det = None
   img_det_pts = None
@@ -1531,6 +1533,8 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       num_neg = det_lines_neg.shape[0]
       num_dets = num_pos + num_neg
       c = colors_map[cat]
+      c = 'black'
+      tk = thick_map[cat]
       img_size = img.shape[:2]
 
       if _draw_pts:
@@ -1601,19 +1605,8 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       gt_cats += [cat] * gn
 
 
-      img_det = _draw_objs_ls_points_ls(img_det,
-              [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
-              obj_rep,
-              [det_corners_neg, det_corners_pos],
-              obj_colors=c,
-              obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]],
-              obj_cats_ls = ['', 'F'],
-              point_colors=['yellow', 'red'],
-              obj_thickness=[2,2],
-              point_thickness=[6,2],
-              out_file=None,
-              text_colors_ls=['green', 'red'])
-      #mmcv.imshow(img_det)
+      img_det = draw_building_objs(cat, img_det, det_lines_pos, det_lines_neg, obj_rep,\
+            obj_dim, det_corners_pos, det_corners_neg, tk)
 
       if _draw_pts:
         for di in range(num_dets):
@@ -1632,19 +1625,9 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
                 out_file=None,)
 
         #mmcv.imshow(img_det_pts)
+      img_gt = draw_building_objs(cat, img_gt, gt_lines_true, gt_lines_false, obj_rep,\
+            obj_dim, gt_corners_true, gt_corners_false, tk)
 
-      img_gt = _draw_objs_ls_points_ls(img_gt,
-              [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
-              obj_rep,
-              [gt_corners_true, gt_corners_false],
-              obj_colors=c,
-              obj_cats_ls = ['', 'F'],
-              point_colors=['blue', 'yellow'],
-              obj_thickness=[2,2],
-              point_thickness=[2,2],
-              out_file=None,
-              text_colors_ls=['green', 'red'])
-      #mmcv.imshow(img_gt)
       pass
 
   mmcv.imwrite(img_det, det_file)
@@ -1735,12 +1718,12 @@ def apply_mask_on_ids(ids, mask):
 
 
 def main():
-  workdir = '/home/z/Research/mmdetection/work_dirs/_master/'
-  dir1 = 'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr0_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel'
-  dir2 = 'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr0_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32'
+  workdir = '/home/z/Research/mmdetection/work_dirs/1_S_master/'
+  dir1 = 'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr0_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel'
+  dir2 = 'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr0_LsW510R2P1N1_Rfiou832_Fpn44_Pbs1_Bp32'
 
-  filename = 'detection_10_Imgs.pickle'
-  #filename = 'detection_90_Imgs.pickle'
+  filename = 'detection_11_Imgs.pickle'
+  filename = 'detection_95_Imgs.pickle'
 
   resf1 = os.path.join( os.path.join(workdir, dir1), filename)
   resf2 = os.path.join( os.path.join(workdir, dir2), filename)

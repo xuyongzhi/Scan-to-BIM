@@ -1215,8 +1215,10 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
       room_corners = edge_corners[ids_i]
       room_bbox = points_to_oriented_bbox(room_corners.reshape(-1,2), obj_rep)
       room_bboxes.append(room_bbox)
-    room_bboxes = np.concatenate(room_bboxes, 0)
-    r_scores = room_bboxes[:,0:1].copy()
+    if len(room_bboxes)>0:
+      room_bboxes = np.concatenate(room_bboxes, 0)
+    else:
+      room_bboxes = np.zeros([0,7])
   else:
     room_bboxes = None
 

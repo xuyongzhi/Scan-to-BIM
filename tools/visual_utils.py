@@ -110,7 +110,7 @@ def _draw_objs_ls_points_ls(img,
       text_colors_ls = [text_colors_ls] * len(objs_ls)
 
   if points_ls is not None:
-    assert isinstance(points_ls, list)
+    assert isinstance(points_ls, list), print(points_ls)
     if points_ls is not None and isinstance(point_colors, str):
       point_colors = [point_colors] * len(points_ls)
     if not isinstance(point_thickness, list):
@@ -765,6 +765,59 @@ def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2
 
 
 #- others ------------------------------------------------------------------------------
+def draw_building_objs(cat, img_det, det_lines_pos, det_lines_neg, obj_rep,
+            obj_dim, det_corners_pos, det_corners_neg, tk):
+      c = 'black'
+      #obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]]
+      obj_scores_ls = None
+      corners =  [det_corners_neg, det_corners_pos]
+      obj_cats_ls = ['', 'F']
+      obj_cats_ls = None
+      if cat in ['door', 'window']:
+        c = {'door':'gray', 'window':'yellow_green'} [cat]
+        dtk = 8
+        rds = 6
+
+        tk = dtk
+        det_lines_pos[:,3] -= rds
+        det_lines_neg[:,3] -= rds
+        corners = None
+      img_det = _draw_objs_ls_points_ls(img_det,
+              [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
+              obj_rep,
+              corners,
+              obj_colors=c,
+              obj_scores_ls = obj_scores_ls,
+              obj_cats_ls = obj_cats_ls,
+              point_colors=['blue', 'red'],
+              obj_thickness=tk,
+              point_thickness=[2,2],
+              out_file=None,
+              text_colors_ls=['green', 'red'])
+
+      if cat in ['door', 'window']:
+        c = 'black'
+        tk = 2
+        det_lines_pos[:,3] += rds
+        det_lines_neg[:,3] += rds
+        det_lines_pos[:,4] = dtk
+        det_lines_neg[:,4] = dtk
+        corners = None
+        img_det = _draw_objs_ls_points_ls(img_det,
+                [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
+                obj_rep,
+                corners,
+                obj_colors=c,
+                obj_scores_ls = obj_scores_ls,
+                obj_cats_ls = obj_cats_ls,
+                point_colors=['blue', 'red'],
+                obj_thickness=tk,
+                point_thickness=[2,2],
+                out_file=None,
+                text_colors_ls=['green', 'red'])
+      #mmcv.imshow(img_det)
+      return img_det
+
 def _show_3d_bboxes_ids(bboxes, obj_rep):
   '''
   img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)

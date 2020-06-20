@@ -7,15 +7,16 @@ CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
-wkdir=bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr10_LsW35R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel
+wkdir=bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel
 #wkdir=test
 
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 CONFIG=./work_dirs/${wkdir}/_bev_strpoints_r50_fpn_1x.py
 
 #CP=./work_dirs/${wkdir}/best.pth
-CP=./checkpoints/beike/jun17_wd_bev_L_A.pth
-#CP=./checkpoints/beike/jun18_r_bev_L.pth
+CP=./checkpoints/beike/jun15_wd_bev.pth
+#CP=./checkpoints/beike/jun17_wd_bev_L_B.pth
+#CP=./checkpoints/beike/jun18_r_bev_L_B.pth
 #CP=./checkpoints/sfd/15May_Pcl_abcdi_train_6as.pth
 
 
