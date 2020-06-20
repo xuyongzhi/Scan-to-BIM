@@ -234,14 +234,14 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs =  500
+total_epochs =  1050
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.4), int(total_epochs*0.8)])
-checkpoint_config = dict(interval=10)
+checkpoint_config = dict(interval=50)
 # yapf:disable
 log_config = dict(
     interval=1,
@@ -260,8 +260,8 @@ if _transform_method == 'moment_std_XYDRSin2Cos2Z0Z1':
 if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
   work_dir += '_Max_'
 if DATA == 'beike2d':
-  load_from = './checkpoints/beike/jun17_wd_bev_L.pth'
   load_from = './checkpoints/beike/jun15_wd_bev.pth'
+  load_from = './checkpoints/beike/jun17_wd_bev_L.pth'
   if 'room' in classes:
     load_from = './checkpoints/beike/jun14_room_bev.pth'
     load_from = './checkpoints/beike/jun18_r_bev_L.pth'
