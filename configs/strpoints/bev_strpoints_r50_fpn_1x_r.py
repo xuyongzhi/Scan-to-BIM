@@ -264,7 +264,7 @@ if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun15_wd_bev.pth'
   if 'room' in classes:
     load_from = './checkpoints/beike/jun14_room_bev.pth'
-    load_from = './checkpoints/beike/jun18_r_bev_L.pth'
+    load_from = './checkpoints/beike/jun18_r_bev_L_B.pth'
 elif DATA == 'stanford2d':
   load_from = './checkpoints/sfd/24May_bev_abcdif_train_6as.pth'
 

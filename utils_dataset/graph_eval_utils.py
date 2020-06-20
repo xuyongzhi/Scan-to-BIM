@@ -15,7 +15,7 @@ from tools.color import COLOR_MAP_3D, ColorList
 import torch
 import time
 
-EVAL_METHOD = ['corner', 'iou'][0]
+EVAL_METHOD = ['corner', 'iou'][1]
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
