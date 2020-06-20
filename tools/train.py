@@ -268,11 +268,11 @@ def update_config(cfg, args, split):
           #os.makedirs(cfg['work_dir'])
           shutil.copy(cfg.filename, aim_path)
           shutil.copy(os.path.join(cur_path,'run.sh'), os.path.join(cfg['work_dir'], '_run.sh'))
-          #import git
-          #repo = git.Repo("./")
-          #git_label = str(repo.head.commit)
-          #with open(os.path.join(cfg['work_dir'], git_label ), 'w'):
-          #  pass
+          import git
+          repo = git.Repo("./")
+          git_label = str(repo.head.commit)
+          with open(os.path.join(cfg['work_dir'], git_label ), 'w'):
+            pass
           #if 'stanford' not in img_prefix:
           #  shutil.copy(img_list_file,
           #            os.path.join(cfg['work_dir'], os.path.basename(img_prefix)))
