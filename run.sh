@@ -20,6 +20,7 @@ wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_P
 
 
 LR=0.01
+LR=0.001
 ROTATE=1
 BASE_PLANE=32
 BS=7
@@ -28,9 +29,8 @@ FILTER_EDGES=0
 
 #CLS=abcdif
 
-#CLS=ad
-CLS=di
-REL=0
+CLS=ad
+REL=1
 
 
 

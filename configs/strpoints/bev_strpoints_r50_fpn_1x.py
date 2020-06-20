@@ -261,7 +261,7 @@ if _transform_method == 'moment_max_XYDRSin2Cos2Z0Z1':
   work_dir += '_Max_'
 if DATA == 'beike2d':
   load_from = './checkpoints/beike/jun15_wd_bev.pth'
-  load_from = './checkpoints/beike/jun17_wd_bev_L.pth'
+  load_from = './checkpoints/beike/jun17_wd_bev_L_B.pth'
   if 'room' in classes:
     load_from = './checkpoints/beike/jun14_room_bev.pth'
     load_from = './checkpoints/beike/jun18_r_bev_L.pth'
