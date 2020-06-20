@@ -241,10 +241,10 @@ lr_config = dict(
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
     step=[int(total_epochs*0.4), int(total_epochs*0.8)])
-checkpoint_config = dict(interval=2)
+checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=5,
+    interval=2,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
