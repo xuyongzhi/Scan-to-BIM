@@ -5,7 +5,7 @@ CommandLine:
 import numpy as np
 import torch
 
-from mmdet.ops.nms.nms_wrapper import nms
+from mmdet.ops.nms.nms_wrapper import nms, nms_rotated_np
 
 
 def test_nms_device_and_dtypes_cpu():
@@ -68,3 +68,18 @@ def test_nms_device_and_dtypes_gpu():
         surpressed, inds = nms(dets, iou_thr)
         assert dets.dtype == surpressed.dtype
         assert len(inds) == len(surpressed) == 3
+
+def test_nms_rotated():
+  dets = np.array([
+    [190.665, 237.454,   0.   , 103.328,   0.   ,   0.   ,   0.734,   0.742],
+    [190.665, 237.454,   0.   , 103.328,   0.   ,   0.   ,   0.734,   0.706]], dtype=np.float32)
+  dets = np.array([
+    [100, 100, 0, 100, 100, 0, 0, 1],
+    [100, 100, 0, 100, 100, 0, 0, 1],
+  ], dtype=np.float32)
+  obj_rep = 'XYZLgWsHA'
+  dets_new, ids = nms_rotated_np( dets, obj_rep, 0.2, 0.3 )
+  pass
+
+if __name__ == '__main__':
+  test_nms_rotated()

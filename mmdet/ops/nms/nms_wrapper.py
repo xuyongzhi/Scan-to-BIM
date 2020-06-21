@@ -23,6 +23,7 @@ def nms_rotated(dets, obj_rep, iou_thr, min_width_length_ratio=0.3, device_id=No
 
 
     obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
+    assert dets.shape[1] == obj_dim + 1
     # execute cpu or cuda nms
     if dets_th.shape[0] == 0:
         inds = dets_th.new_zeros(0, dtype=torch.long)
@@ -32,7 +33,7 @@ def nms_rotated(dets, obj_rep, iou_thr, min_width_length_ratio=0.3, device_id=No
         dets_th = OBJ_REPS_PARSE.encode_obj(dets_th[:,:obj_dim], obj_rep, 'XYLgWsA')
         dets_th[:,3] = torch.max( dets_th[:,3], dets_th[:,2]*min_width_length_ratio)
         #_show_objs_ls_points_ls_torch( (512,512), [dets_th[:,:obj_dim]], 'XYLgWsA' )
-        dets_th[:, 4] *= 180/np.pi
+        dets_th[:, 4] *= -180/np.pi
 
         inds = _C.nms_rotated(dets_th, scores, iou_thr)
 
@@ -205,8 +206,11 @@ def soft_nms(dets, iou_thr, method='linear', sigma=0.5, min_score=1e-3):
     else:
         return new_dets.astype(np.float32), inds.astype(np.int64)
 
+
 def nms_rotated_np(dets, obj_rep, iou_thr, min_width_length_ratio):
   dets = torch.from_numpy(dets)
   dets_new, ids = nms_rotated(dets, obj_rep, iou_thr, min_width_length_ratio)
   dets_new = dets_new.numpy()
   return dets_new, ids
+
+

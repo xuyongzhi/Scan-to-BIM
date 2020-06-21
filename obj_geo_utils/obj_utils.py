@@ -7,7 +7,9 @@ from obj_geo_utils.geometry_utils import sin2theta_np, angle_with_x_np, \
 import cv2
 import torch
 from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box,\
-  sort_four_corners, line_intersection_2d, mean_angles, angle_dif_by_period_np
+  sort_four_corners, line_intersection_2d, mean_angles, angle_dif_by_period_np,\
+  check_duplicate
+
 
 class OBJ_REPS_PARSE():
   '''
@@ -1109,6 +1111,7 @@ class GraphUtils:
   @staticmethod
   def optimize_wall_graph(walls, scores_in=None, obj_rep_in='XYZLgWsHA',
                      opt_graph_cor_dis_thr=0, min_out_length=0):
+    from mmdet.ops.nms.nms_wrapper import nms_rotated_np
     obj_rep = 'XYZLgWsHA'
     if scores_in is None:
       scores = walls[:,-1:].copy()
@@ -1123,15 +1126,23 @@ class GraphUtils:
     all_ids = []
     walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
     all_ids.append(ids)
+
     walls, scores = GraphUtils.merge_wall_corners(walls, scores, obj_rep, opt_graph_cor_dis_thr)
+
     walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
     all_ids.append(ids)
+
     walls, scores, ids = GraphUtils.crop_intersec_walls(walls, scores, obj_rep, opt_graph_cor_dis_thr)
     all_ids.append(ids)
+
     walls, scores, ids = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.3)
     all_ids.append(ids)
+
     walls, scores = GraphUtils.crop_long_walls(walls, scores, obj_rep)
-    #walls, scores = GraphUtils.merge_parallel_connected_walls(walls, scores, obj_rep)
+
+    walls, scores, ids = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.3)
+    all_ids.append(ids)
+
     ids_out = ids_org.copy()
     for ids in all_ids:
       if ids is not None:
@@ -1140,6 +1151,8 @@ class GraphUtils:
     walls = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, obj_rep_in)
     if scores_in is None:
       scores = None
+
+    check_duplicate( walls[:,:7], obj_rep )
     return walls, scores, ids_out
 
   @staticmethod

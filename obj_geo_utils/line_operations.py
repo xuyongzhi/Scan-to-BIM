@@ -421,7 +421,7 @@ def gen_corners_from_lines_th(lines, labels, obj_rep):
       show_lines(lines.cpu().data.numpy(), (512,512), points=lines_out)
     return lines_out, labels_out
 
-def gen_corners_from_lines_np(lines, labels, obj_rep, min_cor_dis_thr,  flag=''):
+def gen_corners_from_lines_np(lines, labels, obj_rep, min_cor_dis_thr, get_degree=False,  flag=''):
     '''
     lines: [n,5]
     labels: [n,1/2]: 1 for label only, 2 for label and score
@@ -474,7 +474,14 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, min_cor_dis_thr,  flag='')
 
     is_duplicate = find_duplicate_corners(corners, min_cor_dis_thr, 'B')
 
-    return corners, labels_cor, corIds_per_line, num_cor_uq
+    cor_degrees = np.zeros([num_cor_uq], dtype=np.int32)-1
+    for i in corIds_per_line.reshape(-1):
+      cor_degrees[i] += 1
+
+    res = (corners, labels_cor, corIds_per_line, num_cor_uq)
+    if get_degree:
+      res = res + (cor_degrees,)
+    return res
 
 def find_duplicate_corners(corners, min_cor_dis_thr, flag):
       dif = corners[None,:,:]  - corners[:,None,:]

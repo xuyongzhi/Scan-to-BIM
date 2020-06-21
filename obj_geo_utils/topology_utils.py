@@ -13,8 +13,8 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from obj_geo_utils.obj_utils import find_wall_wall_connection
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
 from collections import defaultdict
-from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls
-from obj_geo_utils.geometry_utils import arg_sort_points_np
+from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, show_1by1
+from obj_geo_utils.geometry_utils import arg_sort_points_np, check_duplicate
 
 
 def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr=None, min_out_length=None):
@@ -146,6 +146,8 @@ def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
     wids = wall_ids_per_r[i]
     valid_ids_i =  clean_outer_false_walls_of_1_room(rooms[i], walls[wids], obj_rep)
     wids_valid = [wids[vi] for vi in  valid_ids_i]
+    valid_ids_i =  clean_inner_false_walls_of_1_room(rooms[i], walls[wids_valid], obj_rep)
+    wids_valid = [wids_valid[vi] for vi in  valid_ids_i]
     wall_ids_per_r[i] = wids_valid
     if show_walls_per_room:
       _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[wids,:-1], rooms[i:i+1,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
@@ -160,6 +162,36 @@ def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
 
   return walls_fixed
 
+
+def clean_inner_false_walls_of_1_room(room, walls, obj_rep):
+  walls = walls[:,:7].copy()
+  corners, _, corIds_per_line, num_cor_uq, cor_degrees = gen_corners_from_lines_np( walls, None, obj_rep, 2, get_degree=1 )
+  remove_wall_ids = []
+  for i in range(num_cor_uq):
+    if cor_degrees[i] > 1:
+      wids_i = np.where( (corIds_per_line == i).any(1) )[0]
+      #_show_objs_ls_points_ls( (512,512), [walls, walls [wids_i] ], obj_rep, obj_colors=['white','lime'] )
+      check_duplicate(walls, obj_rep)
+
+      rm_wall_ids = []
+      for j in wids_i:
+        cor_j = [k for k in corIds_per_line[j] if k !=i][0]
+        if cor_degrees[cor_j] == 0:
+          rm_wall_ids.append(j)
+        pass
+      if len(rm_wall_ids)>0:
+        walls_i = walls[rm_wall_ids]
+        rm_wall_id = rm_wall_ids[ walls_i[:,3].argmin() ]
+      else:
+        _show_objs_ls_points_ls( (512,512), [walls, walls_i], obj_rep, obj_colors=['white','lime'] )
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+      remove_wall_ids.append( rm_wall_id )
+      pass
+  n = walls.shape[0]
+  valid_ids = [i for i in range(n) if i not in remove_wall_ids]
+  return valid_ids
+
 def clean_outer_false_walls_of_1_room(room, walls, obj_rep):
   from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
   assert obj_rep == 'XYZLgWsHA'
@@ -171,7 +203,7 @@ def clean_outer_false_walls_of_1_room(room, walls, obj_rep):
     cen_i = walls[i:i+1, :2]
     box = np.concatenate([cen_i, cen_room], 1)
     box = OBJ_REPS_PARSE.encode_obj(box, 'RoLine2D_2p', obj_rep)
-    box[:, 3:5] *= 0.9
+    box[:, 3:5] *= 0.95
 
     line_i = OBJ_REPS_PARSE.encode_obj(box, obj_rep, 'RoLine2D_2p').reshape(1,2,2)
     intsects = lines_intersection_2d( line_i, w_lines, True, True )
@@ -179,10 +211,11 @@ def clean_outer_false_walls_of_1_room(room, walls, obj_rep):
 
     if valid_i:
       valid_ids.append( i )
-    if 0:
+    if not valid_i and 0:
       print(valid_i)
       print(intsects)
       _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[i:i+1,:7], box], obj_rep, obj_colors=['white', 'lime', 'red'] )
+  #_show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[valid_ids,:7], box], obj_rep, obj_colors=['white', 'lime', 'red'] )
   return valid_ids
 
 def cal_edge_in_room_scores(walls, rooms, obj_rep):
@@ -290,6 +323,7 @@ def sort_connected_corners(walls, obj_rep):
   cor_nums_per_g = [len(g) for g in group_ids]
   n_cor_1 = sum(cor_nums_per_g)
   if not n_cor_1 == n_cor:
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, )
     assert False, f"{n_cor} != {n_cor_1}"
 
   min_xy = corners.min(axis=0, keepdims=True)
@@ -479,8 +513,6 @@ def sort_rooms(rooms, obj_rep):
   ids = np.argsort(-final_scores)
   rooms_new = rooms[ids]
   return rooms_new
-
-
 
 
 

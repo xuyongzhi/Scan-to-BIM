@@ -10,7 +10,7 @@ from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,
   _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity, show_1by1
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
 from obj_geo_utils.topology_utils import optimize_walls_by_rooms_main
-from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges, draw_rooms_from_edges, relation_mask_to_ids, rel_ids_to_mask
+from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges, draw_rooms_from_edges, relation_mask_to_ids, rel_ids_to_mask, check_duplicate
 from tools.color import COLOR_MAP_3D, ColorList
 import torch
 import time
@@ -21,8 +21,8 @@ SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
 DEBUG = 1
-_draw_pts = 1
-DET_MID = 1
+_draw_pts = 0
+DET_MID = 0
 
 def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_pred, len(classes)+1)
@@ -288,20 +288,32 @@ def eval_graph(res_file):
   graph_eval = GraphEval(obj_rep, classes, filter_edges)
   graph_eval(results_datas, res_file)
 
-def eval_graph_2_files(wall_res_file, room_res_file):
-  with open(wall_res_file, 'rb') as f:
+def eval_graph_multi_files(res_files):
+  with open(res_files[0], 'rb') as f:
     wall_results_datas = pickle.load(f)
-  with open(room_res_file, 'rb') as f:
+  with open(res_files[1], 'rb') as f:
     room_results_datas = pickle.load(f)
   results_datas = merge_two_results(wall_results_datas, room_results_datas)
+
+  if len(res_files) == 3:
+    with open(res_files[2], 'rb') as f:
+      win_results_datas = pickle.load(f)
+    #win_results_datas = filter_res_classes( win_results_datas, 'window' )
+    results_datas = merge_two_results(results_datas, win_results_datas, kp_cls_in2='window')
   img_meta = results_datas[0]['img_meta']
   classes = img_meta['classes']
   filter_edges =  results_datas[0]['filter_edges']
   obj_rep =  results_datas[0]['obj_rep']
   graph_eval = GraphEval(obj_rep, classes, filter_edges)
-  graph_eval(results_datas, wall_res_file)
+  graph_eval(results_datas, res_files[0])
 
-def merge_two_results(results_datas_1, results_datas_2):
+def filter_res_classes(results_datas, keep_cls):
+  for res in results_datas:
+    catid_2_cat = res['catid_2_cat']
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    pass
+
+def merge_two_results(results_datas_1, results_datas_2, kp_cls_in2=None):
   results_datas_3 = []
   same_eles = ['img_id', 'img', 'img_meta', 'catid_2_cat', 'filter_edges', 'obj_rep']
   concat_eles = ['gt_bboxes', 'gt_labels']
@@ -315,24 +327,44 @@ def merge_two_results(results_datas_1, results_datas_2):
     classes1 = res1['img_meta']['classes']
     n1 = len(classes1)
     classes2 = res2['img_meta']['classes']
-    assert classes2 == ['room']
-    res3['img_meta']['classes'] = classes1 + classes2
-    res3['catid_2_cat'][n1+1] = 'room'
-    res2['gt_labels'] +=n1
+
+    if classes2 == ['room']:
+      res3['img_meta']['classes'] = classes1 + classes2
+      res3['catid_2_cat'][n1+1] = 'room'
+      res2['gt_labels'] +=n1
+      res3['gt_relations_room_wall'] = res2['gt_relations']
+
+    elif classes2 == ['door', 'window']:
+      res3['img_meta']['classes'] = classes1 + ['window']
+      res3['catid_2_cat'][n1+1] = 'window'
+      assert res2['catid_2_cat'][2] == 'window'
+      win_mask = res2['gt_labels'] == 2
+
+      res2['gt_labels'] = res2['gt_labels'][win_mask]
+      res2['gt_bboxes'] = res2['gt_bboxes'][win_mask]
+      res2['gt_labels'] += n1 - 1
+      res2['detections'] = [ res2['detections'][1] ]
+
+      res3['gt_relations_room_wall'] = res1['gt_relations_room_wall']
+      pass
+    else:
+      raise NotImplementedError
+
     for e in concat_eles:
       res3[e] = np.concatenate( [res1[e], res2[e]], 0 )
     res3['detections'] = res1['detections'] + res2['detections']
     res3['det_relations'] = res1['det_relations']
 
-    res3['gt_relations_room_wall'] = res2['gt_relations']
     results_datas_3.append(res3)
   return results_datas_3
 
+
 class GraphEval():
+  global _draw_pts
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(2))
-  _img_ids_debuging = None
+  _img_ids_debuging = list(range(11,12))
+  #_img_ids_debuging = None
   _opti_room = 0
 
 
@@ -340,7 +372,9 @@ class GraphEval():
     _all_out_types = [ 'bRefine_sAve' ] * 1
     _opti_graph = [1]
     _opti_by_rel = [0]
+
     _opti_room = 1
+    _draw_pts = 0
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
@@ -662,9 +696,11 @@ class GraphEval():
             gt_lines_ls.append( gt_lines_l )
             det_points_ls.append( det_points )
 
-            if debug and 0:
+            if debug and 1:
               print('raw prediction')
-              _show_objs_ls_points_ls(img.shape[:2], [det_lines[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep)
+              _show_objs_ls_points_ls((512,512), [det_lines[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep)
+              #check_duplicate( det_lines, self.obj_rep )
+              pass
 
         return cat_ls, det_lines_merged_ls, gt_lines_ls, det_points_ls
 
@@ -925,9 +961,11 @@ class GraphEval():
         if miou > 0.7:
           succ_room_ids.append( gt_i )
           if show_per_room:
-            print(f'success')
+            print(f'success wall rel')
         else:
           fail_room_ids.append( gt_i )
+          if show_per_room:
+            print(f'fail wall rel')
         if show_per_room:
           print(f'{i} ious: {ious_i}, {miou:.3f}')
 
@@ -939,13 +977,15 @@ class GraphEval():
         #dif_i = dif_i.max(-1).min(-1)
       else:
         if show_per_room:
+          print(f'fail room')
           print(f'{i} gtn:{gtn}, dtn:{dtn}, iou:{iou_per_gt[gt_i]:.3f}')
         pass
       if show_per_room:
-        _show_objs_ls_points_ls( (512,512), [gt_rooms[gt_i,None], dt_rooms[dt_i,None][:,:7]], self.obj_rep, obj_colors=['red','lime'] )
-        _show_objs_ls_points_ls( (512,512), [gtws_i, dtws_i[:,:7]], self.obj_rep, obj_colors=['red','lime'] )
+        #_show_objs_ls_points_ls( (512,512), [gt_rooms[gt_i,None], dt_rooms[dt_i,None][:,:7]], self.obj_rep, obj_colors=['red','lime'] )
+        _show_objs_ls_points_ls( (512,512), [gt_walls, gtws_i, dtws_i[:,:7]], self.obj_rep, obj_colors=['white', 'red','lime'], obj_thickness=[1,2,2] )
         #show_1by1((512,512), gtws_i, self.obj_rep, gt_walls)
         #show_1by1((512,512), dtws_i[:,:7], self.obj_rep, dt_walls[:,:7])
+        print(f'\n')
       pass
 
     num_rel_tp = len(succ_room_ids)
@@ -1792,18 +1832,21 @@ def apply_mask_on_ids(ids, mask):
 
 
 def main():
-  workdir = '/home/z/Research/mmdetection/work_dirs/1_S_master/'
-  dir1 = 'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr0_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel'
-  dir2 = 'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr0_LsW510R2P1N1_Rfiou832_Fpn44_Pbs1_Bp32'
+  workdir = '/home/z/Research/mmdetection/work_dirs/L_master_2S_jun21/'
+
+  dirs = [
+  'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr1_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel',
+  'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr1_LsW510R2P1N1_Rfiou832_Fpn44_Pbs1_Bp32',
+  'bTPV_r50_fpn_XYXYSin2_beike2d_dowi_bs7_lr10_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32'
+  ]
 
   filename = 'detection_11_Imgs.pickle'
-  filename = 'detection_95_Imgs.pickle'
+  filename = 'detection_111_Imgs.pickle'
 
-  resf1 = os.path.join( os.path.join(workdir, dir1), filename)
-  resf2 = os.path.join( os.path.join(workdir, dir2), filename)
-  #eval_graph(resf1)
+  res_files = [os.path.join( os.path.join(workdir, d), filename) for d in dirs]
+  #eval_graph(res_files[0])
 
-  eval_graph_2_files(resf1, resf2)
+  eval_graph_multi_files(res_files)
 
 if __name__ == '__main__'  :
   main()
