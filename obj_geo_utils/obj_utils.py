@@ -1127,6 +1127,8 @@ class GraphUtils:
     walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
     all_ids.append(ids)
 
+    walls = GraphUtils.align_small_angle_walls(walls, obj_rep)
+
     walls, scores = GraphUtils.merge_wall_corners(walls, scores, obj_rep, opt_graph_cor_dis_thr)
 
     walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
@@ -1154,6 +1156,18 @@ class GraphUtils:
 
     check_duplicate( walls[:,:7], obj_rep )
     return walls, scores, ids_out
+
+  @staticmethod
+  def align_small_angle_walls(walls, obj_rep):
+    angles0  = walls[:,6].copy()
+    steps = angles0 / (np.pi/2)
+    angles1 = np.round(steps) * np.pi/2
+    gaps = steps - np.round(steps)
+    gaps = np.abs(gaps) * 180 / np.pi
+    align_mask = gaps < 5
+    angles_aligned = angles0 *(1-align_mask) + angles1 * align_mask
+    walls[:,6]  = angles_aligned
+    return walls
 
   @staticmethod
   def crop_intersec_walls(walls, scores, obj_rep, opt_graph_cor_dis_thr):

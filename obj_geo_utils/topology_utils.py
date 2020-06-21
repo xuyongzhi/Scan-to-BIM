@@ -240,6 +240,9 @@ def fix_failed_room_by_room(walls, rooms, wall_ids_per_r, obj_rep):
     walls_new = np.concatenate(walls_new, 0)
   else:
     walls_new = walls_fixed[0:0]
+
+  #_show_objs_ls_points_ls( (512,512), [walls[:,:7], walls_new[:,:7], walls_fixed[:,:7]], obj_rep,
+  #          obj_colors=['white', 'lime', 'red'], obj_thickness=[1,1,1])
   return walls_fixed, walls_new
 
 def fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_process_per_room=0):
@@ -434,11 +437,13 @@ def fix_walls_1_room(walls, room, obj_rep):
 
   walls_fixed = walls.copy()
   walls_new = []
+  fixed_ids = []
   for  i in range( len(fix_pairs) ):
     cors_i = corners_sorted[fix_pairs[i]]
     walls_i = walls_fixed[fix_wall_ids[i]]
     walls1, new_wall = connect_two_corner(cors_i, walls_i, obj_rep)
     walls_fixed[fix_wall_ids[i],:7] = walls1
+    fixed_ids.append( fix_wall_ids[i] )
     walls_new.append( new_wall )
 
     if show_fix_process_per_room:
@@ -457,6 +462,7 @@ def fix_walls_1_room(walls, room, obj_rep):
     walls_final = np.concatenate([walls_fixed, walls_new], 0)
     _show_objs_ls_points_ls( (512,512), [walls[:,:7], room[None,:7], walls_final[:,:7]], obj_rep,
             obj_colors=['red', 'white', 'lime'], obj_thickness=[5,1,1])
+  #fixed_ids = np.concatenate( fixed_ids, 0 )
   return walls_fixed, walls_new
 
 def connect_two_corner(corners, walls0, obj_rep):
@@ -481,6 +487,7 @@ def connect_two_corner(corners, walls0, obj_rep):
   if show:
     _show_objs_ls_points_ls( (512, 512), [walls0[:,:7], walls1[:,:7], new_wall[:,:7]], obj_rep,
                             obj_colors=['white', 'green', 'red'], obj_thickness=[4,1,1] )
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass
   return walls1, new_wall
 

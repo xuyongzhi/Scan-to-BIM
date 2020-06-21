@@ -39,6 +39,13 @@ def mean_angles(angles0, angles1, offset, period, weights0=1, weights1=1):
     ave1 = limit_period_np(ave0, offset, period)
     return ave1
 
+def is_align_angles(angles):
+  steps = angles / (np.pi/2)
+  gaps = steps - np.round(steps)
+  gaps = np.abs(gaps) * 180 / np.pi
+  align_mask = gaps < 5
+  return align_mask
+
 def angle_dif_by_period_np(val0, val1, aim_scope_id):
     dif = val1 - val0
     if aim_scope_id == 0:

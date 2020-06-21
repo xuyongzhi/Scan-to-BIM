@@ -363,8 +363,8 @@ class GraphEval():
   global _draw_pts
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(2))
-  _img_ids_debuging = None
+  _img_ids_debuging = list(range(4,5))
+  #_img_ids_debuging = None
   _opti_room = 0
 
 
