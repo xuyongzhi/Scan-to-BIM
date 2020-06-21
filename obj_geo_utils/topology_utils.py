@@ -473,17 +473,16 @@ def connect_two_corner(corners, walls0, obj_rep):
   c = walls0.shape[1]
   angle_dif = limit_period_np( walls0[0,6] - walls0[1,6], 0.5, np.pi)
   angle_dif = abs(angle_dif)
-  need_add = True
   if angle_dif > np.pi / 4:
-      walls1 = connect_two_edges_by_intersect( walls0[:,:7], obj_rep, corners )
-      new_wall = walls0[0:0,:c]
-      need_add = walls1 is None
-  if need_add:
-      new_wall = OBJ_REPS_PARSE.encode_obj(corners.reshape(1,4), 'RoLine2D_2p', obj_rep)
-      if c==8:
-        score = walls0[:, 7:8].mean().reshape(1,1)
-        new_wall = np.concatenate([new_wall, score ], 1)
+      new_wall = intersect_2edges_by_add_new_wall( walls0[:,:7], obj_rep, corners )
       walls1 = walls0[:,:7]
+  else:
+      new_wall = OBJ_REPS_PARSE.encode_obj(corners.reshape(1,4), 'RoLine2D_2p', obj_rep)
+      walls1 = walls0[:,:7]
+  if c==8:
+    score =  new_wall[:,0:1].copy()
+    score[:]  =1
+    new_wall = np.concatenate([new_wall, score ], 1)
   if show:
     _show_objs_ls_points_ls( (512, 512), [walls0[:,:7], walls1[:,:7], new_wall[:,:7]], obj_rep,
                             obj_colors=['white', 'green', 'red'], obj_thickness=[4,1,1] )
@@ -532,7 +531,7 @@ def connect_two_edges_to_a_triangle(corner_degrees, corners_per_line, obj_rep):
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
-def connect_two_edges_by_intersect(walls0, obj_rep, corners_bad=None):
+def intersect_2edges_by_modification(walls0, obj_rep, corners_bad=None):
   '''
   corners_bad: if this is not None, this is the corners that should be fixed.
   '''
@@ -542,8 +541,8 @@ def connect_two_edges_by_intersect(walls0, obj_rep, corners_bad=None):
   cor_0 = OBJ_REPS_PARSE.encode_obj(w0[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
   cor_1 = OBJ_REPS_PARSE.encode_obj(w1[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
   intersect = line_intersection_2d(cor_0, cor_1, min_angle=np.pi/8).reshape(1,2)
-  cor_0_new = replace_1cor_of_edge(cor_0, intersect).reshape(1,4)
-  cor_1_new = replace_1cor_of_edge(cor_1, intersect).reshape(1,4)
+  cor_0_new = replace_1cor_of_edge_to_midify(cor_0, intersect).reshape(1,4)
+  cor_1_new = replace_1cor_of_edge_to_midify(cor_1, intersect).reshape(1,4)
   if corners_bad is not None:
     dis_to_bad = np.linalg.norm( corners_bad - intersect, axis=1 )
     dis0 = np.linalg.norm( cor_0 - intersect, axis=1 )
@@ -560,7 +559,31 @@ def connect_two_edges_by_intersect(walls0, obj_rep, corners_bad=None):
   walls_new = np.concatenate([w_0_new[None], w_1_new[None]], 0)
   return walls_new
 
-def replace_1cor_of_edge(edge, cor):
+def intersect_2edges_by_add_new_wall(walls0, obj_rep, corners_bad=None):
+  '''
+  corners_bad: if this is not None, this is the corners that should be fixed.
+  '''
+  assert walls0.shape[0] == 2
+  #_show_objs_ls_points_ls( (512,512), [walls0], obj_rep, points_ls=[corners_bad] )
+  w0, w1 = walls0[0], walls0[1]
+  cor_0 = OBJ_REPS_PARSE.encode_obj(w0[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
+  cor_1 = OBJ_REPS_PARSE.encode_obj(w1[None,:], obj_rep, 'RoLine2D_2p').reshape(2,2)
+  intersect = line_intersection_2d(cor_0, cor_1, min_angle=np.pi/8).reshape(1,2)
+  intersect = np.repeat( intersect, 2, 0 )
+  new_walls = np.concatenate( [intersect, corners_bad], 1 )
+  new_walls = OBJ_REPS_PARSE.encode_obj(new_walls, 'RoLine2D_2p', obj_rep)
+  return new_walls
+
+def replace_1cor_of_edge_to_add(edge, cor):
+  assert edge.shape == (2,2)
+  assert cor.shape == (1,2)
+  dis = np.linalg.norm( edge - cor, axis=1 )
+  i = dis.argmax()
+  edge_new = edge.copy()
+  edge_new[i] = cor
+  return edge_new
+
+def replace_1cor_of_edge_to_midify(edge, cor):
   assert edge.shape == (2,2)
   assert cor.shape == (1,2)
   dis = np.linalg.norm( edge - cor, axis=1 )

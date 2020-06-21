@@ -19,8 +19,10 @@ def align_bboxes_with_wall(dets, walls, cat, obj_rep):
 
   #print(f'max_ious: {max_ious}')
   #_show_objs_ls_points_ls( (512,512), [dets, walls], obj_rep=obj_rep, obj_colors=['red', 'blue'])
+  matched_ids = []
   for i in range(ndet):
     if max_ious[i] > 0.5:
+      matched_ids.append(i)
       the_wall = walls[the_wall_ids[i]]
       #_show_objs_ls_points_ls( (512,512), [dets[i:i+1], the_wall[None,:]], obj_rep=obj_rep, obj_colors=['red', 'blue'])
       angle_dif = np.abs( limit_period_np( dets[i,-1] - the_wall[-1] , 0.5, np.pi))
@@ -32,6 +34,7 @@ def align_bboxes_with_wall(dets, walls, cat, obj_rep):
       pass
 
   pass
+  new_dets = new_dets[matched_ids]
   return   new_dets
 
 def align_1_box_with_wall(box, wall, obj_rep):

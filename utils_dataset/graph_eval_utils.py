@@ -363,8 +363,8 @@ class GraphEval():
   global _draw_pts
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(4,5))
-  #_img_ids_debuging = None
+  _img_ids_debuging = list(range(1, 2))
+  _img_ids_debuging = None
   _opti_room = 0
 
 
@@ -373,7 +373,7 @@ class GraphEval():
     _opti_graph = [1]
     _opti_by_rel = [1]
 
-    _opti_room = 1
+    _opti_room = 0
     _draw_pts = 0
 
   if 0:
@@ -401,6 +401,7 @@ class GraphEval():
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['5pJn2a9zfRzInJ7IwpIzQd','7w6zvVsOBAQK4h4Bne7caQ', 'HBfvzptqI-PlRzcg3lnX-o', 'jtZ2kFzYePr0Pg-yOfnViy',]
+  scene_list = ['18H6WOCclkJY34-TVuOqX3']
   scene_list = None
   #scene_list = ['krrV11t89QIya7T02sAvKh']
 
@@ -717,12 +718,22 @@ class GraphEval():
     walls_org = det_lines_merged_ls[wall_i]
     rooms_org = det_lines_merged_ls[room_i]
     new_walls = optimize_walls_by_rooms_main( walls_org, rooms_org, self.obj_rep )
-    det_lines_merged_ls[wall_i] = new_walls
-    wall_ids_per_room, _,_, room_bboxes = get_rooms_from_edges(new_walls[:,:7], self.obj_rep, gen_bbox=True)
+    wall_ids_per_room,  room_ids_per_wall ,_, room_bboxes = get_rooms_from_edges(new_walls[:,:7], self.obj_rep, gen_bbox=True)
     scores_r = room_bboxes[:,0:1].copy()
     scores_r[:] = 1
     room_bboxes = np.concatenate([room_bboxes, scores_r], 1)
     det_lines_merged_ls[room_i] = room_bboxes
+
+    # delete alone walls
+    mask = (room_ids_per_wall>=0).any(1)
+    valid_ids = np.where(mask)[0]
+    new_walls = new_walls[valid_ids]
+    det_lines_merged_ls[wall_i] = new_walls
+    nw = len(mask)
+    ids_map = np.zeros([nw], dtype=np.int32)-1
+    ids_map[ valid_ids ] = np.arange( len(valid_ids) )
+    wall_ids_per_room = [ ids_map[ids] for ids in wall_ids_per_room ]
+
     return wall_ids_per_room
 
   def evaluate_by_iou(self, results_datas, out_file, out_type, optimize_graph=True, optimize_graph_by_relation=False):
@@ -1848,9 +1859,9 @@ def main():
   filename = 'detection_111_Imgs.pickle'
 
   res_files = [os.path.join( os.path.join(workdir, d), filename) for d in dirs]
-  #eval_graph(res_files[0])
+  eval_graph(res_files[0])
 
-  eval_graph_multi_files(res_files)
+  #eval_graph_multi_files(res_files)
 
 if __name__ == '__main__'  :
   main()
