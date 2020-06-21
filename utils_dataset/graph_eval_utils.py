@@ -21,7 +21,6 @@ SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
 DEBUG = 1
-_draw_pts = 0
 DET_MID = 0
 
 def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
@@ -360,10 +359,9 @@ def merge_two_results(results_datas_1, results_datas_2, kp_cls_in2=None):
 
 
 class GraphEval():
-  global _draw_pts
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(1, 2))
+  _img_ids_debuging = list(range(0, 10))
   _img_ids_debuging = None
   _opti_room = 0
 
@@ -374,7 +372,6 @@ class GraphEval():
     _opti_by_rel = [1]
 
     _opti_room = 0
-    _draw_pts = 0
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
@@ -387,6 +384,7 @@ class GraphEval():
 
   if _opti_graph[0] == 0:
     assert _opti_room == 0
+  _draw_pts = _opti_room != 1
 
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
@@ -570,7 +568,7 @@ class GraphEval():
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
             pass
-        draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep)
+        draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep, self._draw_pts)
         pass
 
     corner_recall_precision_perimg = defaultdict(list)
@@ -1280,7 +1278,7 @@ class GraphEval():
       det_points_neg = det_points[0:0]
     else:
       det_lines_neg = det_lines[neg_line_ids]
-      if _draw_pts:
+      if self._draw_pts:
         det_points_neg = det_points[neg_line_ids]
       else:
         det_points_neg = None
@@ -1580,15 +1578,17 @@ def lighten_density_img(img):
   img = img.astype(np.uint8)
   return img
 
-def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
+def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
   import mmcv
   from tools.color import COLOR_MAP_2D
   colors_map = COLOR_MAP_2D
 
   num_cats = len(eval_draws_ls)
   img_det = None
+  img_det_mesh = None
   img_det_pts = None
   img_gt = None
+  img_gt_mesh = None
   obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
 
   det_bboxes = []
@@ -1617,14 +1617,17 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
         det_points_neg = det_points_neg.reshape(-1, 2)
 
       if img_det is None:
-        img_det = img.shape[:2]
+        h,w = img.shape[:2]
+        img_det = img_det_mesh = img_gt = img_gt_mesh = np.ones([h,w,3], dtype=np.uint8)*0
         det_file = img_file_base_all_cls + '_Det.png'
+        det_mesh_file = img_file_base_all_cls + '_DetMesh.png'
 
         img_det_pts = lighten_density_img( img[:,:,0] )
         det_pts_file = img_file_base_all_cls + '_DetPts.png'
 
-        img_gt = lighten_density_img( img[:,:,0])
+        #img_gt = lighten_density_img( img[:,:,0])
         gt_file = img_file_base_all_cls + '_Gt.png'
+        gt_mesh_file = img_file_base_all_cls + '_GtMesh.png'
 
       if cat == 'room':
         img_det_rooms = lighten_density_img( img[:,:,0])
@@ -1658,8 +1661,8 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       if cat == 'wall':
         walls = np.concatenate([det_lines_pos, det_lines_neg], 0)
         if not DET_MID:
-          img_det = draw_rooms_from_edges(walls[:,:7], obj_rep, img_size, 0)
-          img_gt = draw_rooms_from_edges(gt_lines[:,:7], obj_rep, img_size)
+          img_det_mesh = draw_rooms_from_edges(walls[:,:7], obj_rep, img_size, 0)
+          img_gt_mesh = draw_rooms_from_edges(gt_lines[:,:7], obj_rep, img_size)
       if cat in ['window', 'door'] and walls is not None:
         det_lines_pos = align_bboxes_with_wall(det_lines_pos, walls, cat, obj_rep)
         det_lines_neg = align_bboxes_with_wall(det_lines_neg, walls, cat, obj_rep)
@@ -1673,8 +1676,10 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       det_cats += [cat] * dn
       gt_cats += [cat] * gn
 
+      img_det_mesh = draw_building_objs('mesh', cat, img_det_mesh, det_lines_pos, det_lines_neg, obj_rep,\
+            obj_dim, det_corners_pos, det_corners_neg)
 
-      img_det = draw_building_objs(cat, img_det, det_lines_pos, det_lines_neg, obj_rep,\
+      img_det = draw_building_objs('edge', cat, img_det, det_lines_pos, det_lines_neg, obj_rep,\
             obj_dim, det_corners_pos, det_corners_neg)
 
       if _draw_pts:
@@ -1696,15 +1701,19 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
                 out_file=None,)
 
         #mmcv.imshow(img_det_pts)
-      img_gt = draw_building_objs(cat, img_gt, gt_lines_true, gt_lines_false, obj_rep,\
+      img_gt_mesh = draw_building_objs('mesh', cat, img_gt_mesh, gt_lines_true, gt_lines_false, obj_rep,\
+            obj_dim, gt_corners_true, gt_corners_false)
+      img_gt = draw_building_objs('edge', cat, img_gt, gt_lines_true, gt_lines_false, obj_rep,\
             obj_dim, gt_corners_true, gt_corners_false)
 
       pass
 
   mmcv.imwrite(img_det, det_file)
+  mmcv.imwrite(img_det_mesh, det_mesh_file)
   if _draw_pts:
     mmcv.imwrite(img_det_pts, det_pts_file)
   mmcv.imwrite(img_gt, gt_file)
+  mmcv.imwrite(img_gt_mesh, gt_mesh_file)
   if 'room' in cat_ls:
     mmcv.imwrite(img_det_rooms, det_rooms_file)
     mmcv.imwrite(img_det_rooms_pts, det_rooms_pts_file)
@@ -1762,11 +1771,16 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
 
   pass
 
-def draw_building_objs(cat, img_det, det_lines_pos, det_lines_neg, obj_rep,
-            obj_dim, det_corners_pos, det_corners_neg):
-      c = 'black'
+def draw_building_objs(style, cat, img_det, det_lines_pos, det_lines_neg, obj_rep,
+            obj_dim, det_corners_pos, det_corners_neg,):
+      if style == 'mesh':
+        c = 'black'
+      if style == 'edge':
+        c = 'random'
       if DET_MID:
         c = 'random'
+      det_lines_pos = det_lines_pos.copy()
+      det_lines_neg = det_lines_neg.copy()
       #obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]]
       obj_scores_ls = None
       corners =  [det_corners_neg, det_corners_pos]
@@ -1776,8 +1790,12 @@ def draw_building_objs(cat, img_det, det_lines_pos, det_lines_neg, obj_rep,
       dtk = tk
       if cat in ['door', 'window']:
         c = {'door':'gray', 'window':'yellow_green'} [cat]
-        dtk = 8
-        rds = 6
+        if style == 'mesh':
+          dtk = 8
+          rds = 8
+        else:
+          dtk = 5
+          rds = 6
 
         det_lines_pos[:,3] -= rds
         det_lines_neg[:,3] -= rds
@@ -1796,8 +1814,14 @@ def draw_building_objs(cat, img_det, det_lines_pos, det_lines_neg, obj_rep,
               text_colors_ls=['green', 'red'])
 
       if cat in ['door', 'window']:
-        c = 'black'
-        tk = 2
+        if style == 'mesh':
+          c = 'black'
+          tk = 2
+        else:
+          c = 'white'
+          tk = 2
+          dtk = 7
+          #return img_det
         if DET_MID :
           c = 'white'
         det_lines_pos[:,3] += rds
