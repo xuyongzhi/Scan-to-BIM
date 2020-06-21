@@ -363,15 +363,15 @@ class GraphEval():
   global _draw_pts
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(11,12))
-  #_img_ids_debuging = None
+  _img_ids_debuging = list(range(2))
+  _img_ids_debuging = None
   _opti_room = 0
 
 
   if 1:
     _all_out_types = [ 'bRefine_sAve' ] * 1
     _opti_graph = [1]
-    _opti_by_rel = [0]
+    _opti_by_rel = [1]
 
     _opti_room = 1
     _draw_pts = 0
@@ -431,18 +431,21 @@ class GraphEval():
   def update_path(self, out_file):
     self.work_dir = os.path.dirname(out_file)
     s = int(self._score_threshold*10)
+    self.par_nice = f'Sc{s}_mL{self._min_out_length}_{self.out_type}'
     if EVAL_METHOD == 'corner':
-      self.par_nice = f'Score{s}_minLen{self._min_out_length}_{self.out_type}_corDis{self._corner_dis_threshold}'
+      self.par_nice += f'_corD{self._corner_dis_threshold}'
     if EVAL_METHOD == 'iou':
-      self.par_nice = f'Score{s}_minLen{self._min_out_length}_{self.out_type}_IoU{self._iou_threshold}'
+      self.par_nice += f'IoU{self._iou_threshold}'
+
     if self.optimize_graph:
-      self.par_nice += f'_OptGraph{self._opt_graph_cor_dis_thr}'
+      self.par_nice += f'-Gh{self._opt_graph_cor_dis_thr}'
     if self.optimize_graph_by_relation:
-      self.par_nice += f'_OptRel'
+      self.par_nice += f'-wRel'
     if self._opti_room:
-      self.par_nice += '_Room'
-    self.eval_dir = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/PerClass')
-    self.eval_dir_all_cls = os.path.join(self.work_dir, 'Eval_' + self.par_nice + f'_{self.num_img}Imgs/AllClasses')
+      self.par_nice += '-Room'
+    self.eval_dir = os.path.join(self.work_dir, self.par_nice + f'_{self.num_img}Imgs/PerClass')
+    self.eval_dir_all_cls = os.path.join(self.work_dir, self.par_nice + f'_{self.num_img}Imgs/AllClasses')
+
     if not os.path.exists(self.eval_dir):
       os.makedirs(self.eval_dir)
     if not os.path.exists(self.eval_dir_all_cls):
@@ -611,7 +614,8 @@ class GraphEval():
 
     eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum, ave_ious, time_post)
     path = os.path.dirname(out_file)
-    eval_path = os.path.join(path, 'eval_res.txt')
+    num_cat = len(catid_2_cat)-1
+    eval_path = os.path.join(path, f'eval_res_{num_cat}_cats.txt')
     with open(eval_path, 'a') as f:
       f.write(eval_res_str)
     print(eval_res_str)
@@ -682,7 +686,7 @@ class GraphEval():
                       det_relations[c] = det_relations[c][:, ids_merged]
                   if optimize_graph_by_relation:
                     det_lines_merged = GraphUtils.optimize_walls_by_relation(det_lines_merged,
-                              det_relations[cat], self._max_ofs_by_rel, self.obj_rep, self.eval_dir_all_cls, scene_name)
+                              det_relations[cat], self._max_ofs_by_rel, self.obj_rep, self.eval_dir_all_cls, scene_name='')
                     det_lines_merged, _, ids_merged, t = post_process_bboxes_1cls(det_lines_merged,
                       self._score_threshold, label, cat, self._opt_graph_cor_dis_thr,
                       self.dim_parse.OBJ_REP, self._min_out_length, walls=walls,)
@@ -1643,7 +1647,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep ):
       if cat == 'wall':
         walls = np.concatenate([det_lines_pos, det_lines_neg], 0)
         if not DET_MID:
-          img_det = draw_rooms_from_edges(walls[:,:7], obj_rep, img_size)
+          img_det = draw_rooms_from_edges(walls[:,:7], obj_rep, img_size, 0)
           img_gt = draw_rooms_from_edges(gt_lines[:,:7], obj_rep, img_size)
       if cat in ['window', 'door'] and walls is not None:
         det_lines_pos = align_bboxes_with_wall(det_lines_pos, walls, cat, obj_rep)

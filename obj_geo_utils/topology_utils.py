@@ -164,6 +164,8 @@ def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
 
 
 def clean_inner_false_walls_of_1_room(room, walls, obj_rep):
+  if walls.shape[0] == 0:
+    return []
   walls = walls[:,:7].copy()
   corners, _, corIds_per_line, num_cor_uq, cor_degrees = gen_corners_from_lines_np( walls, None, obj_rep, 2, get_degree=1 )
   remove_wall_ids = []
@@ -446,7 +448,10 @@ def fix_walls_1_room(walls, room, obj_rep):
       _show_objs_ls_points_ls( (512,512), [walls[:,:7], walls_fixed[:,:7], wn[:,:7] ], obj_rep,
           obj_colors=['green', 'red', 'yellow'], obj_thickness=[5, 2, 2] )
       pass
-  walls_new = np.concatenate(walls_new, 0)
+  if len(walls_new) > 0:
+    walls_new = np.concatenate(walls_new, 0)
+  else:
+    walls_new = walls_fixed[0:0].copy()
 
   if show_fix_res_per_room:
     walls_final = np.concatenate([walls_fixed, walls_new], 0)

@@ -1094,7 +1094,7 @@ def points_to_oriented_bbox(points, obj_rep_out='XYLgWsA'):
     box2d = OBJ_REPS_PARSE.encode_obj(box2d, 'XYLgWsA', obj_rep_out)
   return box2d
 
-def draw_rooms_from_edges(edges, obj_rep, img_size=None):
+def draw_rooms_from_edges(edges, obj_rep, img_size=None, show=0):
   from scipy import ndimage
   from tools.visual_utils import draw_1_obj
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
@@ -1122,7 +1122,8 @@ def draw_rooms_from_edges(edges, obj_rep, img_size=None):
 
   img_mask = ColorValuesNp[mask]
   img_mask[background] = 255
-  #mmcv.imshow(img_mask)
+  if show:
+    mmcv.imshow(img_mask)
   return img_mask
 
   room_labels = [i for i in range(1, num_rooms+1) if i != bg_label]
