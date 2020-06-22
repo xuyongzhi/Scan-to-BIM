@@ -79,7 +79,7 @@ model = dict(
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            loss_weight=4.0,),
+            loss_weight=10.0,),
         cls_types=['refine', 'final'],
         loss_bbox_init=dict(type='SmoothL1Loss', beta=0.11, loss_weight=0.5),
         loss_bbox_refine=dict(type='SmoothL1Loss', beta=0.11, loss_weight=1.0),
@@ -234,17 +234,17 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs =  500
+total_epochs =  7
 lr_config = dict(
     policy='step',
     warmup='linear',
     warmup_iters=20,
     warmup_ratio=1.0 / 3,
-    step=[int(total_epochs*0.4), int(total_epochs*0.8)])
-checkpoint_config = dict(interval=10)
+    step=[int(total_epochs*0.5), int(total_epochs*0.8)])
+checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=2,
+    interval=1,
     hooks=[
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')

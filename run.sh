@@ -3,11 +3,11 @@
 #export CUDA_LAUNCH_BLOCKING=1
 #export CUDA_VISIBLE_DEVICES=1
 
-CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
+CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_r.py
 #CONFIG=configs/strpoints/S3dProj_BevResNet_strpoints_r50_fpn_1x.py
 
 
-wkdir=bTPV_r50_fpn_XYXYSin2__beike2d_wado_bs7_lr10_LsW510R2P1N1_Rfiou741_Fpn44_Pbs1_Bp32_Rel
+wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr1_LsW510R2P1N1_Rfiou832_Fpn44_Pbs1_Bp32
 #wkdir=test
 
 #CONFIG=./work_dirs/${wkdir}/_S3dProj_BevResNet_strpoints_r50_fpn_1x.py
@@ -29,23 +29,16 @@ FILTER_EDGES=0
 
 #CLS=abcdif
 
-CLS=ad
-REL=1
+#CLS=ad
+#REL=1
 
 
 
 # single gpu
-#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
-#--resume $CP 
-
-#CLS=id
-#REL=0
-#ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
-#
-CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_r.py
 CLS=r
 REL=0
 ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BASE_PLANE --bs $BS  --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES  --classes $CLS --relation $REL  
+#--resume $CP 
 
 
 # Multi gpu
@@ -56,5 +49,8 @@ ipython tools/train.py --  ${CONFIG} --rotate $ROTATE --lr $LR --base_plane $BAS
 ROTATE=0
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 #STYLE=--show
+wkdir=bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr1_LsW510R2P1N1_Rfiou832_Fpn44_Pbs1_Bp32
+CP=./work_dirs/${wkdir}/latest.pth
 
-#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL
+#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL 
+

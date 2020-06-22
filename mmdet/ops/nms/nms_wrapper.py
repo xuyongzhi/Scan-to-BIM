@@ -23,7 +23,7 @@ def nms_rotated(dets, obj_rep, iou_thr, min_width_length_ratio=0.3, device_id=No
 
 
     obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
-    assert dets.shape[1] == obj_dim + 1
+    assert dets.shape[1] >= obj_dim + 1
     # execute cpu or cuda nms
     if dets_th.shape[0] == 0:
         inds = dets_th.new_zeros(0, dtype=torch.long)

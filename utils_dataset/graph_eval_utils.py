@@ -15,7 +15,6 @@ from tools.color import COLOR_MAP_3D, ColorList
 import torch
 import time
 
-EVAL_METHOD = ['corner', 'iou'][0]
 
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
@@ -275,16 +274,18 @@ def _optimize_wall_by_room(walls, rooms, obj_rep ):
   return walls
 
 
-def eval_graph(res_file):
+def eval_graph(res_file, eval_method='corner'):
   with open(res_file, 'rb') as f:
     results_datas = pickle.load(f)
   img_meta = results_datas[0]['img_meta']
   classes = img_meta['classes']
-  if 'room' in classes:
-    assert EVAL_METHOD == 'iou'
+  if 'wall' in classes:
+    eval_method = 'corner'
+  else:
+    eval_method = 'iou'
   filter_edges =  results_datas[0]['filter_edges']
   obj_rep =  results_datas[0]['obj_rep']
-  graph_eval = GraphEval(obj_rep, classes, filter_edges)
+  graph_eval = GraphEval(obj_rep, classes, filter_edges, eval_method)
   graph_eval(results_datas, res_file)
 
 def eval_graph_multi_files(res_files):
@@ -404,8 +405,9 @@ class GraphEval():
   #scene_list = ['krrV11t89QIya7T02sAvKh']
 
 
-  def __init__(self, obj_rep, classes, filter_edges):
+  def __init__(self, obj_rep, classes, filter_edges, eval_method):
     self.obj_rep = obj_rep
+    self.eval_method = eval_method
     self.obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
     self.classes = classes
     self.filter_edges = filter_edges
@@ -431,9 +433,9 @@ class GraphEval():
     self.work_dir = os.path.dirname(out_file)
     s = int(self._score_threshold*10)
     self.par_nice = f'Sc{s}_mL{self._min_out_length}_{self.out_type}'
-    if EVAL_METHOD == 'corner':
+    if self.eval_method == 'corner':
       self.par_nice += f'_corD{self._corner_dis_threshold}'
-    if EVAL_METHOD == 'iou':
+    if self.eval_method == 'iou':
       self.par_nice += f'IoU{self._iou_threshold}'
 
     if self.optimize_graph:
@@ -451,11 +453,11 @@ class GraphEval():
       os.makedirs(self.eval_dir_all_cls)
 
   def __call__(self, results_datas, out_file):
-    if EVAL_METHOD == 'corner':
+    if self.eval_method == 'corner':
       eval_fn = self.evaluate_by_corner
-    if EVAL_METHOD == 'iou':
+    if self.eval_method == 'iou':
       eval_fn = self.evaluate_by_iou
-    if EVAL_METHOD == 'rel':
+    if self.eval_method == 'rel':
       eval_fn = self.evaluate_by_rel
     for out_type, opt_g, opt_rel in zip(self._all_out_types, self._opti_graph, self._opti_by_rel):
       self.out_type = out_type
@@ -617,7 +619,7 @@ class GraphEval():
     eval_path = os.path.join(path, f'eval_res_{num_cat}_cats.txt')
     with open(eval_path, 'a') as f:
       f.write(eval_res_str)
-    print(eval_res_str)
+    #print(eval_res_str)
 
 
     acc_per_img_str = ''
@@ -890,7 +892,7 @@ class GraphEval():
     eval_path = os.path.join(path, 'eval_res.txt')
     with open(eval_path, 'a') as f:
       f.write(eval_res_str)
-    print(eval_res_str)
+    #print(eval_res_str)
     print(f'post time: {time_post}')
 
     # save eval res
