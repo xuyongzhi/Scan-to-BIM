@@ -236,7 +236,7 @@ class BEIKE(BEIKE_CLSINFO):
       pass
 
 
-    def show_anno_img(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0), write=False):
+    def show_anno_img(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
       img_dir = self.img_prefix + '_Imgs'
       colors_line   = {'wall': (0,0,255), 'door': (0,255,255),
                        'window': (0,255,255), 'other':(100,100,0)}
@@ -276,45 +276,44 @@ class BEIKE(BEIKE_CLSINFO):
 
       corners = OBJ_REPS_PARSE.encode_obj(bboxes, self.obj_rep, 'RoLine2D_2p').reshape(-1,2)
       # draw rooms
-      if write:
-        anno_img_file = os.path.join(img_dir, scene_name+'-room.png')
-      else:
-        anno_img_file = None
+      anno_img_file = os.path.join(img_dir, scene_name+'-room.png')
       _show_objs_ls_points_ls(
         img, [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=2, point_thickness=2,
                                draw_rooms = True,
-                               out_file=anno_img_file, only_save=write)
-      if write:
-        anno_img_file = os.path.join(img_dir, scene_name+'-room_box.png')
-      else:
-        anno_img_file = None
+                               out_file=anno_img_file, only_save=1)
+      anno_img_file = os.path.join(img_dir, scene_name+'-room_box.png')
       _show_objs_ls_points_ls(
         img[:,:,0], [room_bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=6, point_thickness=2,
-                               out_file=anno_img_file, only_save=write)
+                               out_file=anno_img_file, only_save=1)
 
       # draw density
-      if write:
-        anno_img_file = os.path.join(img_dir, scene_name+'-density.png')
-      else:
-        anno_img_file = None
+      anno_img_file = os.path.join(img_dir, scene_name+'-density.png')
+      img_density =_show_objs_ls_points_ls( img[:,:,0], out_file=anno_img_file, only_save=1)
+
+      anno_img_file = os.path.join(img_dir, scene_name+'-density-gt.png')
       _show_objs_ls_points_ls(
                                img[:,:,0], [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=1, point_thickness=2,
-                               out_file=anno_img_file, only_save=write)
+                               out_file=anno_img_file, only_save=1)
       # draw normal
       img_norm = np.abs(img[:,:,1:]) * 255
-      if write:
-        anno_img_file = os.path.join(img_dir, scene_name+'-norm.png')
+      anno_img_file = os.path.join(img_dir, scene_name+'-norm.png')
+      _show_objs_ls_points_ls( img_norm, out_file=anno_img_file, only_save=1)
+
+      anno_img_file = os.path.join(img_dir, scene_name+'-norm-density.png')
+      _show_objs_ls_points_ls( img_norm + img[:,:,0:1], out_file=anno_img_file, only_save=1)
+
+      anno_img_file = os.path.join(img_dir, scene_name+'-norm-gt.png')
       _show_objs_ls_points_ls(
         img_norm, [bboxes], self.obj_rep, [corners],
                                obj_colors='white', point_colors=[cor_labels],
                                obj_thickness=1, point_thickness=2,
-                               out_file=anno_img_file, only_save=write)
+                               out_file=anno_img_file, only_save=1)
 
       show_1by1 = False
       if show_1by1:
@@ -374,7 +373,7 @@ class BEIKE(BEIKE_CLSINFO):
       #mmcv.imshow(img)
       return img
 
-    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0), write=False):
+    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
       idx = None
       for i in range(len(self)):
         sn = self.img_infos[i]['filename'].split('.')[0]
@@ -382,7 +381,7 @@ class BEIKE(BEIKE_CLSINFO):
           idx = i
           break
       assert idx is not None, f'cannot find {scene_name}'
-      self.show_anno_img(idx, with_img, rotate_angle, lines_transfer, write=write)
+      self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
 
 
     def find_unscanned_edges(self,):
@@ -1143,9 +1142,9 @@ def gen_gts(data_path):
   scene_list = os.path.join(data_path, 'all.txt')
   scenes = np.loadtxt(scene_list, str).tolist()
 
-  rotate_angle = 30
-  for s in scenes[:100]:
-    beike.show_scene_anno(s, True, rotate_angle, write=True)
+  rotate_angle = 0
+  for s in scenes:
+    beike.show_scene_anno(s, True, rotate_angle)
     pass
 
 
@@ -1194,9 +1193,7 @@ def gen_connection_gt(pool_num=3):
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
-
   #save_unscanned_edges(data_path)
-
   cal_topview_npy_mean_std(data_path, base='TopView_VerD', normnorm_method='abs')
   gen_connections(data_path, pool_num)
   gen_gts(data_path)
@@ -1207,6 +1204,7 @@ def debug():
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
   gen_gts(data_path)
   #gen_connections(data_path)
+
 
 if __name__ == '__main__':
   debug()

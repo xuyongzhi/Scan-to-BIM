@@ -80,6 +80,7 @@ def _show_objs_ls_points_ls(img,
       point_scores_ls=point_scores_ls, draw_rooms=draw_rooms)
   if not only_save:
     mmcv.imshow(img)
+  return img
 
 def _draw_objs_ls_points_ls(img,
                             objs_ls=None,
