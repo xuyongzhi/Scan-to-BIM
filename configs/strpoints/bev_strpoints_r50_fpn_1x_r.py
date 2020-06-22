@@ -272,7 +272,7 @@ elif DATA == 'stanford2d':
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-if 0:
+if 1:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=10)

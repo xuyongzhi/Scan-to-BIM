@@ -201,7 +201,12 @@ class Collect(object):
         else:
           mask = data['gt_labels'].data >= 0
           data['gt_bboxes'] = DC(data['gt_bboxes'].data[mask])
-          data['gt_relations'] = DC(data['gt_relations'].data[mask])
+          n0 = mask.shape[0]
+          n1 = data['gt_relations'].data.shape[0]
+          if n0==n1:
+            data['gt_relations'] = DC(data['gt_relations'].data[mask])
+          else:
+            print(f'\n\n gt_relations num = {n1}, but gt_labels num = {n0} \n\n')
           data['gt_labels'] = DC(data['gt_labels'].data[mask])
 
 
