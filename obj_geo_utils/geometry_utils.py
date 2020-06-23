@@ -1258,12 +1258,13 @@ def rel_ids_to_mask(rel_ids, num_wall):
     mask[i, rel_ids[i] ] = True
   return mask
 
-def check_duplicate(objs, obj_rep):
+def check_duplicate(objs, obj_rep, iou_thr=0.3):
   from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
   from tools.visual_utils import _show_objs_ls_points_ls
 
-  ious = dsiou_rotated_3d_bbox_np( objs[:,:7], objs[:,:7], iou_w=1.0, size_rate_thres=0.2, ref='union', only_2d=True )
-  mask = ious > 0.2
+  objs = objs[:,:7]
+  ious = dsiou_rotated_3d_bbox_np( objs[:,:7], objs[:,:7], iou_w=1.0, size_rate_thres=0.3, ref='union', only_2d=True )
+  mask = ious > iou_thr
   np.fill_diagonal(mask, False)
   duplicte = mask.sum() > 0
   if duplicte:
@@ -1273,9 +1274,9 @@ def check_duplicate(objs, obj_rep):
     print(objs[ [i,j] ])
     n = objs.shape[0]
     objs_du = objs[ [i,j] ]
-    _show_objs_ls_points_ls((512,512), [objs, objs_du ], obj_rep, obj_colors=['white', 'red'])
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    pass
+    _show_objs_ls_points_ls((512,512), [objs, objs[[i]], objs[[j]] ], obj_rep, obj_colors=['white', 'red', 'lime'], obj_thickness=[1, 5, 2])
+    return False
+  return True
 
 
 def ununsed_get_cf_from_wall(floors0, walls, obj_rep, cat_name):

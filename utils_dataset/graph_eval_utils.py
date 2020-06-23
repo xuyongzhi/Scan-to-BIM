@@ -144,6 +144,9 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
           s, e = dim_parse.OUT_ORDER['points_init']
           points_init = det_lines[:, s:e]
 
+          if not check_duplicate(detection_bRefine_sAve, obj_rep, 0.3):
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
           detection_l = {'det_lines': det_lines, 'category_id': category_id, 'cat': cat,
                          'detection_bRefine_sAve': detection_bRefine_sAve,
                          'detection_bInit_sRefine': detection_bInit_sRefine,
@@ -279,10 +282,10 @@ def eval_graph(res_file, eval_method='corner'):
     results_datas = pickle.load(f)
   img_meta = results_datas[0]['img_meta']
   classes = img_meta['classes']
-  if 'wall' in classes:
-    eval_method = 'corner'
-  else:
+  if classes == ['room']:
     eval_method = 'iou'
+  else:
+    eval_method = 'corner'
   filter_edges =  results_datas[0]['filter_edges']
   obj_rep =  results_datas[0]['obj_rep']
   graph_eval = GraphEval(obj_rep, classes, filter_edges, eval_method)
@@ -362,7 +365,7 @@ def merge_two_results(results_datas_1, results_datas_2, kp_cls_in2=None):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(0, 2))
+  _img_ids_debuging = list(range(46,47))
   _img_ids_debuging = None
   _opti_room = 0
 
@@ -401,7 +404,7 @@ class GraphEval():
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['5pJn2a9zfRzInJ7IwpIzQd','7w6zvVsOBAQK4h4Bne7caQ', 'HBfvzptqI-PlRzcg3lnX-o', 'jtZ2kFzYePr0Pg-yOfnViy',]
   scene_list = ['7w6zvVsOBAQK4h4Bne7caQ']
-  #scene_list = None
+  scene_list = None
   #scene_list = ['krrV11t89QIya7T02sAvKh']
 
 
@@ -457,8 +460,6 @@ class GraphEval():
       eval_fn = self.evaluate_by_corner
     if self.eval_method == 'iou':
       eval_fn = self.evaluate_by_iou
-    if self.eval_method == 'rel':
-      eval_fn = self.evaluate_by_rel
     for out_type, opt_g, opt_rel in zip(self._all_out_types, self._opti_graph, self._opti_by_rel):
       self.out_type = out_type
       eval_fn(results_datas, out_file, out_type, opt_g, opt_rel)
@@ -663,6 +664,9 @@ class GraphEval():
             label_mask = (gt_labels == label).reshape(-1)
             gt_lines_l = gt_lines[label_mask]
             det_lines = detections[label-1][f'detection_{out_type}'].copy()
+            if not check_duplicate(det_lines, self.obj_rep, 0.2):
+                import pdb; pdb.set_trace()  # XXX BREAKPOINT
+                pass
 
             if out_type == 'bInit_sRefine':
               det_points = detections[label-1]['points_init']
@@ -696,6 +700,9 @@ class GraphEval():
               det_lines_merged, ids_high_scores = filter_low_score_det(det_lines, self._score_threshold)
             if cat == 'wall':
               walls = det_lines_merged
+            if not check_duplicate(det_lines_merged, self.obj_rep, 0.4):
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
             #show_connectivity(walls[:,:-1], det_lines_merged[:,:-1], det_relations[cat], self.obj_rep)
             det_lines_merged_ls.append(det_lines_merged)
             gt_lines_ls.append( gt_lines_l )
@@ -848,7 +855,10 @@ class GraphEval():
               #raise NotImplementedError
             line_nums_gt_dt_tp, ious = self.eval_1img_1cls_by_iou(img, det_lines_merged, gt_lines_l, scene_name, cat, det_points)
             all_line_nums_gt_dt_tp[label].append(line_nums_gt_dt_tp)
-            ious_of_dets = ious.max(1)
+            if ious.shape[0] > 0:
+              ious_of_dets = ious.max(1)
+            else:
+              ious_of_dets = ious
             all_ious[label].append( ious_of_dets )
             ious_1s[label] = ious
             #eval_draws_ls.append(eval_draws)
@@ -1166,6 +1176,10 @@ class GraphEval():
           _show_objs_ls_points_ls(img[:,:,0], [det_lines[det_ids,:-1], gt_lines[i:i+1]], obj_colors=['red', 'lime'], obj_rep=self.obj_rep, obj_thickness=[2,1])
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
+      if det_lineIds != -1 and det_lineIds in line_detIds_per_gt:
+        print(f'a det match two gts')
+        #_show_objs_ls_points_ls(img[:,:,0], [det_lines[[det_lineIds]][:,:-1], gt_lines[i:i+1]], obj_colors=['red', 'lime'], obj_rep=self.obj_rep, obj_thickness=[2,1])
+        det_lineIds = -1
       line_detIds_per_gt.append(det_lineIds)
     line_detIds_per_gt = np.array(line_detIds_per_gt)
 
@@ -1184,6 +1198,7 @@ class GraphEval():
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
         pass
+
 
     if 1:
       #det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false
@@ -1364,6 +1379,9 @@ class GraphEval():
         if j >= 0:
           _show_objs_ls_points_ls((512,512), [gt_lines], [gt_corners[i:i+1], det_corners[j:j+1]], obj_colors=['white'], point_colors=['green', 'red'], point_thickness=2)
     pass
+    if not check_duplicate(det_lines_pos, self.obj_rep, 0.5):
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
     return cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false, det_points_pos, det_points_neg
 
 def get_z_by_iou(dets, det_cats, gts, gt_cats, obj_rep):
@@ -1389,6 +1407,7 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
   img_det_score = None
   img_det_pts = None
   img_gt = None
+  img_det_iou = None
   obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
 
   det_bboxes = []
@@ -1407,20 +1426,43 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
       dets = all_dets[l]
       num_det = dets.shape[0]
       pts = all_det_points[l].reshape(num_det, 9,2)
-      if dets.shape[0]==0:
-        continue
+
+      # ------ gt ------
       gts = all_gts[l]
       iou_matrix = all_ious[l]
+      if iou_matrix.shape[0]==0:
+        gt_lines_true = gts
+        gt_lines_false = gts[0:0]
+      else:
+        ious_gt = iou_matrix.max(0)
+        gt_pos_mask = ious_gt > iou_threshold
+        gt_lines_true = gts[gt_pos_mask]
+        gt_lines_false = gts[gt_pos_mask==False]
+
+      if img_gt is None:
+        img_gt = img.shape[:2]
+        img_gt = img[:,:,0]
+      gt_file = res_filename + '_Gt.png'
+      img_gt = _draw_objs_ls_points_ls(img_gt,
+              [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
+              obj_rep,
+              obj_colors=c,
+              obj_cats_ls = ['', 'F'],
+              point_colors=['blue', 'yellow'],
+              obj_thickness=[2,2],
+              point_thickness=[3,3],
+              out_file=None,
+              text_colors_ls=['green', 'red'])
+      #mmcv.imshow(img_gt)
+
+      if dets.shape[0]==0:
+        continue
       ious_det = iou_matrix.max(1)
-      ious_gt = iou_matrix.max(0)
 
       det_pos_mask = ious_det > iou_threshold
       det_lines_pos = dets[det_pos_mask]
       det_lines_neg = dets[det_pos_mask==False]
 
-      gt_pos_mask = ious_gt > iou_threshold
-      gt_lines_true = gts[gt_pos_mask]
-      gt_lines_false = gts[gt_pos_mask==False]
 
       if cat == 'wall':
         walls = np.concatenate([det_lines_pos, det_lines_neg], 0)
@@ -1487,27 +1529,14 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
               point_thickness=5,
               out_file=None,)
 
-      if img_gt is None:
-        img_gt = img.shape[:2]
-        img_gt = img[:,:,0]
-      gt_file = res_filename + '_Gt.png'
-      img_gt = _draw_objs_ls_points_ls(img_gt,
-              [gt_lines_true[:,:obj_dim], gt_lines_false[:,:obj_dim]],
-              obj_rep,
-              obj_colors=c,
-              obj_cats_ls = ['', 'F'],
-              point_colors=['blue', 'yellow'],
-              obj_thickness=[2,2],
-              point_thickness=[3,3],
-              out_file=None,
-              text_colors_ls=['green', 'red'])
-      #mmcv.imshow(img_gt)
       pass
 
+  mmcv.imwrite(img_gt, gt_file)
+  if img_det_iou is None:
+    return
   mmcv.imwrite(img_det_iou, det_iou_file)
   mmcv.imwrite(img_det_score, det_score_file)
   mmcv.imwrite(img_det_pts, det_pts_file)
-  mmcv.imwrite(img_gt, gt_file)
 
   det_bboxes = np.concatenate( det_bboxes, axis=0 )
   gt_bboxes = np.concatenate( gt_bboxes, axis=0 )
@@ -1621,7 +1650,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
 
       if img_det is None:
         h,w = img.shape[:2]
-        img_det = img_det_mesh = img_gt = img_gt_mesh = np.ones([h,w,3], dtype=np.uint8)*0
+        img_det_no_cor = img_det = img_det_mesh = img_gt = img_gt_mesh = np.ones([h,w,3], dtype=np.uint8)*0
         det_file = img_file_base_all_cls + '_Det.png'
         det_mesh_file = img_file_base_all_cls + '_DetMesh.png'
 
@@ -1668,6 +1697,9 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
 
       if cat == 'wall':
         walls = np.concatenate([det_lines_pos, det_lines_neg], 0)
+        if not check_duplicate(walls, obj_rep, 0.3):
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
         img_det_mesh = draw_rooms_from_edges(walls[:,:7], obj_rep, img_size, 0)
         img_gt_mesh = draw_rooms_from_edges(gt_lines[:,:7], obj_rep, img_size)
       if cat in ['window', 'door'] and walls is not None:
@@ -1686,11 +1718,12 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
       img_det_mesh = draw_building_objs('mesh', cat, img_det_mesh, det_lines_pos, det_lines_neg, obj_rep,\
             obj_dim, det_corners_pos, det_corners_neg)
 
+      img_det_no_cor = draw_building_objs('edge', cat, img_det_no_cor, det_lines_pos, det_lines_neg, obj_rep,\
+            obj_dim, det_corners_pos, det_corners_neg, with_cor=0)
+
       img_det = draw_building_objs('edge', cat, img_det, det_lines_pos, det_lines_neg, obj_rep,\
             obj_dim, det_corners_pos, det_corners_neg)
 
-      img_det_no_cor = draw_building_objs('edge', cat, img_det, det_lines_pos, det_lines_neg, obj_rep,\
-            obj_dim, det_corners_pos, det_corners_neg, with_cor=0)
 
       if _draw_pts:
         for di in range(num_dets):
@@ -1716,10 +1749,9 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
       img_gt = draw_building_objs('edge', cat, img_gt, gt_lines_true, gt_lines_false, obj_rep,\
             obj_dim, gt_corners_true, gt_corners_false)
 
-      pass
 
   mmcv.imwrite(img_det, det_file)
-  mmcv.imwrite(img_det_no_cor, det_file)
+  mmcv.imwrite(img_det_no_cor, det_file.replace('.png', '_NoCor.png'))
   mmcv.imwrite(img_det_mesh, det_mesh_file)
   if _draw_pts:
     mmcv.imwrite(img_det_pts, det_pts_file)
@@ -1729,7 +1761,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
     mmcv.imwrite(img_det_rooms, det_rooms_file)
     mmcv.imwrite(img_det_rooms_pts, det_rooms_pts_file)
     if walls is not None:
-      img_det_room_rel = draw_walls_rooms_rel(img_det, walls, rooms, obj_rep)
+      img_det_room_rel = draw_walls_rooms_rel(img_det_no_cor, walls, rooms, obj_rep)
       det_room_rel_file = det_file.replace('.png','_room_rels.png')
       mmcv.imwrite( img_det_room_rel, det_room_rel_file )
 
@@ -1882,6 +1914,7 @@ def apply_mask_on_ids(ids, mask):
 
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/L_master_2S_jun21/'
+  workdir = '/home/z/Research/mmdetection/work_dirs/'
 
   dirs = [
   'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr1_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel',
@@ -1893,7 +1926,7 @@ def main():
   filename = 'detection_111_Imgs.pickle'
 
   res_files = [os.path.join( os.path.join(workdir, d), filename) for d in dirs]
-  #eval_graph(res_files[0])
+  #eval_graph(res_files[2])
 
   eval_graph_multi_files(res_files)
 

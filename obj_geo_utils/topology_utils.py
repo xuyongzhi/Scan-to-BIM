@@ -88,7 +88,7 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
   walls_final, ids_geo_opt = geometrically_opti_walls( walls_fixed, obj_rep)
   return walls_final
 
-def fix_failed_rooms_walls(walls, rooms, obj_rep, num_rooms_per_fail_wal=None):
+def fix_failed_rooms_walls(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
   '''
   1. For each wall, find the one or two matched rooms.
   2. Get the matched walls for each room.
@@ -590,6 +590,7 @@ def get_rooms_walls_rel(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
 def draw_walls_rooms_rel(img, walls, rooms, obj_rep):
   from tools.color import COLOR_MAP_2D, ColorList, ColorValuesNp
 
+  check_duplicate(walls, obj_rep)
   wall_ids_per_r = get_rooms_walls_rel(walls, rooms, obj_rep)
   num_rooms = rooms.shape[0]
   for i in range(num_rooms):
