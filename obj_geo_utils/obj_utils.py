@@ -10,6 +10,7 @@ from obj_geo_utils.geometry_utils import limit_period_np, four_corners_to_box,\
   sort_four_corners, line_intersection_2d, mean_angles, angle_dif_by_period_np,\
   check_duplicate
 
+MIN_ALIGN_ANGLE = 3.5
 
 class OBJ_REPS_PARSE():
   '''
@@ -1164,7 +1165,7 @@ class GraphUtils:
     angles1 = np.round(steps) * np.pi/2
     gaps = steps - np.round(steps)
     gaps = np.abs(gaps) * 180 / np.pi
-    align_mask = gaps < 5
+    align_mask = gaps < MIN_ALIGN_ANGLE
     angles_aligned = angles0 *(1-align_mask) + angles1 * align_mask
     walls[:,6]  = angles_aligned
     return walls

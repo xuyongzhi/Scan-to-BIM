@@ -497,10 +497,11 @@ def find_duplicate_corners(corners, min_cor_dis_thr, flag):
         print(f'min_dif: {min_dif}')
         print(f'found {dup_num} duplicate corners')
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        for i in range(n):
-          if mask[i].any():
-            ids_i = np.where(mask[i])
-            _show_objs_ls_points_ls( (512,512), points_ls=[corners, corners[i:i+1], corners[mask[i]]], point_colors=['white', 'red', 'lime'] )
+        if 0:
+          for i in range(n):
+            if mask[i].any():
+              ids_i = np.where(mask[i])
+              _show_objs_ls_points_ls( (512,512), points_ls=[corners, corners[i:i+1], corners[mask[i]]], point_colors=['white', 'red', 'lime'] )
       return is_duplicate
 
 def get_lineIdsPerCor_from_corIdsPerLine(corIds_per_line, num_corner):

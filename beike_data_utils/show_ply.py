@@ -11,7 +11,15 @@ def load_ply(pcl_file):
     points = np.array(plydata['vertex'].data.tolist()).astype(np.float32)
     points = points[:,:9]
     assert points.shape[1] == 9
+    points = flip_pcl(points)
     return points
+
+def flip_pcl(points):
+  x_min = points[:,0].min()
+  x_max = points[:,0].max()
+  x_mid = (x_min + x_max)/2
+  points[:,0] = - points[:,0] + x_mid * 2
+  return points
 
 def cut_roof(points):
   z_min = points[:,2].min()
@@ -34,6 +42,7 @@ def main():
 
   scene_file = os.path.join(base_dir, 'key_samples.txt')
   scenes = np.loadtxt(scene_file, dtype = str).tolist()
+  scenes = ['7w6zvVsOBAQK4h4Bne7caQ']
   n = len(scenes)
   assert n>0
   for s in scenes:

@@ -171,20 +171,20 @@ def clean_inner_false_walls_of_1_room(room, walls, obj_rep):
   for i in range(num_cor_uq):
     if cor_degrees[i] > 1:
       wids_i = np.where( (corIds_per_line == i).any(1) )[0]
-      #_show_objs_ls_points_ls( (512,512), [walls, walls [wids_i] ], obj_rep, obj_colors=['white','lime'] )
+      #_show_objs_ls_points_ls( (512,512), [room[None,:7], walls, walls [wids_i] ], obj_rep, obj_colors=['red', 'white','blue'], obj_thickness=[8,4,2] )
       check_duplicate(walls, obj_rep)
 
       rm_wall_ids = []
       for j in wids_i:
         cor_j = [k for k in corIds_per_line[j] if k !=i][0]
-        if cor_degrees[cor_j] == 0:
+        if cor_degrees[cor_j] == 0 or cor_degrees[cor_j] > 1:
           rm_wall_ids.append(j)
         pass
       if len(rm_wall_ids)>0:
         walls_i = walls[rm_wall_ids]
         rm_wall_id = rm_wall_ids[ walls_i[:,3].argmin() ]
       else:
-        _show_objs_ls_points_ls( (512,512), [walls, walls_i], obj_rep, obj_colors=['white','lime'] )
+        _show_objs_ls_points_ls( (512,512), [room[None,:7], walls, walls [wids_i] ], obj_rep, obj_colors=['red', 'white','blue'], obj_thickness=[8,4,2] )
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
       remove_wall_ids.append( rm_wall_id )

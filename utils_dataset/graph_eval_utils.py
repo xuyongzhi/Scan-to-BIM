@@ -365,7 +365,7 @@ def merge_two_results(results_datas_1, results_datas_2, kp_cls_in2=None):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(46,47))
+  _img_ids_debuging = list(range(97, 98))
   _img_ids_debuging = None
   _opti_room = 0
 
@@ -373,9 +373,9 @@ class GraphEval():
   if 1:
     _all_out_types = [ 'bRefine_sAve' ] * 1
     _opti_graph = [1]
-    _opti_by_rel = [1]
+    _opti_by_rel = [0]
 
-    _opti_room = 0
+    _opti_room = 1
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
@@ -1531,12 +1531,12 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
 
       pass
 
-  mmcv.imwrite(img_gt, gt_file)
+  write_img(img_gt, gt_file)
   if img_det_iou is None:
     return
-  mmcv.imwrite(img_det_iou, det_iou_file)
-  mmcv.imwrite(img_det_score, det_score_file)
-  mmcv.imwrite(img_det_pts, det_pts_file)
+  write_img(img_det_iou, det_iou_file)
+  write_img(img_det_score, det_score_file)
+  write_img(img_det_pts, det_pts_file)
 
   det_bboxes = np.concatenate( det_bboxes, axis=0 )
   gt_bboxes = np.concatenate( gt_bboxes, axis=0 )
@@ -1552,7 +1552,7 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
           obj_colors=['blue', 'red'],
           obj_thickness=[3,1],
           out_file=None,)
-  mmcv.imwrite(img_detgt, detgt_file)
+  write_img(img_detgt, detgt_file)
   #mmcv.imshow(img_detgt)
 
   if SHOW_3D:
@@ -1750,20 +1750,20 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
             obj_dim, gt_corners_true, gt_corners_false)
 
 
-  mmcv.imwrite(img_det, det_file)
-  mmcv.imwrite(img_det_no_cor, det_file.replace('.png', '_NoCor.png'))
-  mmcv.imwrite(img_det_mesh, det_mesh_file)
+  write_img(img_det, det_file)
+  write_img(img_det_no_cor, det_file.replace('.png', '_NoCor.png'))
+  write_img(img_det_mesh, det_mesh_file)
   if _draw_pts:
-    mmcv.imwrite(img_det_pts, det_pts_file)
-  mmcv.imwrite(img_gt, gt_file)
-  mmcv.imwrite(img_gt_mesh, gt_mesh_file)
+    write_img(img_det_pts, det_pts_file)
+  write_img(img_gt, gt_file)
+  write_img(img_gt_mesh, gt_mesh_file)
   if 'room' in cat_ls:
-    mmcv.imwrite(img_det_rooms, det_rooms_file)
-    mmcv.imwrite(img_det_rooms_pts, det_rooms_pts_file)
+    write_img(img_det_rooms, det_rooms_file)
+    write_img(img_det_rooms_pts, det_rooms_pts_file)
     if walls is not None:
       img_det_room_rel = draw_walls_rooms_rel(img_det_no_cor, walls, rooms, obj_rep)
       det_room_rel_file = det_file.replace('.png','_room_rels.png')
-      mmcv.imwrite( img_det_room_rel, det_room_rel_file )
+      write_img( img_det_room_rel, det_room_rel_file )
 
   det_bboxes = np.concatenate( det_bboxes, axis=0 )
   gt_bboxes = np.concatenate( gt_bboxes, axis=0 )
@@ -1779,7 +1779,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
           obj_colors=['blue', 'red'],
           obj_thickness=[3,1],
           out_file=None,)
-  mmcv.imwrite(img_detgt, detgt_file)
+  write_img(img_detgt, detgt_file)
   #mmcv.imshow(img_detgt)
 
   if SHOW_3D:
@@ -1818,12 +1818,25 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
 
   pass
 
+def write_img(img, path):
+  import mmcv
+  #img = mmcv.imflip(img)
+  mmcv.imwrite(img, path)
+
+def aug_min_length(objs, obj_rep):
+  #objs[:,3] = np.clip(objs[:,3], a_min=70, a_max=None)
+  pass
+
 def draw_building_objs(style, cat, img_det, det_lines_pos, det_lines_neg, obj_rep,
             obj_dim, det_corners_pos, det_corners_neg, with_cor=True):
       if style == 'mesh':
         c = 'black'
       if style == 'edge':
         c = 'random'
+
+      if cat=='wall':
+        aug_min_length(det_lines_pos, obj_rep)
+
       det_lines_pos = det_lines_pos.copy()
       det_lines_neg = det_lines_neg.copy()
       #obj_scores_ls = [det_lines_pos[:,obj_dim], det_lines_neg[:,obj_dim]]
@@ -1848,7 +1861,7 @@ def draw_building_objs(style, cat, img_det, det_lines_pos, det_lines_neg, obj_re
         det_lines_pos[:,3] -= rds
         det_lines_neg[:,3] -= rds
         corners = None
-      point_colors=['blue', 'red']
+      point_colors=['red', 'red']
       img_det = _draw_objs_ls_points_ls(img_det,
               [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
               obj_rep,
@@ -1914,7 +1927,7 @@ def apply_mask_on_ids(ids, mask):
 
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/L_master_2S_jun21/'
-  workdir = '/home/z/Research/mmdetection/work_dirs/'
+  workdir = '/home/z/Research/mmdetection/work_dirs/L_master_2S_jun23/'
 
   dirs = [
   'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr1_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel',
@@ -1926,7 +1939,7 @@ def main():
   filename = 'detection_111_Imgs.pickle'
 
   res_files = [os.path.join( os.path.join(workdir, d), filename) for d in dirs]
-  #eval_graph(res_files[2])
+  #eval_graph(res_files[0])
 
   eval_graph_multi_files(res_files)
 
