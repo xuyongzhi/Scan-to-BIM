@@ -70,7 +70,7 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
 
   room_ids_per_fail_wall = room_ids_per_wall[non_full_w_ids]
   num_rooms_per_fail_wall = (room_ids_per_fail_wall>=0).sum(1)
-  walls_fail_fixed = fix_failed_rooms_walls(fail_walls, fail_rooms, num_rooms_per_fail_wall, obj_rep)
+  walls_fail_fixed = fix_failed_rooms_walls(fail_walls, fail_rooms, obj_rep, num_rooms_per_fail_wall)
   walls_fixed = np.concatenate([walls[full_w_ids], walls_fail_fixed ], 0)
 
   if show_fixed_res:
@@ -88,7 +88,7 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
   walls_final, ids_geo_opt = geometrically_opti_walls( walls_fixed, obj_rep)
   return walls_final
 
-def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
+def fix_failed_rooms_walls(walls, rooms, obj_rep, num_rooms_per_fail_wal=None):
   '''
   1. For each wall, find the one or two matched rooms.
   2. Get the matched walls for each room.
@@ -161,7 +161,6 @@ def fix_failed_rooms_walls(walls, rooms, num_rooms_per_fail_wall, obj_rep):
   walls_fixed = np.concatenate([walls_fixed, walls_new], 0)
 
   return walls_fixed
-
 
 def clean_inner_false_walls_of_1_room(room, walls, obj_rep):
   if walls.shape[0] == 0:
@@ -526,6 +525,85 @@ def sort_rooms(rooms, obj_rep):
   return rooms_new
 
 
+def get_rooms_walls_rel(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
+  show_room_ids_per_wall = 0
+  show_walls_per_room = 0
+  show_fail_fixed = 0
+
+  score_th = 0.5
+  num_rooms = rooms.shape[0]
+  num_walls = walls.shape[0]
+  walls_aug = walls.copy()
+  walls_aug[:,3] *= 0.8
+  walls_aug[:,4] = 10
+  rooms_aug = rooms.copy()
+  rooms_aug[:,3:5] *= 1.2
+
+  #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
+  #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms_aug[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
+
+  w_in_r_scores = cal_edge_in_room_scores(walls_aug[:,:7], rooms_aug[:,:7], obj_rep)
+  room_qua_scores = get_room_quality_scores(rooms, obj_rep)
+  #w_in_r_scores = w_in_r_scores *  room_qua_scores[None,:]
+  sort_room_ids = (-w_in_r_scores).argsort(1)
+
+  room_ids_per_w = []
+  wall_ids_per_r = [ [] for i in range(num_rooms)]
+  for i in range(num_walls):
+    room_scores_i = w_in_r_scores[i][ sort_room_ids[i] ]
+    mask_i = room_scores_i > score_th
+    if num_rooms_per_fail_wall is not None:
+      n_room_0 = num_rooms_per_fail_wall[i]
+      mask_i[2-n_room_0:] = False
+    room_ids_wi = sort_room_ids[i][mask_i].tolist()
+    room_ids_per_w.append( room_ids_wi )
+
+    for j in room_ids_wi:
+      wall_ids_per_r[j].append(i)
+
+    if show_room_ids_per_wall and i ==16:
+      room_scores_wi = room_scores_i[mask_i]
+      print(f'\nwall {i}')
+      print(f'room_scores_i: {room_scores_wi}')
+      max_out_score = room_scores_i[mask_i==False]
+      if len(max_out_score)>0:
+        max_out_score = max_out_score[0]
+        print(f'max_out_score: {max_out_score:.3f}')
+      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[i:i+1,:-1], rooms_aug[room_ids_wi,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+      _show_objs_ls_points_ls( (512,512), [walls_aug[:,:-1], walls[i:i+1,:-1], rooms_aug[:,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
+  num_r = rooms.shape[0]
+  for i in range(num_r):
+    wids = wall_ids_per_r[i]
+    valid_ids_i =  clean_outer_false_walls_of_1_room(rooms[i], walls[wids], obj_rep)
+    wids_valid = [wids[vi] for vi in  valid_ids_i]
+    valid_ids_i =  clean_inner_false_walls_of_1_room(rooms[i], walls[wids_valid], obj_rep)
+    wids_valid = [wids_valid[vi] for vi in  valid_ids_i]
+    wall_ids_per_r[i] = wids_valid
+    if show_walls_per_room:
+      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[wids,:-1], rooms[i:i+1,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[wids_valid,:-1], rooms[i:i+1,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+  return wall_ids_per_r
+
+def draw_walls_rooms_rel(img, walls, rooms, obj_rep):
+  from tools.color import COLOR_MAP_2D, ColorList, ColorValuesNp
+
+  wall_ids_per_r = get_rooms_walls_rel(walls, rooms, obj_rep)
+  num_rooms = rooms.shape[0]
+  for i in range(num_rooms):
+    ci = ColorList[i]
+    img = _show_objs_ls_points_ls( img, points_ls = [rooms[i:i+1,:2]], point_colors=ci, point_thickness=8, only_save=1 )
+    walls_i  = walls[ wall_ids_per_r[i] ]
+    ni = walls_i.shape[0]
+    tmp = np.repeat( rooms[i:i+1], ni, 0 )
+    rels_i = np.concatenate( [walls_i[:,:2], tmp[:,:2]], 1 )
+    img = _show_objs_ls_points_ls( img, [rels_i], 'RoLine2D_2p', obj_colors=ci, obj_thickness=2, only_save=1 )
+    pass
+  pass
+  #mmcv.imshow( img )
+  return img
 
 def connect_two_edges_to_a_triangle(corner_degrees, corners_per_line, obj_rep):
   import pdb; pdb.set_trace()  # XXX BREAKPOINT

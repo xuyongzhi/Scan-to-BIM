@@ -234,7 +234,7 @@ data = dict(
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
-total_epochs =  7
+total_epochs =  3
 lr_config = dict(
     policy='step',
     warmup='linear',
@@ -272,7 +272,7 @@ elif DATA == 'stanford2d':
 resume_from = None
 auto_resume = True
 workflow = [('train', 1), ('val', 1)]
-if 1:
+if 0:
   data['workers_per_gpu'] = 0
   workflow = [('train', 1),]
   checkpoint_config = dict(interval=10)

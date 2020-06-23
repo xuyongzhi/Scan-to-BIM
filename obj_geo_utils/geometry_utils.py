@@ -1131,8 +1131,8 @@ def draw_rooms_from_edges(edges, obj_rep, img_size=None, show=0):
   img_mask[background] = 255
   if show:
     mmcv.imshow(img_mask)
-  return img_mask
 
+  return img_mask
   room_labels = [i for i in range(1, num_rooms+1) if i != bg_label]
   num_edge = edges.shape[0]
   room_ids_per_edge = np.zeros([num_edge, 2]) - 11

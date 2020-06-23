@@ -27,8 +27,7 @@ def dsiou_rotated_3d_bbox(bboxes1, bboxes2, iou_w = 0.8, size_rate_thres=0.25, r
   #print('t1:{}\nt2:{}'.format((t1-t0)*1000, (t2-t1)*1000))
 
   if torch.isnan(ious).any():
-    print("nan iou from dsiou_rotated_3d_bbox")
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    print("\n\n\tnan iou from dsiou_rotated_3d_bbox\n\n")
     pass
   return ious
 
