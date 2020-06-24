@@ -176,7 +176,10 @@ def clean_inner_false_walls_of_1_room(room, walls, obj_rep):
 
       rm_wall_ids = []
       for j in wids_i:
-        cor_j = [k for k in corIds_per_line[j] if k !=i][0]
+        cor_js = [k for k in corIds_per_line[j] if k !=i]
+        if len(cor_js) == 0:
+          continue
+        cor_j = cor_js[0]
         if cor_degrees[cor_j] == 0 or cor_degrees[cor_j] > 1:
           rm_wall_ids.append(j)
         pass

@@ -1889,22 +1889,24 @@ def merge_corners_1_cls(corners_0, min_cor_dis_thr, scores_0=None):
     scores_1 = scores_0
 
   corners_0 = corners_0.copy()
-  diss = corners_0[None,:,:] - corners_0[:,None,:]
-  diss = np.linalg.norm(diss, axis=2)
-  mask = diss < min_cor_dis_thr
-  merging_ids = []
-  for i in range(nc):
-    ids_i = np.where(mask[i])[0]
-    merging_ids.append(ids_i)
-    if scores_0 is not None:
-      weights = scores_0[ids_i] / scores_0[ids_i].sum()
-      merged_sco = ( scores_0[ids_i] * weights).sum()
-      scores_1[ids_i] = merged_sco
-      merged_cor = ( corners_0[ids_i] * weights[:,None]).sum(axis=0)
-    else:
-      merged_cor = ( corners_0[ids_i] ).mean(axis=0)
-    corners_0[ids_i] = merged_cor
-    pass
+  for j in range(2):
+    diss = corners_0[None,:,:] - corners_0[:,None,:]
+    diss = np.linalg.norm(diss, axis=2)
+    mask = diss < min_cor_dis_thr
+    is_any_duplicate = mask.sum() > nc
+    merging_ids = []
+    for i in range(nc):
+      ids_i = np.where(mask[i])[0]
+      merging_ids.append(ids_i)
+      if scores_0 is not None:
+        weights = scores_0[ids_i] / scores_0[ids_i].sum()
+        merged_sco = ( scores_0[ids_i] * weights).sum()
+        scores_1[ids_i] = merged_sco
+        merged_cor = ( corners_0[ids_i] * weights[:,None]).sum(axis=0)
+      else:
+        merged_cor = ( corners_0[ids_i] ).mean(axis=0)
+      corners_0[ids_i] = merged_cor
+      pass
   return corners_0, scores_1
 
 def merge_lines_intersect(lines, obj_rep, pairs):
