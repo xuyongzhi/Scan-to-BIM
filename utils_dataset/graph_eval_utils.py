@@ -166,7 +166,11 @@ def save_res_graph(dataset, data_loader, results, out_file, data_test_cfg):
         # optimize
         results_datas.append( res_data )
 
-    out_file = out_file.replace('.pickle', f'_{num_imgs}_Imgs.pickle')
+    base_dir = os.path.dirname(out_file)
+    #base_dir = os.path.join(base_dir, f'eval_res')
+    if not os.path.exists(base_dir):
+      os.makedirs(base_dir)
+    out_file = os.path.join( base_dir,  f'detection_{num_imgs}_Imgs.pickle')
     with open(out_file, 'wb') as f:
       pickle.dump(results_datas, f)
       print(f'\nsave: {out_file}')
@@ -309,7 +313,12 @@ def eval_graph_multi_files(res_files):
   filter_edges =  results_datas[0]['filter_edges']
   obj_rep =  results_datas[0]['obj_rep']
   graph_eval = GraphEval(obj_rep, classes, filter_edges, 'corner')
-  graph_eval(results_datas, res_files[0])
+  base_dir = os.path.dirname( os.path.dirname(res_files[0]) )
+  combine_dir = os.path.join( base_dir, 'combined_test' )
+  if not os.path.exists(combine_dir):
+    os.makedirs(combine_dir)
+  combine_file = os.path.join( combine_dir, 'detection.pickle' )
+  graph_eval(results_datas, combine_file)
 
 def filter_res_classes(results_datas, keep_cls):
   for res in results_datas:
@@ -332,27 +341,32 @@ def merge_two_results(results_datas_1, results_datas_2, kp_cls_in2=None):
     n1 = len(classes1)
     classes2 = res2['img_meta']['classes']
 
-    if classes2 == ['room']:
+    #if classes2 == ['room']:
+    if 1:
       res3['img_meta']['classes'] = classes1 + classes2
-      res3['catid_2_cat'][n1+1] = 'room'
+      for i, cat in enumerate(classes2):
+        res3['catid_2_cat'][n1+1+i] = cat
       res2['gt_labels'] +=n1
+    if classes2 == ['room']:
       res3['gt_relations_room_wall'] = res2['gt_relations']
-
-    elif classes2 == ['door', 'window']:
-      res3['img_meta']['classes'] = classes1 + ['window']
-      res3['catid_2_cat'][n1+1] = 'window'
-      assert res2['catid_2_cat'][2] == 'window'
-      win_mask = res2['gt_labels'] == 2
-
-      res2['gt_labels'] = res2['gt_labels'][win_mask]
-      res2['gt_bboxes'] = res2['gt_bboxes'][win_mask]
-      res2['gt_labels'] += n1 - 1
-      res2['detections'] = [ res2['detections'][1] ]
-
-      res3['gt_relations_room_wall'] = res1['gt_relations_room_wall']
-      pass
     else:
-      raise NotImplementedError
+      res3['gt_relations_room_wall'] = res1['gt_relations_room_wall']
+
+    #elif classes2 == ['door', 'window']:
+    #  res3['img_meta']['classes'] = classes1 + ['window']
+    #  res3['catid_2_cat'][n1+1] = 'window'
+    #  assert res2['catid_2_cat'][2] == 'window'
+    #  win_mask = res2['gt_labels'] == 2
+
+    #  res2['gt_labels'] = res2['gt_labels'][win_mask]
+    #  res2['gt_bboxes'] = res2['gt_bboxes'][win_mask]
+    #  res2['gt_labels'] += n1 - 1
+    #  res2['detections'] = [ res2['detections'][1] ]
+
+    #  res3['gt_relations_room_wall'] = res1['gt_relations_room_wall']
+    #  pass
+    #else:
+    #  raise NotImplementedError
 
     for e in concat_eles:
       res3[e] = np.concatenate( [res1[e], res2[e]], 0 )
@@ -366,7 +380,7 @@ def merge_two_results(results_datas_1, results_datas_2, kp_cls_in2=None):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range(97, 98))
+  _img_ids_debuging = list(range(22, 23))
   _img_ids_debuging = None
   _opti_room = 0
 
@@ -457,6 +471,11 @@ class GraphEval():
       os.makedirs(self.eval_dir_all_cls)
 
   def __call__(self, results_datas, out_file):
+    self.num_img = len(results_datas)
+    if self._img_ids_debuging is not None:
+      self.num_img = len(self._img_ids_debuging)
+    if self.scene_list is not None:
+      self.num_img = len(self.scene_list)
     if self.eval_method == 'corner':
       eval_fn = self.evaluate_by_corner
     if self.eval_method == 'iou':
@@ -475,7 +494,6 @@ class GraphEval():
     with_rel = 'det_relations' in results_datas[0]
     if optimize_graph_by_relation and not with_rel:
       return
-    self.num_img = len(results_datas)
     self.update_path(out_file)
     all_cor_nums_gt_dt_tp = defaultdict(list)
     all_line_nums_gt_dt_tp = defaultdict(list)
@@ -623,10 +641,9 @@ class GraphEval():
     if not os.path.exists(path):
       os.makedirs(path)
     num_cat = len(catid_2_cat)-1
-    eval_path = os.path.join(path, f'eval_res_{num_cat}_cats.npy')
-    np.save(eval_path, eval_res_str)
-    #with open(eval_path, 'a') as f:
-    #  f.write(eval_res_str)
+    eval_path = os.path.join(path, f'_eval_res_{num_cat}_cats.txt')
+    with open(eval_path, 'a') as f:
+      f.write(eval_res_str)
     #print(eval_res_str)
 
 
@@ -758,7 +775,6 @@ class GraphEval():
     self.optimize_graph_by_relation = optimize_graph_by_relation
     debug = 0
 
-    self.num_img = len(results_datas)
     self.update_path(out_file)
     all_line_nums_gt_dt_tp = defaultdict(list)
     all_ious = defaultdict(list)
@@ -909,13 +925,12 @@ class GraphEval():
 
     eval_res_str = self.get_eval_res_str_iou(line_recall_precision, img_meta, line_nums_sum, ave_ious)
     path = os.path.dirname(out_file)
-    path = os.path.join(path, 'eval_res')
+    #path = os.path.join(path, 'eval_res')
     if not os.path.exists(path):
       os.makedirs(path)
-    eval_path = os.path.join(path, 'eval_res.npy')
-    np.save(eval_path, eval_res_str)
-    #with open(eval_path, 'a') as f:
-    #  f.write(eval_res_str)
+    eval_path = os.path.join(path, 'eval_res.txt')
+    with open(eval_path, 'a') as f:
+      f.write(eval_res_str)
     #print(eval_res_str)
     #print(f'post time: {time_post}')
 
@@ -937,6 +952,7 @@ class GraphEval():
     show_fail_rooms = 0
     show_per_room = 0
 
+
     num_cats = len(cat_ls)
     cats_to_label = {cat_ls[i]: i for i in range(num_cats)}
     gt_rooms = gts_ls[cats_to_label['room']]
@@ -945,15 +961,18 @@ class GraphEval():
     dt_walls = dets_ls[cats_to_label['wall']]
     num_dt_w = dt_walls.shape[0]
 
-    if show_in_relations:
-      det_relations = rel_ids_to_mask(det_wall_ids_per_room, num_dt_w)
-      show_connectivity( gt_walls, gt_rooms, gt_relations_room_wall, self.obj_rep)
-      show_connectivity( dt_walls[:,:7], dt_rooms[:,:7], det_relations, self.obj_rep)
 
     #dt_rooms = dt_rooms0[dt_rooms0[:,-1] > self._score_threshold][:,:7]
     #dt_walls = dt_walls0[dt_walls0[:,-1] > self._score_threshold][:,:7]
     num_gt_r = gt_rooms.shape[0]
+    num_gt_w = gt_walls.shape[0]
     num_dt_r = dt_rooms.shape[0]
+    assert gt_relations_room_wall.shape == ( num_gt_r, num_gt_w)
+
+    if show_in_relations:
+      det_relations = rel_ids_to_mask(det_wall_ids_per_room, num_dt_w)
+      show_connectivity( gt_walls, gt_rooms, gt_relations_room_wall, self.obj_rep)
+      show_connectivity( dt_walls[:,:7], dt_rooms[:,:7], det_relations, self.obj_rep)
 
     ious = dsiou_rotated_3d_bbox_np( gt_rooms, dt_rooms[:,:7], iou_w=1, size_rate_thres=None )
     dt_id_per_gt = ious.argmax(1)
@@ -988,7 +1007,11 @@ class GraphEval():
     for i in range(num_tp):
       gt_i = gt_true_ids[i]
       dt_i = dt_id_per_gt[gt_i]
-      wids_gt_i = gt_wids_per_room[gt_i]
+      try:
+        wids_gt_i = gt_wids_per_room[gt_i]
+      except:
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
       wids_dt_i = det_wall_ids_per_room[dt_i]
       gtws_i = gt_walls[wids_gt_i]
       dtws_i = dt_walls[wids_dt_i]
@@ -1302,8 +1325,11 @@ class GraphEval():
     neg_line_ids = np.array([ i for i in range(det_lines.shape[0] ) if i not in pos_line_ids])
     det_lines_pos = det_lines[pos_line_ids]
     # sometimes merging generate extra lines, but points not
-    n0 = det_points.shape[0]
-    det_points_pos = det_points[pos_line_ids[pos_line_ids < n0]]
+    nline = det_lines.shape[0]
+    npts = det_points.shape[0]
+    if nline > npts:
+      det_points = np.concatenate([det_points, det_points[:nline-npts]], 0)
+    det_points_pos = det_points[pos_line_ids]
     if len(neg_line_ids) == 0:
       det_lines_neg = det_lines[0:0]
       det_points_neg = det_points[0:0]
@@ -1940,13 +1966,13 @@ def apply_mask_on_ids(ids, mask):
 
 
 def main():
-  workdir = '/home/z/Research/mmdetection/work_dirs/L_master_2S_jun21/'
-  workdir = '/home/z/Research/mmdetection/work_dirs/L_master_2S_jun23/'
+  workdir = '/home/z/Research/mmdetection/work_dirs/'
+  workdir = '/home/z/Research/mmdetection/work_dirs/L_master_3S_jun24/'
 
   dirs = [
-  'bTPV_r50_fpn_XYXYSin2_beike2d_wado_bs7_lr1_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel',
+  'bTPV_r50_fpn_XYXYSin2_beike2d_wa_bs7_lr1_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel',
   'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr1_LsW510R2P1N1_Rfiou832_Fpn44_Pbs1_Bp32',
-  'bTPV_r50_fpn_XYXYSin2_beike2d_dowi_bs7_lr10_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32'
+  'bTPV_r50_fpn_XYXYSin2_beike2d_dowi_bs7_lr10_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32',
   ]
 
   filename = 'detection_11_Imgs.pickle'

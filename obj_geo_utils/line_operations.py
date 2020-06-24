@@ -453,8 +453,9 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, min_cor_dis_thr, get_degre
       corners1 = lines0.reshape(-1,2)
     corners1, _ = merge_close_corners(corners1, min_cor_dis_thr, labels)
 
-    #corners1 = round_positions(corners1, 1000)
+    corners1 = round_positions(corners1, 1000)
     corners_uq, unique_indices, inds_inverse = np.unique(corners1, axis=0, return_index=True, return_inverse=True)
+    #print( abs(corners_uq[9] - corners_uq[10]).max() )
     num_cor_uq = corners_uq.shape[0]
     corners = corners_uq[:,:2]
     if labels is not None:
@@ -472,7 +473,9 @@ def gen_corners_from_lines_np(lines, labels, obj_rep, min_cor_dis_thr, get_degre
       _show_objs_ls_points_ls( (512,512), points_ls=[corners1], point_colors='red' )
       _show_objs_ls_points_ls( (512,512), points_ls=[corners], point_colors='red' )
 
-    is_duplicate = find_duplicate_corners(corners, min_cor_dis_thr, 'B')
+    if find_duplicate_corners(corners, 1, 'B'):
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
     cor_degrees = np.zeros([num_cor_uq], dtype=np.int32)-1
     for i in corIds_per_line.reshape(-1):
@@ -493,10 +496,11 @@ def find_duplicate_corners(corners, min_cor_dis_thr, flag):
 
       if is_duplicate:
         mask = dif < min_cor_dis_thr
+        ids = np.where( mask.any(0) )
+        du_corners = corners[ ids ]
         dup_num = mask.sum()
         print(f'min_dif: {min_dif}')
-        print(f'found {dup_num} duplicate corners')
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        print(f'found duplicate corners: \n {ids} \n{du_corners}')
         if 0:
           for i in range(n):
             if mask[i].any():

@@ -184,6 +184,8 @@ def clean_inner_false_walls_of_1_room(room, walls, obj_rep):
         walls_i = walls[rm_wall_ids]
         rm_wall_id = rm_wall_ids[ walls_i[:,3].argmin() ]
       else:
+        print(f'A corner connect three walls, but do not know which one to remove')
+        continue
         _show_objs_ls_points_ls( (512,512), [room[None,:7], walls, walls [wids_i] ], obj_rep, obj_colors=['red', 'white','blue'], obj_thickness=[8,4,2] )
         import pdb; pdb.set_trace()  # XXX BREAKPOINT
         pass
