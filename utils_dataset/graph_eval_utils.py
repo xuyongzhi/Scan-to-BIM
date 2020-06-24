@@ -21,6 +21,7 @@ SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
 DEBUG = 1
 DET_MID = 1
+MAX_Draw_Num = 8
 
 def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_pred, len(classes)+1)
@@ -375,7 +376,7 @@ class GraphEval():
     _opti_graph = [1]
     _opti_by_rel = [0]
 
-    _opti_room = 1
+    _opti_room = 0
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
@@ -433,7 +434,7 @@ class GraphEval():
     return par_str
 
   def update_path(self, out_file):
-    self.work_dir = os.path.dirname(out_file)
+    self.work_dir = os.path.join( os.path.dirname(out_file), 'eval_res')
     s = int(self._score_threshold*10)
     self.par_nice = f'Sc{s}_mL{self._min_out_length}_{self.out_type}'
     if self.eval_method == 'corner':
@@ -563,7 +564,8 @@ class GraphEval():
             all_cor_nums_gt_dt_tp[label].append(cor_nums_gt_dt_tp)
             all_line_nums_gt_dt_tp[label].append(line_nums_gt_dt_tp)
             all_ious[label].append(ious)
-            eval_draws_ls.append(eval_draws)
+            if i_img < MAX_Draw_Num:
+              eval_draws_ls.append(eval_draws)
 
             if debug and 0:
               print(f'optimize graph with self._opt_graph_cor_dis_thr= {self._opt_graph_cor_dis_thr}')
@@ -571,7 +573,8 @@ class GraphEval():
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
             pass
-        draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep, self._draw_pts)
+        if i_img < MAX_Draw_Num:
+          draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep, self._draw_pts)
         pass
 
     corner_recall_precision_perimg = defaultdict(list)
@@ -616,15 +619,21 @@ class GraphEval():
 
     eval_res_str = self.get_eval_res_str(corner_recall_precision, line_recall_precision, img_meta, line_nums_sum, cor_nums_sum, ave_ious, time_post)
     path = os.path.dirname(out_file)
+    path = os.path.join(path, 'eval_res')
+    if not os.path.exists(path):
+      os.makedirs(path)
     num_cat = len(catid_2_cat)-1
-    eval_path = os.path.join(path, f'eval_res_{num_cat}_cats.txt')
-    with open(eval_path, 'a') as f:
-      f.write(eval_res_str)
+    eval_path = os.path.join(path, f'eval_res_{num_cat}_cats.npy')
+    np.save(eval_path, eval_res_str)
+    #with open(eval_path, 'a') as f:
+    #  f.write(eval_res_str)
     #print(eval_res_str)
 
 
     acc_per_img_str = ''
-    for i, s in enumerate(scene_list):
+    ns = len(scene_list)
+    for i in range( min( ns, MAX_Draw_Num * 2 ) ):
+      s  = scene_list[i]
       acc_per_img_str += f'\n{s} :\t'
       for cat in corner_recall_precision_perimg.keys():
         cor_rec = corner_recall_precision_perimg[cat][0][0][i]
@@ -647,7 +656,7 @@ class GraphEval():
                     )
     s = 'OptimizeGraph' if self.optimize_graph else 'NoOptmizeGraph'
     eval_res_file = out_file.replace('.pickle', f'_EvalRes{s}.npy')
-    np.save(eval_res_file, eval_res)
+    #np.save(eval_res_file, eval_res)
     return eval_res_str
 
   def geo_opti_per_cls(self, num_labels, catid_2_cat, gt_labels, gt_lines, detections, out_type, optimize_graph, optimize_graph_by_relation, with_rel, det_relations):
@@ -870,7 +879,8 @@ class GraphEval():
 
             pass
         res_filename = os.path.join( self.eval_dir_all_cls, scene_name)
-        draw_1_scene(img, gts_1s, dets_1s,  ious_1s, labels_to_cats, self.obj_rep, self._iou_threshold, res_filename, det_points_1s)
+        if i_img < MAX_Draw_Num:
+          draw_1_scene(img, gts_1s, dets_1s,  ious_1s, labels_to_cats, self.obj_rep, self._iou_threshold, res_filename, det_points_1s)
         pass
 
     line_recall_precision_perimg = defaultdict(list)
@@ -899,9 +909,13 @@ class GraphEval():
 
     eval_res_str = self.get_eval_res_str_iou(line_recall_precision, img_meta, line_nums_sum, ave_ious)
     path = os.path.dirname(out_file)
-    eval_path = os.path.join(path, 'eval_res.txt')
-    with open(eval_path, 'a') as f:
-      f.write(eval_res_str)
+    path = os.path.join(path, 'eval_res')
+    if not os.path.exists(path):
+      os.makedirs(path)
+    eval_path = os.path.join(path, 'eval_res.npy')
+    np.save(eval_path, eval_res_str)
+    #with open(eval_path, 'a') as f:
+    #  f.write(eval_res_str)
     #print(eval_res_str)
     #print(f'post time: {time_post}')
 
@@ -913,7 +927,7 @@ class GraphEval():
                     )
     s = 'OptimizeGraph' if self.optimize_graph else 'NoOptmizeGraph'
     eval_res_file = out_file.replace('.pickle', f'_EvalRes{s}.npy')
-    np.save(eval_res_file, eval_res)
+    #np.save(eval_res_file, eval_res)
     return eval_res_str
 
   def eval_rooms_with_rel(self, dets_ls, gts_ls, cat_ls, det_wall_ids_per_room, gt_relations_room_wall):

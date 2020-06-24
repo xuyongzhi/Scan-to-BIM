@@ -37,7 +37,7 @@ CP=./work_dirs/${wkdir}/latest.pth
 CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x_r.py
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 
-ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL 
+#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL 
 
 
 CLS=a
@@ -47,4 +47,4 @@ CP=./work_dirs/${wkdir}/latest.pth
 CONFIG=configs/strpoints/bev_strpoints_r50_fpn_1x.py
 STYLE='--out ./work_dirs/'${wkdir}'/detection.pickle --eval bbox'
 
-#ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL 
+ipython tools/test.py --  ${CONFIG} $CP --rotate $ROTATE   $STYLE --base_plane $BASE_PLANE   --data_types $DATA_TYPES  --filter_edges $FILTER_EDGES   --classes $CLS  --relation $REL 
