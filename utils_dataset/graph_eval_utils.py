@@ -21,7 +21,7 @@ SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
 DEBUG = 1
 DET_MID = 1
-MAX_Draw_Num = 8
+MAX_Draw_Num = 100
 
 def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_pred, len(classes)+1)
