@@ -702,7 +702,7 @@ def draw_walls_rooms_rel(img, walls, rooms, obj_rep):
     ni = walls_i.shape[0]
     tmp = np.repeat( rooms[i:i+1], ni, 0 )
     rels_i = np.concatenate( [walls_i[:,:2], tmp[:,:2]], 1 )
-    img = _show_objs_ls_points_ls( img, [rels_i], 'RoLine2D_2p', obj_colors=ci, obj_thickness=4, only_save=1, dash=1 )
+    img = _show_objs_ls_points_ls( img, [rels_i], 'RoLine2D_2p', obj_colors=ci, obj_thickness=6, only_save=1, dash=1 )
     pass
   pass
   #mmcv.imshow( img )

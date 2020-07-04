@@ -388,7 +388,7 @@ class GraphEval():
   if 1:
     _all_out_types = [ 'bRefine_sAve' ] * 1
     _opti_graph = [1]
-    _opti_by_rel = [0]
+    _opti_by_rel = [1]
 
     _opti_room = 1
 
@@ -1676,6 +1676,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
   cat_ls = []
   rooms = None
   walls = None
+  gt_walls = None
   for i in range(num_cats):
       cat, img, img_file_base_all_cls, det_lines_pos, det_lines_neg, det_corners_pos, \
         det_corners_neg, gt_lines_true, gt_lines_false, gt_corners_true, gt_corners_false,\
@@ -1689,6 +1690,9 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
       c = colors_map[cat]
       c = 'black'
       img_size = img.shape[:2]
+
+      if cat == 'wall':
+        gt_walls = gt_lines
 
       if _draw_pts:
         det_points = np.concatenate([det_points_pos, det_points_neg], 0).reshape(-1,9,2)
@@ -1796,6 +1800,42 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
       img_gt = draw_building_objs('edge', cat, img_gt, gt_lines_true, gt_lines_false, obj_rep,\
             obj_dim, gt_corners_true, gt_corners_false)
 
+  #--------------------------------
+  # crop image size
+  auto_crop_img = 1
+  if auto_crop_img:
+    d_wall_corners = OBJ_REPS_PARSE.encode_obj(walls[:,:7], obj_rep, 'RoLine2D_2p').reshape(-1,2)
+    g_wall_corners = OBJ_REPS_PARSE.encode_obj(gt_walls, obj_rep, 'RoLine2D_2p').reshape(-1,2)
+    wall_corners = np.concatenate([d_wall_corners, g_wall_corners], 0)
+    min_xy = wall_corners.min(0).astype(np.int) - 10
+    y0, x0 = min_xy.clip(min=0)
+    max_xy = wall_corners.max(0).astype(np.int) + 10
+    y1, x1 = max_xy.clip(max=img_det.shape[0])
+
+  # ----------------------------------------
+  # room related
+  if 'room' in cat_ls:
+    if walls is not None:
+      img_det_room_rel = draw_walls_rooms_rel(img_det, walls, rooms, obj_rep)
+      det_room_rel_file = det_file.replace('.png','_room_rels.png')
+      if auto_crop_img:
+        img_det_room_rel = img_det_room_rel[ x0:x1, y0:y1,: ]
+      write_img( img_det_room_rel, det_room_rel_file )
+    if auto_crop_img:
+      img_det_rooms = img_det_rooms[ x0:x1, y0:y1,: ]
+      img_det_rooms_pts = img_det_rooms_pts[ x0:x1, y0:y1]
+    write_img(img_det_rooms, det_rooms_file)
+    write_img(img_det_rooms_pts, det_rooms_pts_file)
+
+  # ----------------------------------------
+  if auto_crop_img:
+    img_det = img_det[ x0:x1, y0:y1,: ]
+    img_det_no_cor = img_det_no_cor[ x0:x1, y0:y1,: ]
+    img_det_mesh = img_det_mesh[ x0:x1, y0:y1,: ]
+    img_gt = img_gt[ x0:x1, y0:y1,: ]
+    img_gt_mesh = img_gt_mesh[ x0:x1, y0:y1,: ]
+    if _draw_pts:
+      img_det_pts = img_det_pts[ x0:x1, y0:y1,: ]
 
   write_img(img_det, det_file)
   write_img(img_det_no_cor, det_file.replace('.png', '_NoCor.png'))
@@ -1804,13 +1844,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
     write_img(img_det_pts, det_pts_file)
   write_img(img_gt, gt_file)
   write_img(img_gt_mesh, gt_mesh_file)
-  if 'room' in cat_ls:
-    write_img(img_det_rooms, det_rooms_file)
-    write_img(img_det_rooms_pts, det_rooms_pts_file)
-    if walls is not None:
-      img_det_room_rel = draw_walls_rooms_rel(img_det, walls, rooms, obj_rep)
-      det_room_rel_file = det_file.replace('.png','_room_rels.png')
-      write_img( img_det_room_rel, det_room_rel_file )
+
 
   det_bboxes = np.concatenate( det_bboxes, axis=0 )
   gt_bboxes = np.concatenate( gt_bboxes, axis=0 )

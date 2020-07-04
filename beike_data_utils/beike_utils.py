@@ -275,45 +275,62 @@ class BEIKE(BEIKE_CLSINFO):
 
 
       corners = OBJ_REPS_PARSE.encode_obj(bboxes, self.obj_rep, 'RoLine2D_2p').reshape(-1,2)
+      y0, x0 = (corners.min(0).astype(np.int) - 10).clip(min=0)
+      y1, x1 = (corners.max(0).astype(np.int) + 10)
+
       # draw rooms
       anno_img_file = os.path.join(img_dir, scene_name+'-room.png')
-      _show_objs_ls_points_ls(
+      image = _show_objs_ls_points_ls(
         img, [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=2, point_thickness=2,
                                draw_rooms = True,
-                               out_file=anno_img_file, only_save=1)
+                               only_save=1)
+      image = image[x0:x1, y0:y1]
+      cv2.imwrite( anno_img_file, image )
+
       anno_img_file = os.path.join(img_dir, scene_name+'-room_box.png')
-      _show_objs_ls_points_ls(
+      image = _show_objs_ls_points_ls(
         img[:,:,0], [room_bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=6, point_thickness=2,
-                               out_file=anno_img_file, only_save=1)
+                               only_save=1)
+      image = image[x0:x1, y0:y1]
+      cv2.imwrite( anno_img_file, image )
 
       # draw density
       anno_img_file = os.path.join(img_dir, scene_name+'-density.png')
       img_density =_show_objs_ls_points_ls( img[:,:,0], out_file=anno_img_file, only_save=1)
 
       anno_img_file = os.path.join(img_dir, scene_name+'-density-gt.png')
-      _show_objs_ls_points_ls(
+      image = _show_objs_ls_points_ls(
                                img[:,:,0], [bboxes], self.obj_rep, [corners],
                                obj_colors='random', point_colors=[cor_labels],
                                obj_thickness=1, point_thickness=2,
-                               out_file=anno_img_file, only_save=1)
+                               only_save=1)
+      image = image[x0:x1, y0:y1]
+      cv2.imwrite( anno_img_file, image )
+
       # draw normal
       img_norm = np.abs(img[:,:,1:]) * 255
-      anno_img_file = os.path.join(img_dir, scene_name+'-norm.png')
-      _show_objs_ls_points_ls( img_norm, out_file=anno_img_file, only_save=1)
+      #anno_img_file = os.path.join(img_dir, scene_name+'-norm.png')
+      #image = _show_objs_ls_points_ls( img_norm, only_save=1)
+      #image = image[x0:x1, y0:y1]
+      #cv2.imwrite( anno_img_file, image )
 
       anno_img_file = os.path.join(img_dir, scene_name+'-norm-density.png')
-      _show_objs_ls_points_ls( img_norm + img[:,:,0:1], out_file=anno_img_file, only_save=1)
+      image = _show_objs_ls_points_ls( img_norm + img[:,:,0:1],  only_save=1)
+      image = image[x0:x1, y0:y1]
+      cv2.imwrite( anno_img_file, image )
 
-      anno_img_file = os.path.join(img_dir, scene_name+'-norm-gt.png')
-      _show_objs_ls_points_ls(
-        img_norm, [bboxes], self.obj_rep, [corners],
-                               obj_colors='white', point_colors=[cor_labels],
-                               obj_thickness=1, point_thickness=2,
-                               out_file=anno_img_file, only_save=1)
+      #anno_img_file = os.path.join(img_dir, scene_name+'-norm-gt.png')
+      #image = _show_objs_ls_points_ls(
+      #  img_norm, [bboxes], self.obj_rep, [corners],
+      #                         obj_colors='white', point_colors=[cor_labels],
+      #                         obj_thickness=1, point_thickness=2,
+      #                         only_save=1)
+      #image = image[x0:x1, y0:y1]
+      #cv2.imwrite( anno_img_file, image )
 
       show_1by1 = False
       if show_1by1:

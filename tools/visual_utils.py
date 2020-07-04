@@ -253,12 +253,13 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None,
 
 def draw_1_obj_dash(img, obj, color, obj_thickness, obj_rep):
   assert obj_rep == 'XYLgWsA'
-  len_unit = 4
-  gap_unit = 5
+  len_unit = 6
+  gap_unit = 8
   corners = OBJ_REPS_PARSE.encode_obj(obj[None], obj_rep, 'RoLine2D_2p').reshape(2,2)
   length = obj[2]
   n = length / (len_unit + gap_unit)
   n = int(np.floor(n))
+  n = max(n, 2)
   objs_dash = np.repeat( obj[None], n, 0)
   objs_dash[:,2] = len_unit
   for i in range(n):
