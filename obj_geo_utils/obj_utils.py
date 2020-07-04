@@ -409,7 +409,7 @@ class OBJ_REPS_PARSE():
         err = bboxes_c - bboxes
         err[:,-1] = limit_period_np(err[:,-1], 0.5, np.pi)
         err = np.abs(err).max()
-        if not (err.size==0 or np.abs(err).max() < 1e-3):
+        if not (err.size==0 or np.abs(err).max() < 1e-1):
           import pdb; pdb.set_trace()  # XXX BREAKPOINT
           pass
       return bboxes_s2t
@@ -756,7 +756,7 @@ class OBJ_REPS_PARSE():
     line2d_sin2tck = np.concatenate([line2d_sin2, thickness], axis=1)
 
     err = np.sin(angle.reshape(-1)*2) - line2d_sin2tck[:, -2]
-    if not (err.size==0 or np.abs(err).max() < 1e-3):
+    if not (err.size==0 or ( np.abs(err).max() < 1e-1 and np.abs(err).mean() < 1e-2)):
       import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
     return line2d_sin2tck

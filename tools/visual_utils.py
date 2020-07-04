@@ -18,6 +18,7 @@ BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
 BOX_LINE_RADIUS = 0.01
 FONT_SCALE = 0.5
 
+
 def parse_colors(n, color):
     if isinstance(color, np.ndarray) and len(color) == n:
       colors = _label2color(color)
@@ -69,6 +70,7 @@ def _show_objs_ls_points_ls(img,
                             point_thickness=1,
                             draw_rooms = False,
                             only_save=False,
+                            dash=False,
                             ):
   '''
   img: [h,w,3] or [h,w,1], or [h,w] or (h_size, w_size)
@@ -77,7 +79,7 @@ def _show_objs_ls_points_ls(img,
   img = _draw_objs_ls_points_ls(img, objs_ls, obj_rep, points_ls, obj_colors,
       point_colors=point_colors, out_file=out_file, obj_thickness=obj_thickness,
       point_thickness=point_thickness, obj_scores_ls=obj_scores_ls,
-      point_scores_ls=point_scores_ls, draw_rooms=draw_rooms)
+      point_scores_ls=point_scores_ls, draw_rooms=draw_rooms, dash=dash)
   if not only_save:
     mmcv.imshow(img)
   return img
@@ -96,6 +98,7 @@ def _draw_objs_ls_points_ls(img,
                             obj_cats_ls=None,
                             draw_rooms = False,
                             text_colors_ls='green',
+                            dash=False,
                             ):
   if objs_ls is not None:
     assert isinstance(objs_ls, list)
@@ -128,6 +131,7 @@ def _draw_objs_ls_points_ls(img,
                       cats = obj_cats_ls[i],
                       text_color=text_colors_ls[i],
                       draw_rooms = draw_rooms,
+                      dash = dash,
                        )
 
   if points_ls is not None:
@@ -188,17 +192,18 @@ def _draw_lines(img, lines, color, point_thickness, line_scores=None, font_scale
 
 def draw_objs(img, objs, obj_rep, color, obj_thickness=1, scores=None,
               draw_rooms=False,
-              cats=None, font_scale=FONT_SCALE, text_color='green'):
+              cats=None, font_scale=FONT_SCALE, text_color='green',
+              dash=False ):
   if obj_rep != 'XYLgWsA':
     objs = OBJ_REPS_PARSE.encode_obj(objs, obj_rep, 'XYLgWsA')
   if draw_rooms:
     img = draw_rooms_from_walls(img.shape[:2], objs,  'XYLgWsA')
   draw_XYLgWsA(img, objs, color, obj_thickness=obj_thickness, scores=scores,
-               cats=cats, font_scale=font_scale, text_color=text_color)
+               cats=cats, font_scale=font_scale, text_color=text_color, dash=dash)
   return img
 
 def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None,
-                 cats=None, font_scale=0.5, text_color='green'):
+                 cats=None, font_scale=0.5, text_color='green', dash=False):
     '''
     img: [h,w,3]
     objs: [n,5/6]  of XYLgWsA
@@ -220,7 +225,10 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None,
       assert scores.shape[0] == n
 
     for i in range(n):
-      draw_1_obj(img, objs[i], colors[i], obj_thickness, 'XYLgWsA')
+      if not dash:
+        draw_1_obj(img, objs[i], colors[i], obj_thickness, 'XYLgWsA')
+      else:
+        draw_1_obj_dash(img, objs[i], colors[i], obj_thickness, 'XYLgWsA')
 
     for i in range(n):
         center = objs[i,:2]
@@ -242,6 +250,23 @@ def draw_XYLgWsA(img, objs, color, obj_thickness=1, scores=None,
                       cv2.FONT_HERSHEY_COMPLEX, font_scale, text_color)
 
     return img
+
+def draw_1_obj_dash(img, obj, color, obj_thickness, obj_rep):
+  assert obj_rep == 'XYLgWsA'
+  len_unit = 4
+  gap_unit = 5
+  corners = OBJ_REPS_PARSE.encode_obj(obj[None], obj_rep, 'RoLine2D_2p').reshape(2,2)
+  length = obj[2]
+  n = length / (len_unit + gap_unit)
+  n = int(np.floor(n))
+  objs_dash = np.repeat( obj[None], n, 0)
+  objs_dash[:,2] = len_unit
+  for i in range(n):
+    r = (i+1)/n
+    center = corners[0]*r + corners[1]*(1-r)
+    objs_dash[i, :2] = center
+    draw_1_obj(img, objs_dash[i], color, obj_thickness, obj_rep)
+  pass
 
 def draw_1_obj(img, obj, color, obj_thickness, obj_rep):
         assert obj_rep == 'XYLgWsA'

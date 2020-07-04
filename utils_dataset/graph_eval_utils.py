@@ -1895,7 +1895,7 @@ def draw_building_objs(style, cat, img_det, det_lines_pos, det_lines_neg, obj_re
       obj_cats_ls = ['', 'F']
       obj_cats_ls = None
       if style == 'mesh':
-        tk = 2
+        tk = 3
       else:
         tk = 8
       if cat in ['door', 'window']:
