@@ -35,7 +35,12 @@ def align_bboxes_with_wall(dets, walls, cat, obj_rep):
 
   pass
   new_dets = new_dets[matched_ids]
-  return   new_dets
+
+  from mmdet.ops.nms.nms_wrapper import nms_rotated_np
+  iou_thr = 0.2
+  min_width_length_ratio = 0.2
+  new_dets_nms, ids = nms_rotated_np(new_dets, obj_rep, iou_thr, min_width_length_ratio)
+  return   new_dets_nms
 
 def align_1_box_with_wall(box, wall, obj_rep):
   box = box.reshape(1,7)

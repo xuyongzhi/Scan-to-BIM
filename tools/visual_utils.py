@@ -766,6 +766,10 @@ def _show_3d_as_img(bboxes3d, points_ls=None, obj_rep='RoBox3D_UpRight_xyxy_sin2
 
 
 #- others ------------------------------------------------------------------------------
+def _show_2d_bboxes_ids(img, bboxes, obj_rep):
+  bids = np.arange(bboxes.shape[0]).astype(np.int)
+  _show_objs_ls_points_ls(img, [bboxes], obj_rep=obj_rep, obj_scores_ls=[bids])
+
 
 def _show_3d_bboxes_ids(bboxes, obj_rep):
   '''
@@ -815,7 +819,8 @@ def show_1by1(img, objs, obj_rep, bg_objs=None):
     if bg_objs is not None:
       show_objs =  [bg_objs] + show_objs
       show_colors = ['white'] + show_colors
-    _show_objs_ls_points_ls( img, show_objs, obj_rep, obj_colors=show_colors )
+    print(objs[i])
+    _show_objs_ls_points_ls( img, show_objs, obj_rep, obj_colors=show_colors, obj_thickness=3 )
 
 #- feature ------------------------------------------------------------------------------
 def _show_feats(feats, gt_bboxes, stride):

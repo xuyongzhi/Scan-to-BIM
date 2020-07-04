@@ -42,10 +42,18 @@ def main():
 
   scene_file = os.path.join(base_dir, 'key_samples.txt')
   scenes = np.loadtxt(scene_file, dtype = str).tolist()
-  scenes = ['7w6zvVsOBAQK4h4Bne7caQ']
+  #scenes = ['7w6zvVsOBAQK4h4Bne7caQ']
+  #scenes = ['HBfvzptqI-PlRzcg3lnX-o']
+  #scenes = ['auto3d-fpUiiote8TwrE68Zbrwsxu']
+  scenes = ['kH3W13h2tW_4uZAf5JKmS2']
+  scenes = ['18H6WOCclkJY34-TVuOqX3']
   n = len(scenes)
   assert n>0
-  for s in scenes:
+  for i, s in enumerate(scenes):
+    #if i<2:
+    #  continue
+    print(f'\n{i}')
+    print(f'{s}')
     ply_f = os.path.join( ply_path, s + '.ply' )
     show_pcl_f( ply_f )
   pass

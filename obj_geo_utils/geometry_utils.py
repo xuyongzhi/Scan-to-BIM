@@ -1213,6 +1213,7 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
     pass
 
   edge_ids_per_room_out = [edge_ids_per_room[i] for i in room_labels]
+  edge_ids_per_room_out = [ ids for ids in edge_ids_per_room_out  if len(ids)>0]
 
   if gen_bbox:
     edge_corners = OBJ_REPS_PARSE.encode_obj(edges, 'XYLgWsA', 'RoLine2D_2p')

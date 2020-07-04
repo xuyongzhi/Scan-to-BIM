@@ -16,6 +16,7 @@ from collections import defaultdict
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, show_1by1
 from obj_geo_utils.geometry_utils import arg_sort_points_np, check_duplicate
 
+DEBUG = 1
 
 def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr=None, min_out_length=None):
       from utils_dataset.graph_eval_utils import GraphEval
@@ -25,7 +26,7 @@ def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr=None, min
       obj_dim = OBJ_REPS_PARSE._obj_dims[obj_rep]
       scores_i = det_lines[:,-1]
       det_lines_merged, scores_merged, ids = \
-        GraphUtils.optimize_wall_graph(det_lines[:,:obj_dim], scores_i, obj_rep_in=obj_rep,
+        GraphUtils.optimize_wall_graph_after_room_opt(det_lines[:,:obj_dim], scores_i, obj_rep_in=obj_rep,
           opt_graph_cor_dis_thr=opt_graph_cor_dis_thr, min_out_length=min_out_length )
 
       det_lines_merged = np.concatenate([det_lines_merged, scores_merged.reshape(-1,1)], axis=1)
@@ -107,10 +108,12 @@ def fix_failed_rooms_walls(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
   rooms_aug = rooms.copy()
   rooms_aug[:,3:5] *= 1.2
 
+  room_in_room_ids =  room_in_room_rels(rooms_aug, obj_rep)
+
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms_aug[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
 
-  w_in_r_scores = cal_edge_in_room_scores(walls_aug[:,:7], rooms_aug[:,:7], obj_rep)
+  w_in_r_scores = cal_wall_in_room_scores(walls_aug[:,:7], rooms_aug[:,:7], rooms[:,:7], obj_rep)
   room_qua_scores = get_room_quality_scores(rooms, obj_rep)
   #w_in_r_scores = w_in_r_scores *  room_qua_scores[None,:]
   sort_room_ids = (-w_in_r_scores).argsort(1)
@@ -121,14 +124,8 @@ def fix_failed_rooms_walls(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
     n_room_0 = num_rooms_per_fail_wall[i]
     room_scores_i = w_in_r_scores[i][ sort_room_ids[i] ]
     mask_i = room_scores_i > score_th
-    mask_i[2-n_room_0:] = False
-    room_ids_wi = sort_room_ids[i][mask_i].tolist()
-    room_ids_per_w.append( room_ids_wi )
 
-    for j in room_ids_wi:
-      wall_ids_per_r[j].append(i)
-
-    if show_room_ids_per_wall and i ==16:
+    if show_room_ids_per_wall:
       room_scores_wi = room_scores_i[mask_i]
       print(f'\nwall {i}')
       print(f'room_scores_i: {room_scores_wi}')
@@ -136,10 +133,20 @@ def fix_failed_rooms_walls(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
       if len(max_out_score)>0:
         max_out_score = max_out_score[0]
         print(f'max_out_score: {max_out_score:.3f}')
-      _show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[i:i+1,:-1], rooms_aug[room_ids_wi,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
+      #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], walls[i:i+1,:-1], rooms_aug[room_ids_wi,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
       _show_objs_ls_points_ls( (512,512), [walls_aug[:,:-1], walls[i:i+1,:-1], rooms_aug[:,:-1] ], obj_rep, obj_colors=['green', 'red', 'white'], obj_thickness=[1,3,1] )
-      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       pass
+
+    #mask_i[2-n_room_0:] = False
+    room_ids_wi = sort_room_ids[i][mask_i].tolist()
+    if mask_i.sum() > 2:
+      # overl two rooms matched
+      room_ids_wi = select_small_rooms_when_over_2_rooms_for_1_wall( room_ids_wi,  room_in_room_ids)
+    room_ids_per_w.append( room_ids_wi )
+
+    for j in room_ids_wi:
+      wall_ids_per_r[j].append(i)
+
 
   num_r = rooms.shape[0]
   for i in range(num_r):
@@ -224,12 +231,70 @@ def clean_outer_false_walls_of_1_room(room, walls, obj_rep):
   #_show_objs_ls_points_ls( (512,512), [walls[:,:7], walls[valid_ids,:7], box], obj_rep, obj_colors=['white', 'lime', 'red'] )
   return valid_ids
 
-def cal_edge_in_room_scores(walls, rooms, obj_rep):
+def cal_wall_in_room_scores(walls, rooms_aug, rooms, obj_rep):
   from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
-  ious = dsiou_rotated_3d_bbox_np( walls, rooms, iou_w=1.0, size_rate_thres=None, ref='bboxes1', only_2d=True )
+  assert obj_rep == 'XYZLgWsHA'
+  ious_inner = dsiou_rotated_3d_bbox_np( walls, rooms_aug, iou_w=1.0, size_rate_thres=None, ref='bboxes1', only_2d=True )
+
+
+  # see if a wall is the edge of a room
+  num_walls = walls.shape[0]
+  num_rooms = rooms.shape[0]
+  border_4_lines_0 = OBJ_REPS_PARSE.get_border_4_lines( rooms, obj_rep )
+  border_4_lines = border_4_lines_0.reshape(num_rooms*4, 7)
+  #_show_objs_ls_points_ls( (512,512), [ border_4_lines_0.reshape(-1,7) ], obj_rep,)
+  ious_border_0 = dsiou_rotated_3d_bbox_np( walls, border_4_lines, iou_w=1, size_rate_thres=0.2, ref='bboxes1', only_2d=True )
+  ious_border_1 = ious_border_0.reshape(num_walls, num_rooms, 4)
+  ious_border = ious_border_1.max(2)
+
+  #angles_dif = walls[:, None, 6] - border_4_lines[None,:,6]
+  #angles_dif = np.abs( angle_dif_by_period_np( angles_dif, 0, 0 ))
+  #angles_dif = angles_dif.reshape(num_walls, num_rooms, 4).min(2)
+
+  ious_max = np.maximum( ious_border, ious_inner )
+  ious_min = np.minimum( ious_border, ious_inner )
+  ious = ious_max * 0.8 + ious_min * 0.2
+
+  if 0:
+    for i in range(num_rooms):
+      ious_b_i = ious_border[:,i]
+      ious_i = ious[:,i]
+      print(f'border iou')
+      #_show_objs_ls_points_ls( (512,512), [walls, rooms[i:i+1]], obj_rep, obj_colors=['random', 'white' ], obj_thickness=[1,2], obj_scores_ls=[ ious_b_i, None ] )
+      print(f'inner iou')
+      print(f'fuse iou')
+      _show_objs_ls_points_ls( (512,512), [walls, rooms_aug[i:i+1]], obj_rep, obj_colors=['random', 'white' ], obj_thickness=[1,2], obj_scores_ls=[ ious_i, None ] )
   #print(ious)
   #_show_objs_ls_points_ls( (512,512), [walls, rooms], obj_rep, obj_colors=['green', 'red' ], obj_thickness=[1,3] )
   return ious
+
+def select_small_rooms_when_over_2_rooms_for_1_wall( room_ids_wi,  room_in_room_ids):
+  rm_ids = []
+  for ri in room_ids_wi:
+    if ri in room_in_room_ids and room_in_room_ids[ri] in room_ids_wi:
+      rm_ids.append( room_in_room_ids[ri] )
+  room_ids_wi_new = [i for i in room_ids_wi if i not in rm_ids ]
+  return room_ids_wi_new
+
+def room_in_room_rels(rooms, obj_rep):
+  '''
+  ids: [n,2]
+  ids[:,0] are in inside of ids[:,1]
+  '''
+  from mmdet.core.bbox.geometry import dsiou_rotated_3d_bbox_np
+  rooms = rooms[:,:7]
+  ious = dsiou_rotated_3d_bbox_np( rooms, rooms, iou_w=1.0, size_rate_thres=None, ref='bboxes2', only_2d=True )
+  np.fill_diagonal( ious, 0)
+  mask  = ious > 0.8
+  ids = np.where(mask)
+  ids = np.concatenate([ ids[0][None], ids[1][None] ], 0).T
+
+  r_in_r_ids = {}
+  for i in range(ids.shape[0]):
+    j,  k = ids[i]
+    r_in_r_ids[j] = k
+    #_show_objs_ls_points_ls( (512,512), [rooms, rooms[j:j+1], rooms[k:k+1] ], obj_rep, obj_colors=['white','red', 'green'], obj_thickness=[1, 1, 5] )
+  return r_in_r_ids
 
 def fix_failed_room_by_room(walls, rooms, wall_ids_per_r, obj_rep):
   num_rooms = rooms.shape[0]
@@ -264,7 +329,7 @@ def fulfil_a_rectangle_room(corners_sorted, walls, room, obj_rep, show_fix_proce
     _show_objs_ls_points_ls( (512,512), [ walls[:,:7], room[None,:7], walls_new[:,:7] ], obj_rep, obj_colors=['red', 'white', 'lime'])
   return walls, walls_new
 
-def insert_with_order(groups, exist_i, new_i):
+def insert_with_con_order(groups, exist_i, new_i):
   '''
   groups: []
   exist_i: alread in groups
@@ -306,8 +371,13 @@ def sort_connected_corners(walls, obj_rep):
   '''
   Split the corners into several group_ids by connection. Then sort the splited group_ids.
   '''
+  show_ids_per_group = 0
+  show_ids_adjust_between_groups = 0
+  show_final_sorted_ids = 0
   #_show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, )
 
+  #----- Split corners into several groups by connection. The ids in per group is sorted by connection.
+  # Note: the order of the first and last one is not constrained.
   corners, _, corIds_per_w0, n_cor = gen_corners_from_lines_np(walls[:,:7], None, obj_rep, min_cor_dis_thr=2)
   group_ids = []
   n_wall = walls.shape[0]
@@ -318,9 +388,9 @@ def sort_connected_corners(walls, obj_rep):
       if c0 in group_ids[j] or c1 in group_ids[j]:
         if len(w_in_g_ids) == 0:
             if c0 not in group_ids[j]:
-              group_ids[j] = insert_with_order( group_ids[j], c1, c0 )
+              group_ids[j] = insert_with_con_order( group_ids[j], c1, c0 )
             if c1 not in group_ids[j]:
-              group_ids[j] = insert_with_order( group_ids[j], c0, c1 )
+              group_ids[j] = insert_with_con_order( group_ids[j], c0, c1 )
         w_in_g_ids.append(j)
     if len(w_in_g_ids) >= 2:
       # merge the groups of w_in_g_ids
@@ -335,20 +405,46 @@ def sort_connected_corners(walls, obj_rep):
     _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, )
     assert False, f"{n_cor} != {n_cor_1}"
 
+
   min_xy = corners.min(axis=0, keepdims=True)
   max_xy = corners.max(axis=0, keepdims=True)
   center = (min_xy + max_xy) / 2
+  num_groups = len(group_ids)
+
+  ##----- Make the ids in per group clock-wise to center
+  #for i in  range(num_groups):
+  #  if len(group_ids[i] ) < 2:
+  #    continue
+  #  corners_gi = corners[ group_ids[i] ] [[0,-1]]
+  #  _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [center, corners_gi], point_thickness=[8, 2], point_scores_ls=[ [i], range(corners_gi.shape[0]) ] )
+  #  sort_ids_i = arg_sort_points_np( corners_gi[None], center[None] ).reshape(-1)
+  #  print(sort_ids_i)
+  #  if sort_ids_i[0] != 0:
+  #    group_ids[i] = group_ids[i][::-1]
+  #  _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [center, corners[ group_ids[i] ]], point_thickness=[8, 2], point_scores_ls=[ [i], range(group_ids[i].shape[0]) ] )
 
   group_centers = [ corners[ids].mean(0)[None] for ids in group_ids]
   group_centers = np.concatenate(group_centers, 0)
   group_sort_ids = arg_sort_points_np( group_centers[None], center[None] ).reshape(-1)
   group_ids = [ group_ids[i] for i in group_sort_ids ]
+  group_centers = group_centers[ group_sort_ids ]
 
-  if 0:
-    for ids in group_ids:
-      _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [corners[ids], center], point_scores_ls=[range(len(ids)), None] )
+  if show_ids_per_group:
+      _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [group_centers, center], point_scores_ls=[range(num_groups), None], point_thickness=[5,1] )
+      for i in range(num_groups):
+        corners_gi = corners[ group_ids[i] ]
+        _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [group_centers[i:i+1], corners_gi], point_thickness=[8, 2], point_scores_ls=[ [i], range(corners_gi.shape[0]) ] )
 
-  num_groups = len(group_ids)
+  #-----  Adjust the order of first group, to make the last corner is closer to the second group.
+  if num_groups>1:
+    groups_0 = corners[ group_ids[0] ]
+    groups_1 = corners[ group_ids[1] ]
+    dis_first = np.linalg.norm( groups_0[0:1] - groups_1, axis=-1).min()
+    dis_last = np.linalg.norm( groups_0[-1:] - groups_1, axis=-1).min()
+    if dis_first < dis_last:
+      group_ids[0] = group_ids[0][::-1]
+
+  #----- From the second group, adjust the order to connect with last one.
   for i in  range(1, num_groups):
     anchor_last = corners[ group_ids[i-1][-1] ][None]
     s, e = group_ids[i][0], group_ids[i][-1]
@@ -356,7 +452,7 @@ def sort_connected_corners(walls, obj_rep):
     dis_s_e = np.linalg.norm( anchor_last - cor_cur_s_e, axis=1 )
     if dis_s_e[0] > dis_s_e[1]:
       group_ids[i] = group_ids[i][::-1]
-    if 0:
+    if show_ids_adjust_between_groups:
       print(dis_s_e)
       _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [anchor_last, cor_cur_s_e[0:1], cor_cur_s_e[1:2] ], point_scores_ls=[[0],[1],[2]] )
     pass
@@ -368,7 +464,8 @@ def sort_connected_corners(walls, obj_rep):
   ids0_to_ids1[cor_sort_ids] = np.arange(n_cor)
   corIds_per_w1 = ids0_to_ids1[ corIds_per_w0 ]
 
-  #_show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [corners_sorted], point_scores_ls=[range(n_cor)] )
+  if show_final_sorted_ids:
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [corners_sorted], point_scores_ls=[range(n_cor)] )
   return corners_sorted, corIds_per_w1
 
 def fix_walls_1_room(walls, room, obj_rep):
@@ -547,7 +644,7 @@ def get_rooms_walls_rel(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
   #_show_objs_ls_points_ls( (512,512), [walls[:,:-1], rooms_aug[:,:-1]], obj_rep, obj_colors=['red', 'white'], obj_thickness=[3,1] )
 
-  w_in_r_scores = cal_edge_in_room_scores(walls_aug[:,:7], rooms_aug[:,:7], obj_rep)
+  w_in_r_scores = cal_wall_in_room_scores(walls_aug[:,:7], rooms_aug[:,:7], rooms[:,:7], obj_rep)
   room_qua_scores = get_room_quality_scores(rooms, obj_rep)
   #w_in_r_scores = w_in_r_scores *  room_qua_scores[None,:]
   sort_room_ids = (-w_in_r_scores).argsort(1)

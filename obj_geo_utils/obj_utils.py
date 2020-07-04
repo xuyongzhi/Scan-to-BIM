@@ -1027,7 +1027,7 @@ class OBJ_REPS_PARSE():
     abs_sin_theta = bboxes[:,4]
     sin2_theta = bboxes[:,5]
 
-    assert np.all(abs_sin_alpha < 1.001)
+    assert np.all(abs_sin_alpha < 1.1)
     abs_sin_alpha = np.clip(abs_sin_alpha, a_min=0, a_max=1)
     alpha = np.arcsin(abs_sin_alpha)
     theta_abs = np.arcsin(abs_sin_theta)
@@ -1083,7 +1083,7 @@ class OBJ_REPS_PARSE():
     return corners_3d
 
   @staticmethod
-  def get_12_lines(bboxes, obj_rep):
+  def get_12_line_cors(bboxes, obj_rep):
     '''
     bboxes: [n,7]
     lines_3d: [n,12,2,3]
@@ -1097,6 +1097,18 @@ class OBJ_REPS_PARSE():
     return lines_3d
 
   @staticmethod
+  def get_border_4_lines(bboxes, obj_rep):
+    n = bboxes.shape[0]
+    if n==0:
+      return np.repeat( bboxes[:,None], 4 , 1)
+    corners = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'Rect4CornersZ0Z1')[:,:8].reshape(n,4,2)
+    ids_ls = [ [0,1], [1,2], [2,3], [3,0] ]
+    line_cors = [ corners[:, ids].reshape(n,1,4) for ids in ids_ls]
+    line_cors = np.concatenate(line_cors, 1).reshape(n*4, -1)
+    lines = OBJ_REPS_PARSE.encode_obj(line_cors, 'RoLine2D_2p', obj_rep).reshape(n,4,-1)
+    return lines
+
+  @staticmethod
   def normalized_bev(bboxes, obj_rep, size=512):
     corners = OBJ_REPS_PARSE.encode_obj(bboxes, obj_rep, 'RoLine2D_2p').reshape(-1,2)
     xyz_min = corners.min(0)
@@ -1108,6 +1120,60 @@ class OBJ_REPS_PARSE():
     return bboxes_norm, xyz_min
 
 class GraphUtils:
+  @staticmethod
+  def optimize_wall_graph_after_room_opt(walls, scores_in=None, obj_rep_in='XYZLgWsHA',
+                     opt_graph_cor_dis_thr=0, min_out_length=0):
+    from mmdet.ops.nms.nms_wrapper import nms_rotated_np
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls, _show_2d_bboxes_ids, show_1by1
+    obj_rep = 'XYZLgWsHA'
+    if scores_in is None:
+      scores = walls[:,-1:].copy()
+      scores[:] = 1
+    else:
+      scores = scores_in
+
+    #walls, xyz_min = OBJ_REPS_PARSE.normalized_bev(walls, obj_rep_in)
+    walls = OBJ_REPS_PARSE.encode_obj(walls, obj_rep_in, obj_rep)
+
+    ids_org = np.arange(walls.shape[0])
+    all_ids = []
+
+
+    walls, scores = GraphUtils.merge_wall_corners(walls, scores, obj_rep, opt_graph_cor_dis_thr)
+
+    walls, scores = GraphUtils.crop_long_walls(walls, scores, obj_rep)
+
+    walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, 3)
+    all_ids.append(ids)
+    walls, scores, ids = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.5, min_width_length_ratio=0.2)
+
+    walls, scores = GraphUtils.merge_parallel_con_walls(walls, scores, obj_rep, show=0)
+    #_show_objs_ls_points_ls( (512,512), [walls], obj_rep, obj_thickness=5 )
+    #show_1by1((512,512), walls, obj_rep)
+
+    walls, scores, ids = GraphUtils.rm_short_walls(walls, scores, obj_rep, min_out_length)
+    all_ids.append(ids)
+
+
+    walls, scores, ids = GraphUtils.nms(walls, scores, obj_rep, iou_thr=0.2, min_width_length_ratio=0.2)
+    all_ids.append(ids)
+    #_show_objs_ls_points_ls( (512,512), [walls], obj_rep, obj_thickness=5 )
+
+    ids_out = ids_org.copy()
+    for ids in all_ids:
+      if ids is not None:
+        ids_out = ids_out[ids]
+
+    walls = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, obj_rep_in)
+    if scores_in is None:
+      scores = None
+
+    if 1:
+      if not check_duplicate( walls[:,:7], obj_rep, 0.3 ):
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+        pass
+    #_show_objs_ls_points_ls( (512,512), [walls], obj_rep, obj_thickness=5 )
+    return walls, scores, ids_out
 
   @staticmethod
   def optimize_wall_graph(walls, scores_in=None, obj_rep_in='XYZLgWsHA',
@@ -1345,6 +1411,82 @@ class GraphUtils:
     return walls_0[mask], scores_1, ids
 
   @staticmethod
+  def merge_parallel_con_walls(walls, scores, obj_rep, show=0):
+    from obj_geo_utils.line_operations import gen_corners_from_lines_np
+    from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls
+    show_parallel_con_candidates = show
+    show_parallel_con_candidates = 0
+
+    walls_merged = walls.copy()
+    rm_ids = []
+
+    assert obj_rep == 'XYZLgWsHA'
+    n = walls.shape[0]
+    uq_corners, _, corIds_per_line, num_cor_uq, cor_degrees =  gen_corners_from_lines_np( walls, None, obj_rep, 1, get_degree=1, flag='deg_d' )
+    corners = uq_corners[ corIds_per_line ]
+    for i in range(n-1):
+      cor_ids_i = corIds_per_line[i]
+      cor_deg_i = cor_degrees[cor_ids_i]
+      if cor_deg_i.min() >=2:
+        continue
+
+      angle_dif_i = np.abs( angle_dif_by_period_np(walls[i:i+1,-1], walls[i+1:,-1], 0) )
+      dis_i_0 = np.linalg.norm( corners[i:i+1,None] - corners[i+1:,:,None] , axis=-1)
+      dis_i = dis_i_0.reshape(-1,4).min(1)
+      mask_0 = angle_dif_i < 5 * np.pi / 180
+      mask_1 = dis_i < 1
+      mask_i = mask_0 * mask_1
+      ids_i = np.where(mask_i)[0] + i + 1
+
+      #if show and i in [26, 30]:
+      #    show_parallel_con_candidates = 1
+      #    _show_objs_ls_points_ls( (512,512), [ walls, walls[i:i+1] ], obj_rep, obj_colors=['white', 'red'], obj_thickness=[1,4], points_ls=[corners[i]], point_thickness=6 )
+      #    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      #    pass
+
+
+      for j in ids_i:
+        cor_id_j, cor_id_i = np.where(dis_i_0[j-i-1] < 1)
+        cdg_i = cor_degrees[ corIds_per_line[i, cor_id_i]  ]
+        cdg_j = cor_degrees[ corIds_per_line[j, cor_id_j]  ]
+        if cor_id_j.shape[0]>1:
+          import pdb; pdb.set_trace()  # XXX BREAKPOINT
+          pass
+
+
+        if show_parallel_con_candidates:
+            print(f'cdg_i: {cdg_i}, cdg_j:{cdg_j}')
+            cor_i = corners[i, cor_id_i]
+            cor_j = corners[j, cor_id_j]
+            _show_objs_ls_points_ls( (512,512), [ walls, walls[i:i+1], walls[j:j+1] ], obj_rep, obj_colors=['white', 'red', 'green'], obj_thickness=[1,2, 4], points_ls=[ cor_i, cor_j ], point_thickness=6 )
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+            pass
+
+        if cdg_i < 2 and cdg_j < 2:
+          # all requirements matched
+          cor_i = corners[i, 1-cor_id_i]
+          cor_j = corners[j, 1-cor_id_j]
+          merged_cors = np.concatenate([cor_i, cor_j], axis=0).reshape(1,4)
+          merged_wall = OBJ_REPS_PARSE.encode_obj(merged_cors, 'RoLine2D_2p', obj_rep)
+          walls_merged[i] = merged_wall
+          walls_merged[j] = merged_wall
+
+          kp_ids = [ii for ii in range(n) if ii!=i ]
+          scores = scores[kp_ids]
+          walls_merged = walls_merged[kp_ids]
+          return GraphUtils.merge_parallel_con_walls( walls_merged, scores, obj_rep, show )
+          #rm_ids.append(i)
+          pass
+
+    return walls, scores
+
+    #kp_ids = [i for i in range(n) if i not in rm_ids]
+    #walls_merged = walls_merged[kp_ids]
+    #if scores is not None:
+    #  scores = scores[kp_ids]
+    #return walls_merged, scores
+
+  @staticmethod
   def merge_wall_corners(walls_0, scores_0, obj_rep, min_cor_dis_thr):
     '''
     Do not  change the number of walls
@@ -1488,7 +1630,7 @@ class GraphUtils:
       else:
         print(f'Skip mergeing parallel')
         return wall0, wall1, None, False
-        wall0_new, wall1_new =  merge_two_parallel_walls(wall0, wall1, cor0, cor1, obj_rep, cor_degree0, cor_degree1, all_walls=all_walls)
+        wall0_new, wall1_new =  unused_merge_two_parallel_walls(wall0, wall1, cor0, cor1, obj_rep, cor_degree0, cor_degree1, all_walls=all_walls)
         return wall0_new, wall1_new, None, True
 
 
@@ -1755,6 +1897,11 @@ class GraphUtils:
       #show_free_corners(new_lines, obj_rep)
       return new_lines
 
+
+
+
+def merge_2_parallel_walls(wall0, wall1, obj_rep):
+  pass
 
 def merge_two_parallel_walls(wall0, wall1, cor0, cor1, obj_rep, cor_degree0, cor_degree1, flag=0, all_walls=None):
   '''

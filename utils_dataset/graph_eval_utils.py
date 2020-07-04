@@ -380,17 +380,17 @@ def merge_two_results(results_datas_1, results_datas_2, kp_cls_in2=None):
 class GraphEval():
   #_all_out_types = [ 'composite', 'bInit_sRefine', 'bRefine_sAve' ]
 
-  _img_ids_debuging = list(range( 79, 80 ))
+  _img_ids_debuging = list(range( 2 ))
   _img_ids_debuging = None
   _opti_room = 0
 
 
   if 1:
     _all_out_types = [ 'bRefine_sAve' ] * 1
-    _opti_graph = [0]
+    _opti_graph = [1]
     _opti_by_rel = [0]
 
-    _opti_room = 0
+    _opti_room = 1
 
   if 0:
     _all_out_types = [ 'bInit_sRefine' ]
@@ -407,7 +407,7 @@ class GraphEval():
 
   _score_threshold  = 0.4
   _corner_dis_threshold = 15
-  _opt_graph_cor_dis_thr = 10
+  _opt_graph_cor_dis_thr = 15
   _min_out_length = 10
 
   _eval_img_scale_ratio = 1.0
@@ -415,10 +415,13 @@ class GraphEval():
   _max_ofs_by_rel = 30
 
   _iou_threshold = 0.7
+  del_alone_walls = 1
 
   scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
   scene_list = ['5pJn2a9zfRzInJ7IwpIzQd','7w6zvVsOBAQK4h4Bne7caQ', 'HBfvzptqI-PlRzcg3lnX-o', 'jtZ2kFzYePr0Pg-yOfnViy',]
-  scene_list = ['7w6zvVsOBAQK4h4Bne7caQ']
+  scene_list = ['auto3d-fpUiiote8TwrE68Zbrwsxu']
+  scene_list = ['7w6zvVsOBAQK4h4Bne7caQ', 'auto3d-fpUiiote8TwrE68Zbrwsxu', 'HBfvzptqI-PlRzcg3lnX-o']
+  scene_list = ['0Kajc_nnyZ6K0cRGCQJW56']
   scene_list = None
   #scene_list = ['krrV11t89QIya7T02sAvKh']
 
@@ -690,9 +693,6 @@ class GraphEval():
             label_mask = (gt_labels == label).reshape(-1)
             gt_lines_l = gt_lines[label_mask]
             det_lines = detections[label-1][f'detection_{out_type}'].copy()
-            if not check_duplicate(det_lines, self.obj_rep, 0.2):
-                import pdb; pdb.set_trace()  # XXX BREAKPOINT
-                pass
 
             if out_type == 'bInit_sRefine':
               det_points = detections[label-1]['points_init']
@@ -750,23 +750,34 @@ class GraphEval():
     room_i = [i for i in range(n) if cat_ls[i]=='room'][0]
     walls_org = det_lines_merged_ls[wall_i]
     rooms_org = det_lines_merged_ls[room_i]
+
+    if not check_duplicate(walls_org, self.obj_rep, 0.3):
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
+
     new_walls = optimize_walls_by_rooms_main( walls_org, rooms_org, self.obj_rep )
     wall_ids_per_room,  room_ids_per_wall ,_, room_bboxes = get_rooms_from_edges(new_walls[:,:7], self.obj_rep, gen_bbox=True)
     scores_r = room_bboxes[:,0:1].copy()
     scores_r[:] = 1
     room_bboxes = np.concatenate([room_bboxes, scores_r], 1)
-    det_lines_merged_ls[room_i] = room_bboxes
+
+    if not check_duplicate(new_walls, self.obj_rep, 0.3):
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
+      pass
 
     # delete alone walls
-    mask = (room_ids_per_wall>=0).any(1)
-    valid_ids = np.where(mask)[0]
-    new_walls = new_walls[valid_ids]
-    det_lines_merged_ls[wall_i] = new_walls
-    nw = len(mask)
-    ids_map = np.zeros([nw], dtype=np.int32)-1
-    ids_map[ valid_ids ] = np.arange( len(valid_ids) )
-    wall_ids_per_room = [ ids_map[ids] for ids in wall_ids_per_room ]
+    if self.del_alone_walls:
+      mask = (room_ids_per_wall>=0).any(1)
+      valid_ids = np.where(mask)[0]
+      new_walls = new_walls[valid_ids]
+      det_lines_merged_ls[wall_i] = new_walls
+      nw = len(mask)
+      ids_map = np.zeros([nw], dtype=np.int32)-1
+      ids_map[ valid_ids ] = np.arange( len(valid_ids) )
+      wall_ids_per_room = [ ids_map[ids] for ids in wall_ids_per_room ]
 
+    det_lines_merged_ls[room_i] = room_bboxes
+    det_lines_merged_ls[wall_i] = new_walls
     return wall_ids_per_room
 
   def evaluate_by_iou(self, results_datas, out_file, out_type, optimize_graph=True, optimize_graph_by_relation=False):
@@ -1007,11 +1018,7 @@ class GraphEval():
     for i in range(num_tp):
       gt_i = gt_true_ids[i]
       dt_i = dt_id_per_gt[gt_i]
-      try:
-        wids_gt_i = gt_wids_per_room[gt_i]
-      except:
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
-        pass
+      wids_gt_i = gt_wids_per_room[gt_i]
       wids_dt_i = det_wall_ids_per_room[dt_i]
       gtws_i = gt_walls[wids_gt_i]
       dtws_i = dt_walls[wids_dt_i]
@@ -1694,7 +1701,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
         det_file = img_file_base_all_cls + '_Det.png'
         det_mesh_file = img_file_base_all_cls + '_DetMesh.png'
 
-        img_det_pts = img_det = lighten_density_img( img[:,:,0] )
+        img_det_pts = lighten_density_img( img[:,:,0] )
         det_pts_file = img_file_base_all_cls + '_DetPts.png'
 
         #img_gt = lighten_density_img( img[:,:,0])
@@ -1731,7 +1738,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
                     obj_scores_ls = [det_lines[di:di+1,obj_dim]],
                     point_colors=ci,
                     obj_thickness=2,
-                    point_thickness=5,
+                    point_thickness=12,
                     out_file=None,)
         continue
 
@@ -1780,7 +1787,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
                 obj_scores_ls = [det_lines[:,obj_dim]],
                 point_colors=ci,
                 obj_thickness=1,
-                point_thickness=5,
+                point_thickness=12,
                 out_file=None,)
 
         #mmcv.imshow(img_det_pts)
@@ -1801,7 +1808,7 @@ def draw_eval_all_classes_1_scene(eval_draws_ls, obj_rep, _draw_pts ):
     write_img(img_det_rooms, det_rooms_file)
     write_img(img_det_rooms_pts, det_rooms_pts_file)
     if walls is not None:
-      img_det_room_rel = draw_walls_rooms_rel(img_det_no_cor, walls, rooms, obj_rep)
+      img_det_room_rel = draw_walls_rooms_rel(img_det, walls, rooms, obj_rep)
       det_room_rel_file = det_file.replace('.png','_room_rels.png')
       write_img( img_det_room_rel, det_room_rel_file )
 
@@ -1887,19 +1894,20 @@ def draw_building_objs(style, cat, img_det, det_lines_pos, det_lines_neg, obj_re
         corners = None
       obj_cats_ls = ['', 'F']
       obj_cats_ls = None
-      tk = 5
-      dtk = tk
+      if style == 'mesh':
+        tk = 2
+      else:
+        tk = 8
       if cat in ['door', 'window']:
         c = {'window':'gray', 'door':'lime'} [cat]
         if style == 'mesh':
-          dtk = 8
-          rds = 8
+          tk = 6
         else:
-          dtk = 8
-          rds = 8
+          tk = 8
+        rds = tk
 
-        det_lines_pos[:,3] -= rds
-        det_lines_neg[:,3] -= rds
+        det_lines_pos[:,3] -= rds+2
+        det_lines_neg[:,3] -= rds+2
         corners = None
       point_colors=['red', 'red']
       img_det = _draw_objs_ls_points_ls(img_det,
@@ -1910,8 +1918,8 @@ def draw_building_objs(style, cat, img_det, det_lines_pos, det_lines_neg, obj_re
               obj_scores_ls = obj_scores_ls,
               obj_cats_ls = obj_cats_ls,
               point_colors = point_colors,
-              obj_thickness=dtk,
-              point_thickness=5,
+              obj_thickness=tk,
+              point_thickness=tk,
               out_file=None,
               text_colors_ls=['green', 'red'])
 
@@ -1919,15 +1927,16 @@ def draw_building_objs(style, cat, img_det, det_lines_pos, det_lines_neg, obj_re
         if style == 'mesh':
           c = 'black'
           tk = 2
+          width = 8
         else:
           c = 'white'
           tk = 2
-          dtk = 8
+          width = 8
           #return img_det
         det_lines_pos[:,3] += rds-2
         det_lines_neg[:,3] += rds-2
-        det_lines_pos[:,4] = dtk
-        det_lines_neg[:,4] = dtk
+        det_lines_pos[:,4] = width
+        det_lines_neg[:,4] = width
         img_det = _draw_objs_ls_points_ls(img_det,
                 [det_lines_pos[:,:obj_dim], det_lines_neg[:,:obj_dim]],
                 obj_rep,
@@ -1967,10 +1976,10 @@ def apply_mask_on_ids(ids, mask):
 
 def main():
   workdir = '/home/z/Research/mmdetection/work_dirs/'
-  workdir = '/home/z/Research/mmdetection/work_dirs/L_master_3S_jun24/'
+  workdir = '/home/z/Research/mmdetection/work_dirs/TrL18K_S_July3/'
 
   dirs = [
-  'bTPV_r50_fpn_XYXYSin2_beike2d_wa_bs7_lr1_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel',
+  'bTPV_r50_fpn_XYXYSin2_beike2d_wa_bs7_lr10_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel',
   'bTPV_r50_fpn_XYXYSin2WZ0Z1_Std__beike2d_ro_bs7_lr1_LsW510R2P1N1_Rfiou832_Fpn44_Pbs1_Bp32',
   'bTPV_r50_fpn_XYXYSin2_beike2d_dowi_bs7_lr10_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32',
   ]
