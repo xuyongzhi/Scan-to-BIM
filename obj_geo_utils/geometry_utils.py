@@ -841,7 +841,7 @@ def line_intersection_2d(line0, line1, must_on0=False, must_on1=False,
     except np.linalg.LinAlgError:
       return np.array([np.nan]*2)
 
-def get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
+def unused_get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
   '''
   walls:  [m,7]
   ceiling_boxes: [n,7]
@@ -882,7 +882,7 @@ def get_ceiling_floor_from_box_walls(ceiling_boxes, walls, obj_rep, cat_name):
 
   wall_corners3d = np.concatenate([wall_corners3d_0, wall_corners3d_1], 1)
 
-  #_show_3d_points_objs_ls([wall_corners3d], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_corners3d])
+  #_show_3d_points_objs_ls([wall_corners3d.reshape(-1,3)], objs_ls=[walls], obj_rep=obj_rep, polygons_ls=[wall_corners3d])
   return wall_corners3d
 
 def get_cf_from_wall(ceiling_boxes, walls, obj_rep, cat_name, check_valid=True):

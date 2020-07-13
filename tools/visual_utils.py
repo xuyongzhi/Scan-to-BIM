@@ -566,6 +566,7 @@ def _make_bboxes_o3d(bboxes, box_oriented, color, box_type):
     elif box_type == 'surface_mesh':
       bboxes_.append( _make_bbox_surface_mesh(bbox, box_oriented, colors[i]) )
     else:
+      print(f'box_type = {box_type}')
       raise NotImplementedError
   return bboxes_
 
@@ -618,7 +619,7 @@ def _make_bbox_line_mesh(bbox, box_oriented, color):
     radius = BOX_LINE_RADIUS
     #radius = bbox[3:6].max()/200
 
-    lines = OBJ_REPS_PARSE.get_12_lines(bbox.reshape(1,7), 'XYZLgWsHA')[0] # [12,2,3]
+    lines = OBJ_REPS_PARSE.get_12_line_cors(bbox.reshape(1,7), 'XYZLgWsHA')[0] # [12,2,3]
     centroids = lines.mean(1)
     directions = lines[:,1,:]-lines[:,0,:]
     heights = np.linalg.norm(directions,axis=1)

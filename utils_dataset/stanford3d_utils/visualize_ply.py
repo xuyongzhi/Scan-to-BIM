@@ -64,7 +64,18 @@ def load_bboxes(pcl_file):
   #show_bboxes(bboxes_3d)
   return anno
 
-def show_bboxes(bboxes_3d, points=None, feats=None):
+def cut_roof(points, feats):
+  z_min = points[:,2].min()
+  z_max = points[:,2].max()
+  z_th = z_min  + (z_max - z_min) * 0.7
+  mask = points[:,2] < z_th
+  return points[mask], feats[mask]
+
+
+def show_bboxes(bboxes_3d, points=None, feats=None, obj_rep_in=None):
+    n = points.shape[0] / 1000
+    print(f'num points: {n} K')
+    points, feats = cut_roof(points, feats)
     num_p = points.shape[0]
     choices = np.random.choice(num_p, 2*10000)
     #points = points[choices]
@@ -75,9 +86,12 @@ def show_bboxes(bboxes_3d, points=None, feats=None):
     bboxes_show[:,:4] += 10
     points_ls = [points] if points is not None else None
     feats_ls = [feats] if feats is not None else None
-    #_show_objs_ls_points_ls( (512,512), [bboxes_show[:,:5]], obj_rep='RoLine2D_UpRight_xyxy_sin2a')
+    #_show_objs_ls_points_ls( (512,512), [bboxes_show], obj_rep=obj_rep_in)
     #_show_objs_ls_points_ls( (512,512), [bboxes_show[:,:6]], obj_rep='RoBox2D_UpRight_xyxy_sin2a_thick' )
-    _show_3d_points_objs_ls(points_ls, feats_ls, objs_ls=[bboxes_3d])
+    _show_3d_points_objs_ls(obj_rep=obj_rep_in, objs_ls=[bboxes_3d, bboxes_3d], obj_colors=['random', 'black'],  box_types=['surface_mesh', 'line_mesh'] )
+    _show_3d_points_objs_ls(points_ls, feats_ls)
+    #_show_3d_points_objs_ls(points_ls, feats_ls, obj_rep_in, objs_ls=[bboxes_3d])
+
 
 
 def get_scene_name(filepath):
@@ -86,12 +100,14 @@ def get_scene_name(filepath):
 def main():
   data_root = '/DS/Stanford3D/aligned_processed_instance/'
   files = glob.glob(data_root+'Area*/*.ply')
-  for f in files:
+  for i, f in enumerate(files):
+    if i < 5:
+      continue
     print(f)
     coords, feats, labels, _ = load_1_ply(f)
+    obj_rep='XYXYSin2WZ0Z1'
     anno = load_bboxes(f)
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
-    show_bboxes(anno['bboxes_3d'], coords, feats)
+    show_bboxes(anno['bboxes_3d'], coords, feats, obj_rep)
   pass
 
 if __name__ == '__main__':

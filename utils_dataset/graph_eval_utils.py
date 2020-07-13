@@ -385,14 +385,14 @@ class GraphEval():
   _opti_room = 0
 
 
-  if 1:
+  if 0:
     _all_out_types = [ 'bRefine_sAve' ] * 1
     _opti_graph = [1]
-    _opti_by_rel = [1]
+    _opti_by_rel = [0]
 
-    _opti_room = 1
+    _opti_room = 0
 
-  if 0:
+  if 1:
     _all_out_types = [ 'bInit_sRefine' ]
     _opti_graph = [0]
     _opti_by_rel = [0]

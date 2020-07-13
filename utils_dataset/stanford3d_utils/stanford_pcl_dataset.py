@@ -13,10 +13,13 @@ from tools.debug_utils import _show_lines_ls_points_ls
 from tools.visual_utils import _show_objs_ls_points_ls, _show_3d_points_objs_ls,points_to_bboxes, _show_3d_bboxes_ids
 from tools import debug_utils
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
-from obj_geo_utils.geometry_utils import get_ceiling_floor_from_box_walls
+from obj_geo_utils.geometry_utils import  get_cf_from_wall
 
-SMALL_DATA = 1
+DEBUG=1
+
+SMALL_DATA = 0
 NO_LONG = 1
+
 
 BAD_INSTANCES = ['Area_3/office_7', 'Area_2/storage_8']
 DOOR_FAILED = ['Area_2/storage_5', 'Area_2/storage_7']
@@ -228,7 +231,12 @@ class Stanford_Ann():
   def show_gt_bboxes_1scene_3d(self, index):
     img_info = self.img_infos[index]
     scene_name = get_scene_name( img_info['img_meta']['filename'] )
-    print('\n\n', img_info['img_meta']['filename'])
+    filename = img_info['img_meta']['filename']
+    img_file = filename.replace('stanford/', 'stanford_imgs/').replace('.ply','.png')
+    img_path = os.path.dirname(img_file)
+    if not os.path.exists(img_path):
+      os.makedirs(img_path)
+    print('\n\n', filename)
     gt_bboxes_3d_raw = img_info['gt_bboxes_3d_raw']
     gt_labels = img_info['gt_labels']
     coords, colors_norms, point_labels, _ = self.load_ply(index)
@@ -242,8 +250,8 @@ class Stanford_Ann():
 
     floor_mask = gt_labels == self._category_ids_map['floor']
     ceiling_mask = gt_labels == self._category_ids_map['ceiling']
-    floors = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[floor_mask], walls, 'XYXYSin2WZ0Z1', 'floor')
-    ceilings = get_ceiling_floor_from_box_walls(gt_bboxes_3d_raw[ceiling_mask], walls, 'XYXYSin2WZ0Z1', 'ceiling')
+    floors = get_cf_from_wall(gt_bboxes_3d_raw[floor_mask], walls, 'XYXYSin2WZ0Z1', 'floor')
+    ceilings = get_cf_from_wall(gt_bboxes_3d_raw[ceiling_mask], walls, 'XYXYSin2WZ0Z1', 'ceiling')
 
     kp_cats = ['wall', 'beam', 'column', 'door', 'window']
     #kp_cats += ['floor']
@@ -255,7 +263,7 @@ class Stanford_Ann():
     # 3d
     points = np.concatenate([coords, colors_norms], axis=1)
     #points, point_labels = filter_categories('remove', points, point_labels, points_rm_cats, _raw_pcl_category_ids_map)
-    points, point_labels = cut_top_points(points, 0.01, point_labels)
+    points, point_labels = cut_top_points(points, 0.2, point_labels)
     #gt_bboxes_3d_raw, gt_labels = filter_categories('remove', gt_bboxes_3d_raw, gt_labels, ['ceiling', 'room', 'floor','door'], self._category_ids_map)
     gt_bboxes_3d_raw, gt_labels = filter_categories('keep', gt_bboxes_3d_raw, gt_labels, kp_cats, self._category_ids_map)
     gt_cats = [self._catid_2_cat[l+1] for l in gt_labels]
@@ -274,7 +282,8 @@ class Stanford_Ann():
     _show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]])
     #_show_3d_points_objs_ls([points[:,:3]], [point_labels-1])
     #_show_3d_points_objs_ls([points[:,:3]], [points[:,3:6]], objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels])
-    #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['yellow'])
+    _show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1',
+                    obj_colors=[gt_labels, 'black'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[floors], polygon_colors=['silver'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw, walls], obj_rep='XYXYSin2WZ0Z1', obj_colors=[gt_labels, 'black'], box_types=['line_mesh', 'line_mesh'], polygons_ls=[floors, ceilings], polygon_colors=['magenta', 'yellow'])
     #_show_3d_points_objs_ls(objs_ls=[gt_bboxes_3d_raw], obj_rep='XYXYSin2WZ0Z1', obj_colors='random')
 
@@ -298,8 +307,7 @@ class Stanford_Ann():
       raise NotImplementedError
     corners /= 0.01
     obj_cats = np.array(kp_cats)[gt_labels]
-    #_show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], 'XYXYSin2WZ0Z1', points_ls=[corners], obj_scores_ls=[obj_cats])
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    _show_objs_ls_points_ls((1024, 1024), [gt_bboxes_3d_raw], 'XYXYSin2WZ0Z1', points_ls=[corners], obj_scores_ls=[obj_cats], out_file=img_file, only_save=1)
     pass
 
 def manual_rm_walls_for_vis(gt_bboxes_3d_raw, gt_labels, scene_name, obj_rep):
@@ -417,6 +425,10 @@ class StanfordPcl(VoxelDatasetBase, Stanford_CLSINFO, Stanford_Ann):
     colors_norms = np.concatenate([colors_norms, norm], axis=1)
 
     np0 = coords.shape[0]
+    if DEBUG:
+      np0k = np0 / 1000
+      print(f'\nnum points: {np0k} K\n\n')
+
     if self.max_num_points is not None and  np0 > self.max_num_points:
       inds = np.random.choice(np0, self.max_num_points, replace=False)
       inds.sort()
@@ -760,9 +772,10 @@ def main3d():
   obj_rep = 'XYZLgWsHA'
   ann_file = '/home/z/Research/mmdetection/data/stanford/'
   img_prefix = '123456'
+  img_prefix = '1'
   classes = Stanford_CLSINFO.classes_order
-  max_num_points = 50 * 1e4
-  max_num_points = None
+  max_num_points = 500 * 1e3
+  #max_num_points = None
   sfd_dataset = StanfordPcl(obj_rep, ann_file, img_prefix, voxel_size=0.02, classes = classes, max_num_points=max_num_points)
   #sfd_dataset.gen_topviews()
   #sfd_dataset.show_topview_gts()
