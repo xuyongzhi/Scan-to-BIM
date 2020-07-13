@@ -36,9 +36,7 @@ class Color_RGB(Enum):
     maroon= (128,0,0)
     purple= (128,0,128)
     #navy  = (0,0,128)
-    gray  = (128,128,128)
     brown = (165, 42, 42)
-    silver = (192,192,192)
     blue  =	(0,0,255)
 
     olive = (128,128,0)
@@ -67,11 +65,13 @@ class Color_RGB(Enum):
     violet = (238,130,238)
     goldenrod=  (218,165,32)
 
+    silver = (192,192,192)
+    gray  = (128,128,128)
     black = (0,0,0)
     white = (255,255,255)
 
-ColorList = [e.name for e in Color_RGB][:-2] * 20
-ColorValues = [e.value for e in Color_RGB][:-2] * 20
+ColorList = [e.name for e in Color_RGB][:-4] * 20
+ColorValues = [e.value for e in Color_RGB][:-4] * 20
 ColorValuesNp = np.array(ColorValues).astype(np.uint8)
 NumColors = len(ColorList)
 
@@ -81,6 +81,9 @@ def _color(c, RGB=False):
     return col
   else:
     return (col[2], col[1], col[0])
+
+def get_order_color(i):
+  return ColorValues[i]
 
 def get_random_color():
   # except black and white

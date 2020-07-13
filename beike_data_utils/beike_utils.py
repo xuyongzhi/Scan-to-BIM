@@ -193,6 +193,7 @@ class BEIKE(BEIKE_CLSINFO):
         room_label = None
       anno_img = raw_anno_to_img(self.classes, room_label, self.obj_rep, anno_raw, 'topview', {'img_size': DIM_PARSE.IMAGE_SIZE}, self.anno_folder)
       self.img_infos[idx]['ann'] = anno_img
+      self.img_infos[idx]['ann_3d'] = anno_raw
       #self.img_infos[idx]['ann_raw'] = anno_raw
       return anno_img
 
@@ -234,6 +235,14 @@ class BEIKE(BEIKE_CLSINFO):
       ids = np.where( line_lengths == line_lengths.min() )[0]
       print(f'line with min length:\n {lines[ids]}')
       pass
+
+
+    def show_anno_3d(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
+      self.load_1_anno(idx)
+      anno_3d = self.img_infos[idx]['ann_3d']
+      scene_name = self.img_infos[idx]['filename'].split('.')[0]
+      json_file = os.path.join( self.anno_folder, scene_name+'.json' )
+      show_ann_pcl(anno_3d, json_file)
 
 
     def show_anno_img(self, idx,  with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
@@ -390,7 +399,7 @@ class BEIKE(BEIKE_CLSINFO):
       #mmcv.imshow(img)
       return img
 
-    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0)):
+    def show_scene_anno(self, scene_name, with_img=True, rotate_angle=0, lines_transfer=(0,0,0), show_3d=0):
       idx = None
       for i in range(len(self)):
         sn = self.img_infos[i]['filename'].split('.')[0]
@@ -398,7 +407,10 @@ class BEIKE(BEIKE_CLSINFO):
           idx = i
           break
       assert idx is not None, f'cannot find {scene_name}'
-      self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
+      if not show_3d:
+        self.show_anno_img(idx, with_img, rotate_angle, lines_transfer)
+      else:
+        self.show_anno_3d(idx, with_img, rotate_angle, lines_transfer)
 
 
     def find_unscanned_edges(self,):
@@ -641,6 +653,7 @@ def add_room_to_anno( room_label, anno_img, anno_raw, lines_pt_ordered, obj_rep,
       room_labels = np.ones([n], dtype=np.int64) * room_label
       anno_img['labels'] = np.concatenate([anno_img['labels'], room_labels])
       anno_img['rooms_line_ids'] = rooms_line_ids
+      anno_raw['rooms_line_ids'] = rooms_line_ids
 
       if 0:
         walls = anno_img['gt_bboxes'][ anno_img['labels'] == 1 ]
@@ -923,18 +936,27 @@ def load_room_bboxes(anno_folder, filename, obj_rep_out):
 
 
 def show_ann_pcl(anno, json_path):
+  obj_colors = ['black', 'gray', 'green', 'blue']
   ply_path = json_path.replace('json', 'ply')
   pcl = load_ply(ply_path)
+  n = pcl.shape[0]
+  nk = n/1000
+  print(f'\nnum points: {nk}\n')
   lines = anno['lines'].reshape(-1,4)
   line_scope = [ lines.reshape(-1,2).min(0), lines.reshape(-1,2).max(0)]
   corners = anno['corners']
   cor_scope = [corners.min(0), corners.max(0)]
   pcl_scope = anno['pcl_scope']
+  line_labels = anno['line_cat_ids']
 
 
   lines_norm = lines.copy().reshape(-1,2) - pcl_scope[0:1, :2]
   lines_norm = lines_norm.reshape(-1,4)
   line_norm_scope = [ lines_norm.reshape(-1,2).min(0), lines_norm.reshape(-1,2).max(0)]
+
+  bboxes = OBJ_REPS_PARSE.encode_obj(lines, 'RoLine2D_2p', 'XYZLgWsHA')
+  bboxes, z_bot = get_heights_from_pcl( pcl, line_labels, bboxes )
+  floors = gen_floor_mesh(anno, z_bot)
 
   pcl[:,:2] -= pcl_scope[0:1,:2]
 
@@ -942,10 +964,78 @@ def show_ann_pcl(anno, json_path):
   print(f'cor_scope: \n{cor_scope}')
   print(f'line_scope: \n{line_scope}')
   print(f'line_norm_scope: \n{line_norm_scope}')
-  _show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines], obj_rep='RoLine2D_2p')
-  _show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines_norm], obj_rep='RoLine2D_2p')
+  pcl = cut_roof(pcl, 0.8)
+  _show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]])
+  #_show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines], obj_rep='RoLine2D_2p')
+
+
+  colors = [obj_colors[l] for l in line_labels]
+  _show_3d_points_objs_ls( objs_ls = [bboxes, bboxes], obj_rep='XYZLgWsHA', obj_colors=[colors, 'black'], box_types=['surface_mesh', 'line_mesh'],
+                          polygons_ls=[floors], polygon_colors=['order'])
+  #_show_3d_points_objs_ls( [pcl[:,:3]], [pcl[:,3:6]], objs_ls = [lines_norm], obj_rep='RoLine2D_2p')
 
   pass
+
+def cut_roof(points, rate):
+  z_min = points[:,2].min()
+  z_max = points[:,2].max()
+  z_th = z_min  + (z_max - z_min) * rate
+  mask = points[:,2] < z_th
+  return points[mask]
+
+
+def gen_floor_mesh(anno, z_bot):
+  lines = anno['lines']
+  rooms_line_ids = anno['rooms_line_ids']
+  n = len(rooms_line_ids)
+  rooms = []
+  for i in range(n):
+    ids = rooms_line_ids[i]
+    cen = lines[ids].reshape(-1,2).mean(0).reshape(1,2)
+    room_i = []
+    for j in ids:
+      cors_j = lines[j]
+      triangle_j = np.concatenate([cen, cors_j], 0)
+      room_i.append(triangle_j[None])
+      pass
+    room_i = np.concatenate( room_i, 0 )
+    zs = room_i[:,:,0:1].copy()
+    zs[:] = z_bot
+    room_i = np.concatenate([room_i, zs], 2)
+    rooms.append(room_i)
+  return rooms
+
+def get_heights_from_pcl( pcl, labels, bboxes ):
+  z0 = pcl[:,2].min()
+  z1 = pcl[:,2].max()
+  h = z1 - z0
+  z_cen = (z0+z1)/2
+
+  n = labels.shape[0]
+  zh = np.zeros([n,2])
+  zh[:,0] = z_cen
+  zh[:,1] = h
+
+  door_h = 2
+  door_c = z_cen - (h/2 - door_h/2) + 0.1
+
+
+  door_mask = labels==2
+  win_mask = labels==3
+
+  zh[win_mask, 1] = h / 2
+
+  zh[door_mask, 1] = door_h
+  zh[door_mask, 0] = door_c
+
+  bboxes[:,2] = zh[:,0]
+  bboxes[:,5] = zh[:,1]
+  bboxes[win_mask,4] = 0.15
+  bboxes[door_mask,4] = 0.15
+
+  z_bot = z_cen - h/2
+
+  return bboxes, z_bot
 
 def show_connection_2(walls, bboxes, relations, obj_rep, img_file=None):
   n = bboxes.shape[0]
@@ -1140,7 +1230,7 @@ def gen_images_from_npy(data_path):
 
   pass
 
-def gen_gts(data_path):
+def gen_gts(data_path, show_3d=0):
   obj_rep = 'XYXYSin2'
   #obj_rep = 'XYZLgWsHA'
   obj_rep = 'XYXYSin2WZ0Z1'
@@ -1160,8 +1250,11 @@ def gen_gts(data_path):
   scenes = np.loadtxt(scene_list, str).tolist()
 
   rotate_angle = 0
-  for s in scenes:
-    beike.show_scene_anno(s, True, rotate_angle)
+  for i, s in enumerate( scenes ):
+    print(f'\n\n{i}-th scene\n\n')
+    if i<15:
+      continue
+    beike.show_scene_anno(s, True, rotate_angle, show_3d=show_3d)
     pass
 
 
@@ -1219,7 +1312,7 @@ def debug():
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
-  gen_gts(data_path)
+  gen_gts(data_path, show_3d=1)
   #gen_connections(data_path)
 
 

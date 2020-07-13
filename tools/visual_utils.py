@@ -7,7 +7,7 @@ from mmcv.image import imread, imwrite
 import cv2
 from scipy import ndimage
 
-from tools.color import color_val, get_random_color, _label2color, ColorValuesNp
+from tools.color import color_val, get_random_color, _label2color, ColorValuesNp, get_order_color
 from configs.common import DEBUG_CFG, DIM_PARSE
 from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
 
@@ -16,6 +16,7 @@ ADD_FRAME = 0
 BOX_TYPE = ['line_set', 'line_mesh', 'surface_mesh'][1]
 #BOX_LINE_RADIUS = 1
 BOX_LINE_RADIUS = 0.01
+BOX_LINE_RADIUS = 0.02
 FONT_SCALE = 0.5
 
 
@@ -392,10 +393,12 @@ def _read_img(img_in):
     img_out = img_out.astype(np.uint8)
   return img_out
 
-def _get_color(color_str):
+def _get_color(color_str, i=None):
   assert isinstance( color_str, str), print(color_str)
   if color_str == 'random':
     c = get_random_color()
+  elif color_str == 'order':
+    c = get_order_color(i)
   else:
     c = color_val(color_str)
   return c
@@ -685,17 +688,35 @@ def _show_polygon_surface(points, color='red'):
 def _make_polygon_surface_ls(points_ls, colors_ls):
     assert isinstance(points_ls, list)
     n = len(points_ls)
-    if not isinstance(colors_ls, list):
-      c = colors_ls
-      colors_ls = [ _get_color( c )] * n
-    else:
-      colors_ls = [_get_color(c) for c in colors_ls]
-    colors_ls = np.array(colors_ls) / 255
     polygons_ls = []
     for i in range(n):
-      pmesh =  _make_polygons_surface(points_ls[i], colors_ls[i])
+      if not isinstance(colors_ls, list):
+        c = colors_ls
+      else:
+        c = colors_ls[i]
+      pmesh =  _make_polygons_surface_new(points_ls[i], c)
       polygons_ls += pmesh
     return polygons_ls
+
+def _make_polygons_surface_new(rooms_ls, color):
+    mesh = []
+    for i in range(len(rooms_ls)):
+      c = _get_color( color, i )
+      c = np.array(c) / 255
+      mesh += _creat_polygon_1_room(rooms_ls[i], c)
+    return mesh
+
+
+def _creat_polygon_1_room(points, color):
+  assert points.ndim == 3
+  assert points.shape[1:] == (3,3)
+  vertices = points.reshape(-1, 3)
+  n = points.shape[0]
+  triangles = np.array( [0,1,2]*n ).reshape(n, 3)
+  tmp = (np.arange(n)*3).reshape(n,1)
+  triangles += tmp
+  return _creat_1_polygon_surface( (vertices, triangles), color )
+
 
 def _make_polygons_surface(points, color):
     mesh = []
