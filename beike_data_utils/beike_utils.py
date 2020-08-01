@@ -1252,7 +1252,7 @@ def gen_gts(data_path, show_3d=0):
   rotate_angle = 0
   for i, s in enumerate( scenes ):
     print(f'\n\n{i}-th scene\n\n')
-    if i<15:
+    if i < 44:
       continue
     beike.show_scene_anno(s, True, rotate_angle, show_3d=show_3d)
     pass

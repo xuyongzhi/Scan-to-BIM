@@ -25,7 +25,7 @@ def parse_colors(n, color):
       colors = _label2color(color)
     else:
       assert isinstance(color, str)
-      colors = [_get_color(color) for i in range(n)]
+      colors = [_get_color(color,i) for i in range(n)]
     return colors
 
 #-2d general------------------------------------------------------------------------------

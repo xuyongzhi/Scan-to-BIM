@@ -16,7 +16,7 @@ from collections import defaultdict
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, show_1by1
 from obj_geo_utils.geometry_utils import arg_sort_points_np, check_duplicate
 
-DEBUG = 1
+DEBUG_LOOP_MERGING = 1
 
 def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr=None, min_out_length=None):
       from utils_dataset.graph_eval_utils import GraphEval
@@ -49,21 +49,24 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
   full_w_ids = np.where(non_full_mask==False)[0]
   non_full_w_ids = np.where(non_full_mask)[0]
   ious = dsiou_rotated_3d_bbox_np( rooms[:,:7], rooms_from_w[:,:7], iou_w=1.0, size_rate_thres=None, ref='union', only_2d=True )
-  succ_r_ids = ious.argmax(0)
-  succ_ious = ious.max(0)
+  if ious.size > 0:
+    succ_r_ids = np.where( ious.max(1) > 0.5 )[0]
+  else:
+    succ_r_ids = np.zeros([0], dtype=np.int)
   fail_r_ids = [i for i in range(num_rooms) if i not in succ_r_ids]
 
   fail_rooms = rooms[fail_r_ids]
   fail_walls = walls[non_full_w_ids]
   if show_fail_rooms:
     print(f'detected rooms')
-    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
+    #_show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[:,:7] ], obj_rep, obj_colors=['white', 'order'] )
     print(f'rooms from wall')
-    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms_from_w[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
+    #_show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms_from_w[:,:7] ], obj_rep, obj_colors=['white', 'order'] )
     print(f'success rooms')
-    _show_objs_ls_points_ls( (512,512), [rooms_from_w[:,:7], rooms[succ_r_ids][:,:7], ], obj_rep, obj_colors=['white', 'red', ], obj_thickness=[6,2,2])
+    #_show_objs_ls_points_ls( (512,512), [rooms_from_w[:,:7], ], obj_rep, obj_colors=['order', ], obj_thickness=[5])
+    _show_objs_ls_points_ls( (512,512), [rooms_from_w[:,:7], rooms[succ_r_ids][:,:7], ], obj_rep, obj_colors=['white', 'order', ], obj_thickness=[6,2,2])
     print(f'fail rooms')
-    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'red'] )
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'order'], obj_thickness=[2, 4] )
     print(f'faiil walls')
     _show_objs_ls_points_ls( (512,512), [ fail_walls[:,:7], fail_rooms[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
 
@@ -625,7 +628,6 @@ def sort_rooms(rooms, obj_rep):
   ids = np.argsort(-final_scores)
   rooms_new = rooms[ids]
   return rooms_new
-
 
 def get_rooms_walls_rel(walls, rooms, obj_rep, num_rooms_per_fail_wall=None):
   show_room_ids_per_wall = 0

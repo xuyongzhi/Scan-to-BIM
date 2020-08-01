@@ -19,9 +19,13 @@ import time
 SHOW_EACH_CLASS = False
 SET_DET_Z_AS_GT = 1
 SHOW_3D = 0
-DEBUG = 1
 DET_MID = 1
 MAX_Draw_Num = 100
+
+DEBUG = 1
+_scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
+_scene_list = ['OI2dE1xgN090iaEGc0BpEZ']
+#_scene_list = None
 
 def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
     dim_parse = DIM_PARSE(obj_rep_pred, len(classes)+1)
@@ -385,14 +389,14 @@ class GraphEval():
   _opti_room = 0
 
 
-  if 0:
-    _all_out_types = [ 'bRefine_sAve' ] * 1
-    _opti_graph = [1]
-    _opti_by_rel = [0]
-
-    _opti_room = 0
-
   if 1:
+    _all_out_types = [ 'bRefine_sAve' ]
+    _opti_graph = [1]
+    _opti_by_rel = [1]
+
+    _opti_room = 1
+
+  if 0:
     _all_out_types = [ 'bInit_sRefine' ]
     _opti_graph = [0]
     _opti_by_rel = [0]
@@ -417,13 +421,7 @@ class GraphEval():
   _iou_threshold = 0.7
   del_alone_walls = 1
 
-  scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
-  scene_list = ['5pJn2a9zfRzInJ7IwpIzQd','7w6zvVsOBAQK4h4Bne7caQ', 'HBfvzptqI-PlRzcg3lnX-o', 'jtZ2kFzYePr0Pg-yOfnViy',]
-  scene_list = ['auto3d-fpUiiote8TwrE68Zbrwsxu']
-  scene_list = ['7w6zvVsOBAQK4h4Bne7caQ', 'auto3d-fpUiiote8TwrE68Zbrwsxu', 'HBfvzptqI-PlRzcg3lnX-o']
-  scene_list = ['0Kajc_nnyZ6K0cRGCQJW56']
-  scene_list = None
-  #scene_list = ['krrV11t89QIya7T02sAvKh']
+  scene_list = _scene_list
 
 
   def __init__(self, obj_rep, classes, filter_edges, eval_method):
@@ -1466,9 +1464,9 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
   labels = all_gts.keys()
   for l in labels:
       cat = labels_to_cats[l]
-      if DEBUG:
-        if cat == 'window':
-          continue
+      #if DEBUG:
+      #  if cat == 'window':
+      #    continue
       c = colors_map[cat]
       dets = all_dets[l]
       num_det = dets.shape[0]
@@ -1632,8 +1630,8 @@ def draw_1_scene(img, all_gts, all_dets,  all_ious, labels_to_cats, obj_rep, iou
 
     #_show_3d_points_objs_ls( objs_ls=[gts, gts], obj_rep=obj_rep, obj_colors=[gt_colors, 'navy'], box_types= ['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors='silver' )
     #dets, det_colors = manual_add(dets, det_colors)
-    if DEBUG:
-      dets, det_colors= rm_short(dets, det_colors)
+    #if DEBUG:
+    #  dets, det_colors= rm_short(dets, det_colors)
     _show_3d_points_objs_ls( objs_ls=[dets, dets], obj_rep=obj_rep, obj_colors=[det_colors, 'navy'], box_types=['surface_mesh', 'line_mesh'], polygons_ls=[gt_floors_mesh], polygon_colors=['silver'] )
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
     pass

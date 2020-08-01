@@ -40,7 +40,7 @@ class Color_RGB(Enum):
     blue  =	(0,0,255)
 
     olive = (128,128,0)
-    teal = (0,128,128)
+    #teal = (0,128,128)
     orange = (255,165,0)
     gold = (255,215,0)
     yellow_green = (154,205,50)
@@ -70,11 +70,6 @@ class Color_RGB(Enum):
     black = (0,0,0)
     white = (255,255,255)
 
-ColorList = [e.name for e in Color_RGB][:-4] * 20
-ColorValues = [e.value for e in Color_RGB][:-4] * 20
-ColorValuesNp = np.array(ColorValues).astype(np.uint8)
-NumColors = len(ColorList)
-
 def _color(c, RGB=False):
   col = Color_RGB[c].value
   if RGB:
@@ -82,11 +77,18 @@ def _color(c, RGB=False):
   else:
     return (col[2], col[1], col[0])
 
+ColorList = [e.name for e in Color_RGB][:-4] * 20
+ColorValues = [_color(c, False) for c in ColorList]
+ColorValuesNp = np.array(ColorValues).astype(np.uint8)
+NumColors = len(ColorList)
+
+Colors_In_Black = ['']
+
+
 def get_order_color(i):
   return ColorValues[i]
 
 def get_random_color():
-  # except black and white
   i = random.randint(0, len(ColorValues)-1)
   return ColorValues[i]
 
@@ -154,3 +156,22 @@ def label2color(labels):
   labels = labels.astype(np.int32).tolist()
   colors= [COLOR_MAP_RGB[i] for i in labels ]
   return colors
+
+def show_all_colors():
+  import cv2
+  for e in Color_RGB:
+    name = e.name
+    v = e.value
+    value = (v[2], v[1], v[0])
+    img = np.zeros([128,128,3]).astype(np.uint8)
+    img[30:100,30:35] = value
+    img[50:55,30:100] = value
+    file_name = f'img_colors/{name}.png'
+    cv2.imwrite(file_name, img)
+    pass
+
+
+if __name__ == '__main__':
+  show_all_colors()
+
+
