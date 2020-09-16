@@ -28,7 +28,6 @@ class Color_RGB(Enum):
     Contains red, green, blue, cyan, yellow, magenta, white and black.
     """
     red   = (255,0,0)
-    green = (0,128,0)
     lime =  (0,255,0)
     cyan  = (0,255,255)
     yellow= (255,255,0)
@@ -43,6 +42,7 @@ class Color_RGB(Enum):
     #teal = (0,128,128)
     orange = (255,165,0)
     gold = (255,215,0)
+    green = (0,128,0)
     yellow_green = (154,205,50)
     spring_green = (0,255,127)
     pink = 	(255,192,203)
@@ -86,6 +86,8 @@ Colors_In_Black = ['']
 
 
 def get_order_color(i):
+  colors  = ['lime','green']*10
+  return _color(colors[i], False)
   return ColorValues[i]
 
 def get_random_color():

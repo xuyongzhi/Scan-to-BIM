@@ -1308,7 +1308,8 @@ def gen_connection_gt(pool_num=3):
   gen_connections(data_path, pool_num)
   gen_gts(data_path)
 
-def debug():
+
+def gen_gt_pcl_3d_models():
   cur_dir = os.path.dirname(os.path.realpath(__file__))
   root_dir = os.path.dirname(cur_dir)
   data_path = os.path.join(root_dir, f'data/beike/processed_{DIM_PARSE.IMAGE_SIZE}' )
@@ -1317,6 +1318,6 @@ def debug():
 
 
 if __name__ == '__main__':
-  debug()
+  gen_gt_pcl_3d_models()
 
 

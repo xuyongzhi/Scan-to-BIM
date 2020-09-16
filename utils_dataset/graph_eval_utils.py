@@ -22,7 +22,10 @@ SHOW_3D = 0
 DET_MID = 1
 MAX_Draw_Num = 100
 
-DEBUG = 1
+DEBUG = []
+#DEBUG.append('_D_show_gt')
+DEBUG.append('_D_show_det_graph')
+
 _scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
 _scene_list = ['OI2dE1xgN090iaEGc0BpEZ']
 #_scene_list = None
@@ -489,7 +492,7 @@ class GraphEval():
     assert self.obj_rep  == 'XYZLgWsHA'
     self.optimize_graph = optimize_graph
     self.optimize_graph_by_relation = optimize_graph_by_relation
-    debug = 0
+    debug = 1
 
     time_post = 0
     with_rel = 'det_relations' in results_datas[0]
@@ -560,7 +563,7 @@ class GraphEval():
         gt_lines[:,:4] = gt_lines[:,:4] * self._eval_img_scale_ratio + self._eval_img_size_aug
         pass
 
-        if debug and 0:
+        if '_D_show_gt' in DEBUG:
           print('gt')
           _show_objs_ls_points_ls(img, [gt_lines], obj_rep=self.obj_rep)
         pass
@@ -574,6 +577,11 @@ class GraphEval():
           if 'room' in cat_ls:
             rooms_gt_dt_tp_rel = self.eval_rooms_with_rel(det_lines_merged_ls, gt_lines_ls, cat_ls, wall_ids_per_room, gt_relations_room_wall)
             rooms_gt_dt_tp_rel_ls.append( rooms_gt_dt_tp_rel )
+
+        if '_D_show_det_graph' in DEBUG:
+              _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
+              import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              pass
 
         for i in range(num_labels):
             label = i+1
@@ -591,6 +599,7 @@ class GraphEval():
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], det_lines[:,:-1]], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
         if i_img < MAX_Draw_Num:
           draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep, self._draw_pts)

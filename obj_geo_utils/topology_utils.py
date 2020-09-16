@@ -16,7 +16,7 @@ from collections import defaultdict
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, show_1by1
 from obj_geo_utils.geometry_utils import arg_sort_points_np, check_duplicate
 
-DEBUG_LOOP_MERGING = 1
+DEBUG_LOOP_MERGING = 0
 
 def geometrically_opti_walls(det_lines, obj_rep, opt_graph_cor_dis_thr=None, min_out_length=None):
       from utils_dataset.graph_eval_utils import GraphEval
@@ -61,12 +61,12 @@ def optimize_walls_by_rooms_main(walls, rooms, obj_rep ):
     print(f'detected rooms')
     #_show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[:,:7] ], obj_rep, obj_colors=['white', 'order'] )
     print(f'rooms from wall')
-    #_show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms_from_w[:,:7] ], obj_rep, obj_colors=['white', 'order'] )
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms_from_w[:,:7] ], obj_rep, points_ls=[rooms_from_w[:,:2]],  obj_colors=['white', 'order'], obj_thickness=[1,5], point_thickness=5, point_colors=['order'] )
     print(f'success rooms')
     #_show_objs_ls_points_ls( (512,512), [rooms_from_w[:,:7], ], obj_rep, obj_colors=['order', ], obj_thickness=[5])
-    _show_objs_ls_points_ls( (512,512), [rooms_from_w[:,:7], rooms[succ_r_ids][:,:7], ], obj_rep, obj_colors=['white', 'order', ], obj_thickness=[6,2,2])
+    #_show_objs_ls_points_ls( (512,512), [rooms_from_w[:,:7], rooms[succ_r_ids][:,:7], ], obj_rep, obj_colors=['white', 'order', ], obj_thickness=[6,2,2])
     print(f'fail rooms')
-    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'order'], obj_thickness=[2, 4] )
+    _show_objs_ls_points_ls( (512,512), [walls[:,:7], rooms[fail_r_ids][:,:7] ], obj_rep, obj_colors=['white', 'order'], obj_thickness=[1, 5] )
     print(f'faiil walls')
     _show_objs_ls_points_ls( (512,512), [ fail_walls[:,:7], fail_rooms[:,:7] ], obj_rep, obj_colors=['white', 'red'] )
 
@@ -433,7 +433,24 @@ def sort_connected_corners(walls, obj_rep):
   group_centers = group_centers[ group_sort_ids ]
 
   if show_ids_per_group:
-      _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [group_centers, center], point_scores_ls=[range(num_groups), None], point_thickness=[5,1] )
+      # get wall group ids
+      wids_perg = np.zeros([n_wall], dtype=np.int)-1
+      for i in range(n_wall):
+        cor_ids = corIds_per_w0[i][0]
+        for j in range(num_groups):
+          if cor_ids in group_ids[j]:
+            wids_perg[i] = j
+      w_group_ids = []
+      for i in range(num_groups):
+        w_group_ids.append( np.where(wids_perg == i)[0] )
+
+      img = np.ones([512,512,3], dtype=np.uint8)*255
+      wall_gs = [ walls[ids_g][:,:7] for ids_g in w_group_ids ]
+      from tools.color import COLOR_MAP_2D, ColorList, ColorValuesNp
+      g_cls = ColorList[:num_groups]
+      _show_objs_ls_points_ls( img, wall_gs, obj_rep, [group_centers, center, corners], obj_colors=g_cls,  point_thickness=[1,1, 5], point_colors=['blue', 'green', 'black'], obj_thickness=3 )
+      #_show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [group_centers, center, corners], point_scores_ls=[range(num_groups), None, None], point_thickness=[5,5,5], obj_thickness=2 )
+      import pdb; pdb.set_trace()  # XXX BREAKPOINT
       for i in range(num_groups):
         corners_gi = corners[ group_ids[i] ]
         _show_objs_ls_points_ls( (512,512), [walls[:,:7]], obj_rep, [group_centers[i:i+1], corners_gi], point_thickness=[8, 2], point_scores_ls=[ [i], range(corners_gi.shape[0]) ] )

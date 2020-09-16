@@ -42,3 +42,18 @@ all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bbox
 # Training
 
 ./run.sh
+
+# Show results
+## shown gt pcl models
+``` 
+        cd ./beike_data_utils 
+        python beike_utils.py:  gen_gt_pcl_3d_models 
+```
+
+## Evaluation
+```
+        cd ./utils_dataset
+        python graph_eval_utils.py
+
+```
+
