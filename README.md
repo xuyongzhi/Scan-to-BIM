@@ -47,7 +47,9 @@ all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bbox
 ## shown gt pcl models
 ``` 
         cd ./beike_data_utils 
-        python beike_utils.py:  gen_gt_pcl_3d_models 
+        python beike_utils.py
+
+        In gen_gt_pcl_3d_models, show_3d=1
 ```
 
 ## Evaluation

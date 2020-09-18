@@ -9,7 +9,8 @@ import numpy as np
 from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls,\
   _show_3d_points_objs_ls, _show_3d_bboxes_ids, show_connectivity, show_1by1
 from utils_dataset.stanford3d_utils.post_processing import align_bboxes_with_wall
-from obj_geo_utils.topology_utils import optimize_walls_by_rooms_main, draw_walls_rooms_rel
+from obj_geo_utils.topology_utils import optimize_walls_by_rooms_main, draw_walls_rooms_rel, \
+      _show_2dlines_as_3d
 from obj_geo_utils.geometry_utils import points_to_oriented_bbox, get_rooms_from_edges, draw_rooms_from_edges, relation_mask_to_ids, rel_ids_to_mask, check_duplicate
 from tools.color import COLOR_MAP_3D, ColorList
 import torch
@@ -579,8 +580,9 @@ class GraphEval():
             rooms_gt_dt_tp_rel_ls.append( rooms_gt_dt_tp_rel )
 
         if '_D_show_det_graph' in DEBUG:
-              _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
+              _show_2dlines_as_3d([det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
+              _show_objs_ls_points_ls( img.shape[:2],  [det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
               pass
 
         for i in range(num_labels):
@@ -2000,10 +2002,6 @@ def aug_thickness(bboxes, cats, min_thick=12):
   bboxes[mask,4] = np.clip(bboxes[mask][:,4], a_min=min_thick, a_max=None)
   return bboxes
 
-def show_2dlines_as_3d(lines_2d, labels):
-  lines_3d = OBJ_REPS_PARSE.lines2d_to_lines3d(lines_2d)
-  _show_3d_points_objs_ls(objs_ls=[lines_3d], obj_colors=[labels])
-  pass
 
 def filter_low_score_det(det_lines, score_threshold=0.5):
   mask = det_lines[:,-1] > score_threshold

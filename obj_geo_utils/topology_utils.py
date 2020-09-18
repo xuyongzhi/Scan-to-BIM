@@ -13,7 +13,7 @@ from obj_geo_utils.obj_utils import OBJ_REPS_PARSE, GraphUtils
 from obj_geo_utils.obj_utils import find_wall_wall_connection
 from obj_geo_utils.line_operations import gen_corners_from_lines_np, get_lineIdsPerCor_from_corIdsPerLine
 from collections import defaultdict
-from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, show_1by1
+from tools.visual_utils import _show_objs_ls_points_ls, _draw_objs_ls_points_ls, show_1by1, _show_3d_points_objs_ls
 from obj_geo_utils.geometry_utils import arg_sort_points_np, check_duplicate
 
 DEBUG_LOOP_MERGING = 0
@@ -792,3 +792,40 @@ def replace_1cor_of_edge_to_midify(edge, cor):
   edge_new[i] = cor
   return edge_new
 
+
+def _show_2dlines_as_3d(lines_2d_ls, obj_rep, labels=None):
+  from obj_geo_utils.geometry_utils import get_rooms_from_edges
+  assert obj_rep == 'XYZLgWsHA'
+  for ls in lines_2d_ls:
+    ls[:,5] = 50
+  walls = lines_2d_ls[0]
+  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(walls, obj_rep, gen_bbox=True, show_rooms=False)
+  walls_2cor = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p')
+  floors = gen_floor_mesh_from_walls(walls_2cor, rooms_line_ids, 0)
+  _show_3d_points_objs_ls(objs_ls = lines_2d_ls, obj_rep=obj_rep, box_types=['surface_mesh'],
+                          polygons_ls=[floors] )
+  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  pass
+
+def gen_floor_mesh_from_walls(lines, rooms_line_ids, z_bot):
+  '''
+  lines: RoLine2D_2p
+  '''
+  assert lines.shape[1] == 4
+  n = len(rooms_line_ids)
+  rooms = []
+  for i in range(n):
+    ids = rooms_line_ids[i]
+    cen = lines[ids].reshape(-1,2).mean(0).reshape(1,2)
+    room_i = []
+    for j in ids:
+      cors_j = lines[j].reshape(-1,2)
+      triangle_j = np.concatenate([cen, cors_j], 0)
+      room_i.append(triangle_j[None])
+      pass
+    room_i = np.concatenate( room_i, 0 )
+    zs = room_i[:,:,0:1].copy()
+    zs[:] = z_bot
+    room_i = np.concatenate([room_i, zs], 2)
+    rooms.append(room_i)
+  return rooms
