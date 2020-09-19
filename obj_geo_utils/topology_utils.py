@@ -794,16 +794,34 @@ def replace_1cor_of_edge_to_midify(edge, cor):
 
 
 def _show_2dlines_as_3d(lines_2d_ls, obj_rep, labels=None):
+  '''
+  lines_2d_ls: [walls, windows, doors]
+  '''
   from obj_geo_utils.geometry_utils import get_rooms_from_edges
   assert obj_rep == 'XYZLgWsHA'
-  for ls in lines_2d_ls:
-    ls[:,5] = 50
+  height = 50
+  wall_thickness = 2
+  door_thickness = 5
+  for i,ls in enumerate( lines_2d_ls):
+    ls[:,5] = height
+    if i==0:
+      ls[:,4] = wall_thickness
+    else:
+      ls[:,4] = door_thickness
   walls = lines_2d_ls[0]
   rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(walls, obj_rep, gen_bbox=True, show_rooms=False)
   walls_2cor = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p')
   floors = gen_floor_mesh_from_walls(walls_2cor, rooms_line_ids, 0)
-  _show_3d_points_objs_ls(objs_ls = lines_2d_ls, obj_rep=obj_rep, box_types=['surface_mesh'],
-                          polygons_ls=[floors] )
+
+  labels = []
+  cat_num = len(lines_2d_ls)
+  for i in range(cat_num):
+    labels += [i] * lines_2d_ls[i].shape[0]
+  obj_colors = ['gray', 'green', 'blue']
+  colors = [obj_colors[l] for l in labels]
+
+  bboxes = np.concatenate(lines_2d_ls, 0)
+  _show_3d_points_objs_ls(objs_ls = [bboxes, bboxes], obj_rep=obj_rep, obj_colors=[colors, 'black'], box_types=['surface_mesh','line_mesh'], polygons_ls=[floors], polygon_colors=['order'] )
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 

@@ -580,7 +580,7 @@ class GraphEval():
             rooms_gt_dt_tp_rel_ls.append( rooms_gt_dt_tp_rel )
 
         if '_D_show_det_graph' in DEBUG:
-              _show_2dlines_as_3d([det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
+              _show_2dlines_as_3d([det_lines_merged_ls[di][:,:-1] for di in [0, 2, 3]], obj_rep=self.obj_rep)
               import pdb; pdb.set_trace()  # XXX BREAKPOINT
               _show_objs_ls_points_ls( img.shape[:2],  [det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
               pass

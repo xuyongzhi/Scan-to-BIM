@@ -86,8 +86,8 @@ Colors_In_Black = ['']
 
 
 def get_order_color(i):
-  colors  = ['lime','green']*10
-  return _color(colors[i], False)
+  #colors  = ['lime','green']*10
+  #return _color(colors[i], False)
   return ColorValues[i]
 
 def get_random_color():
