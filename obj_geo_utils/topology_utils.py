@@ -809,7 +809,8 @@ def _show_2dlines_as_3d(lines_2d_ls, obj_rep, labels=None):
     else:
       ls[:,4] = door_thickness
   walls = lines_2d_ls[0]
-  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(walls, obj_rep, gen_bbox=True, show_rooms=False)
+  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(walls, obj_rep, gen_bbox=True, show_rooms=0)
+  #rooms_line_ids = rooms_line_ids[2:3]
   walls_2cor = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p')
   floors = gen_floor_mesh_from_walls(walls_2cor, rooms_line_ids, 0)
 
@@ -821,7 +822,7 @@ def _show_2dlines_as_3d(lines_2d_ls, obj_rep, labels=None):
   colors = [obj_colors[l] for l in labels]
 
   bboxes = np.concatenate(lines_2d_ls, 0)
-  _show_3d_points_objs_ls(objs_ls = [bboxes, bboxes], obj_rep=obj_rep, obj_colors=[colors, 'black'], box_types=['surface_mesh','line_mesh'], polygons_ls=[floors], polygon_colors=['order'] )
+  _show_3d_points_objs_ls(objs_ls = [bboxes, bboxes], obj_rep=obj_rep, obj_colors=[colors, 'black'], box_types=['surface_mesh','line_mesh'], polygons_ls=[floors], polygon_colors=['random'] )
   import pdb; pdb.set_trace()  # XXX BREAKPOINT
   pass
 
@@ -830,10 +831,12 @@ def gen_floor_mesh_from_walls(lines, rooms_line_ids, z_bot):
   lines: RoLine2D_2p
   '''
   assert lines.shape[1] == 4
+  obj_rep = 'RoLine2D_2p'
   n = len(rooms_line_ids)
   rooms = []
   for i in range(n):
     ids = rooms_line_ids[i]
+    #_show_objs_ls_points_ls( (512,512), [lines, lines[ids]], obj_rep, obj_colors=['gray', 'red'] )
     cen = lines[ids].reshape(-1,2).mean(0).reshape(1,2)
     room_i = []
     for j in ids:

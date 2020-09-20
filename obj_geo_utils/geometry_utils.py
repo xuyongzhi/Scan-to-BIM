@@ -1137,7 +1137,10 @@ def draw_rooms_from_edges(edges, obj_rep, img_size=None, show=0):
   num_edge = edges.shape[0]
   room_ids_per_edge = np.zeros([num_edge, 2]) - 11
 
-def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
+def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False, orth_dis=15):
+  '''
+  orth_dis: For each edge, from the center, along the orth direciton, extend {orth_dis} to get the rooom id
+  '''
   from scipy import ndimage
   from tools.visual_utils import draw_1_obj
   from obj_geo_utils.obj_utils import OBJ_REPS_PARSE
@@ -1164,7 +1167,7 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
   room_ids_per_edge = np.zeros([num_edge, 2]) - 11
 
   orth_edges = edges.copy()
-  orth_edges[:,2] = 6
+  orth_edges[:,2] = orth_dis
   orth_edges[:,-1] = orth_edges[:,-1] - np.pi/2
   orth_corners = OBJ_REPS_PARSE.encode_obj(orth_edges, 'XYLgWsA', 'RoLine2D_2p').reshape(-1,2,2).astype(np.int32)
 
@@ -1174,6 +1177,7 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
     img_mask = ColorValuesNp[mask]
     img_mask[background] = 255
     mmcv.imshow(img_mask)
+    pass
 
   edge_ids_per_room = defaultdict(list)
   num_edges_inside_room = 0
@@ -1192,25 +1196,34 @@ def get_rooms_from_edges(edges, obj_rep, gen_bbox=False, show_rooms=False):
       edge_ids_per_room[room_2].append(i)
       room_ids_per_edge[i,1] = room_2
 
-    special = ''
+    if debug:
+      print(edge_ids_per_room)
+
+    edge_type = ''
+    if room_1 != room_2:
+      if room_1 * room_2 ==0:
+        edge_type = 'normal edge between a room and the background'
+      else:
+        edge_type = 'normal edge between two different rooms'
     if room_1 == room_2:
       if room_1 in room_labels:
-        special = 'inside'
+        edge_type = 'this edge is inside of a room'
         inside_edge_ids.append(i)
         num_edges_inside_room += 1
       else:
         non_loop_edge_ids.append(i)
-        special = 'non_loop'
+        edge_type = 'this edge belong to non_loop space, which is not a valid room'
 
-    if debug and False:
+    if debug and 1:
       cor_1 = img_mask[ y1, x1 ]
       cor_2 = img_mask[ y2, x2 ]
-      print(f'\nspecial: {special}')
+      print(f'\n\n{i}')
+      print(f'Edge type: {edge_type}')
       print(f'room: {room_1}, {room_2}')
       print(f'room: {cor_1}, {cor_2}')
       _show_objs_ls_points_ls( img_mask, [edges[[i]]], obj_rep='XYLgWsA',
           points_ls=[ orth_corners[i] ], obj_colors='red', point_colors='green',  point_thickness=5 )
-    pass
+      pass
 
   edge_ids_per_room_out = [edge_ids_per_room[i] for i in room_labels]
   edge_ids_per_room_out = [ ids for ids in edge_ids_per_room_out  if len(ids)>0]

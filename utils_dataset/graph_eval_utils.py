@@ -25,7 +25,7 @@ MAX_Draw_Num = 100
 
 DEBUG = []
 #DEBUG.append('_D_show_gt')
-DEBUG.append('_D_show_det_graph')
+#DEBUG.append('_D_show_det_graph')
 
 _scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
 _scene_list = ['OI2dE1xgN090iaEGc0BpEZ']
@@ -581,7 +581,6 @@ class GraphEval():
 
         if '_D_show_det_graph' in DEBUG:
               _show_2dlines_as_3d([det_lines_merged_ls[di][:,:-1] for di in [0, 2, 3]], obj_rep=self.obj_rep)
-              import pdb; pdb.set_trace()  # XXX BREAKPOINT
               _show_objs_ls_points_ls( img.shape[:2],  [det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
               pass
 
@@ -601,7 +600,6 @@ class GraphEval():
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], det_lines[:,:-1]], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
               _show_objs_ls_points_ls(img.shape[:2], [det_lines_merged[:,:-1], gt_lines_l], obj_colors=['green','red'], obj_rep=self.obj_rep, obj_thickness=[4,2])
 
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
             pass
         if i_img < MAX_Draw_Num:
           draw_eval_all_classes_1_scene(eval_draws_ls, self.obj_rep, self._draw_pts)

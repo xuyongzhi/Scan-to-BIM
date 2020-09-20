@@ -41,7 +41,16 @@ all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bbox
 
 # Training
 
+``` 
 ./run.sh
+``` 
+# Test
+
+``` 
+cd work_dirs/TrL18K_S_July3_PaperUsed/bTPV_r50_fpn_XYXYSin2_beike2d_wa_bs7_lr10_LsW510R2P1N1_Rfiou631_Fpn44_Pbs1_Bp32_Rel
+cp  _run.sh  /home/z/Research/mmdetection
+./_run.sh
+``` 
 
 # Show results
 ## shown gt pcl models
@@ -52,10 +61,12 @@ all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bbox
         In gen_gt_pcl_3d_models, show_3d=1
 ```
 
-## Evaluation
+## Evaluation on existing results
 ```
         cd ./utils_dataset
         python graph_eval_utils.py
 
+
+        edit 'dirs' in graph_eval_utils.py/main() to eval combined results of ['wall'] and['window', 'door']
 ```
 
