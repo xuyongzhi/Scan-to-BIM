@@ -793,26 +793,73 @@ def replace_1cor_of_edge_to_midify(edge, cor):
   return edge_new
 
 
-def _show_2dlines_as_3d(lines_2d_ls, obj_rep, labels=None):
+def _show_2dlines_as_3d(lines_2d_ls, obj_rep, filename, height_method=['same','per_room'][1]):
   '''
   lines_2d_ls: [walls, windows, doors]
   '''
   from obj_geo_utils.geometry_utils import get_rooms_from_edges
+  from beike_data_utils.beike_utils import load_ply
+
   assert obj_rep == 'XYZLgWsHA'
-  height = 50
-  wall_thickness = 2
-  door_thickness = 5
+  scene_name = os.path.splitext(os.path.basename(filename))[0]
+  print(f'{scene_name}')
+
+  m2p_file = '../'+filename.replace('TopView_VerD', 'meter_to_pix_rates').replace('npy','txt')
+  m2p_rate = np.loadtxt(m2p_file)
+
+  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(lines_2d_ls[0], obj_rep, gen_bbox=True, show_rooms=0)
+  num_room = len(rooms_line_ids)
+
+  scope_file = '../'+filename.replace('TopView_VerD', 'pcl_scopes').replace('npy','txt')
+  pcl_scope = np.loadtxt(scope_file)
+  max_height = pcl_scope[1,-1] - pcl_scope[0,-1]
+  bottom = pcl_scope[0,-1]
+  if height_method == 'same':
+    heights = [max_height for _ in range(num_room)]
+  elif height_method == 'per_room':
+    pcl_file = '../'+filename.replace('TopView_VerD', 'ply').replace('npy','ply')
+    pcl = load_ply(pcl_file)[:,:3]
+    ids = np.random.choice(int(pcl.shape[0]), 100*1000)
+    pcl = pcl[ids]
+
+    heights = []
+    for i in range(num_room):
+      rc = rooms[i:i+1,:2] / m2p_rate
+      rs = rooms[i,3:5].max() / m2p_rate
+      mask = np.linalg.norm( pcl[:,:2] - rc, axis=1)  < rs * 0.7
+      if mask.sum() < 100:
+        heights.append(max_height)
+        continue
+      r_points = pcl[mask]
+      height_i = r_points[:,2].max() - bottom
+      gap = (max_height - height_i)/ max_height
+      if gap < 0.1:
+        height_i = max_height
+      heights.append(height_i)
+      pass
+
+
+  wall_thickness = 0.1
+  door_thickness = 0.18
   for i,ls in enumerate( lines_2d_ls):
-    ls[:,5] = height
+    ls[:,:6] /= m2p_rate
     if i==0:
       ls[:,4] = wall_thickness
+      #ls[:,5] = max_height
     else:
       ls[:,4] = door_thickness
+      ls[:,5] = 1.5
+
+  for i in range(num_room):
+    ids = rooms_line_ids[i]
+    lines_2d_ls[0][ids, 5] = np.clip( lines_2d_ls[0][ids,5], a_min = heights[i], a_max=None)
+
+  lines_2d_ls[0][:,2] = lines_2d_ls[0][:,2] + (lines_2d_ls[0][:,5] - max_height)/2
+
   walls = lines_2d_ls[0]
-  rooms_line_ids, room_ids_per_edge, num_walls_inside_room, rooms = get_rooms_from_edges(walls, obj_rep, gen_bbox=True, show_rooms=0)
   #rooms_line_ids = rooms_line_ids[2:3]
   walls_2cor = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p')
-  floors = gen_floor_mesh_from_walls(walls_2cor, rooms_line_ids, 0)
+  floors = gen_floor_mesh_from_walls(walls_2cor, rooms_line_ids, bottom-0.1)
 
   labels = []
   cat_num = len(lines_2d_ls)
@@ -822,8 +869,7 @@ def _show_2dlines_as_3d(lines_2d_ls, obj_rep, labels=None):
   colors = [obj_colors[l] for l in labels]
 
   bboxes = np.concatenate(lines_2d_ls, 0)
-  _show_3d_points_objs_ls(objs_ls = [bboxes, bboxes], obj_rep=obj_rep, obj_colors=[colors, 'black'], box_types=['surface_mesh','line_mesh'], polygons_ls=[floors], polygon_colors=['random'] )
-  import pdb; pdb.set_trace()  # XXX BREAKPOINT
+  _show_3d_points_objs_ls(objs_ls = [bboxes, bboxes], obj_rep=obj_rep, obj_colors=[colors, 'black'], box_types=['surface_mesh','line_mesh'], polygons_ls=[floors], polygon_colors=['order'] )
   pass
 
 def gen_floor_mesh_from_walls(lines, rooms_line_ids, z_bot):

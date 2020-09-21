@@ -32,11 +32,10 @@ class Color_RGB(Enum):
     cyan  = (0,255,255)
     yellow= (255,255,0)
     magenta=(255,0,255)
-    maroon= (128,0,0)
+    #maroon= (128,0,0)
     purple= (128,0,128)
-    #navy  = (0,0,128)
+    navy  = (0,0,128)
     brown = (165, 42, 42)
-    blue  =	(0,0,255)
 
     olive = (128,128,0)
     #teal = (0,128,128)
@@ -49,6 +48,8 @@ class Color_RGB(Enum):
     chocolate =  (210,105,30)
     peru = (205,133,63)
     hot_pink = (255,105,180)
+
+    blue  =	(0,0,255)
 
     salmon=  (250,128,114)
     darksalmon = (233,150,122)
@@ -78,7 +79,7 @@ def _color(c, RGB=False):
     return (col[2], col[1], col[0])
 
 ColorList = [e.name for e in Color_RGB][:-4] * 20
-ColorValues = [_color(c, False) for c in ColorList]
+ColorValues = [_color(c, 1) for c in ColorList]
 ColorValuesNp = np.array(ColorValues).astype(np.uint8)
 NumColors = len(ColorList)
 
@@ -88,7 +89,7 @@ Colors_In_Black = ['']
 def get_order_color(i):
   #colors  = ['lime','green']*10
   #return _color(colors[i], False)
-  return ColorValues[i]
+  return ColorValues[i+3]
 
 def get_random_color():
   i = random.randint(0, len(ColorValues)-1)

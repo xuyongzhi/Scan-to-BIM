@@ -25,10 +25,13 @@ MAX_Draw_Num = 100
 
 DEBUG = []
 #DEBUG.append('_D_show_gt')
-#DEBUG.append('_D_show_det_graph')
+#DEBUG.append('_D_show_det_graph_2D')
+DEBUG.append('_D_show_det_graph_3D')
 
 _scene_list = ['Area_5/conferenceRoom_2', 'Area_5/hallway_2', 'Area_5/office_21', 'Area_5/office_39', 'Area_5/office_40', 'Area_5/office_41']
 _scene_list = ['OI2dE1xgN090iaEGc0BpEZ']
+_scene_list_Good_in_paper = ['1Kc4s2I4OuEriA-vURDlpH', '3Q92imFGVI1hZ5b0sDFFC3', '5pJn2a9zfRzInJ7IwpIzQd', '6rZTHkgA4fppApEyJjujeg', '7AbkTGB2HBQoCKPAGIHaio', '18H6WOCclkJY34-TVuOqX3', 'bXuAcmEeGjQgzZd1nSxHFD', 'LlljJo9Y5n4sMGbXZiIApj']
+_scene_list = _scene_list_Good_in_paper
 #_scene_list = None
 
 def change_result_rep(results, classes, obj_rep_pred, obj_rep_gt, obj_rep_out='XYZLgWsHA'):
@@ -579,8 +582,9 @@ class GraphEval():
             rooms_gt_dt_tp_rel = self.eval_rooms_with_rel(det_lines_merged_ls, gt_lines_ls, cat_ls, wall_ids_per_room, gt_relations_room_wall)
             rooms_gt_dt_tp_rel_ls.append( rooms_gt_dt_tp_rel )
 
-        if '_D_show_det_graph' in DEBUG:
-              _show_2dlines_as_3d([det_lines_merged_ls[di][:,:-1] for di in [0, 2, 3]], obj_rep=self.obj_rep)
+        if '_D_show_det_graph_3D' in DEBUG:
+              _show_2dlines_as_3d([det_lines_merged_ls[di][:,:-1] for di in [0, 2, 3]], obj_rep=self.obj_rep, filename=filename)
+        if '_D_show_det_graph_2D' in DEBUG:
               _show_objs_ls_points_ls( img.shape[:2],  [det_lines_merged_ls[0][:,:-1]], obj_rep=self.obj_rep)
               pass
 

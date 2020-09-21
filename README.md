@@ -72,8 +72,8 @@ cp  _run.sh  /home/z/Research/mmdetection
 ```
         cd ./utils_dataset
         python graph_eval_utils.py
-
-
-        edit 'dirs' in graph_eval_utils.py/main() to eval combined results of ['wall'] and['window', 'door']
 ```
+- edit 'dirs' in graph_eval_utils.py/main() to eval combined results of ['wall'] and['window', 'door']  
+- DEBUG.append('_D_show_gt') to show gts  
+- DEBUG.append('_D_show_det_graph_3D')  
 
