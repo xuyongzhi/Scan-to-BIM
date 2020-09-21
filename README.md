@@ -15,17 +15,21 @@ Or refer to [Detectron 2](https://github.com/facebookresearch/detectron2/blob/ma
 
 
 # Data generation
-1. make dir: mmdetection/data/beike
-2. 将已经merge好的 pcl 和　json 链接到:   
+- (1)  
+make dir: mmdetection/data/beike
+- (2)  
+将已经merge好的 pcl 和　json 链接到:   
         mmdetection/data/beike/data/ply  
         mmdetection/data/beike/data/json  
-3. 
+- (3) 
 ```
 cd mmdetection/beike_data_utils
 python data_preprocess.py
 
 在　data/beike/processed_512　中会生成一下文件：
 all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bboxes  test.txt  TopView_VerD  TopView_VerD_Imgs  train.txt
+```
+ Explanations:
 ```
 1. 配置　data_preprocess.py　中的　pool_num　可以设置多进程。 
 2. scene_start=0, max_scene_num = 100 控制处理的数据范围。预处理最开始会将所有的scene排序，把第scene_start到scene_start+max_scene_num 放到　all.txt。后续所有的操作都只针对all.txt中的scene进行。
@@ -37,6 +41,7 @@ all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bbox
 4. TopView_VerD_Imgs 和　relationImgs　仅用于验证生成效果，在训练是不需要。
 5. train.txt 和　test.txt 每次都会随机打乱更新。
 6. 如果某个scene 出错，应该是这个scene生成了　size 为0的文件，删掉后重跑应该可过。
+```
 
 
 # Training
@@ -44,6 +49,9 @@ all.txt  json  mean_std.txt  pcl_scopes  ply  relationImgs  relations  room_bbox
 ``` 
 ./run.sh
 ``` 
+- data loading configurations:  
+In configs/strpoints/bev_strpoints_r50_fpn_1x.py: data_root for path of the data, img_prefix_train and img_prefix_test the list of files to be loaded.  
+In order to only loading very few files, edit or replace img_prefix_test. 
 # Test
 
 ``` 
@@ -52,8 +60,7 @@ cp  _run.sh  /home/z/Research/mmdetection
 ./_run.sh
 ``` 
 
-# Show results
-## shown gt pcl models
+# shown gt pcl models
 ``` 
         cd ./beike_data_utils 
         python beike_utils.py
@@ -61,7 +68,7 @@ cp  _run.sh  /home/z/Research/mmdetection
         In gen_gt_pcl_3d_models, show_3d=1
 ```
 
-## Evaluation on existing results
+# Evaluation on existing results
 ```
         cd ./utils_dataset
         python graph_eval_utils.py

@@ -129,6 +129,7 @@ class BEIKE(BEIKE_CLSINFO):
             json_file = self.get_json_file(scene_name)
             tv_file = self.get_topview_file(scene_name)
             scope_file = self.get_scope_file(scene_name)
+            #m2p_file = self.get_meter2pix_file(scene_name)
             rel_file = self.get_relation_file(scene_name)
             valid = os.path.exists(json_file) and os.path.exists(tv_file) and os.path.exists(scope_file)
             if not valid:
@@ -159,6 +160,8 @@ class BEIKE(BEIKE_CLSINFO):
     def get_relation_file(self, scene_name):
         return os.path.join(self.data_dir, 'relations', scene_name + '.npy')
 
+    def get_meter2pix_file(self, scene_name):
+        return os.path.join(self.data_dir, 'meter_to_pix_rates', scene_name + '.txt')
     def show_summary(self, idx):
       img_info = self.img_infos[idx]
       anno = img_info['ann_raw']
@@ -412,6 +415,19 @@ class BEIKE(BEIKE_CLSINFO):
       else:
         self.show_anno_3d(idx, with_img, rotate_angle, lines_transfer)
 
+    def save_all_meter_2_pix_rates(self):
+      for i in range(len(self)):
+        sn = self.img_infos[i]['filename'].split('.')[0]
+        anno_img = self.load_1_anno(i)
+        meter_to_pixel_rate = anno_img['meter_to_pixel_rate']
+        meter_to_pixel_rate = np.array([meter_to_pixel_rate])
+        meter_2_pixel_file = self.get_meter2pix_file(sn)
+        m2p_dir = os.path.dirname(meter_2_pixel_file)
+        if not os.path.exists( m2p_dir ):
+          os.makedirs(m2p_dir)
+        np.savetxt(meter_2_pixel_file, meter_to_pixel_rate, fmt='%.3f')
+        print(f'save {meter_2_pixel_file}')
+        pass
 
     def find_unscanned_edges(self,):
       self.line_density_sum_mean_dir = self.anno_folder.replace('json', 'line_density_sum_mean')
@@ -548,6 +564,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     lines_norm = lines - min_xy[None, None, :]
     corners_norm = corners - min_xy[None, :]
 
+    meter_to_pixel_rate = img_size / max_range
     lines_pt = (lines_norm * img_size / max_range).astype(np.float32)
     mask_fail_0 = lines_pt < 0
     mask_fail_1 = lines_pt > img_size
@@ -561,6 +578,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
   if anno_style == 'voxelization':
     # in voxelization of pcl: coords = floor( position / voxel_size)
     lines_pt = (lines ) / voxel_size
+    meter_to_pixel_rate = 1.0 / voxel_size
     #lines_pt = np.clip(lines_pt, a_min=0, a_max=None)
 
   #assert lines_pt.min() >=  0, f'lines_pt min<0: {lines_pt.min()}'
@@ -600,7 +618,7 @@ def meter_2_pixel(anno_style, pixel_config, corners, lines, pcl_scope, floor=Fal
     _show_objs_ls_points_ls(img[:,:,1:4], objs_ls=[edges], obj_rep='RoLine2D_2p', obj_thickness=5)
     _show_objs_ls_points_ls(img[:,:,0], objs_ls=[edges[mask_good]], obj_rep='RoLine2D_2p', obj_thickness=5)
 
-  return corners_pt, lines_pt
+  return corners_pt, lines_pt, meter_to_pixel_rate
 
 def raw_anno_to_img(classes, room_label, obj_rep, anno_raw, anno_style, pixel_config, anno_folder):
       anno_img = {}
@@ -608,7 +626,7 @@ def raw_anno_to_img(classes, room_label, obj_rep, anno_raw, anno_style, pixel_co
       if 'voxel_size' in pixel_config:
         corners_pt, lines_pt = anno_raw['corners'], anno_raw['lines']
       else:
-        corners_pt, lines_pt = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
+        corners_pt, lines_pt, meter_to_pixel_rate = meter_2_pixel(anno_style, pixel_config, anno_raw['corners'], anno_raw['lines'],
                                            pcl_scope=anno_raw['pcl_scope'], scene=anno_raw['filename'])
       lines_pt_ordered = OBJ_REPS_PARSE.encode_obj(lines_pt.reshape(-1,4), 'RoLine2D_2p', obj_rep )
       line_sizes = np.linalg.norm(lines_pt_ordered[:,[2,3]] - lines_pt_ordered[:,[0,1]], axis=1)
@@ -625,6 +643,8 @@ def raw_anno_to_img(classes, room_label, obj_rep, anno_raw, anno_style, pixel_co
       anno_img['bboxes_ignore'] = np.empty([0,obj_dim], dtype=np.float32)
       anno_img['mask'] = []
       anno_img['seg_map'] = None
+      anno_img['meter_to_pixel_rate'] = meter_to_pixel_rate
+      anno_img['pcl_scope'] = anno_raw['pcl_scope']
       gt_bboxes = anno_img['gt_bboxes'][:,:4]
       assert gt_bboxes.max() < DIM_PARSE.IMAGE_SIZE
 
@@ -667,19 +687,6 @@ def load_topview_img(file_name):
     img = np.concatenate([img, normal_image], axis=2)
     return  img
 
-def unused_load_pcl_scope(anno_folder):
-    base_path = anno_folder.split('json')[0]
-    pcl_scopes_file = os.path.join(base_path, 'pcl_scopes.json')
-    with open(pcl_scopes_file, 'r') as f:
-      pcl_scopes = json.load(f)
-    for fid in pcl_scopes.keys():
-      pcl_scopes[fid] = np.array(pcl_scopes[fid])
-      # augment the scope a bit
-
-      #offset_aug = 0.1
-      #pcl_scopes[fid][0] = np.floor(pcl_scopes[fid][0] * 10)/10 - offset_aug
-      #pcl_scopes[fid][1] = np.ceil(pcl_scopes[fid][1] * 10)/10 + offset_aug
-    return pcl_scopes
 
 def get_line_valid_by_density(anno_folder, filename, line_ids_check, classes):
     line_density_dir = anno_folder.replace('json', 'line_density_sum_mean')
@@ -1112,27 +1119,6 @@ def _UnUsed_gen_images_from_npy(data_path):
 
   pass
 
-def Unused_get_scene_pcl_scopes(data_path):
-  pcl_scopes_file = os.path.join(data_path, 'pcl_scopes.json')
-  if os.path.exists(pcl_scopes_file):
-    return
-  ply_path = os.path.join(data_path, 'ply')
-  pcl_files = os.listdir(ply_path)
-  pcl_scopes = {}
-  for pclf in pcl_files:
-    pcl_file = os.path.join(ply_path, pclf)
-    scene_name = pclf.split('.')[0]
-    points_data = load_ply(pcl_file)
-    xyz_min = points_data[:,0:3].min(0, keepdims=True)
-    xyz_max = points_data[:,0:3].max(0, keepdims=True)
-    xyz_min_max = np.concatenate([xyz_min, xyz_max], 0)
-    pcl_scopes[scene_name] = xyz_min_max.tolist()
-    print(f'{scene_name}: \n{xyz_min_max}\n')
-
-  with open(pcl_scopes_file, 'w') as f:
-    json.dump(pcl_scopes, f)
-  print(f'save {pcl_scopes_file}')
-
 def load_ply(pcl_file):
     with open(pcl_file, 'rb') as f:
       plydata = PlyData.read(f)
@@ -1232,7 +1218,6 @@ def gen_images_from_npy(data_path):
 
 def gen_gts(data_path, show_3d=0):
   obj_rep = 'XYXYSin2'
-  #obj_rep = 'XYZLgWsHA'
   obj_rep = 'XYXYSin2WZ0Z1'
   ANNO_PATH = os.path.join(data_path, 'json/')
   phase = 'all.txt'
@@ -1256,6 +1241,8 @@ def gen_gts(data_path, show_3d=0):
       continue
     beike.show_scene_anno(s, True, rotate_angle, show_3d=show_3d)
     pass
+
+  beike.save_all_meter_2_pix_rates()
 
 
 def save_unscanned_edges(data_path):
@@ -1306,8 +1293,7 @@ def gen_connection_gt(pool_num=3):
   #save_unscanned_edges(data_path)
   cal_topview_npy_mean_std(data_path, base='TopView_VerD', normnorm_method='abs')
   gen_connections(data_path, pool_num)
-  gen_gts(data_path)
-
+  gen_gts(data_path, show_3d=0)
 
 def gen_gt_pcl_3d_models():
   cur_dir = os.path.dirname(os.path.realpath(__file__))
