@@ -800,6 +800,8 @@ def _show_2dlines_as_3d(lines_2d_ls, obj_rep, filename, height_method=['same','p
   from obj_geo_utils.geometry_utils import get_rooms_from_edges
   from beike_data_utils.beike_utils import load_ply
 
+  wall_idx, door_idx, win_idx = 0, 1, 2
+
   assert obj_rep == 'XYZLgWsHA'
   scene_name = os.path.splitext(os.path.basename(filename))[0]
   print(f'{scene_name}')
@@ -812,22 +814,29 @@ def _show_2dlines_as_3d(lines_2d_ls, obj_rep, filename, height_method=['same','p
 
   scope_file = '../'+filename.replace('TopView_VerD', 'pcl_scopes').replace('npy','txt')
   pcl_scope = np.loadtxt(scope_file)
-  max_height = pcl_scope[1,-1] - pcl_scope[0,-1]
-  bottom = pcl_scope[0,-1]
+  max_height = pcl_scope[1,-1] - pcl_scope[0,-1] - 0.3
+  max_height = min(max_height, 4)
+  #bottom = pcl_scope[0,-1]
+  bottom = - max_height/2 + 0.1
   if height_method == 'same':
     heights = [max_height for _ in range(num_room)]
   elif height_method == 'per_room':
     pcl_file = '../'+filename.replace('TopView_VerD', 'ply').replace('npy','ply')
     pcl = load_ply(pcl_file)[:,:3]
+    pcl_min = pcl.min(0).reshape(1,-1)
+    pcl = pcl - pcl_min
     ids = np.random.choice(int(pcl.shape[0]), 100*1000)
     pcl = pcl[ids]
 
     heights = []
+    point_nums = []
     for i in range(num_room):
       rc = rooms[i:i+1,:2] / m2p_rate
       rs = rooms[i,3:5].max() / m2p_rate
       mask = np.linalg.norm( pcl[:,:2] - rc, axis=1)  < rs * 0.7
-      if mask.sum() < 100:
+      p_n = mask.sum()
+      point_nums.append(p_n)
+      if p_n < 100:
         heights.append(max_height)
         continue
       r_points = pcl[mask]
@@ -839,27 +848,30 @@ def _show_2dlines_as_3d(lines_2d_ls, obj_rep, filename, height_method=['same','p
       pass
 
 
-  wall_thickness = 0.1
-  door_thickness = 0.18
+  wall_thickness = 0.2 # 0.24
+  door_thickness = 0.23
+  door_height = 2.1
+  window_height = 1.5
   for i,ls in enumerate( lines_2d_ls):
     ls[:,:6] /= m2p_rate
-    if i==0:
+    if i==wall_idx:
       ls[:,4] = wall_thickness
       #ls[:,5] = max_height
     else:
       ls[:,4] = door_thickness
-      ls[:,5] = 1.5
+      if i==door_idx:
+        ls[:,5] = door_height
+      if i==win_idx:
+        ls[:,5] = 1.5
 
   for i in range(num_room):
     ids = rooms_line_ids[i]
     lines_2d_ls[0][ids, 5] = np.clip( lines_2d_ls[0][ids,5], a_min = heights[i], a_max=None)
 
-  lines_2d_ls[0][:,2] = lines_2d_ls[0][:,2] + (lines_2d_ls[0][:,5] - max_height)/2
-
-  walls = lines_2d_ls[0]
-  #rooms_line_ids = rooms_line_ids[2:3]
-  walls_2cor = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p')
-  floors = gen_floor_mesh_from_walls(walls_2cor, rooms_line_ids, bottom-0.1)
+  lines_2d_ls[wall_idx][:,2] = lines_2d_ls[wall_idx][:,2] + (lines_2d_ls[wall_idx][:,5] - max_height)/2
+  lines_2d_ls[wall_idx][:,3] += wall_thickness * 0.8
+  lines_2d_ls[door_idx][:,2] = lines_2d_ls[door_idx][:,2] + (lines_2d_ls[door_idx][:,5] - max_height)/2
+  lines_2d_ls[win_idx][:,2] = lines_2d_ls[win_idx][:,5]/2 + 0.85 - max_height/2
 
   labels = []
   cat_num = len(lines_2d_ls)
@@ -868,7 +880,20 @@ def _show_2dlines_as_3d(lines_2d_ls, obj_rep, filename, height_method=['same','p
   obj_colors = ['gray', 'green', 'blue']
   colors = [obj_colors[l] for l in labels]
 
+  # flip
+  for ls in lines_2d_ls:
+    ls[:,1] *= -1
+    ls[:,-1] *= -1
   bboxes = np.concatenate(lines_2d_ls, 0)
+
+  walls = lines_2d_ls[0]
+  walls_2cor = OBJ_REPS_PARSE.encode_obj(walls, obj_rep, 'RoLine2D_2p')
+  floors = gen_floor_mesh_from_walls(walls_2cor, rooms_line_ids, bottom-0.1)
+
+  if 1:
+    print('point_nums', point_nums)
+    print('heights', heights)
+
   _show_3d_points_objs_ls(objs_ls = [bboxes, bboxes], obj_rep=obj_rep, obj_colors=[colors, 'black'], box_types=['surface_mesh','line_mesh'], polygons_ls=[floors], polygon_colors=['order'] )
   pass
 
